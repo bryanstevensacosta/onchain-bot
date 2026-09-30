@@ -64,6 +64,7 @@
     "coverageDirectory": "./coverage",
     "testEnvironment": "node",
     "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/src/$1",
       "^shared/(.*)$": "<rootDir>/src/shared/$1",
       "^threads/(.*)$": "<rootDir>/src/threads/$1",
       "^feed-threads/(.*)$": "<rootDir>/src/feed-threads/$1",

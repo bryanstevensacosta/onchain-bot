@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
 import type {
   RankingStrategy,
   RankingWeights,
-} from '../../domain/entities/publishing-template.entity';
-import { DEFAULT_RANKING_WEIGHTS } from '../../domain/entities/publishing-template.entity';
+} from '@/templates/domain/entities/publishing-template.entity';
+import { DEFAULT_RANKING_WEIGHTS } from '@/templates/domain/entities/publishing-template.entity';
 
 export interface RankableCall {
   readonly mentionId: string;

@@ -1,4 +1,4 @@
-import { DomainEvent } from '../../../shared/kernel/domain-event';
+import { DomainEvent } from '@/shared/kernel/domain-event';
 
 /**
  * Emitted when a template is created (seed or API).

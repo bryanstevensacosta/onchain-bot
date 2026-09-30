@@ -1,10 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Cron } from '@nestjs/schedule';
-import { ScoredCallRepository } from '../../../scoring/application/ports/scored-call.repository';
-import { TemplateRepository } from '../../domain/ports/template.repository';
-import { TelegramBotRepository } from '../../domain/ports/telegram-bot.repository';
-import type { PublishingTemplate } from '../../domain/entities/publishing-template.entity';
+import { ScoredCallRepository } from '@/scoring/application/ports/scored-call.repository';
+import { TemplateRepository } from '@/templates/domain/ports/template.repository';
+import { TelegramBotRepository } from '@/templates/domain/ports/telegram-bot.repository';
+import type { PublishingTemplate } from '@/templates/domain/entities/publishing-template.entity';
 import { RankingEngine, type RankedCall } from './ranking-engine.service';
 
 export interface TemplateProcessResult {

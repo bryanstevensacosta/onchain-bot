@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource, Repository } from 'typeorm';
 import { TypeOrmSlotArbitrator } from '../typeorm-slot-arbitrator';
-import { PublisherSlotStateEntity } from '../../entities/publisher-slot-state.entity';
+import { PublisherSlotStateEntity } from '@/telegram/shared/infrastructure/persistence/typeorm/entities/publisher-slot-state.entity';
 
 describe('TypeOrmSlotArbitrator', () => {
   let arbitrator: TypeOrmSlotArbitrator;

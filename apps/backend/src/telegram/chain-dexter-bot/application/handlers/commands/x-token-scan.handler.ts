@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import type { CommandContext, CommandHandler } from '../command-handler';
-import { InlineKeyboardBuilder } from '../../../infrastructure/telegram/inline-keyboard.builder';
-import { MessageFormatterAdapter } from '../../../infrastructure/telegram/message-formatter.adapter';
-import { TelegramBotClient } from '../../../infrastructure/telegram/bot-client';
-import { TradeButtonRegistry } from '../../../infrastructure/telegram/trade-button-registry';
+import { InlineKeyboardBuilder } from '@/telegram/chain-dexter-bot/infrastructure/telegram/inline-keyboard.builder';
+import { MessageFormatterAdapter } from '@/telegram/chain-dexter-bot/infrastructure/telegram/message-formatter.adapter';
+import { TelegramBotClient } from '@/telegram/chain-dexter-bot/infrastructure/telegram/bot-client';
+import { TradeButtonRegistry } from '@/telegram/chain-dexter-bot/infrastructure/telegram/trade-button-registry';
 import { TokenScanPipeline } from '../token-scan.pipeline';
 import { ResolvedToken } from '../resolved-token';
 

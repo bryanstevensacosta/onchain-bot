@@ -1,4 +1,4 @@
-import { MentionSnapshot } from '../../domain/entities/mention-snapshot.entity';
+import { MentionSnapshot } from '@/snapshot/domain/entities/mention-snapshot.entity';
 import { InMemoryMentionSnapshotRepository } from './in-memory-mention-snapshot.repository';
 
 const BASE = {

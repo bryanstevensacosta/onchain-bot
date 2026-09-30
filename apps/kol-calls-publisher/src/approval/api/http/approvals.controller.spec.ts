@@ -2,10 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import request from 'supertest';
-import { ApprovalModule } from '../../approval.module';
-import { ScoredCallRepository } from '../../../scoring/application/ports/scored-call.repository';
-import { ScoredCall } from '../../../scoring/domain/entities/scored-call.entity';
-import { Score } from '../../../scoring/domain/value-objects/score.vo';
+import { ApprovalModule } from '@/approval/approval.module';
+import { ScoredCallRepository } from '@/scoring/application/ports/scored-call.repository';
+import { ScoredCall } from '@/scoring/domain/entities/scored-call.entity';
+import { Score } from '@/scoring/domain/value-objects/score.vo';
 
 describe('ApprovalsController (todo 11, failing-first)', () => {
   let app: INestApplication;

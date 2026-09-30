@@ -1,4 +1,4 @@
-import type { KolSource } from '../../../domain/ports/ingestion-client.port';
+import type { KolSource } from '@/ingestion/domain/ports/ingestion-client.port';
 
 /**
  * Raw KOL source row as served by `GET /api/feed/sources?type=kol`.

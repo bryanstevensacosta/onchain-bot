@@ -3,7 +3,7 @@ import {
   TelegramPublisherPort,
   type SendMessageInput,
   type SendResult,
-} from '../../domain/ports/telegram-publisher.port';
+} from '@/telegram/domain/ports/telegram-publisher.port';
 
 /**
  * Multi-bot Bot API publisher (first C-SHARED-01 move, Tramo 1 todo 11).

@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { DomainError } from '../../../shared/kernel/domain-error';
-import { ExtractionCandidate } from '../../../extraction/domain/entities/extraction-candidate.entity';
-import { ParsedCall } from '../../domain/entities/parsed-call.entity';
-import { ParserPort } from '../../domain/ports/parser.port';
+import { DomainError } from '@/shared/kernel/domain-error';
+import { ExtractionCandidate } from '@/extraction/domain/entities/extraction-candidate.entity';
+import { ParsedCall } from '@/parsing/domain/entities/parsed-call.entity';
+import { ParserPort } from '@/parsing/domain/ports/parser.port';
 import { ParsedCallRepository } from '../ports/parsed-call.repository';
 
 export interface ParseFromCandidatesInput {

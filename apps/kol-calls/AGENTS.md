@@ -985,7 +985,7 @@ exported, unwired until composite health — gap 3).
 | `INGESTION_TELEGRAM_URL`        | `http://localhost:3031`                                      | OWN ingestion per env (dev `:3031`, staging `:3033`, prod `:3032`)                                                                                                                                                                             |
 | `INGESTION_TELEGRAM_API_KEY`    | (empty — copy from owning ingestion `INGESTION_API_KEY`)     | upstream key, sent as `x-api-key` on SSE + feed reads (backend-mirror; empty = keyless)                                                                                                                                                        |
 | `ENCRYPTION_KEY`                | ``(empty — generate`openssl rand -hex 32`, NEVER commit)     | Tier-1 required, DISTINCT per env (P24)                                                                                                                                                                                                        |
-| `DATABASE_URL`                  | `postgres://…@localhost:5432/onchain_bot_kol_calls`          | Tier-1 required; logical DB owned by kol-calls                                                                                                                                                                                                 |
+| `DATABASE_URL`                  | `postgres://…@localhost:5432/kol_calls_db`                   | Tier-1 required; logical DB owned by kol-calls                                                                                                                                                                                                 |
 | `REDIS_URL`                     | `redis://localhost:6379/0`                                   | optional-with-warning (falls back to in-memory)                                                                                                                                                                                                |
 | `KOL_CALLS_PORT`                | `3050`                                                       | dev default                                                                                                                                                                                                                                    |
 | `KOL_CALLS_API_KEY`             | (absent from example — guard reads it, fail-open when empty) | optional-with-warning                                                                                                                                                                                                                          |
@@ -1028,7 +1028,7 @@ P51 (2026-09-26): the publisher takes NEW ports 3060/61/62 and shared
 the SAME logical DB initially (`onchain_bot_kol_system[_staging]`) — split done 2026-09-28: dev DBs are now `onchain_bot_kol_calls` + `onchain_bot_kol_calls_publisher` on the single dev postgres `:5432` (staging/prod still shared until split).
 
 Local `docker-compose.yml`: postgres `5435:5432` (db
-`onchain_bot_kol_system`), redis `6382:6379`. No clash with
+`kol_calls_db`), redis `6382:6379`. No clash with
 backend (`:3030/:5432/:6379`) or ingestion (`:3031/:3032/:3033`).
 DB naming follows `onchain_bot_<app>` per env for NEW apps (contract C-DB-01):
 `onchain_bot_kol_calls` (dev, consolidated 2026-09-28; legacy standalone compose still `onchain_bot_kol_system`).
@@ -1109,8 +1109,8 @@ exit 2 + NO-cutover path over) + `rollback-rehearsal.sh` (timed 0.0min,
   `isolatedModules` — mirroring the backend `tsconfig.base.json` set
   (`strict` NOT enabled globally). Backend uses `nodenext`; this app follows
   the same NestJS layout.
-- Path aliases (`package.json` jest `moduleNameMapper`, `tsconfig.json`):
-  `@/*` (= `src/*`, for 2+-level imports; 2026-09-27 migration),
+- Path aliases (`tsconfig.json` `paths` + jest `moduleNameMapper` in `package.json` (unit) and `test/jest-e2e.json` (e2e)):
+  `@/*` (= `src/*`, for 2+-level imports; 2026-09-27 migration, wired in tsconfig + both jest configs),
   `shared/*`, `telegram/*`, `src/*` rooted at `src/`.
 - ESLint (flat config, backend-mirror): `@typescript-eslint/no-explicit-any`
   off, `require-await` off, `no-floating-promises`/`no-unsafe-*` warn,

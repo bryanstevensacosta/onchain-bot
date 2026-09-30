@@ -1,5 +1,5 @@
-import { ValueObject } from '../../../shared/kernel/value-object';
-import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
+import { ValueObject } from '@/shared/kernel/value-object';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
 
 export type ScoreTierValue = 'STRONG' | 'DECENT' | 'NEUTRAL' | 'RISKY' | 'AVOID';
 

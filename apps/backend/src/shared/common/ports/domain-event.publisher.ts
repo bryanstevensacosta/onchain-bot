@@ -1,4 +1,4 @@
-import { DomainEvent } from '../../kernel/domain-event';
+import { DomainEvent } from '@/shared/kernel/domain-event';
 
 /**
  * Outbound port: publishing of domain events to downstream BCs.

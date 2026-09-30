@@ -8,7 +8,7 @@ export interface DatabaseConfig {
 
 /**
  * Database config (C-DB-01): own logical database
- * `onchain_bot_scheduling[_staging]` on the shared Postgres server
+ * `scheduling_posts_db[_staging]` on the shared Postgres server
  * (dev :5442). `synchronize` stays false outside dev/test.
  */
 export function buildDatabaseConfig(
@@ -17,7 +17,7 @@ export function buildDatabaseConfig(
   return {
     url:
       env.DATABASE_URL ??
-      'postgres://onchain_bot:onchain_bot@localhost:5442/onchain_bot_scheduling',
+      'postgres://onchain_bot:onchain_bot@localhost:5432/scheduling_posts_db',
     synchronize: (env.DATABASE_SYNCHRONIZE ?? 'false').toLowerCase() === 'true',
     logging: (env.DATABASE_LOGGING ?? 'false').toLowerCase() === 'true',
   };

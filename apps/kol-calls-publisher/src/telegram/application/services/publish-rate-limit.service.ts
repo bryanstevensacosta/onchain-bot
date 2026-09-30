@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
 
 const WINDOW_MS = 60_000;
 

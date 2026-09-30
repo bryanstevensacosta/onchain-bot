@@ -11,6 +11,9 @@ import {
 } from './shared/infrastructure/config/database.config';
 import { SnapshotHistoryEntity } from './snapshot/infrastructure/snapshot-history.entity';
 import { CreateSnapshotHistory1772000000000 } from './snapshot/infrastructure/migrations/1772000000000-CreateSnapshotHistory';
+import { AssetRegistryEntity } from './asset-registry/infrastructure/asset-registry.entity';
+import { CreateAssetRegistry1773000000000 } from './asset-registry/infrastructure/migrations/1773000000000-CreateAssetRegistry';
+import { AssetRegistryModule } from './asset-registry/asset-registry.module';
 import { TokenModule } from './token/token.module';
 import { AddressModule } from './address/address.module';
 import { SnapshotModule } from './snapshot/snapshot.module';
@@ -58,8 +61,8 @@ import { appConfig } from './shared/infrastructure/config/app.config';
                 url: database.url,
                 synchronize: database.synchronize,
                 migrationsRun: false,
-                entities: [SnapshotHistoryEntity],
-                migrations: [CreateSnapshotHistory1772000000000],
+                entities: [SnapshotHistoryEntity, AssetRegistryEntity],
+                migrations: [CreateSnapshotHistory1772000000000, CreateAssetRegistry1773000000000],
               };
             },
           }),
@@ -69,6 +72,7 @@ import { appConfig } from './shared/infrastructure/config/app.config';
     AddressModule,
     SnapshotModule,
     AggregatorsModule,
+    AssetRegistryModule,
     ProvidersModule,
     ChainModule,
     ChainLogoModule,

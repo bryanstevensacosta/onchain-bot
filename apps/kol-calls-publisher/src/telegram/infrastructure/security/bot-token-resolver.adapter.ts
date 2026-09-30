@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
-import { BotTokenResolverPort } from '../../domain/ports/bot-token-resolver.port';
-import { TelegramBotRepository } from '../../../templates/domain/ports/telegram-bot.repository';
-import { EncryptionService } from '../../../templates/infrastructure/security/encryption.service';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
+import { BotTokenResolverPort } from '@/telegram/domain/ports/bot-token-resolver.port';
+import { TelegramBotRepository } from '@/templates/domain/ports/telegram-bot.repository';
+import { EncryptionService } from '@/templates/infrastructure/security/encryption.service';
 
 /**
  * Catalog token resolver (P23): decrypts the `telegram_bots` ciphertext

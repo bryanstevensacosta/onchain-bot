@@ -1,6 +1,6 @@
 import { ScoreTokenUseCase } from './score-token.use-case';
 import { evaluateScoreGates } from './score-gates';
-import { InMemoryScoredCallRepository } from '../../infrastructure/repositories/in-memory-scored-call.repository';
+import { InMemoryScoredCallRepository } from '@/scoring/infrastructure/repositories/in-memory-scored-call.repository';
 
 const EVM_ADDR = '0x1234567890abcdef1234567890abcdef12345678';
 const SOL_ADDR = 'So11111111111111111111111111111111111111112';

@@ -8,12 +8,12 @@ import { ConfigService } from '@nestjs/config';
 import {
   KolIngestedMessage,
   KolIngestionClientPort,
-} from '../../domain/ports/ingestion-client.port';
+} from '@/ingestion/domain/ports/ingestion-client.port';
 import { ProcessKolMessageHandler } from '../handlers/process-kol-message.handler';
 import {
   isKolFrame,
-} from '../../infrastructure/http/dto/raw-kol-message.dto';
-import { DEFAULT_INGESTION_BASE_URL } from '../../infrastructure/http/ingestion-http-client.adapter';
+} from '@/ingestion/infrastructure/http/dto/raw-kol-message.dto';
+import { DEFAULT_INGESTION_BASE_URL } from '@/ingestion/infrastructure/http/ingestion-http-client.adapter';
 
 const STREAM_PATH = '/api/ingestion/stream';
 const CATCH_UP_LIMIT = 50;

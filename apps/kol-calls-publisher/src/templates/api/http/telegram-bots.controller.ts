@@ -9,19 +9,19 @@ import {
   UseFilters,
   UseGuards,
 } from '@nestjs/common';
-import { DomainExceptionFilter } from '../../../shared/filters/domain-exception.filter';
-import { ApiKeyGuard } from '../../../shared/guards/api-key.guard';
-import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
-import { TelegramBotRepository } from '../../domain/ports/telegram-bot.repository';
-import { CreateTelegramBotUseCase } from '../../application/use-cases/create-telegram-bot.use-case';
+import { DomainExceptionFilter } from '@/shared/filters/domain-exception.filter';
+import { ApiKeyGuard } from '@/shared/guards/api-key.guard';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
+import { TelegramBotRepository } from '@/templates/domain/ports/telegram-bot.repository';
+import { CreateTelegramBotUseCase } from '@/templates/application/use-cases/create-telegram-bot.use-case';
 import {
   GetTelegramBotUseCase,
   ListTelegramBotsUseCase,
-} from '../../application/use-cases/list-telegram-bots.use-case';
+} from '@/templates/application/use-cases/list-telegram-bots.use-case';
 import {
   DeleteTelegramBotUseCase,
   UpdateTelegramBotUseCase,
-} from '../../application/use-cases/update-telegram-bot.use-case';
+} from '@/templates/application/use-cases/update-telegram-bot.use-case';
 import { CreateBotDto, UpdateBotDto } from './dto/template.dto';
 
 /**

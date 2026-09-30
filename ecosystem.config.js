@@ -7,20 +7,23 @@
 // instead of Docker. DB/Redis targets below are the HOST-mapped C-DB-01
 // endpoints from docker-compose.dev.yml (service names translated to
 // localhost:<host-port>). Start the infra first, e.g.:
-//   docker compose -f docker-compose.dev.yml up -d pg-backend redis-backend \
-//     pg-kol redis-kol pg-feed redis-feed pg-gateway pg-market redis-market \
-//     pg-dexter redis-dexter pg-scheduling redis-scheduling pg-aiml redis-aiml \
-//     pg-threads redis-threads
-// (Kol-calls-publisher SHARES kol-calls' DB — P51, no own postgres.
-//  Ingestion shares the backend postgres, DB onchain_bot_ingestion —
+//   docker compose -f docker-compose.dev.yml up -d pg redis-backend \
+//     redis-kol redis-feed redis-market \
+//     redis-dexter redis-scheduling redis-aiml \
+//     redis-threads
+// (Single postgres `pg` on host :5432 holds one DB per app — consolidated
+//  2026-09-28; kol-calls-publisher has its OWN DB since the split.
+//  Ingestion shares the single postgres, DB ingestion_telegram_db —
 //  create once: see DEV-LOCAL.md step 3.)
 //
 // SECRETS: ALL values below are DUMMIES. Never put real tokens/keys here.
 //   - Backend provider keys (CoinGecko/Alchemy/Helius/...) are DUMMY/empty:
 //     enrichment degrades to nulls, publishers fail 401 without posting.
-//   - Ingestion MTProto triple is DUMMY: listener connect fails/retries,
-//     HTTP API + SSE still serve. The REAL triple lives ONLY in
-//     apps/ingestion-telegram/.env (gitignored) and MUST NOT be referenced.
+//   - Ingestion MTProto triple is NOT set here (it lives ONLY in
+//     apps/ingestion-telegram/.env): pm2 env would shadow the real triple
+//     (real ENV wins over env files) and break kind auto-resolution.
+//     Without a .env triple the listener idles fail-soft;
+//     HTTP API + SSE still serve.
 //   - ENCRYPTION_KEY values are the documented dev dummies from each app's
 //     .env.development / docker-compose.dev.yml.
 //
@@ -93,7 +96,7 @@ module.exports = {
     // backend :3030 — NestJS alpha-call pipeline (legacy monolith core).
     // DB-less boot: DATABASE_ENABLED=false (default) skips TypeORM; set the
     // POSTGRES_* block + DATABASE_ENABLED=true for a DB-backed boot
-    // (DB onchain_bot must exist on pg-backend first).
+    // (DB backend_db must exist on the single pg first).
     app('backend', 'backend', 'run start:dev', {
       PORT: 3030,
       DATABASE_ENABLED: 'false',
@@ -103,7 +106,7 @@ module.exports = {
       // POSTGRES_PORT: 5432,
       // POSTGRES_USER: 'onchain_bot',
       // POSTGRES_PASSWORD: 'onchain_bot',
-      // POSTGRES_DB: 'onchain_bot',
+      // POSTGRES_DB: 'backend_db',
       // DATABASE_SYNCHRONIZE: 'true',
       // DATABASE_LOGGING: 'false',
       REDIS_HOST: 'localhost',
@@ -119,21 +122,20 @@ module.exports = {
     }),
 
     // ingestion-telegram :3031 — MTProto listener + SSE fan-out.
-    // Shares backend postgres (DB onchain_bot_ingestion, CREATE DATABASE once).
-    // API_ID '0' disables the MTProto listener (adapter skips when falsy)
-    // so HTTP API + SSE still serve. A truthy dummy would crash boot:
-    // GramJS StringSession throws synchronously in onModuleInit.
+    // Shares backend postgres (DB ingestion_telegram_db, CREATE DATABASE once).
+    // MTProto triple (API_ID/HASH/SESSION) comes ONLY from
+    // apps/ingestion-telegram/.env (gitignored) — pm2 MUST NOT inject these
+    // keys (real ENV wins over env files, so pm2 dummies would shadow the
+    // real triple and break kind auto-resolution with
+    // "Telegram MTProto not configured"). Without a .env triple the service
+    // still boots fail-soft (listener idles, HTTP API + SSE stay live).
     app('ingestion-telegram', 'ingestion-telegram', 'run start:dev', {
       INGESTION_PORT: 3031,
-      INGESTION_TELEGRAM_MTPROTO_API_ID: '0',
-      INGESTION_TELEGRAM_MTPROTO_API_HASH:
-        'dev-dummy-hash-0000000000000000000000',
-      INGESTION_TELEGRAM_MTPROTO_SESSION: 'dev-dummy-session',
       INGESTION_TELEGRAM_MTPROTO_LOG_LEVEL: 'error',
       DATABASE_ENABLED: 'true',
       INGESTION_DATABASE_HOST: 'localhost',
       INGESTION_DATABASE_PORT: 5432,
-      INGESTION_DATABASE_NAME: 'onchain_bot_ingestion',
+      INGESTION_DATABASE_NAME: 'ingestion_telegram_db',
       INGESTION_DATABASE_USER: 'onchain_bot',
       INGESTION_DATABASE_PASSWORD: 'onchain_bot',
       INGESTION_REDIS_HOST: 'localhost',
@@ -145,7 +147,7 @@ module.exports = {
       KOL_CALLS_ENABLED: 'true',
       KOL_CALLS_PORT: 3050,
       DATABASE_URL:
-        'postgres://onchain_bot:onchain_bot@localhost:5435/onchain_bot_kol_system',
+        'postgres://onchain_bot:onchain_bot@localhost:5432/kol_calls_db',
       REDIS_URL: 'redis://localhost:6379/1',
       DATABASE_SYNCHRONIZE: 'true',
       ENCRYPTION_KEY:
@@ -157,12 +159,12 @@ module.exports = {
       KOL_PUBLISH_MODE: 'dual',
     }),
 
-    // kol-calls-publisher :3060 — VIP publishing worker (SHARES kol-calls DB).
+    // kol-calls-publisher :3060 — VIP publishing worker (OWN DB since split 2026-09-28).
     app('kol-calls-publisher', 'kol-calls-publisher', 'run start:dev', {
       KOL_CALLS_PUBLISHER_ENABLED: 'true',
       KOL_CALLS_PUBLISHER_PORT: 3060,
       DATABASE_URL:
-        'postgres://onchain_bot:onchain_bot@localhost:5435/onchain_bot_kol_system',
+        'postgres://onchain_bot:onchain_bot@localhost:5432/kol_calls_publisher_db',
       REDIS_URL: 'redis://localhost:6379/2',
       DATABASE_SYNCHRONIZE: 'true',
       ENCRYPTION_KEY:
@@ -178,7 +180,7 @@ module.exports = {
     app('feed-publisher', 'feed-publisher', 'run start:dev', {
       FEED_PUBLISHER_PORT: 3040,
       DATABASE_URL:
-        'postgres://onchain_bot:onchain_bot@localhost:5436/onchain_bot_feed_publisher',
+        'postgres://onchain_bot:onchain_bot@localhost:5432/feed_publisher_db',
       REDIS_URL: 'redis://localhost:6379/3',
       DATABASE_SYNCHRONIZE: 'true',
       ENCRYPTION_KEY:
@@ -192,7 +194,7 @@ module.exports = {
     app('market-data', 'market-data', 'run start:dev', {
       MARKET_DATA_PORT: 4000,
       DATABASE_URL:
-        'postgres://onchain_bot:onchain_bot@localhost:5438/onchain_bot_market_data',
+        'postgres://onchain_bot:onchain_bot@localhost:5432/market_data_db',
       REDIS_URL: 'redis://localhost:6379/4',
       DATABASE_SYNCHRONIZE: 'true',
       ENCRYPTION_KEY:
@@ -203,18 +205,17 @@ module.exports = {
     app('dexter', 'dexter-onchain-bot', 'run start:dev', {
       DEXTER_PORT: 4060,
       DATABASE_URL:
-        'postgres://onchain_bot:onchain_bot@localhost:5440/onchain_bot_dexter',
+        'postgres://onchain_bot:onchain_bot@localhost:5432/dexter_db',
       REDIS_URL: 'redis://localhost:6379/5',
       DATABASE_SYNCHRONIZE: 'true',
       ENCRYPTION_KEY:
         'dev-dummy-encryption-key-00000000000000000000000000000000',
     }),
 
-    // gateway :4070 — telegram-bots-gateway (own pg, host :5437 in central
-    // compose — NOT :5436, which collides with feed-publisher's pg).
+    // gateway :4070 — telegram-bots-gateway (single dev pg :5432, user onchain_bot).
     app('gateway', 'telegram-bots-gateway', 'run start:dev', {
       BOTS_GATEWAY_PORT: 4070,
-      DATABASE_URL: 'postgres://postgres:postgres@localhost:5437/onchain_bot_bots',
+      DATABASE_URL: 'postgres://onchain_bot:onchain_bot@localhost:5432/telegram_bots_db',
       DATABASE_SYNCHRONIZE: 'true',
       ENCRYPTION_KEY:
         '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
@@ -225,7 +226,7 @@ module.exports = {
       SCHEDULING_POSTS_ENABLED: 'true',
       SCHEDULING_POSTS_PORT: 4080,
       DATABASE_URL:
-        'postgres://onchain_bot:onchain_bot@localhost:5442/onchain_bot_scheduling',
+        'postgres://onchain_bot:onchain_bot@localhost:5432/scheduling_posts_db',
       REDIS_URL: 'redis://localhost:6379/6',
       DATABASE_SYNCHRONIZE: 'true',
       ENCRYPTION_KEY:
@@ -237,7 +238,7 @@ module.exports = {
     app('threads-publisher', 'threads-publisher', 'run start:dev', {
       THREADS_PUBLISHER_PORT: 4100,
       DATABASE_URL:
-        'postgres://onchain_bot:onchain_bot@localhost:5446/onchain_bot_threads',
+        'postgres://onchain_bot:onchain_bot@localhost:5432/threads_publisher_db',
       REDIS_URL: 'redis://localhost:6379/8',
       DATABASE_SYNCHRONIZE: 'true',
       ENCRYPTION_KEY:
@@ -249,7 +250,7 @@ module.exports = {
     app('ai-ml', 'ai-ml', 'run start:dev', {
       AI_ML_PORT: 4090,
       DATABASE_URL:
-        'postgres://onchain_bot:onchain_bot@localhost:5444/onchain_bot_ai_ml',
+        'postgres://onchain_bot:onchain_bot@localhost:5432/ai_ml_db',
       REDIS_URL: 'redis://localhost:6379/7',
       DATABASE_SYNCHRONIZE: 'true',
       ENCRYPTION_KEY:

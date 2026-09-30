@@ -1,10 +1,10 @@
 import { ConfigService } from '@nestjs/config';
-import { MockLlmAdapter } from '../../infrastructure/llm/mock-llm.adapter';
-import { InMemoryLlmConfigRepository } from '../../infrastructure/persistence/in-memory/in-memory-llm-config.repository';
-import { UsageAuditService } from '../../application/usage-audit.service';
-import { GenerateTextUseCase } from '../../application/use-cases/generate-text.use-case';
-import { GetLlmModelsUseCase } from '../../application/use-cases/get-llm-models.use-case';
-import { GetPipelineFlagsUseCase } from '../../application/use-cases/get-pipeline-flags.use-case';
+import { MockLlmAdapter } from '@/llm/infrastructure/llm/mock-llm.adapter';
+import { InMemoryLlmConfigRepository } from '@/llm/infrastructure/persistence/in-memory/in-memory-llm-config.repository';
+import { UsageAuditService } from '@/llm/application/usage-audit.service';
+import { GenerateTextUseCase } from '@/llm/application/use-cases/generate-text.use-case';
+import { GetLlmModelsUseCase } from '@/llm/application/use-cases/get-llm-models.use-case';
+import { GetPipelineFlagsUseCase } from '@/llm/application/use-cases/get-pipeline-flags.use-case';
 import { LlmController } from './llm.controller';
 
 const buildController = (): LlmController => {

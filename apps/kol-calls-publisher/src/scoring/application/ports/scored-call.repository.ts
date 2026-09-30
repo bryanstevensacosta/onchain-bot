@@ -1,4 +1,4 @@
-import type { ScoredCall } from '../../domain/entities/scored-call.entity';
+import type { ScoredCall } from '@/scoring/domain/entities/scored-call.entity';
 
 /**
  * Persistence port for scored mentions (same kol-system DB; in-memory

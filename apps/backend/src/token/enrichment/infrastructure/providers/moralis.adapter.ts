@@ -4,7 +4,7 @@ import {
   MarketData,
   MarketDataProviderPort,
 } from 'token/enrichment/domain/ports/market-data-provider.port';
-import { MoralisService } from 'data-provider/moralis/moralis.service';
+import { MoralisService } from '../../../../../../market-data/src/provider/infrastructure/moralis/moralis.service';
 
 const CHAIN_MAP: Record<string, string> = {
   ethereum: 'eth',

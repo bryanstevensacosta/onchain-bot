@@ -1,7 +1,7 @@
 import { Column, CreateDateColumn, Entity, PrimaryColumn } from 'typeorm';
 
 /**
- * `bot_vault` table (own logical DB `onchain_bot_bots[_staging]`).
+ * `bot_vault` table (own logical DB `telegram_bots_db[_staging]`).
  * Token stored ONLY as AES-256-GCM ciphertext — never plaintext.
  */
 @Entity('bot_vault')

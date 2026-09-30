@@ -1,9 +1,9 @@
 import { ConfigService } from '@nestjs/config';
-import { InMemoryTelegramBotRepository } from '../../../templates/infrastructure/repositories/in-memory-telegram-bot.repository';
-import { TelegramBot } from '../../../templates/domain/entities/telegram-bot.entity';
-import { EncryptionService } from '../../../templates/infrastructure/security/encryption.service';
-import { GatewayHmacSigner } from '../../infrastructure/gateway/gateway-hmac-signer.service';
-import { GatewayBotMappingService } from '../../infrastructure/gateway/gateway-bot-mapping.service';
+import { InMemoryTelegramBotRepository } from '@/templates/infrastructure/repositories/in-memory-telegram-bot.repository';
+import { TelegramBot } from '@/templates/domain/entities/telegram-bot.entity';
+import { EncryptionService } from '@/templates/infrastructure/security/encryption.service';
+import { GatewayHmacSigner } from '@/telegram/infrastructure/gateway/gateway-hmac-signer.service';
+import { GatewayBotMappingService } from '@/telegram/infrastructure/gateway/gateway-bot-mapping.service';
 import { MigrateBotsToGatewayUseCase } from './migrate-bots-to-gateway.use-case';
 
 function configStub() {

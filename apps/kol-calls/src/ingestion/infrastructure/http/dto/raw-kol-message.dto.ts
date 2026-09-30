@@ -1,4 +1,4 @@
-import type { KolIngestedMessage } from '../../../domain/ports/ingestion-client.port';
+import type { KolIngestedMessage } from '@/ingestion/domain/ports/ingestion-client.port';
 
 /**
  * Raw KOL message row as served by `GET /api/feed/messages?type=kol`.

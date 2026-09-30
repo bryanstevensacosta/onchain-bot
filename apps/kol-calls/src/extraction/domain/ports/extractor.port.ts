@@ -1,4 +1,4 @@
-import { NormalizedAddress } from '../../../shared/value-objects/normalized-address.vo';
+import { NormalizedAddress } from '@/shared/value-objects/normalized-address.vo';
 import { Ticker } from '../value-objects/ticker.vo';
 import { Url } from '../value-objects/url.vo';
 

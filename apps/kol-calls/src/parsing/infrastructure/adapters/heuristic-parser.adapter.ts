@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ParsedFields, ParserInput, ParserPort } from '../../domain/ports/parser.port';
+import { ParsedFields, ParserInput, ParserPort } from '@/parsing/domain/ports/parser.port';
 
 /**
  * Heuristic parser adapter (v1).

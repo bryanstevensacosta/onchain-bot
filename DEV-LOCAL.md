@@ -7,7 +7,7 @@
 
 - Docker Desktop (or Docker Engine) running, ~8 GB RAM free for the full stack.
 - Ports free: `3030 3031 3040 3050 3060 4000 4060 4070 4080 4090 4100 5173 8080`
-  - DB ports `5432 5435 5436 5437 5438 5440 5442 5444 5446`
+  - DB port `5432` (single postgres, one DB per app — consolidated 2026-09-28)
   - Redis ports `6379 6382 6383 6385 6387 6389 6391 6393`.
 - Standard host dev (`npm run dev` on :3030/:5173, `npm run dev:ingestion` on :3031)
   must be STOPPED first — same ports.
@@ -29,42 +29,46 @@ EOF
 # 2) Boot everything (first run builds 11 images + frontend npm ci; ~5-10 min)
 docker compose -f docker-compose.dev.yml up --build -d
 
-# 3) Ingestion DB lives on the shared backend postgres — create it once
-#    (volume persists; skip on later boots):
-docker exec onchain-dev-pg-backend psql -U onchain_bot -d onchain_bot \
-  -c 'CREATE DATABASE onchain_bot_ingestion;'
+# 3) Create the per-app DBs once (volume persists; skip on later boots).
+#    The single pg starts with `backend_db`; the rest are created here
+#    (`DATABASE_SYNCHRONIZE=true` creates TABLES, not databases):
+for db in ingestion_telegram_db kol_calls_db kol_calls_publisher_db feed_publisher_db market_data_db dexter_db telegram_bots_db scheduling_posts_db ai_ml_db threads_publisher_db; do
+  docker exec onchain-dev-pg psql -U onchain_bot -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$db'" | grep -q 1 || \
+  docker exec onchain-dev-pg psql -U onchain_bot -d postgres -c "CREATE DATABASE $db OWNER onchain_bot";
+done
 
 # 4) Follow the boot, then check health:
 docker compose -f docker-compose.dev.yml logs -f backend ingestion
 curl -s http://localhost:3030/api/health && echo
 ```
 
-Partial boot (lighter): `docker compose -f docker-compose.dev.yml up -d pg-backend redis-backend backend ingestion frontend dozzle`
+Partial boot (lighter): `docker compose -f docker-compose.dev.yml up -d pg redis-backend backend ingestion frontend dozzle`
 
 ## 2. URLs (app → port → health)
 
-| App                   | URL                   | Health        | DB (host port)                                          |
-| --------------------- | --------------------- | ------------- | ------------------------------------------------------- |
-| backend               | http://localhost:3030 | `/api/health` | pg `5432` / redis `6379`                                |
-| ingestion-telegram    | http://localhost:3031 | `/api/health` | shares backend pg (`onchain_bot_ingestion`, see step 3) |
-| feed-publisher        | http://localhost:3040 | `/api/health` | pg `5436` / redis `6383`                                |
-| kol-calls             | http://localhost:3050 | `/api/health` | pg `5435` / redis `6382`                                |
-| kol-calls-publisher   | http://localhost:3060 | `/api/health` | SHARES kol-calls DB (P51)                               |
-| market-data           | http://localhost:4000 | `/api/health` | pg `5438` / redis `6385`                                |
-| dexter-onchain-bot    | http://localhost:4060 | `/api/health` | pg `5440` / redis `6387`                                |
-| telegram-bots-gateway | http://localhost:4070 | `/api/health` | pg `5437` (see note)                                    |
-| scheduling-posts      | http://localhost:4080 | `/api/health` | pg `5442` / redis `6389`                                |
-| ai-ml                 | http://localhost:4090 | `/api/health` | pg `5444` / redis `6391`                                |
-| threads-publisher     | http://localhost:4100 | `/api/health` | pg `5446` / redis `6393`                                |
-| frontend (vite)       | http://localhost:5173 | `/` (200)     | —                                                       |
-| Dozzle (logs UI)      | http://localhost:8080 | —             | —                                                       |
+| App                   | URL                   | Health        | DB (single pg `:5432`)                      |
+| --------------------- | --------------------- | ------------- | ------------------------------------------- |
+| backend               | http://localhost:3030 | `/api/health` | `backend_db` / redis `6379`                 |
+| ingestion-telegram    | http://localhost:3031 | `/api/health` | `ingestion_telegram_db` (see step 3)        |
+| feed-publisher        | http://localhost:3040 | `/api/health` | `feed_publisher_db` / redis `6383`          |
+| kol-calls             | http://localhost:3050 | `/api/health` | `kol_calls_db` / redis `6382`               |
+| kol-calls-publisher   | http://localhost:3060 | `/api/health` | `kol_calls_publisher_db` (split 2026-09-28) |
+| market-data           | http://localhost:4000 | `/api/health` | `market_data_db` / redis `6385`             |
+| dexter-onchain-bot    | http://localhost:4060 | `/api/health` | `dexter_db` / redis `6387`                  |
+| telegram-bots-gateway | http://localhost:4070 | `/api/health` | `telegram_bots_db` (user `onchain_bot`)     |
+| scheduling-posts      | http://localhost:4080 | `/api/health` | `scheduling_posts_db` / redis `6389`        |
+| ai-ml                 | http://localhost:4090 | `/api/health` | `ai_ml_db` / redis `6391`                   |
+| threads-publisher     | http://localhost:4100 | `/api/health` | `threads_publisher_db` / redis `6393`       |
+| frontend (vite)       | http://localhost:5173 | `/` (200)     | —                                           |
+| Dozzle (logs UI)      | http://localhost:8080 | —             | —                                           |
 
 Notes:
 
 - Dexter dev is `:4060` and threads dev is `:4100` (verified in `main.ts` +
   Dockerfiles). `:4061`/`:4101` are the STAGING host ports (C-PORTS-01), not dev.
-- Gateway postgres is on host `:5437`: its own per-app compose used `:5436`,
-  which collides with feed-publisher pg `:5436`. Container port unchanged.
+- Single postgres `:5432` (service `pg`, container `onchain-dev-pg`) holds one DB
+  per app — consolidated 2026-09-28 (was one pg container per app on
+  `:5435`-`:5446`). Per-app standalone composes keep their own pg ports.
 - Service-to-service URLs inside the network use compose names
   (`http://ingestion:3031`, `http://market-data:4000`, `http://gateway:4070`,
   `http://kol-calls:3050`) — already wired in the compose `environment:`.
@@ -112,21 +116,22 @@ real tokens/keys in it (same rule as §1: real MTProto triple lives ONLY in
 `apps/ingestion-telegram/.env`, never referenced).
 
 Prerequisites: Node 22+, `npm i -g pm2`, and the C-DB-01 infra running
-(per-app DB/Redis containers from `docker-compose.dev.yml` — the `env:` blocks
-in `ecosystem.config.js` target the HOST-mapped ports, e.g. kol-calls pg
-`localhost:5435`, NOT the compose service names):
+(single pg + per-app redis containers from `docker-compose.dev.yml` — the `env:` blocks
+in `ecosystem.config.js` target the HOST-mapped ports, e.g. kol-calls DB
+`localhost:5432/kol_calls_db`, NOT the compose service names):
 
 ```bash
 # 1) Infra only (no app containers):
-docker compose -f docker-compose.dev.yml up -d pg-backend redis-backend \
-  pg-kol redis-kol pg-feed redis-feed pg-gateway pg-market redis-market \
-  pg-dexter redis-dexter pg-scheduling redis-scheduling pg-aiml redis-aiml \
-  pg-threads redis-threads
+docker compose -f docker-compose.dev.yml up -d pg redis-backend \
+  redis-kol redis-feed redis-market \
+  redis-dexter redis-scheduling redis-aiml \
+  redis-threads
 
-# 2) Ingestion DB lives on the shared backend postgres — create it once
-#    (same as §1 step 3):
-docker exec onchain-dev-pg-backend psql -U onchain_bot -d onchain_bot \
-  -c 'CREATE DATABASE onchain_bot_ingestion;'
+# 2) Per-app DBs — create once (same as §1 step 3):
+for db in ingestion_telegram_db kol_calls_db kol_calls_publisher_db feed_publisher_db market_data_db dexter_db telegram_bots_db scheduling_posts_db ai_ml_db threads_publisher_db; do
+  docker exec onchain-dev-pg psql -U onchain_bot -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$db'" | grep -q 1 || \
+  docker exec onchain-dev-pg psql -U onchain_bot -d postgres -c "CREATE DATABASE $db OWNER onchain_bot";
+done
 ```
 
 Lifecycle:
@@ -152,7 +157,7 @@ Notes:
   each app's `cwd`, verified 2026-09-27).
 - Backend boots DB-less by default (`DATABASE_ENABLED=false`); for a DB-backed
   boot, uncomment the `POSTGRES_*` block in `ecosystem.config.js` (DB
-  `onchain_bot` must exist first). New apps expect their C-DB-01 DBs to exist
+  `backend_db` must exist first). New apps expect their C-DB-01 DBs to exist
   (`DATABASE_SYNCHRONIZE=true` creates TABLES, not databases).
 - Either Docker (§1) or pm2 — NEVER both: same host ports. Stop one stack
   fully before starting the other.

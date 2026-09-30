@@ -1,4 +1,4 @@
-import { DomainError } from '../../../shared/kernel/domain-error';
+import { DomainError } from '@/shared/kernel/domain-error';
 import { RankingEngine, type RankableCall } from './ranking-engine.service';
 
 function call(

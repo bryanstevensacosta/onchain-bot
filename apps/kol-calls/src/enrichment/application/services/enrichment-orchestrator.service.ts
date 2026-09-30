@@ -1,11 +1,11 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { MARKET_DATA_PROVIDERS } from '../../enrichment.tokens';
+import { MARKET_DATA_PROVIDERS } from '@/enrichment/enrichment.tokens';
 import {
   MarketData,
   MarketDataPort,
-} from '../../domain/ports/market-data.port';
-import { SnapshotWriterPort } from '../../domain/ports/snapshot-writer.port';
-import { MentionSnapshot } from '../../../snapshot/domain/entities/mention-snapshot.entity';
+} from '@/enrichment/domain/ports/market-data.port';
+import { SnapshotWriterPort } from '@/enrichment/domain/ports/snapshot-writer.port';
+import { MentionSnapshot } from '@/snapshot/domain/entities/mention-snapshot.entity';
 
 export interface EnrichMentionInput {
   readonly mentionId: string;

@@ -3,10 +3,10 @@ import {
   MarketData,
   MarketDataPort,
   emptyMarketData,
-} from '../../../enrichment/domain/ports/market-data.port';
-import { MentionSnapshot } from '../../../snapshot/domain/entities/mention-snapshot.entity';
-import { SnapshotWriterPort } from '../../../enrichment/domain/ports/snapshot-writer.port';
-import { InMemoryMentionSnapshotRepository } from '../../../snapshot/infrastructure/repositories/in-memory-mention-snapshot.repository';
+} from '@/enrichment/domain/ports/market-data.port';
+import { MentionSnapshot } from '@/snapshot/domain/entities/mention-snapshot.entity';
+import { SnapshotWriterPort } from '@/enrichment/domain/ports/snapshot-writer.port';
+import { InMemoryMentionSnapshotRepository } from '@/snapshot/infrastructure/repositories/in-memory-mention-snapshot.repository';
 import { EnrichmentOrchestratorService } from './enrichment-orchestrator.service';
 
 const OCCURRED_AT = new Date('2026-09-25T12:00:00.000Z');

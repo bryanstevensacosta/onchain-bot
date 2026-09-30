@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import {
   EmbeddingPort,
   type EmbeddingProviderName,
-} from '../../domain/ports/embedding.port';
+} from '@/embeddings/domain/ports/embedding.port';
 
 /**
  * Mock embeddings (USE_MOCK_AI=true): deterministic 64-dim unit vector

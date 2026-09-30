@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { PublishingJobRepository } from '../../application/ports/publishing-job.repository';
-import type { PublishingJob } from '../../domain/entities/publishing-job.entity';
+import { PublishingJobRepository } from '@/telegram/application/ports/publishing-job.repository';
+import type { PublishingJob } from '@/telegram/domain/entities/publishing-job.entity';
 
 /** In-memory job store, newest first on reads. */
 @Injectable()

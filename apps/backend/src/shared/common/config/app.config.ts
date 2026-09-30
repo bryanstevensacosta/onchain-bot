@@ -560,7 +560,7 @@ export const appConfig = registerAs(
       port: parseInt(process.env.POSTGRES_PORT ?? '5432', 10),
       username: process.env.POSTGRES_USER ?? 'onchain_bot',
       password: process.env.POSTGRES_PASSWORD ?? 'onchain_bot',
-      database: process.env.POSTGRES_DB ?? 'onchain_bot',
+      database: process.env.POSTGRES_DB ?? 'backend_db',
       synchronize:
         (process.env.DATABASE_SYNCHRONIZE ?? 'true').toLowerCase() === 'true',
       logging:

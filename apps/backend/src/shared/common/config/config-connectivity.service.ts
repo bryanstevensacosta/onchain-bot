@@ -86,6 +86,12 @@ export class ConfigConnectivityService implements OnApplicationBootstrap {
     }
   }
 
+  /**
+   * @deprecated Bot health moves to the telegram-bots-gateway per-bot health
+   * (todo 7): `GET /api/bots/:id/profile` (gateway-owned `getMe`). This
+   * direct `api.telegram.org/bot<token>/getMe` check stays until the global
+   * cutover deletes it. Do not extend.
+   */
   private async checkTelegramBot(
     key: 'vipCalls' | 'cryptoNews' | 'chainDexterBot' = 'vipCalls',
   ): Promise<void> {

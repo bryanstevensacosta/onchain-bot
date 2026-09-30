@@ -4,7 +4,7 @@ import {
   MarketData,
   MarketDataProviderPort,
 } from 'token/enrichment/domain/ports/market-data-provider.port';
-import { CoinMarketCapService } from 'data-provider/coinmarketcap/coinmarketcap.service';
+import { CoinMarketCapService } from '../../../../../../market-data/src/provider/infrastructure/coinmarketcap/coinmarketcap.service';
 
 /**
  * Thin wrapper that delegates to `CoinMarketCapService`.

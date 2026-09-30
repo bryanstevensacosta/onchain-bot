@@ -4,7 +4,7 @@ import {
   KolIngestedMessage,
   KolIngestionClientPort,
   KolSource,
-} from '../../domain/ports/ingestion-client.port';
+} from '@/ingestion/domain/ports/ingestion-client.port';
 import {
   RawKolSourceDto,
   toKolSource,

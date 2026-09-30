@@ -169,7 +169,7 @@ Your next move: approve — listo para $start-work Tramo 2 tras Gate T1. Full ex
       Acceptance criteria: matriz 401/403/bloqueo verde + suites verdes
       QA scenarios: happy legítimo; failure exploit → 403 + audit. Evidence .omo/evidence/task-14-mega-refactor-content-publisher.log
       Commit: Y | feat(feed-publisher): auth anti-exploit con ownership
-- [ ] 15. Deprecación total crypto-news en frontend (barrido JSDoc)
+- [x] 15. Deprecación total crypto-news en frontend (barrido JSDoc)
       What to do / Must NOT do: tras el rename de ruta a /feed: @deprecated con nueva ruta en TODA ref restante crypto-news/crypto_news (clases, archivos, código, constantes, comentarios) + instrucciones claras (qué usar en su lugar + borrado en cutover T2-11). Tests verdes (sin cambios de comportamiento).
       Parallelization: Wave 4 | Blocked by: 9 (rename ruta) | Blocks: 11
       References: apps/frontend/src/ (grep crypto-news|crypto_news)

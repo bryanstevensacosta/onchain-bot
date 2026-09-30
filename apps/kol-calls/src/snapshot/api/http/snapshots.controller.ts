@@ -7,10 +7,10 @@ import {
   UseFilters,
   UseGuards,
 } from '@nestjs/common';
-import { DomainExceptionFilter } from '../../../shared/filters/domain-exception.filter';
-import { ApiKeyGuard } from '../../../shared/guards/api-key.guard';
-import { MentionSnapshotRepository } from '../../application/ports/mention-snapshot.repository';
-import type { MentionSnapshot } from '../../domain/entities/mention-snapshot.entity';
+import { DomainExceptionFilter } from '@/shared/filters/domain-exception.filter';
+import { ApiKeyGuard } from '@/shared/guards/api-key.guard';
+import { MentionSnapshotRepository } from '@/snapshot/application/ports/mention-snapshot.repository';
+import type { MentionSnapshot } from '@/snapshot/domain/entities/mention-snapshot.entity';
 import { SnapshotsQueryDto } from './dto/snapshots-query.dto';
 
 function toJson(snapshot: MentionSnapshot): Record<string, unknown> {

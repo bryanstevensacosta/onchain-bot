@@ -5,7 +5,7 @@ import {
   LlmPort,
   type LlmGenerateRequest,
   type LlmProviderName,
-} from '../../application/ports/llm.port';
+} from '@/llm/application/ports/llm.port';
 
 /**
  * LLM gateway adapter (DEFAULT provider): OpenAI-compatible gateway

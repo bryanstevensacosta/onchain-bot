@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
-import { TemplateRepository } from '../../domain/ports/template.repository';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
+import { TemplateRepository } from '@/templates/domain/ports/template.repository';
 import {
   PublishingTemplate,
   type CreatePublishingTemplateInput,
-} from '../../domain/entities/publishing-template.entity';
+} from '@/templates/domain/entities/publishing-template.entity';
 
 /**
  * Creates a template (dashboard-only unless a bot is assigned later via

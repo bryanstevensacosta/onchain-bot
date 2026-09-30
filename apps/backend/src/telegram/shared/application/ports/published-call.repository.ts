@@ -1,5 +1,5 @@
 import { ChainId } from 'chain/identity/chain-id.vo';
-import { PublishedCall } from '../../domain/entities/published-call.entity';
+import { PublishedCall } from '@/telegram/shared/domain/entities/published-call.entity';
 
 export interface ReservePayload {
   readonly chain: ChainId;

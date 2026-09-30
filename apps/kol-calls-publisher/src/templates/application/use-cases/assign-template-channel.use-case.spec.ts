@@ -1,8 +1,8 @@
-import { InMemoryTemplateRepository } from '../../infrastructure/repositories/in-memory-template.repository';
-import { InMemoryTelegramBotRepository } from '../../infrastructure/repositories/in-memory-telegram-bot.repository';
-import { PublishingTemplate } from '../../domain/entities/publishing-template.entity';
-import { TelegramBot } from '../../domain/entities/telegram-bot.entity';
-import { EncryptionService } from '../../infrastructure/security/encryption.service';
+import { InMemoryTemplateRepository } from '@/templates/infrastructure/repositories/in-memory-template.repository';
+import { InMemoryTelegramBotRepository } from '@/templates/infrastructure/repositories/in-memory-telegram-bot.repository';
+import { PublishingTemplate } from '@/templates/domain/entities/publishing-template.entity';
+import { TelegramBot } from '@/templates/domain/entities/telegram-bot.entity';
+import { EncryptionService } from '@/templates/infrastructure/security/encryption.service';
 import { AssignTemplateChannelUseCase } from './assign-template-channel.use-case';
 
 describe('AssignTemplateChannelUseCase admin verification (P23-bis, failing-first)', () => {

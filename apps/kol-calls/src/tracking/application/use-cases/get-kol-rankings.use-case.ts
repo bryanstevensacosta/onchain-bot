@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
 import type {
   KolWindowStat,
   RankingWindow,
-} from '../../domain/entities/kol-window-stat.entity';
-import { RANKING_WINDOWS } from '../../domain/entities/kol-window-stat.entity';
+} from '@/tracking/domain/entities/kol-window-stat.entity';
+import { RANKING_WINDOWS } from '@/tracking/domain/entities/kol-window-stat.entity';
 import { KolWindowStatRepository } from '../ports/kol-window-stat.repository';
 
 export type RankingsSort = 'perf_desc' | 'perf_asc' | 'calls_desc';

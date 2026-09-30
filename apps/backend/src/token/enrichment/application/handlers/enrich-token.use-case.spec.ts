@@ -4,8 +4,8 @@ import { EnrichmentEventPublisher } from '../ports/enrichment-event.publisher';
 import {
   MarketData,
   MarketDataProviderPort,
-} from '../../domain/ports/market-data-provider.port';
-import { TokenSnapshot } from '../../domain/entities/token-snapshot.entity';
+} from '@/token/enrichment/domain/ports/market-data-provider.port';
+import { TokenSnapshot } from '@/token/enrichment/domain/entities/token-snapshot.entity';
 import { ChainId } from 'chain/identity/chain-id.vo';
 import { Chain } from 'chain/registry/domain/entities/chain.entity';
 import {

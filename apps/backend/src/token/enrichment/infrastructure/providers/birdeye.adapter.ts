@@ -4,7 +4,7 @@ import {
   MarketData,
   MarketDataProviderPort,
 } from 'token/enrichment/domain/ports/market-data-provider.port';
-import { BirdeyeService } from 'data-provider/birdeye/birdeye.service';
+import { BirdeyeService } from '../../../../../../market-data/src/provider/infrastructure/birdeye/birdeye.service';
 
 /**
  * Thin wrapper that delegates to `BirdeyeService`.

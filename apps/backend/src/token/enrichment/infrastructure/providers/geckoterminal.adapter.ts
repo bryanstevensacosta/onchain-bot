@@ -8,7 +8,7 @@ import {
   MarketData,
   MarketDataProviderPort,
 } from 'token/enrichment/domain/ports/market-data-provider.port';
-import { GeckoTerminalService } from 'data-provider/geckoterminal/geckoterminal.service';
+import { GeckoTerminalService } from '../../../../../../market-data/src/provider/infrastructure/geckoterminal/geckoterminal.service';
 
 /**
  * Thin wrapper that delegates to `GeckoTerminalService.getTokenInfo`.

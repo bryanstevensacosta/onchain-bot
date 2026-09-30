@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import { HttpService } from '@nestjs/axios';
-import { TokenScanService } from '../../application/token-scan.service';
+import { TokenScanService } from '@/telegram/chain-dexter-bot/application/token-scan.service';
 import { MessageFormatterAdapter } from './message-formatter.adapter';
 
 interface AppConfigShape {

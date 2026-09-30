@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { DomainError } from '../../../shared/kernel/domain-error';
-import { DomainEvent } from '../../../shared/kernel/domain-event';
-import { ParsedCall } from '../../../parsing/domain/entities/parsed-call.entity';
-import { NormalizedMention } from '../../domain/entities/normalized-mention.entity';
+import { DomainError } from '@/shared/kernel/domain-error';
+import { DomainEvent } from '@/shared/kernel/domain-event';
+import { ParsedCall } from '@/parsing/domain/entities/parsed-call.entity';
+import { NormalizedMention } from '@/normalization/domain/entities/normalized-mention.entity';
 import { NormalizedMentionRepository } from '../ports/normalized-mention.repository';
 
 export interface NormalizeCallInput {

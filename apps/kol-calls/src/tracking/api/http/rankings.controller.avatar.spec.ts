@@ -1,8 +1,8 @@
 import { RankingsController } from './rankings.controller';
-import { GetKolRankingsUseCase } from '../../application/use-cases/get-kol-rankings.use-case';
-import { KolWindowStatRepository } from '../../application/ports/kol-window-stat.repository';
-import { InMemoryKolWindowStatRepository } from '../../infrastructure/repositories/in-memory-kol-window-stat.repository';
-import { KolWindowStat } from '../../domain/entities/kol-window-stat.entity';
+import { GetKolRankingsUseCase } from '@/tracking/application/use-cases/get-kol-rankings.use-case';
+import { KolWindowStatRepository } from '@/tracking/application/ports/kol-window-stat.repository';
+import { InMemoryKolWindowStatRepository } from '@/tracking/infrastructure/repositories/in-memory-kol-window-stat.repository';
+import { KolWindowStat } from '@/tracking/domain/entities/kol-window-stat.entity';
 
 function makeUseCase(): {
   useCase: GetKolRankingsUseCase;

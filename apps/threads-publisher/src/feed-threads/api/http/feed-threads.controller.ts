@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
-import { FeedThread } from '../../domain/feed-thread.entity';
+import { FeedThread } from '@/feed-threads/domain/feed-thread.entity';
 
 /**
  * Feed threads controller (v2 un-stubbed here: in-memory CRUD).

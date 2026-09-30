@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { TemplateRepository } from '../../domain/ports/template.repository';
-import { PublishingTemplate } from '../../domain/entities/publishing-template.entity';
+import { TemplateRepository } from '@/templates/domain/ports/template.repository';
+import { PublishingTemplate } from '@/templates/domain/entities/publishing-template.entity';
 
 /**
  * Seeds the default template NAMED `vip-calls` (P14 — a datum, not a

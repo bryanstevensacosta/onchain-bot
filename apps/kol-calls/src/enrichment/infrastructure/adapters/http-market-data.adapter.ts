@@ -2,11 +2,11 @@ import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import {
   MARKET_DATA_BASE_URL,
   MARKET_DATA_TIMEOUT_MS,
-} from '../../enrichment.tokens';
+} from '@/enrichment/enrichment.tokens';
 import {
   MarketData,
   MarketDataPort,
-} from '../../domain/ports/market-data.port';
+} from '@/enrichment/domain/ports/market-data.port';
 
 /** Default per-request timeout. SLO: p95 < 500ms once market-data is live (Tramo 3). */
 export const HTTP_MARKET_DATA_DEFAULT_TIMEOUT_MS = 2000;

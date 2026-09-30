@@ -1,6 +1,6 @@
 import { ScoreTokenUseCase } from './score-token.use-case';
-import { DEFAULT_SCORING_CONFIG } from '../../domain/scoring-config';
-import { InMemoryScoredCallRepository } from '../../infrastructure/repositories/in-memory-scored-call.repository';
+import { DEFAULT_SCORING_CONFIG } from '@/scoring/domain/scoring-config';
+import { InMemoryScoredCallRepository } from '@/scoring/infrastructure/repositories/in-memory-scored-call.repository';
 
 const EVM_ADDR = '0x1234567890abcdef1234567890abcdef12345678';
 

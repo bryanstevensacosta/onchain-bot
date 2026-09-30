@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import { HttpService } from '@nestjs/axios';
-import { ChainDexterBotConfigService } from '../../bot.config';
+import { ChainDexterBotConfigService } from '@/telegram/chain-dexter-bot/bot.config';
 
 /**
  * @deprecated Bot API client moves to dexter-onchain-bot via the

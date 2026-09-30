@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import {
   AchievementThresholdRepository,
   AchievementThresholdRecord,
-} from '../../application/ports/achievement-threshold.repository';
+} from '@/token/achievement/application/ports/achievement-threshold.repository';
 
 @Injectable()
 export class InMemoryAchievementThresholdRepository extends AchievementThresholdRepository {

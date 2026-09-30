@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { ParsedCall } from '../../domain/entities/parsed-call.entity';
-import { ParsedCallRepository } from '../../application/ports/parsed-call.repository';
+import { ParsedCall } from '@/parsing/domain/entities/parsed-call.entity';
+import { ParsedCallRepository } from '@/parsing/application/ports/parsed-call.repository';
 
 /**
  * In-memory ParsedCall store.

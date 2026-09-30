@@ -5,7 +5,7 @@ import {
   LlmPort,
   type LlmGenerateRequest,
   type LlmProviderName,
-} from '../../application/ports/llm.port';
+} from '@/llm/application/ports/llm.port';
 
 /**
  * OpenAI direct adapter: `chat.completions` against api.openai.com

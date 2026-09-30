@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import type { PromptContentType, PromptTemplate } from '../../../domain/prompt-template';
+import type { PromptContentType, PromptTemplate } from '@/prompts/domain/prompt-template';
 import {
   DuplicateTemplateError,
   PromptTemplateRepository,
   TemplateVersionNotFoundError,
   type CreatePromptRecord,
-} from '../../../domain/ports/prompt-template.repository';
+} from '@/prompts/domain/ports/prompt-template.repository';
 
 /**
  * In-memory versioned catalog (ai-ml, todo 1 — live binding).

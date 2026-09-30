@@ -4,9 +4,9 @@ import {
   type TargetDispatchInput,
   type TargetDispatchResult,
 } from '../ports/target-dispatcher.port';
-import { BotsGatewaySenderPort } from '../../../telegram/domain/ports/bots-gateway-sender.port';
-import { GatewayBotMappingService } from '../../../telegram/infrastructure/gateway/gateway-bot-mapping.service';
-import { ThreadsPublisherHttpClient } from '../../infrastructure/threads/threads-publisher-http-client';
+import { BotsGatewaySenderPort } from '@/telegram/domain/ports/bots-gateway-sender.port';
+import { GatewayBotMappingService } from '@/telegram/infrastructure/gateway/gateway-bot-mapping.service';
+import { ThreadsPublisherHttpClient } from '@/target/infrastructure/threads/threads-publisher-http-client';
 
 /**
  * Unified target dispatcher (threads-publisher plan Fase 2 todo 10,

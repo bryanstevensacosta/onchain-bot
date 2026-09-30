@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { TokenScanResult } from '../../application/token-scan.service';
+import { TokenScanResult } from '@/telegram/chain-dexter-bot/application/token-scan.service';
 
 export interface FormattedTokenMessage {
   readonly text: string;

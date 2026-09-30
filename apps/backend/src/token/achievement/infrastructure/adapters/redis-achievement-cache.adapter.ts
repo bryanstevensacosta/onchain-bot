@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { RedisService } from 'shared/common/cache/redis.service';
-import { AchievementCachePort } from '../../application/ports/achievement-cache.port';
+import { AchievementCachePort } from '@/token/achievement/application/ports/achievement-cache.port';
 
 @Injectable()
 export class RedisAchievementCacheAdapter extends AchievementCachePort {

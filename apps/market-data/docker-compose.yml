@@ -8,14 +8,13 @@ services:
     environment:
       POSTGRES_USER: onchain_bot
       POSTGRES_PASSWORD: onchain_bot
-      POSTGRES_DB: onchain_bot_market_data
+      POSTGRES_DB: market_data_db
     ports:
       - '5438:5432'
     volumes:
       - market-data-postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test:
-        ['CMD-SHELL', 'pg_isready -U onchain_bot -d onchain_bot_market_data']
+      test: ['CMD-SHELL', 'pg_isready -U onchain_bot -d market_data_db']
       interval: 10s
       timeout: 5s
       retries: 5

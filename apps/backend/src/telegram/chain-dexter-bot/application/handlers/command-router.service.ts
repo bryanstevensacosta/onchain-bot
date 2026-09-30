@@ -13,10 +13,10 @@ import { SettingsViewHandler } from './commands/settings-view.handler';
 import {
   TelegramBotClient,
   TelegramUpdate,
-} from '../../infrastructure/telegram/bot-client';
+} from '@/telegram/chain-dexter-bot/infrastructure/telegram/bot-client';
 import { CommandContext, CommandHandler } from './command-handler';
 import { ChatSettingsService } from './chat-settings.service';
-import { InlineKeyboardBuilder } from '../../infrastructure/telegram/inline-keyboard.builder';
+import { InlineKeyboardBuilder } from '@/telegram/chain-dexter-bot/infrastructure/telegram/inline-keyboard.builder';
 
 /**
  * @deprecated Command routing moves to dexter-onchain-bot

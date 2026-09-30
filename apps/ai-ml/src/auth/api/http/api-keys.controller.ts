@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
-import { ApiKeyService, type CreateKeyInput } from '../../application/api-key.service';
-import { RequireScope } from '../../application/require-scope.decorator';
+import { ApiKeyService, type CreateKeyInput } from '@/auth/application/api-key.service';
+import { RequireScope } from '@/auth/application/require-scope.decorator';
 
 interface CreateKeyDto {
   name?: string;

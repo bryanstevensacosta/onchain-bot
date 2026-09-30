@@ -1,4 +1,4 @@
-import { DomainError } from '../../../shared/kernel/domain-error';
+import { DomainError } from '@/shared/kernel/domain-error';
 import { TelegramBot, REDACTED_TOKEN } from './telegram-bot.entity';
 
 describe('TelegramBot catalog entity (P23, failing-first)', () => {

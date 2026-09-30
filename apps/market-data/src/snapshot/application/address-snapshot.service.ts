@@ -31,6 +31,7 @@ import {
 import { SnapshotHistoryRepository } from '../infrastructure/snapshot-history.repository';
 import { applyOutboundRateLimit } from 'provider/infrastructure/quote-fetchers/rate-limited-fetchers';
 import { DevHoldingsPort } from '../../holders/domain/holdings.port';
+import { AssetResolverService } from 'asset-registry/application/asset-resolver.service';
 
 /**
  * AddressSnapshotService (Tramo 3, P45; canonical home todo 12, P50;
@@ -71,10 +72,37 @@ export class AddressSnapshotService {
     @Optional()
     @Inject(AggregationPolicyPort)
     private readonly policy: AggregationPolicyPort | null = null,
+    @Optional()
+    private readonly assets: AssetResolverService | null = null,
   ) {}
 
-  public async getSnapshot(input: AddressSnapshotInput): Promise<AddressSnapshot> {
-    const chain = (input.chain ?? '').trim();
+  private async resolveAssetId(
+    chain: string,
+    address: string,
+    quote: { symbol: string | null; name: string | null },
+  ): Promise<string | null> {
+    if (this.assets === null || this.assets === undefined) {
+      return null;
+    }
+    try {
+      const found = await this.assets.resolve({ chain, contract: address });
+      return found.id;
+    } catch {
+      try {
+        const created = await this.assets.upsert({
+          chain,
+          contract: address,
+          symbol: quote.symbol,
+          name: quote.name,
+        });
+        return created.id;
+      } catch {
+        return null;
+      }
+    }
+  }
+
+  public async getSnapshot(input: AddressSnapshotInput): Promise<AddressSnapshot> {    const chain = (input.chain ?? '').trim();
     if (chain === '') {
       throw new NotFoundException('Chain qualifier is required');
     }
@@ -159,6 +187,7 @@ export class AddressSnapshotService {
       kind: id.kind,
       key: id.key,
       status: outcome.allFailed && devWallets === null ? 'pending' : 'ready',
+      assetId: await this.resolveAssetId(known.id, input.value, outcome.quote),
       providers: supporting,
       sources: outcome.sources,
       providerErrors,

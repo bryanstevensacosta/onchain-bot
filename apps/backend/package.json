@@ -127,6 +127,7 @@
       }
     },
     "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/src/$1",
       "^telegram/events$": "<rootDir>/../../node_modules/telegram/events/index",
       "^telegram/sessions$": "<rootDir>/../../node_modules/telegram/sessions/index",
       "^telegram/extensions/Logger$": "<rootDir>/../../node_modules/telegram/extensions/Logger",

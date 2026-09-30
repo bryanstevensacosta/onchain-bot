@@ -6,11 +6,11 @@ import {
   UseFilters,
   UseGuards,
 } from '@nestjs/common';
-import { DomainExceptionFilter } from '../../../shared/filters/domain-exception.filter';
-import { ApiKeyGuard } from '../../../shared/guards/api-key.guard';
-import type { KolWindowStat } from '../../domain/entities/kol-window-stat.entity';
-import { GetKolRankingsUseCase } from '../../application/use-cases/get-kol-rankings.use-case';
-import { KolAvatarResolverService } from '../../../ingestion/application/services/kol-avatar-resolver.service';
+import { DomainExceptionFilter } from '@/shared/filters/domain-exception.filter';
+import { ApiKeyGuard } from '@/shared/guards/api-key.guard';
+import type { KolWindowStat } from '@/tracking/domain/entities/kol-window-stat.entity';
+import { GetKolRankingsUseCase } from '@/tracking/application/use-cases/get-kol-rankings.use-case';
+import { KolAvatarResolverService } from '@/ingestion/application/services/kol-avatar-resolver.service';
 import { RankingsQueryDto } from './dto/rankings-query.dto';
 
 function toJson(

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { ExtractionCandidate } from '../../domain/entities/extraction-candidate.entity';
+import { ExtractionCandidate } from '@/extraction/domain/entities/extraction-candidate.entity';
 
 /**
  * In-memory ExtractionCandidate store.

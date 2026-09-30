@@ -11,7 +11,7 @@ export function buildDatabaseConfig(
   return {
     url:
       env.DATABASE_URL ??
-      'postgres://onchain_bot:onchain_bot@localhost:5438/onchain_bot_market_data',
+      'postgres://onchain_bot:onchain_bot@localhost:5432/market_data_db',
     synchronize: env.DATABASE_SYNCHRONIZE === 'true',
   };
 }

@@ -1,5 +1,5 @@
 import { InMemoryTrackedPublishedCallRepository } from './in-memory-tracked-published-call.repository';
-import { TrackedPublishedCallRecord } from '../../application/ports/tracked-published-call.repository';
+import { TrackedPublishedCallRecord } from '@/token/call-tracking/application/ports/tracked-published-call.repository';
 
 function makeRecord(
   chain: string,

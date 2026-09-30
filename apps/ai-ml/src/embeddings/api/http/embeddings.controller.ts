@@ -1,8 +1,8 @@
 import { Body, Controller, Get, Post } from '@nestjs/common';
 import { IsArray, IsOptional, IsString, Length } from 'class-validator';
 import { RequireScope } from 'auth/application/require-scope.decorator';
-import { EmbeddingsService } from '../../application/embeddings.service';
-import { cosineSimilarity } from '../../domain/cosine';
+import { EmbeddingsService } from '@/embeddings/application/embeddings.service';
+import { cosineSimilarity } from '@/embeddings/domain/cosine';
 
 class EmbedDto {
   @IsString()

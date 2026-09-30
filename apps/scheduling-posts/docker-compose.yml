@@ -8,13 +8,13 @@ services:
     environment:
       POSTGRES_USER: onchain_bot
       POSTGRES_PASSWORD: onchain_bot
-      POSTGRES_DB: onchain_bot_scheduling
+      POSTGRES_DB: scheduling_posts_db
     ports:
       - '5442:5432'
     volumes:
       - scheduling-posts-postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U onchain_bot -d onchain_bot_scheduling']
+      test: ['CMD-SHELL', 'pg_isready -U onchain_bot -d scheduling_posts_db']
       interval: 10s
       timeout: 5s
       retries: 5

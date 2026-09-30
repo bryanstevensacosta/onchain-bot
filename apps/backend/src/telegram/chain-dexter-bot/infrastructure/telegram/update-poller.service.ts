@@ -4,8 +4,8 @@ import {
   OnApplicationBootstrap,
   OnApplicationShutdown,
 } from '@nestjs/common';
-import { ChainDexterBotConfigService } from '../../bot.config';
-import { CommandRouterService } from '../../application/handlers/command-router.service';
+import { ChainDexterBotConfigService } from '@/telegram/chain-dexter-bot/bot.config';
+import { CommandRouterService } from '@/telegram/chain-dexter-bot/application/handlers/command-router.service';
 import { TelegramBotClient, TelegramUpdate } from './bot-client';
 
 @Injectable()

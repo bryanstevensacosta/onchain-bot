@@ -1,4 +1,4 @@
-import { ParsedCall } from '../../domain/entities/parsed-call.entity';
+import { ParsedCall } from '@/parsing/domain/entities/parsed-call.entity';
 
 export abstract class ParsedCallRepository {
   abstract save(call: ParsedCall): Promise<void>;

@@ -1,6 +1,6 @@
-import { REDACTED_TOKEN } from '../../domain/entities/telegram-bot.entity';
-import { InMemoryTelegramBotRepository } from '../../infrastructure/repositories/in-memory-telegram-bot.repository';
-import { EncryptionService } from '../../infrastructure/security/encryption.service';
+import { REDACTED_TOKEN } from '@/templates/domain/entities/telegram-bot.entity';
+import { InMemoryTelegramBotRepository } from '@/templates/infrastructure/repositories/in-memory-telegram-bot.repository';
+import { EncryptionService } from '@/templates/infrastructure/security/encryption.service';
 import { CreateTelegramBotUseCase } from './create-telegram-bot.use-case';
 import {
   GetTelegramBotUseCase,

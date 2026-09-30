@@ -1,5 +1,5 @@
-import { InMemoryTemplateRepository } from '../../infrastructure/repositories/in-memory-template.repository';
-import { PublishingTemplate } from '../../domain/entities/publishing-template.entity';
+import { InMemoryTemplateRepository } from '@/templates/infrastructure/repositories/in-memory-template.repository';
+import { PublishingTemplate } from '@/templates/domain/entities/publishing-template.entity';
 import { UpdateTemplateUseCase } from './update-template.use-case';
 
 describe('UpdateTemplateUseCase (todo 10, failing-first)', () => {

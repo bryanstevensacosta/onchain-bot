@@ -7,8 +7,8 @@ import {
   Put,
   Delete,
 } from '@nestjs/common';
-import { AchievementThresholdRepository } from '../../application/ports/achievement-threshold.repository';
-import { LiveAchievementScheduler } from '../../infrastructure/scheduling/live-achievement.scheduler';
+import { AchievementThresholdRepository } from '@/token/achievement/application/ports/achievement-threshold.repository';
+import { LiveAchievementScheduler } from '@/token/achievement/infrastructure/scheduling/live-achievement.scheduler';
 
 @Controller('achievements')
 export class AchievementController {

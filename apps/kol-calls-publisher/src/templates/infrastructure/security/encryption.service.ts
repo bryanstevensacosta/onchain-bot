@@ -6,7 +6,7 @@ import {
 } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_BYTES = 12;

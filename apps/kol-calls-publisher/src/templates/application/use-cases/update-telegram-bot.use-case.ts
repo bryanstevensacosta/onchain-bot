@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
-import { TelegramBotRepository } from '../../domain/ports/telegram-bot.repository';
-import type { RedactedTelegramBot } from '../../domain/entities/telegram-bot.entity';
-import { EncryptionService } from '../../infrastructure/security/encryption.service';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
+import { TelegramBotRepository } from '@/templates/domain/ports/telegram-bot.repository';
+import type { RedactedTelegramBot } from '@/templates/domain/entities/telegram-bot.entity';
+import { EncryptionService } from '@/templates/infrastructure/security/encryption.service';
 
 /**
  * Renames a bot and/or rotates its token (re-encrypted before persisting).

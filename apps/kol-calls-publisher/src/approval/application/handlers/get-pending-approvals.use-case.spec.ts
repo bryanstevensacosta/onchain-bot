@@ -1,6 +1,6 @@
 import { GetPendingApprovalsUseCase } from './get-pending-approvals.use-case';
-import { InMemoryCallApprovalRepository } from '../../infrastructure/repositories/in-memory-call-approval.repository';
-import { CallApproval } from '../../domain/entities/call-approval.entity';
+import { InMemoryCallApprovalRepository } from '@/approval/infrastructure/repositories/in-memory-call-approval.repository';
+import { CallApproval } from '@/approval/domain/entities/call-approval.entity';
 
 describe('GetPendingApprovalsUseCase (todo 11, failing-first)', () => {
   it('lists pending approvals, optionally scoped by template', async () => {

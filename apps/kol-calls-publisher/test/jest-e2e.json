@@ -9,6 +9,7 @@
   "coverageDirectory": "../coverage",
   "testEnvironment": "node",
   "moduleNameMapper": {
+    "^@/(.*)$": "<rootDir>/src/$1",
     "^shared/(.*)$": "<rootDir>/src/shared/$1",
     "^telegram/(.*)$": "<rootDir>/src/telegram/$1",
     "^src/(.*)$": "<rootDir>/src/$1"

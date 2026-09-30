@@ -1,4 +1,4 @@
-import { InMemoryTemplateRepository } from '../../infrastructure/repositories/in-memory-template.repository';
+import { InMemoryTemplateRepository } from '@/templates/infrastructure/repositories/in-memory-template.repository';
 import { TemplateSeedService } from './template-seed.service';
 
 describe('TemplateSeedService vip-calls seed (P14, failing-first)', () => {

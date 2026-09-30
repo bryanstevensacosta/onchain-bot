@@ -1,5 +1,5 @@
-import { DomainError } from '../../../shared/kernel/domain-error';
-import { DEFAULT_SCORING_CONFIG } from '../../../scoring/domain/scoring-config';
+import { DomainError } from '@/shared/kernel/domain-error';
+import { DEFAULT_SCORING_CONFIG } from '@/scoring/domain/scoring-config';
 import { PublishingTemplate } from './publishing-template.entity';
 
 describe('PublishingTemplate scoring_config (todo 22, P28)', () => {

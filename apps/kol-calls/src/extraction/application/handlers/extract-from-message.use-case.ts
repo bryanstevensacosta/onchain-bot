@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { ExtractorPort } from '../../domain/ports/extractor.port';
-import { ExtractionCandidate } from '../../domain/entities/extraction-candidate.entity';
-import { ExtractionSnapshotBase } from '../../domain/snapshot-base';
+import { ExtractorPort } from '@/extraction/domain/ports/extractor.port';
+import { ExtractionCandidate } from '@/extraction/domain/entities/extraction-candidate.entity';
+import { ExtractionSnapshotBase } from '@/extraction/domain/snapshot-base';
 import { ExtractionCandidateRepository } from '../ports/extraction-candidate.repository';
 
 export interface ExtractFromMessageInput {

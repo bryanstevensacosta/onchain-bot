@@ -1,5 +1,5 @@
 import { All, Controller, HttpCode, UseGuards } from '@nestjs/common';
-import { ApiKeyGuard } from '../../../shared/guards/api-key.guard';
+import { ApiKeyGuard } from '@/shared/guards/api-key.guard';
 
 /**
  * Threads stub (C1 — threads deferred to Tramo 2, content-publisher).

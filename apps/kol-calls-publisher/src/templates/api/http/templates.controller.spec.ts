@@ -2,11 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import request from 'supertest';
-import { TemplatesModule } from '../../templates.module';
-import { TemplateRepository } from '../../domain/ports/template.repository';
-import { TelegramAdminVerifierPort } from '../../domain/ports/telegram-admin-verifier.port';
-import { SourceValidatorPort } from '../../domain/ports/source-validator.port';
-import { PublishingTemplate } from '../../domain/entities/publishing-template.entity';
+import { TemplatesModule } from '@/templates/templates.module';
+import { TemplateRepository } from '@/templates/domain/ports/template.repository';
+import { TelegramAdminVerifierPort } from '@/templates/domain/ports/telegram-admin-verifier.port';
+import { SourceValidatorPort } from '@/templates/domain/ports/source-validator.port';
+import { PublishingTemplate } from '@/templates/domain/entities/publishing-template.entity';
 
 describe('TemplatesController 12 endpoints (todo 10 + todo 22 scoring, failing-first)', () => {
   let app: INestApplication;

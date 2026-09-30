@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import {
   KolWindowStat,
   type RankingWindow,
-} from '../../domain/entities/kol-window-stat.entity';
-import { KolWindowStatRepository } from '../../application/ports/kol-window-stat.repository';
+} from '@/tracking/domain/entities/kol-window-stat.entity';
+import { KolWindowStatRepository } from '@/tracking/application/ports/kol-window-stat.repository';
 
 /**
  * In-memory `KolWindowStatRepository` (Tramo 1 stand-in; the TypeORM

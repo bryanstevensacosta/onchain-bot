@@ -26,7 +26,7 @@ export function buildAppConfig(
   const databaseUrl = (env.DATABASE_URL ?? '').trim();
   if (!databaseUrl) {
     throw new Error(
-      'DATABASE_URL is required but empty (own logical DB: onchain_bot_bots[_staging]). Refusing to boot.',
+      'DATABASE_URL is required but empty (own logical DB: telegram_bots_db[_staging]). Refusing to boot.',
     );
   }
   const port = Number(env.BOTS_GATEWAY_PORT ?? 4070) || 4070;

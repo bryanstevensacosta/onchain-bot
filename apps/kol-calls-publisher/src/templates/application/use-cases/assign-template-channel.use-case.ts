@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
-import { TemplateRepository } from '../../domain/ports/template.repository';
-import { TelegramBotRepository } from '../../domain/ports/telegram-bot.repository';
-import { TelegramAdminVerifierPort } from '../../domain/ports/telegram-admin-verifier.port';
-import { EncryptionService } from '../../infrastructure/security/encryption.service';
-import type { PublishingTemplate } from '../../domain/entities/publishing-template.entity';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
+import { TemplateRepository } from '@/templates/domain/ports/template.repository';
+import { TelegramBotRepository } from '@/templates/domain/ports/telegram-bot.repository';
+import { TelegramAdminVerifierPort } from '@/templates/domain/ports/telegram-admin-verifier.port';
+import { EncryptionService } from '@/templates/infrastructure/security/encryption.service';
+import type { PublishingTemplate } from '@/templates/domain/entities/publishing-template.entity';
 
 /**
  * Assigns a publishing target to a template with admin verification

@@ -2,7 +2,7 @@
  * Tier-1 config for threads-publisher (flat env, no namespaces).
  *
  * Ports: dev :4100 / staging host :4101 / prod host :4102.
- * DBs: onchain_bot_threads[_staging] (C-DB-01: own logical DB).
+ * DBs: threads_publisher_db[_staging] (C-DB-01: own logical DB).
  * Gateway: BOTS_GATEWAY_URL dev :4070 / staging :4071 / prod :4072.
  */
 export interface ThreadsPublisherConfig {
@@ -19,7 +19,7 @@ export function buildThreadsPublisherConfig(
     port: Number.isFinite(port) ? port : 4100,
     databaseUrl:
       env.DATABASE_URL ??
-      'postgres://onchain_bot:onchain_bot@localhost:5446/onchain_bot_threads',
+      'postgres://onchain_bot:onchain_bot@localhost:5432/threads_publisher_db',
     synchronize: (env.DATABASE_SYNCHRONIZE ?? 'true') !== 'false',
   };
 }

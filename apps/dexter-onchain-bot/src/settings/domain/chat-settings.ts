@@ -4,7 +4,7 @@
  * Moved from backend `chain-dexter-bot` (domain entities +
  * in-memory repositories). TypeORM persistence is intentionally NOT
  * moved: v1 runs on in-memory settings (same behavior as the backend
- * with `DATABASE_ENABLED=false`); the `onchain_bot_dexter[_staging]`
+ * with `DATABASE_ENABLED=false`); the `dexter_db[_staging]`
  * DBs from the compose files are reserved for future persistence.
  */
 

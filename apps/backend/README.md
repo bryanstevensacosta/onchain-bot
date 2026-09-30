@@ -72,7 +72,7 @@ token/scoring                 ← score 0-100 (clasificación + reputación KOL)
 | `chain/detection`            | `ChainDetectionModule`  | Probes EVM (Alchemy) + Solana (Helius), scoring                          | `normalization.call.normalized`   | `chain-detection.chain.detected`            |
 | `chain/explorer`             | `ChainExplorerModule`   | 4 providers de market data (DexScreener, GeckoTerminal, Birdeye, Helius) | —                                 | —                                           |
 | `chain/registry`             | `ChainRegistryModule`   | Catálogo estático de chains soportadas                                   | —                                 | —                                           |
-| `token/market-data`          | `EnrichmentModule`      | Enriquecimiento con market data (merge first-non-null)                   | `normalization.call.normalized`   | `enrichment.token.enriched` / `.failed`     |
+| `token/enrichment`           | `EnrichmentModule`      | Enriquecimiento con market data (merge first-non-null)                   | `normalization.call.normalized`   | `enrichment.token.enriched` / `.failed`     |
 | `token/classification`       | `ClassificationModule`  | Clasificación heurística (riesgo, seguridad)                             | `enrichment.token.enriched`       | `classification.token.classified`           |
 | `token/scoring`              | `ScoringModule`         | Score 0-100 (clasificación + KOL reputation)                             | `classification.token.classified` | `scoring.token.scored`                      |
 | `token/token-gating`         | `FiltersModule`         | Gates: score threshold, blacklist, honeypot, risk, completeness, chain   | `scoring.token.scored`            | `vip-call.approval.approved` / `.rejected`  |
@@ -173,9 +173,9 @@ src/<bc>/
 | `GET`  | `/intake/parsing/calls/:kolId/:messageId`            | Parsing         |
 | `GET`  | `/normalization/tokens/recent`                       | Normalization   |
 | `GET`  | `/normalization/tokens/:chain/:address`              | Normalization   |
-| `POST` | `/market-data/enrich`                                | Enrichment      |
-| `GET`  | `/market-data/snapshots/recent`                      | Enrichment      |
-| `GET`  | `/market-data/snapshots/:chain/:address`             | Enrichment      |
+| `POST` | `/enrichment/enrich`                                 | Enrichment      |
+| `GET`  | `/enrichment/snapshots/recent`                       | Enrichment      |
+| `GET`  | `/enrichment/snapshots/:chain/:address`              | Enrichment      |
 | `POST` | `/classification/classify`                           | Classification  |
 | `GET`  | `/classification/tokens/recent`                      | Classification  |
 | `GET`  | `/classification/tokens/:chain/:address`             | Classification  |

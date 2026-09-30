@@ -1,4 +1,4 @@
-import { MentionSnapshot } from '../../../snapshot/domain/entities/mention-snapshot.entity';
+import { MentionSnapshot } from '@/snapshot/domain/entities/mention-snapshot.entity';
 
 /**
  * SnapshotWriterPort — enrichment writes completed snapshots through this

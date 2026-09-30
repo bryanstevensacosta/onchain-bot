@@ -2,9 +2,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import request from 'supertest';
-import { TemplatesModule } from '../../templates.module';
-import { TelegramAdminVerifierPort } from '../../domain/ports/telegram-admin-verifier.port';
-import { SourceValidatorPort } from '../../domain/ports/source-validator.port';
+import { TemplatesModule } from '@/templates/templates.module';
+import { TelegramAdminVerifierPort } from '@/templates/domain/ports/telegram-admin-verifier.port';
+import { SourceValidatorPort } from '@/templates/domain/ports/source-validator.port';
 
 describe('ThreadsStubController 501 pinning (C1, failing-first)', () => {
   let app: INestApplication;

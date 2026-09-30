@@ -1,7 +1,7 @@
 import { BotTokenResolverAdapter } from './bot-token-resolver.adapter';
-import { InMemoryTelegramBotRepository } from '../../../templates/infrastructure/repositories/in-memory-telegram-bot.repository';
-import { TelegramBot } from '../../../templates/domain/entities/telegram-bot.entity';
-import { EncryptionService } from '../../../templates/infrastructure/security/encryption.service';
+import { InMemoryTelegramBotRepository } from '@/templates/infrastructure/repositories/in-memory-telegram-bot.repository';
+import { TelegramBot } from '@/templates/domain/entities/telegram-bot.entity';
+import { EncryptionService } from '@/templates/infrastructure/security/encryption.service';
 
 describe('BotTokenResolverAdapter (todo 11, failing-first, P23 DB tokens)', () => {
   it('resolves plaintext from the catalog and 401s when the bot is unknown', async () => {

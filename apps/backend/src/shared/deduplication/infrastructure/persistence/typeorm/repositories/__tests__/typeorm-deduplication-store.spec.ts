@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TypeOrmDeduplicationStore } from '../typeorm-deduplication-store';
-import { DedupRecordEntity } from '../../entities/dedup-record.entity';
+import { DedupRecordEntity } from '@/shared/deduplication/infrastructure/persistence/typeorm/entities/dedup-record.entity';
 import { DedupRecord } from 'shared/deduplication/domain/entities/dedup-record.entity';
 import { Fingerprint } from 'shared/deduplication/domain/value-objects/fingerprint.vo';
 

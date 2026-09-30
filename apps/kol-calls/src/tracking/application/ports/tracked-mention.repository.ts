@@ -1,4 +1,4 @@
-import type { TrackedMention } from '../../domain/entities/tracked-mention.entity';
+import type { TrackedMention } from '@/tracking/domain/entities/tracked-mention.entity';
 
 /**
  * Storage port for (kol, contract) first-seen trackers (same kol-calls

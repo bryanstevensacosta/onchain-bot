@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { MentionSnapshot } from '../../domain/entities/mention-snapshot.entity';
-import { MentionSnapshotRepository } from '../../application/ports/mention-snapshot.repository';
+import { MentionSnapshot } from '@/snapshot/domain/entities/mention-snapshot.entity';
+import { MentionSnapshotRepository } from '@/snapshot/application/ports/mention-snapshot.repository';
 
 /**
  * In-memory `MentionSnapshotRepository` (Tramo 1 stand-in; the TypeORM

@@ -4,6 +4,7 @@ import { ChainModule } from 'chain/chain.module';
 import { ChainLogoModule } from 'chain-logo/chain-logo.module';
 import { ProviderModule } from 'provider/provider.module';
 import { SnapshotModule } from 'snapshot/snapshot.module';
+import { AssetRegistryModule } from 'asset-registry/asset-registry.module';
 import { GatewayRateLimitGuard } from './application/gateway-rate-limit.guard';
 import { AddressesController } from './infrastructure/http/addresses.controller';
 import { AddressesBatchController } from './infrastructure/http/addresses-batch.controller';
@@ -12,6 +13,7 @@ import { ChainsController } from './infrastructure/http/chains.controller';
 import { ChainLogoController } from './infrastructure/http/chain-logo.controller';
 import { ProvidersController } from './infrastructure/http/providers.controller';
 import { TokensSnapshotController } from './infrastructure/http/tokens-snapshot.controller';
+import { AssetsController } from './infrastructure/http/assets.controller';
 import { MarketDataWsGateway } from './infrastructure/ws/market-data-ws.gateway';
 import { StreamModule } from 'stream/stream.module';
 
@@ -35,7 +37,7 @@ import { StreamModule } from 'stream/stream.module';
  * stream/ broker's shared per-exchange connections).
  */
 @Module({
-  imports: [AddressModule, ChainModule, ChainLogoModule, ProviderModule, SnapshotModule, StreamModule],
+  imports: [AddressModule, ChainModule, ChainLogoModule, ProviderModule, SnapshotModule, StreamModule, AssetRegistryModule],
   controllers: [
     AddressesController,
     AddressesBatchController,
@@ -44,6 +46,7 @@ import { StreamModule } from 'stream/stream.module';
     ChainLogoController,
     ProvidersController,
     TokensSnapshotController,
+    AssetsController,
   ],
   providers: [GatewayRateLimitGuard, MarketDataWsGateway],
   exports: [GatewayRateLimitGuard, MarketDataWsGateway],

@@ -1,5 +1,5 @@
 import { GatewayMigrationController } from './gateway-migration.controller';
-import type { MigrateBotsToGatewayUseCase } from '../../application/use-cases/migrate-bots-to-gateway.use-case';
+import type { MigrateBotsToGatewayUseCase } from '@/telegram/application/use-cases/migrate-bots-to-gateway.use-case';
 
 describe('GatewayMigrationController (gateway todo 4, failing-first)', () => {
   it('returns migrated/failed pairs with labels and ids only (no tokens)', async () => {

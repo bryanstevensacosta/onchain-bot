@@ -1,3 +1,8 @@
+/**
+ * @deprecated Moved to apps/market-data/src/provider/infrastructure/core/ (Tramo 3, todo 4, C-DATA-01).
+ * Canonical owner is now market-data; this shim identity spec stays green for dual-run.
+ * Removed at cutover (todo 8). Do not extend it.
+ */
 import { DataProviderPort as ShimPort } from './core/data-provider.port';
 import { DataProviderModule as ShimModule } from './core/data-provider.module';
 import { DataProviderPort as CanonicalPort } from '../../../market-data/src/provider/infrastructure/core/data-provider.port';

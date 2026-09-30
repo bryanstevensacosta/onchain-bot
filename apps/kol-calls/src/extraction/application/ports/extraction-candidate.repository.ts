@@ -1,4 +1,4 @@
-import { ExtractionCandidate } from '../../domain/entities/extraction-candidate.entity';
+import { ExtractionCandidate } from '@/extraction/domain/entities/extraction-candidate.entity';
 
 export abstract class ExtractionCandidateRepository {
   abstract save(candidate: ExtractionCandidate): Promise<void>;

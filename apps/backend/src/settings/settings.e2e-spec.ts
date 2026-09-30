@@ -29,7 +29,7 @@ describe('SettingsPresets (e2e)', () => {
     // and runs under the UNIT jest regex, so test/jest-e2e.setup.ts never
     // applies. Pin to the dedicated e2e DB and refuse to boot against a
     // non-test database (default would be the dev DB onchain_bot).
-    const testDatabase = 'onchain_bot_e2e';
+    const testDatabase = 'backend_db_e2e';
     const envDatabase = process.env.POSTGRES_DB;
     if (envDatabase && !/(_test|_entity|_e2e)$/.test(envDatabase)) {
       throw new Error(

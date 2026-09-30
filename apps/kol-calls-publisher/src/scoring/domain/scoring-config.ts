@@ -1,4 +1,4 @@
-import { DomainError, ErrorCode } from '../../shared/kernel/domain-error';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
 import {
   DEFAULT_GATE_CONFIG,
   type ScoreGateConfig,

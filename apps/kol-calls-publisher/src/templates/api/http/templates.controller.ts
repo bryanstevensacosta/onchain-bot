@@ -14,19 +14,19 @@ import {
   UseGuards,
   forwardRef,
 } from '@nestjs/common';
-import { DomainExceptionFilter } from '../../../shared/filters/domain-exception.filter';
-import { ApiKeyGuard } from '../../../shared/guards/api-key.guard';
-import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
-import { AvatarResolver } from '../../application/ports/avatar-resolver.port';
-import { TemplateRepository } from '../../domain/ports/template.repository';
-import type { PublishingTemplate } from '../../domain/entities/publishing-template.entity';
-import { CreateTemplateUseCase } from '../../application/use-cases/create-template.use-case';
-import { UpdateTemplateUseCase } from '../../application/use-cases/update-template.use-case';
-import { SetTemplateSourcesUseCase } from '../../application/use-cases/set-template-sources.use-case';
-import { ActivateTemplateUseCase } from '../../application/use-cases/activate-template.use-case';
-import { GetTemplateRankingsUseCase } from '../../application/use-cases/get-template-rankings.use-case';
-import { AssignTemplateChannelUseCase } from '../../application/use-cases/assign-template-channel.use-case';
-import { GetPendingApprovalsUseCase } from '../../../approval/application/handlers/get-pending-approvals.use-case';
+import { DomainExceptionFilter } from '@/shared/filters/domain-exception.filter';
+import { ApiKeyGuard } from '@/shared/guards/api-key.guard';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
+import { AvatarResolver } from '@/templates/application/ports/avatar-resolver.port';
+import { TemplateRepository } from '@/templates/domain/ports/template.repository';
+import type { PublishingTemplate } from '@/templates/domain/entities/publishing-template.entity';
+import { CreateTemplateUseCase } from '@/templates/application/use-cases/create-template.use-case';
+import { UpdateTemplateUseCase } from '@/templates/application/use-cases/update-template.use-case';
+import { SetTemplateSourcesUseCase } from '@/templates/application/use-cases/set-template-sources.use-case';
+import { ActivateTemplateUseCase } from '@/templates/application/use-cases/activate-template.use-case';
+import { GetTemplateRankingsUseCase } from '@/templates/application/use-cases/get-template-rankings.use-case';
+import { AssignTemplateChannelUseCase } from '@/templates/application/use-cases/assign-template-channel.use-case';
+import { GetPendingApprovalsUseCase } from '@/approval/application/handlers/get-pending-approvals.use-case';
 import {
   AssignChannelDto,
   CreateTemplateDto,

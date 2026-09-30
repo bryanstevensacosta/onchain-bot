@@ -3,4 +3,4 @@
  * (P6 — templates own it from here). This path stays so scoring imports and
  * specs keep working unchanged.
  */
-export * from '../../templates/domain/template-classification.config';
+export * from '@/templates/domain/template-classification.config';

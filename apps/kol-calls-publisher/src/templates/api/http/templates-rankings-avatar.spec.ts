@@ -2,13 +2,13 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import request from 'supertest';
-import { TemplatesModule } from '../../templates.module';
-import { TelegramAdminVerifierPort } from '../../domain/ports/telegram-admin-verifier.port';
-import { SourceValidatorPort } from '../../domain/ports/source-validator.port';
-import { AvatarResolver } from '../../application/ports/avatar-resolver.port';
-import { ScoredCallRepository } from '../../../scoring/application/ports/scored-call.repository';
-import { ScoredCall } from '../../../scoring/domain/entities/scored-call.entity';
-import { Score } from '../../../scoring/domain/value-objects/score.vo';
+import { TemplatesModule } from '@/templates/templates.module';
+import { TelegramAdminVerifierPort } from '@/templates/domain/ports/telegram-admin-verifier.port';
+import { SourceValidatorPort } from '@/templates/domain/ports/source-validator.port';
+import { AvatarResolver } from '@/templates/application/ports/avatar-resolver.port';
+import { ScoredCallRepository } from '@/scoring/application/ports/scored-call.repository';
+import { ScoredCall } from '@/scoring/domain/entities/scored-call.entity';
+import { Score } from '@/scoring/domain/value-objects/score.vo';
 
 describe('TemplatesController rankings avatarUrl (P19 caller display)', () => {
   let app: INestApplication;

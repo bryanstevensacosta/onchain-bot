@@ -1,7 +1,7 @@
 import { GetKolRankingsUseCase } from './get-kol-rankings.use-case';
-import { RankingsController } from '../../api/http/rankings.controller';
-import { InMemoryKolWindowStatRepository } from '../../infrastructure/repositories/in-memory-kol-window-stat.repository';
-import { KolWindowStat } from '../../domain/entities/kol-window-stat.entity';
+import { RankingsController } from '@/tracking/api/http/rankings.controller';
+import { InMemoryKolWindowStatRepository } from '@/tracking/infrastructure/repositories/in-memory-kol-window-stat.repository';
+import { KolWindowStat } from '@/tracking/domain/entities/kol-window-stat.entity';
 
 async function seed(): Promise<InMemoryKolWindowStatRepository> {
   const repo = new InMemoryKolWindowStatRepository();

@@ -7,7 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import {
   EmbeddingPort,
   type EmbeddingProviderName,
-} from '../../domain/ports/embedding.port';
+} from '@/embeddings/domain/ports/embedding.port';
 
 /**
  * Local embeddings (backend `Xenova/all-MiniLM-L6-v2` shape, read-only

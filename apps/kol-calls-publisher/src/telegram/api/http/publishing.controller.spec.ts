@@ -2,10 +2,10 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import request from 'supertest';
-import { TelegramModule } from '../../telegram.module';
-import { TelegramPublisherPort } from '../../domain/ports/telegram-publisher.port';
-import { BotTokenResolverPort } from '../../domain/ports/bot-token-resolver.port';
-import { TemplateRepository } from '../../../templates/domain/ports/template.repository';
+import { TelegramModule } from '@/telegram/telegram.module';
+import { TelegramPublisherPort } from '@/telegram/domain/ports/telegram-publisher.port';
+import { BotTokenResolverPort } from '@/telegram/domain/ports/bot-token-resolver.port';
+import { TemplateRepository } from '@/templates/domain/ports/template.repository';
 
 describe('PublishingController (todo 11, failing-first)', () => {
   let app: INestApplication;

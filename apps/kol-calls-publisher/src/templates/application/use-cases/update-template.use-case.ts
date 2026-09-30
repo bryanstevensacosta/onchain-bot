@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
-import { TemplateRepository } from '../../domain/ports/template.repository';
-import { SourceValidatorPort } from '../../domain/ports/source-validator.port';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
+import { TemplateRepository } from '@/templates/domain/ports/template.repository';
+import { SourceValidatorPort } from '@/templates/domain/ports/source-validator.port';
 import type {
   PublishingTemplate,
   RankingStrategy,
   RankingWeights,
-} from '../../domain/entities/publishing-template.entity';
-import type { ScoringConfigPatch } from '../../../scoring/domain/scoring-config';
+} from '@/templates/domain/entities/publishing-template.entity';
+import type { ScoringConfigPatch } from '@/scoring/domain/scoring-config';
 
 export interface UpdateTemplatePatch {
   readonly kolSourceIds?: ReadonlyArray<string>;

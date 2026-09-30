@@ -144,7 +144,7 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
      Acceptance criteria: validación completa con 0 items sin evidencia + `ls apps/backend/src/{kol,telegram/data-provider}` vacío según decisión + backend-remainder registrado
      QA scenarios: happy review completa verde → programa cerrado; failure cualquier validación roja → rollback ejecutado y medido, programa NO cerrado. Evidence .omo/evidence/task-9-mega-refactor-central.log
      Commit: Y | docs(central): FINAL REVIEW con eliminación deprecated y cierre
-- [ ] 10. Auth anti-exploit ingestion-telegram (P50, excepción documentada: único todo de implementación de este plan)
+- [x] 10. Auth anti-exploit ingestion-telegram (P50, excepción documentada: único todo de implementación de este plan)
       What to do / Must NOT do: auth key en TODO salvo `/api/health` (+ SSE con `x-api-key` ya existente — extender a feed/media/avatar si falta); rate-limit; audit log accesos; cero keys en logs; drill compromiso. Tests + matriz curl. Must NOT endpoint sensible sin auth.
       Parallelization: Wave 4 | Blocked by: — | Blocks: programa (requisito final review)
       References: .omo/drafts/mega-refactor-tramos.md (P50); apps/ingestion-telegram/src/
@@ -165,20 +165,33 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
       Acceptance criteria: `ls uploads/avatar | wc -l` cubre feed+kol; frame SSE trae handle
       QA scenarios: happy avatar feed visible; failure MTProto → placeholder + retry diferido. Evidence .omo/evidence/task-12-central.log
       Commit: Y | feat(ingestion-telegram): avatar total y SSE enriquecido
+- [ ] 13. Track deprecación backend por BC (P66, arranca tras planes en curso)
+      What to do / Must NOT do: por BC backend (kol, feed, threads, data-provider, vip-calls, ads): verificar migración completa → headers @deprecated → desconectar consumidores (imports, HTTP, DBs) → BORRAR + suites verdes por BC. Uno por vez, evidencia por BC. Must NOT empezar antes del cierre de tracks en curso; Must NOT borrar sin deprecación previa.
+      Parallelization: Wave 5 | Blocked by: tramos + FINAL REVIEW prep | Blocks: 9 (cierre)
+      References: .omo/drafts/mega-refactor-tramos.md (P60, P66); .omo/evidence/backend-deps-audit.log
+      Acceptance criteria: `grep -r "telegram/(kol|feed|vip|threads)|data-provider" apps/backend/src | wc -l` = 0 + suites verdes
+      QA scenarios: happy por BC con rollback listo; failure consumidor huérfano → se reconecta o se migra antes de borrar. Evidence .omo/evidence/backend-deprecation-track.log
+      Commit: Y por BC | chore(backend): deprecación y borrado por BC
 
 ## Contratos sellados (C-\* — versión: 2026-09-26 + 5f463b88; los tramos referencian, nunca redefinen)
 
-### C-DB-01 — 12 DBs `onchain_bot_*` solo apps nuevas (versión: 2026-09-26 + 5f463b88)
+### C-DB-01 — 11+1 DBs `onchain_bot_*`, one per app (versión: 2026-09-28 consolidated, supersedes 2026-09-26 + 5f463b88)
 
-Regla sync: `synchronize:false, migrationsRun:false` fuera de dev/test; owner `migration:run` por app con su propio `data-source.ts`. Mismo-servidor-por-env `<base>_<app>` (+`_staging` en staging, precedente `_ingestion`). Nombres `onchain_bot_*` SOLO para las 4 apps NUEVAS (decisión 2026-09-25): DBs pre-existentes de backend/ingestion quedan INTOCADAS hasta que ejecute el runbook de renombre (`.omo/runbooks/rename-onchain-bot-db.md`, fase 3). Tramo 1 usa 17-18 tablas efectivas (NO 22). Nota: `onchain_bot_bots[_staging]` del gateway (`.omo/plans/telegram-bots-gateway.md`) NO entra en estas 12 — se sella en su propio plan.
+Dev local: ONE postgres server `:5432` (`docker-compose.dev.yml` service `pg`), one DB per app named exactly after the app dir (+ `_test` variants + `onchain_bot_test`). Regla sync: `synchronize:false, migrationsRun:false` fuera de dev/test; owner `migration:run` por app con su propio `data-source.ts`. Mismo-servidor-por-env `<base>_<app>` (+`_staging` en staging, precedente `_ingestion`). Consolidación 2026-09-28: backend `onchain_bot`→`onchain_bot_backend`, kol `onchain_bot_kol_system`→`onchain_bot_kol_calls` (+ split publisher con DB propia `onchain_bot_kol_calls_publisher`), gateway a usuario `onchain_bot` (era `postgres`), todos los puertos dev a `:5432`. Evidencia: `.omo/evidence/db-consolidate.log`.
 
-| App                         | Dev local (mismo servidor)                                | Oracle prod (mismo servidor)                    | Staging (sufijo `_staging`)                             | Owner migración                                              |
-| --------------------------- | --------------------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------ |
-| kol-system (kol-calls, P51) | `onchain_bot_kol_system`                                  | `onchain_bot_kol_system`                        | `onchain_bot_kol_system_staging`                        | kol-system `migration:run` (`data-source.ts` propio)         |
-| kol-calls-publisher (P51)   | `onchain_bot_kol_system` (SAME DB initially, split later) | `onchain_bot_kol_system` (SAME DB inicialmente) | `onchain_bot_kol_system_staging` (SAME DB inicialmente) | kol-system (until split; own `data-source.ts` at split)      |
-| feed-publisher              | `onchain_bot_feed_publisher`                              | `onchain_bot_feed_publisher`                    | `onchain_bot_feed_publisher_staging`                    | feed-publisher `migration:run` (`data-source.ts` propio)     |
-| market-data                 | `onchain_bot_market_data`                                 | `onchain_bot_market_data`                       | `onchain_bot_market_data_staging`                       | market-data `migration:run` (`data-source.ts` propio)        |
-| dexter-onchain-bot          | `onchain_bot_dexter`                                      | `onchain_bot_dexter`                            | `onchain_bot_dexter_staging`                            | dexter-onchain-bot `migration:run` (`data-source.ts` propio) |
+| App                         | Dev local (single server :5432)   | Oracle prod (mismo servidor)                    | Staging (sufijo `_staging`)                             | Owner migración                                              |
+| --------------------------- | --------------------------------- | ----------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------ |
+| backend                     | `onchain_bot_backend`             | `onchain_bot` (rename pendiente runbook)        | `onchain_bot_staging`                                   | backend `migration:run` (`data-source.ts` propio)            |
+| ingestion-telegram          | `onchain_bot_ingestion`           | `onchain_bot_ingestion`                         | `onchain_bot_staging_ingestion`                         | ingestion `migration:run` (`data-source.ts` propio)          |
+| kol-calls                   | `onchain_bot_kol_calls`           | `onchain_bot_kol_system` (rename pendiente)     | `onchain_bot_kol_system_staging` (rename pendiente)     | kol-calls `migration:run` (`data-source.ts` propio)          |
+| kol-calls-publisher (split) | `onchain_bot_kol_calls_publisher` | `onchain_bot_kol_system` (SAME DB inicialmente) | `onchain_bot_kol_system_staging` (SAME DB inicialmente) | kol-system (until split; own `data-source.ts` at split)      |
+| feed-publisher              | `onchain_bot_feed_publisher`      | `onchain_bot_feed_publisher`                    | `onchain_bot_feed_publisher_staging`                    | feed-publisher `migration:run` (`data-source.ts` propio)     |
+| market-data                 | `onchain_bot_market_data`         | `onchain_bot_market_data`                       | `onchain_bot_market_data_staging`                       | market-data `migration:run` (`data-source.ts` propio)        |
+| dexter-onchain-bot          | `onchain_bot_dexter`              | `onchain_bot_dexter`                            | `onchain_bot_dexter_staging`                            | dexter-onchain-bot `migration:run` (`data-source.ts` propio) |
+| telegram-bots-gateway       | `onchain_bot_bots`                | `onchain_bot_bots`                              | `onchain_bot_bots_staging`                              | gateway `migration:run` (`data-source.ts` propio)            |
+| scheduling-posts            | `onchain_bot_scheduling`          | `onchain_bot_scheduling`                        | `onchain_bot_scheduling_staging`                        | scheduling-posts `migration:run`                             |
+| threads-publisher           | `onchain_bot_threads`             | `onchain_bot_threads`                           | `onchain_bot_threads_staging`                           | threads-publisher `migration:run`                            |
+| ai-ml                       | `onchain_bot_ai_ml`               | `onchain_bot_ai_ml`                             | `onchain_bot_ai_ml_staging`                             | ai-ml `migration:run`                                        |
 
 ### C-PORTS-01 — tabla puertos×env (versión: 2026-09-26 + 5f463b88)
 

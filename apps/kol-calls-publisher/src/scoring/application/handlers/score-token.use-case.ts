@@ -1,11 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { DomainEvent } from '../../../shared/kernel/domain-event';
+import { DomainEvent } from '@/shared/kernel/domain-event';
 import {
   ScoredCall,
   type ScoreBreakdownItem,
-} from '../../domain/entities/scored-call.entity';
-import { Score } from '../../domain/value-objects/score.vo';
-import { CallScoredEvent } from '../../domain/events/call-scored.event';
+} from '@/scoring/domain/entities/scored-call.entity';
+import { Score } from '@/scoring/domain/value-objects/score.vo';
+import { CallScoredEvent } from '@/scoring/domain/events/call-scored.event';
 import { evaluateScoreGates, type ScoreGateConfig } from './score-gates';
 import {
   resolveScoringConfig,
@@ -13,7 +13,7 @@ import {
   type ScoringConfigPatch,
   type ScoringSignalPenalties,
   type TemplateScoringConfig,
-} from '../../domain/scoring-config';
+} from '@/scoring/domain/scoring-config';
 import { ScoredCallRepository } from '../ports/scored-call.repository';
 
 export interface ScoreSignal {

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { LlmConfigRepository } from '../../../domain/ports/llm-config.repository';
-import { DEFAULT_LLM_CONFIG, type LlmConfig } from '../../../domain/llm-config';
+import { LlmConfigRepository } from '@/llm/domain/ports/llm-config.repository';
+import { DEFAULT_LLM_CONFIG, type LlmConfig } from '@/llm/domain/llm-config';
 
 /**
  * In-memory single-row LlmConfig (ai-ml, todo 0): the two switches

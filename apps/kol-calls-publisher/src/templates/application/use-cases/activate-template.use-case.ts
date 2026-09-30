@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
-import { TemplateRepository } from '../../domain/ports/template.repository';
-import type { PublishingTemplate } from '../../domain/entities/publishing-template.entity';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
+import { TemplateRepository } from '@/templates/domain/ports/template.repository';
+import type { PublishingTemplate } from '@/templates/domain/entities/publishing-template.entity';
 
 /**
  * Activates / deactivates a template (orchestrator only processes active).

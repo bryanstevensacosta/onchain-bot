@@ -1,15 +1,15 @@
 import { PublishFromTemplateUseCase } from './publish-from-template.use-case';
 import { ManualPublishUseCase } from './manual-publish.use-case';
-import { InMemoryPublishingJobRepository } from '../../infrastructure/repositories/in-memory-publishing-job.repository';
-import { InMemoryCallApprovalRepository } from '../../../approval/infrastructure/repositories/in-memory-call-approval.repository';
-import { InMemoryTemplateRepository } from '../../../templates/infrastructure/repositories/in-memory-template.repository';
-import { InMemoryTelegramBotRepository } from '../../../templates/infrastructure/repositories/in-memory-telegram-bot.repository';
-import { PublishingTemplate } from '../../../templates/domain/entities/publishing-template.entity';
-import { TelegramBot } from '../../../templates/domain/entities/telegram-bot.entity';
-import { VipMessageFormatter } from '../../infrastructure/formatters/vip-message-formatter';
-import type { BotTokenResolverPort } from '../../../target/telegram-ports';
-import type { TelegramPublisherPort } from '../../../target/telegram-ports';
-import type { TargetDispatcherPort } from '../../../target/application/ports/target-dispatcher.port';
+import { InMemoryPublishingJobRepository } from '@/telegram/infrastructure/repositories/in-memory-publishing-job.repository';
+import { InMemoryCallApprovalRepository } from '@/approval/infrastructure/repositories/in-memory-call-approval.repository';
+import { InMemoryTemplateRepository } from '@/templates/infrastructure/repositories/in-memory-template.repository';
+import { InMemoryTelegramBotRepository } from '@/templates/infrastructure/repositories/in-memory-telegram-bot.repository';
+import { PublishingTemplate } from '@/templates/domain/entities/publishing-template.entity';
+import { TelegramBot } from '@/templates/domain/entities/telegram-bot.entity';
+import { VipMessageFormatter } from '@/telegram/infrastructure/formatters/vip-message-formatter';
+import type { BotTokenResolverPort } from '@/target/telegram-ports';
+import type { TelegramPublisherPort } from '@/target/telegram-ports';
+import type { TargetDispatcherPort } from '@/target/application/ports/target-dispatcher.port';
 
 const baseInput = {
   templateId: 'vip-calls',

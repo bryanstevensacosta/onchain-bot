@@ -1,6 +1,6 @@
 import { IsIn, IsOptional } from 'class-validator';
-import type { RankingWindow } from '../../../domain/entities/kol-window-stat.entity';
-import type { RankingsSort } from '../../../application/use-cases/get-kol-rankings.use-case';
+import type { RankingWindow } from '@/tracking/domain/entities/kol-window-stat.entity';
+import type { RankingsSort } from '@/tracking/application/use-cases/get-kol-rankings.use-case';
 
 export class RankingsQueryDto {
   @IsOptional()

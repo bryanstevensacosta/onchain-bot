@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { TelegramBotRepository } from '../../domain/ports/telegram-bot.repository';
+import { TelegramBotRepository } from '@/templates/domain/ports/telegram-bot.repository';
 import {
   TelegramBot,
   type RedactedTelegramBot,
-} from '../../domain/entities/telegram-bot.entity';
-import { EncryptionService } from '../../infrastructure/security/encryption.service';
+} from '@/templates/domain/entities/telegram-bot.entity';
+import { EncryptionService } from '@/templates/infrastructure/security/encryption.service';
 
 /**
  * Registers a bot in the reusable catalog (P23): encrypts the token BEFORE

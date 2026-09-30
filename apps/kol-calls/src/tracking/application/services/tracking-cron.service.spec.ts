@@ -1,7 +1,7 @@
 import { TrackingCronService } from './tracking-cron.service';
-import { InMemoryTrackedMentionRepository } from '../../infrastructure/repositories/in-memory-tracked-mention.repository';
-import { InMemoryKolWindowStatRepository } from '../../infrastructure/repositories/in-memory-kol-window-stat.repository';
-import { TrackedMention } from '../../domain/entities/tracked-mention.entity';
+import { InMemoryTrackedMentionRepository } from '@/tracking/infrastructure/repositories/in-memory-tracked-mention.repository';
+import { InMemoryKolWindowStatRepository } from '@/tracking/infrastructure/repositories/in-memory-kol-window-stat.repository';
+import { TrackedMention } from '@/tracking/domain/entities/tracked-mention.entity';
 
 const NOW = new Date('2026-09-25T12:00:00.000Z');
 const HOUR = 3_600_000;

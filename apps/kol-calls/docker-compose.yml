@@ -8,13 +8,13 @@ services:
     environment:
       POSTGRES_USER: onchain_bot
       POSTGRES_PASSWORD: onchain_bot
-      POSTGRES_DB: onchain_bot_kol_system
+      POSTGRES_DB: kol_calls_db
     ports:
       - '5435:5432'
     volumes:
       - kol-calls-postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U onchain_bot -d onchain_bot_kol_system']
+      test: ['CMD-SHELL', 'pg_isready -U onchain_bot -d kol_calls_db']
       interval: 10s
       timeout: 5s
       retries: 5

@@ -8,7 +8,7 @@ import OpenAI from 'openai';
 import {
   EmbeddingPort,
   type EmbeddingProviderName,
-} from '../../domain/ports/embedding.port';
+} from '@/embeddings/domain/ports/embedding.port';
 
 /**
  * OpenAI embeddings (`text-embedding-3-small` default, model-per-call

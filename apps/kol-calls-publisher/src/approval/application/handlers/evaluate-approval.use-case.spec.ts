@@ -1,10 +1,10 @@
 import { EvaluateApprovalUseCase } from './evaluate-approval.use-case';
-import { InMemoryCallApprovalRepository } from '../../infrastructure/repositories/in-memory-call-approval.repository';
-import { InMemoryScoredCallRepository } from '../../../scoring/infrastructure/repositories/in-memory-scored-call.repository';
-import { InMemoryTemplateRepository } from '../../../templates/infrastructure/repositories/in-memory-template.repository';
-import { PublishingTemplate } from '../../../templates/domain/entities/publishing-template.entity';
-import { ScoredCall } from '../../../scoring/domain/entities/scored-call.entity';
-import { Score } from '../../../scoring/domain/value-objects/score.vo';
+import { InMemoryCallApprovalRepository } from '@/approval/infrastructure/repositories/in-memory-call-approval.repository';
+import { InMemoryScoredCallRepository } from '@/scoring/infrastructure/repositories/in-memory-scored-call.repository';
+import { InMemoryTemplateRepository } from '@/templates/infrastructure/repositories/in-memory-template.repository';
+import { PublishingTemplate } from '@/templates/domain/entities/publishing-template.entity';
+import { ScoredCall } from '@/scoring/domain/entities/scored-call.entity';
+import { Score } from '@/scoring/domain/value-objects/score.vo';
 
 function scored(overrides: Partial<{ score: number; kolId: string }> = {}) {
   return ScoredCall.create({

@@ -1,10 +1,10 @@
 import { Controller, Get } from '@nestjs/common';
-import { ScoringHealthIndicator } from '../../../scoring/health/scoring-health.indicator';
-import { TemplatesHealthIndicator } from '../../../templates/health/templates-health.indicator';
-import { ApprovalHealthIndicator } from '../../../approval/health/approval-health.indicator';
-import { TelegramHealthIndicator } from '../../../target/telegram-ports';
-import { TargetHealthIndicator } from '../../../target/health/target-health.indicator';
-import { KolCallsHealthIndicator } from '../../../kol-calls/health/kol-calls-health.indicator';
+import { ScoringHealthIndicator } from '@/scoring/health/scoring-health.indicator';
+import { TemplatesHealthIndicator } from '@/templates/health/templates-health.indicator';
+import { ApprovalHealthIndicator } from '@/approval/health/approval-health.indicator';
+import { TelegramHealthIndicator } from '@/target/telegram-ports';
+import { TargetHealthIndicator } from '@/target/health/target-health.indicator';
+import { KolCallsHealthIndicator } from '@/kol-calls/health/kol-calls-health.indicator';
 
 interface ComponentStatus {
   readonly status: 'up' | 'down';

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { CallApprovalRepository } from '../../application/ports/call-approval.repository';
-import type { CallApproval } from '../../domain/entities/call-approval.entity';
+import { CallApprovalRepository } from '@/approval/application/ports/call-approval.repository';
+import type { CallApproval } from '@/approval/domain/entities/call-approval.entity';
 
 /**
  * In-memory approval store (upsert by id = double-delivery guard, P1).

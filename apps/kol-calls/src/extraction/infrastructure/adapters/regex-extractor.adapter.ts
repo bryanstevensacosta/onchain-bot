@@ -3,10 +3,10 @@ import {
   ExtractorInput,
   ExtractorPort,
   ExtractedCandidates,
-} from '../../domain/ports/extractor.port';
-import { NormalizedAddress } from '../../../shared/value-objects/normalized-address.vo';
-import { Ticker } from '../../domain/value-objects/ticker.vo';
-import { Url } from '../../domain/value-objects/url.vo';
+} from '@/extraction/domain/ports/extractor.port';
+import { NormalizedAddress } from '@/shared/value-objects/normalized-address.vo';
+import { Ticker } from '@/extraction/domain/value-objects/ticker.vo';
+import { Url } from '@/extraction/domain/value-objects/url.vo';
 
 /**
  * Regex extractor adapter (patterns mirror the backend

@@ -4,7 +4,7 @@ import {
   MarketData,
   MarketDataProviderPort,
 } from 'token/enrichment/domain/ports/market-data-provider.port';
-import { CoinGeckoService } from 'data-provider/coingecko/coingecko.service';
+import { CoinGeckoService } from '../../../../../../market-data/src/provider/infrastructure/coingecko/coingecko.service';
 
 const PLATFORM_MAP: Record<string, string> = {
   ethereum: 'ethereum',

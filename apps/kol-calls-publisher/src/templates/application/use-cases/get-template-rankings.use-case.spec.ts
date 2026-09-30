@@ -1,8 +1,8 @@
-import { ScoredCall } from '../../../scoring/domain/entities/scored-call.entity';
-import { Score } from '../../../scoring/domain/value-objects/score.vo';
-import { InMemoryScoredCallRepository } from '../../../scoring/infrastructure/repositories/in-memory-scored-call.repository';
-import { InMemoryTemplateRepository } from '../../infrastructure/repositories/in-memory-template.repository';
-import { PublishingTemplate } from '../../domain/entities/publishing-template.entity';
+import { ScoredCall } from '@/scoring/domain/entities/scored-call.entity';
+import { Score } from '@/scoring/domain/value-objects/score.vo';
+import { InMemoryScoredCallRepository } from '@/scoring/infrastructure/repositories/in-memory-scored-call.repository';
+import { InMemoryTemplateRepository } from '@/templates/infrastructure/repositories/in-memory-template.repository';
+import { PublishingTemplate } from '@/templates/domain/entities/publishing-template.entity';
 import { RankingEngine } from '../services/ranking-engine.service';
 import { GetTemplateRankingsUseCase } from './get-template-rankings.use-case';
 

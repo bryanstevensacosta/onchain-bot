@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { NormalizedMention } from '../../domain/entities/normalized-mention.entity';
-import { NormalizedMentionRepository } from '../../application/ports/normalized-mention.repository';
+import { NormalizedMention } from '@/normalization/domain/entities/normalized-mention.entity';
+import { NormalizedMentionRepository } from '@/normalization/application/ports/normalized-mention.repository';
 
 /**
  * In-memory NormalizedMention store.

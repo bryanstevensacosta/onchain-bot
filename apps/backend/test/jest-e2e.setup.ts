@@ -10,7 +10,7 @@
  * - If POSTGRES_DB is explicitly set to a NON-test database (does not end in
  *   _test / _entity / _e2e), REFUSE to start with a loud error instead of
  *   risking dev data. This is the QA-failure guard.
- * - Otherwise force POSTGRES_DB=onchain_bot_e2e (dedicated DB
+ * - Otherwise force POSTGRES_DB=backend_db_e2e (dedicated DB
  *   created for this todo; synchronize:true creates the schema on boot).
  *
  * NOTE: src/settings/settings.e2e-spec.ts runs under the UNIT jest regex
@@ -19,7 +19,7 @@
  * jest.setup.ts.
  */
 
-const TEST_DATABASE = 'onchain_bot_e2e';
+const TEST_DATABASE = 'backend_db_e2e';
 
 const isTestDatabase = (name: string | undefined): boolean =>
   !!name && /(_test|_entity|_e2e)$/.test(name);

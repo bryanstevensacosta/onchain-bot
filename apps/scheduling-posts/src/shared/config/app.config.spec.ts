@@ -53,7 +53,7 @@ describe('validateSchedulingPostsConfig', () => {
 
   it('passes with DATABASE_URL set and warns on empty optionals', () => {
     const { warnings } = validateSchedulingPostsConfig({
-      DATABASE_URL: 'postgres://localhost:5442/onchain_bot_scheduling',
+      DATABASE_URL: 'postgres://localhost:5432/scheduling_posts_db',
     } as NodeJS.ProcessEnv);
     expect(warnings.join(' ')).toMatch(/SCHEDULING_POSTS_API_KEY/);
   });

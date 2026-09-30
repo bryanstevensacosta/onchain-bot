@@ -13,7 +13,7 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
-import type { RankingStrategy } from '../../../domain/entities/publishing-template.entity';
+import type { RankingStrategy } from '@/templates/domain/entities/publishing-template.entity';
 
 class ScoringBonusesDto {
   @IsOptional()

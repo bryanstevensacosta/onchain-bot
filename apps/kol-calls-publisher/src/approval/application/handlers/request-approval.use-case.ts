@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
-import { CallApproval } from '../../domain/entities/call-approval.entity';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
+import { CallApproval } from '@/approval/domain/entities/call-approval.entity';
 import { CallApprovalRepository } from '../ports/call-approval.repository';
-import { ScoredCallRepository } from '../../../scoring/application/ports/scored-call.repository';
-import { TemplateRepository } from '../../../templates/domain/ports/template.repository';
+import { ScoredCallRepository } from '@/scoring/application/ports/scored-call.repository';
+import { TemplateRepository } from '@/templates/domain/ports/template.repository';
 
 export interface RequestApprovalInput {
   readonly templateId: string;

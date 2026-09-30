@@ -1,4 +1,4 @@
-import { DomainError, ErrorCode } from '../../shared/kernel/domain-error';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
 
 export interface TemplateClassificationConfigProps {
   /** Template id (e.g. the `vip-calls` seed name, P14 — a datum, not a module). */

@@ -1,4 +1,4 @@
-import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
 import { PublishRateLimitService } from './publish-rate-limit.service';
 
 describe('PublishRateLimitService (todo 23, P50, failing-first)', () => {

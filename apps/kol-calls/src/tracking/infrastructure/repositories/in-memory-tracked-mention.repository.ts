@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { TrackedMention } from '../../domain/entities/tracked-mention.entity';
-import { TrackedMentionRepository } from '../../application/ports/tracked-mention.repository';
+import { TrackedMention } from '@/tracking/domain/entities/tracked-mention.entity';
+import { TrackedMentionRepository } from '@/tracking/application/ports/tracked-mention.repository';
 
 /**
  * In-memory `TrackedMentionRepository` (Tramo 1 stand-in; the TypeORM

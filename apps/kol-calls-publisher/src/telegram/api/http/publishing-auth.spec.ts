@@ -2,12 +2,12 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import request from 'supertest';
-import { TelegramModule } from '../../telegram.module';
-import { TelegramPublisherPort } from '../../domain/ports/telegram-publisher.port';
-import { BotTokenResolverPort } from '../../domain/ports/bot-token-resolver.port';
-import { TemplateRepository } from '../../../templates/domain/ports/template.repository';
-import { PublishingTemplate } from '../../../templates/domain/entities/publishing-template.entity';
-import { OWNER_ID_HEADER } from '../../../shared/guards/owner-binding';
+import { TelegramModule } from '@/telegram/telegram.module';
+import { TelegramPublisherPort } from '@/telegram/domain/ports/telegram-publisher.port';
+import { BotTokenResolverPort } from '@/telegram/domain/ports/bot-token-resolver.port';
+import { TemplateRepository } from '@/templates/domain/ports/template.repository';
+import { PublishingTemplate } from '@/templates/domain/entities/publishing-template.entity';
+import { OWNER_ID_HEADER } from '@/shared/guards/owner-binding';
 
 const API_KEY = 'task-23-matrix-key';
 

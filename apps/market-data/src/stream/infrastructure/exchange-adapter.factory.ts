@@ -1,4 +1,5 @@
 import { Injectable, Optional } from '@nestjs/common';
+import { BirdeyeWsAdapter } from '../../provider/infrastructure/birdeye/birdeye-ws.client';
 import { CcxtExchangeAdapter } from './ccxt-exchange.adapter';
 import { InMemoryExchangeAdapter } from './in-memory-exchange.adapter';
 import type {
@@ -13,6 +14,13 @@ import type {
  * ccxt.pro adapter (operator-gated: needs the optional ccxt.pro peer
  * + credentials + network); anything else builds the deterministic
  * in-memory driver (dev/test default, zero new deps).
+ *
+ * `birdeye` bypasses the driver switch: it always builds the Birdeye
+ * WS client (Birdeye WS realtime — `wss://public-api.birdeye.so/
+ * socket/solana`, echo-protocol), the DEX source for onchain mints.
+ * Key comes from `BIRDEYE_API_KEY`; `connect()` fails loudly without
+ * it (never a silent dark feed). Allowlist via
+ * `MARKET_DATA_STREAM_EXCHANGES` (add `birdeye` to enable).
  */
 @Injectable()
 export class DefaultExchangeAdapterFactory implements ExchangeAdapterFactory {
@@ -21,6 +29,9 @@ export class DefaultExchangeAdapterFactory implements ExchangeAdapterFactory {
   }
 
   public create(exchange: string): ExchangeWsPort {
+    if (exchange.toLowerCase() === 'birdeye') {
+      return new BirdeyeWsAdapter(process.env.BIRDEYE_API_KEY ?? '') as unknown as ExchangeWsPort;
+    }
     if ((this.driver ?? 'memory').toLowerCase() === 'ccxt') {
       return new CcxtExchangeAdapter(exchange);
     }

@@ -1,4 +1,4 @@
-import { DomainError } from '../../../shared/kernel/domain-error';
+import { DomainError } from '@/shared/kernel/domain-error';
 import { PublishingTemplate } from './publishing-template.entity';
 
 describe('PublishingTemplate (todo 10, failing-first)', () => {

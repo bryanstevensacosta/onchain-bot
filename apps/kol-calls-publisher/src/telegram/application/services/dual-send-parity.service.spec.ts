@@ -1,4 +1,4 @@
-import { DomainError } from '../../../shared/kernel/domain-error';
+import { DomainError } from '@/shared/kernel/domain-error';
 import { DualSendParityService } from './dual-send-parity.service';
 
 describe('DualSendParityService (gateway todo 4, failing-first)', () => {

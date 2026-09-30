@@ -1,11 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ChatGroupEntity } from '../../domain/chat-group.entity';
+import { ChatGroupEntity } from '@/telegram/chain-dexter-bot/domain/chat-group.entity';
 import {
   ChatGroupRepository,
   ChatGroupUpsertInput,
-} from '../../application/ports/chat-group.repository';
+} from '@/telegram/chain-dexter-bot/application/ports/chat-group.repository';
 
 @Injectable()
 export class TypeOrmChatGroupRepository implements ChatGroupRepository {

@@ -10,8 +10,8 @@ import {
   Req,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { ChainDexterBotConfigService } from '../../bot.config';
-import { CommandRouterService } from '../../application/handlers/command-router.service';
+import { ChainDexterBotConfigService } from '@/telegram/chain-dexter-bot/bot.config';
+import { CommandRouterService } from '@/telegram/chain-dexter-bot/application/handlers/command-router.service';
 import type { TelegramUpdate } from './bot-client';
 
 interface RateLimiter {

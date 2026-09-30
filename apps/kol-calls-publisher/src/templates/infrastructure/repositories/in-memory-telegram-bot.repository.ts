@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { TelegramBotRepository } from '../../domain/ports/telegram-bot.repository';
-import type { TelegramBot } from '../../domain/entities/telegram-bot.entity';
+import { TelegramBotRepository } from '@/templates/domain/ports/telegram-bot.repository';
+import type { TelegramBot } from '@/templates/domain/entities/telegram-bot.entity';
 
 /**
  * In-memory bot catalog (upsert by id; tokens stay ciphertext here).

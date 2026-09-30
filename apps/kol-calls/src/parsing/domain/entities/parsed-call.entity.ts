@@ -1,7 +1,7 @@
-import { AggregateRoot } from '../../../shared/kernel/aggregate-root';
-import { DomainEvent } from '../../../shared/kernel/domain-event';
-import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
-import { NormalizedAddress } from '../../../shared/value-objects/normalized-address.vo';
+import { AggregateRoot } from '@/shared/kernel/aggregate-root';
+import { DomainEvent } from '@/shared/kernel/domain-event';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
+import { NormalizedAddress } from '@/shared/value-objects/normalized-address.vo';
 
 export interface ParsedCallProps {
   readonly kolId: string;

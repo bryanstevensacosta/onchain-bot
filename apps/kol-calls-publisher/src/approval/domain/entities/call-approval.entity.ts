@@ -1,6 +1,6 @@
-import { AggregateRoot } from '../../../shared/kernel/aggregate-root';
-import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
-import type { DomainEvent } from '../../../shared/kernel/domain-event';
+import { AggregateRoot } from '@/shared/kernel/aggregate-root';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
+import type { DomainEvent } from '@/shared/kernel/domain-event';
 import { CallApprovalDecidedEvent } from '../events/call-approval.event';
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';

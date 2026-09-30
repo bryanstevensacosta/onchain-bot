@@ -7,17 +7,17 @@ import {
 import {
   MarketData,
   MarketDataProviderPort,
-} from '../../domain/ports/market-data-provider.port';
-import { MARKET_DATA_PROVIDERS } from '../../enrichment.tokens';
-import { TokenSnapshot } from '../../domain/entities/token-snapshot.entity';
-import { Pair } from '../../domain/value-objects/pair.vo';
+} from '@/token/enrichment/domain/ports/market-data-provider.port';
+import { MARKET_DATA_PROVIDERS } from '@/token/enrichment/enrichment.tokens';
+import { TokenSnapshot } from '@/token/enrichment/domain/entities/token-snapshot.entity';
+import { Pair } from '@/token/enrichment/domain/value-objects/pair.vo';
 import { TokenSnapshotRepository } from '../ports/token-snapshot.repository';
 import { EnrichmentEventPublisher } from '../ports/enrichment-event.publisher';
 import {
   TokenSnapshotMapper,
   TokenSnapshotView,
 } from '../mappers/token-snapshot.mapper';
-import { EnrichmentFailedEvent } from '../../domain/events/enrichment-failed.event';
+import { EnrichmentFailedEvent } from '@/token/enrichment/domain/events/enrichment-failed.event';
 
 export interface EnrichTokenInput {
   readonly chain: string;

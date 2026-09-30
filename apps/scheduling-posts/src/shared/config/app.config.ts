@@ -41,7 +41,7 @@ function parseIntOr(raw: string | undefined, fallback: number): number {
  * publish-mode flag because no direct Bot API leg exists in this app.
  * Ports follow the triplet convention (dev :4080, staging :4081,
  * prod :4082); the database lives in `database.config.ts` (C-DB-01:
- * `onchain_bot_scheduling[_staging]` on :5437).
+ * `scheduling_posts_db[_staging]` on :5432 (single dev postgres).
  */
 export function buildSchedulingPostsConfig(
   env: NodeJS.ProcessEnv = process.env,

@@ -9,18 +9,18 @@ import {
   UseFilters,
   UseGuards,
 } from '@nestjs/common';
-import { DomainExceptionFilter } from '../../../shared/filters/domain-exception.filter';
-import { ApiKeyGuard } from '../../../shared/guards/api-key.guard';
+import { DomainExceptionFilter } from '@/shared/filters/domain-exception.filter';
+import { ApiKeyGuard } from '@/shared/guards/api-key.guard';
 import {
   OWNER_ID_HEADER,
   normalizeOwnerId,
-} from '../../../shared/guards/owner-binding';
-import type { PublishingJob } from '../../domain/entities/publishing-job.entity';
-import { PublishingJobRepository } from '../../application/ports/publishing-job.repository';
-import { PublishFromTemplateUseCase } from '../../application/use-cases/publish-from-template.use-case';
-import { ManualPublishUseCase } from '../../application/use-cases/manual-publish.use-case';
-import { PublishAuditLogService } from '../../application/services/publish-audit-log.service';
-import { PublishRateLimitService } from '../../application/services/publish-rate-limit.service';
+} from '@/shared/guards/owner-binding';
+import type { PublishingJob } from '@/telegram/domain/entities/publishing-job.entity';
+import { PublishingJobRepository } from '@/telegram/application/ports/publishing-job.repository';
+import { PublishFromTemplateUseCase } from '@/telegram/application/use-cases/publish-from-template.use-case';
+import { ManualPublishUseCase } from '@/telegram/application/use-cases/manual-publish.use-case';
+import { PublishAuditLogService } from '@/telegram/application/services/publish-audit-log.service';
+import { PublishRateLimitService } from '@/telegram/application/services/publish-rate-limit.service';
 import {
   AuditQueryDto,
   ManualPublishDto,

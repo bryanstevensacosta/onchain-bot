@@ -5,7 +5,7 @@ services:
     image: postgres:16
     container_name: onchain-bot-postgres-bots
     environment:
-      POSTGRES_DB: onchain_bot_bots
+      POSTGRES_DB: telegram_bots_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:

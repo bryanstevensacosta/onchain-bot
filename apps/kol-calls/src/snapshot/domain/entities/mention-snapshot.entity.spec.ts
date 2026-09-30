@@ -1,4 +1,4 @@
-import { DomainError } from '../../../shared/kernel/domain-error';
+import { DomainError } from '@/shared/kernel/domain-error';
 import { MentionSnapshot } from './mention-snapshot.entity';
 
 const BASE = {

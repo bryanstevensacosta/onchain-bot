@@ -1,8 +1,8 @@
 import { Logger } from '@nestjs/common';
-import { ParsedCall } from '../../../parsing/domain/entities/parsed-call.entity';
-import { NormalizedAddress } from '../../../shared/value-objects/normalized-address.vo';
+import { ParsedCall } from '@/parsing/domain/entities/parsed-call.entity';
+import { NormalizedAddress } from '@/shared/value-objects/normalized-address.vo';
 import { NormalizedMentionRepository } from '../ports/normalized-mention.repository';
-import { InMemoryNormalizedMentionRepository } from '../../infrastructure/repositories/in-memory-normalized-mention.repository';
+import { InMemoryNormalizedMentionRepository } from '@/normalization/infrastructure/repositories/in-memory-normalized-mention.repository';
 import { NormalizeCallUseCase } from './normalize-call.use-case';
 
 const CONTRACT = `0x${'a'.repeat(40)}`;

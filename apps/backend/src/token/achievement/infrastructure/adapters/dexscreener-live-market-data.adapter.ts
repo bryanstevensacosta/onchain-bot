@@ -3,7 +3,7 @@ import axios from 'axios';
 import {
   LiveMarketDataPort,
   MarketDataItem,
-} from '../../application/ports/live-market-data.port';
+} from '@/token/achievement/application/ports/live-market-data.port';
 
 interface DexScreenerPair {
   marketCap: number | null;

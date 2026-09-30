@@ -9,14 +9,14 @@ import {
   UseFilters,
   UseGuards,
 } from '@nestjs/common';
-import { DomainExceptionFilter } from '../../../shared/filters/domain-exception.filter';
-import { ApiKeyGuard } from '../../../shared/guards/api-key.guard';
-import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
-import type { CallApproval } from '../../domain/entities/call-approval.entity';
-import { CallApprovalRepository } from '../../application/ports/call-approval.repository';
-import { EvaluateApprovalUseCase } from '../../application/handlers/evaluate-approval.use-case';
-import { RequestApprovalUseCase } from '../../application/handlers/request-approval.use-case';
-import { GetPendingApprovalsUseCase } from '../../application/handlers/get-pending-approvals.use-case';
+import { DomainExceptionFilter } from '@/shared/filters/domain-exception.filter';
+import { ApiKeyGuard } from '@/shared/guards/api-key.guard';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
+import type { CallApproval } from '@/approval/domain/entities/call-approval.entity';
+import { CallApprovalRepository } from '@/approval/application/ports/call-approval.repository';
+import { EvaluateApprovalUseCase } from '@/approval/application/handlers/evaluate-approval.use-case';
+import { RequestApprovalUseCase } from '@/approval/application/handlers/request-approval.use-case';
+import { GetPendingApprovalsUseCase } from '@/approval/application/handlers/get-pending-approvals.use-case';
 import {
   DecideApprovalDto,
   EvaluateApprovalDto,

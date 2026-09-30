@@ -1,15 +1,15 @@
 import { PublishFromTemplateUseCase } from './publish-from-template.use-case';
 import { ManualPublishUseCase } from './manual-publish.use-case';
-import { InMemoryPublishingJobRepository } from '../../infrastructure/repositories/in-memory-publishing-job.repository';
-import { InMemoryCallApprovalRepository } from '../../../approval/infrastructure/repositories/in-memory-call-approval.repository';
-import { InMemoryTemplateRepository } from '../../../templates/infrastructure/repositories/in-memory-template.repository';
-import { PublishingTemplate } from '../../../templates/domain/entities/publishing-template.entity';
-import { VipMessageFormatter } from '../../infrastructure/formatters/vip-message-formatter';
-import type { TelegramPublisherPort } from '../../domain/ports/telegram-publisher.port';
-import type { BotTokenResolverPort } from '../../domain/ports/bot-token-resolver.port';
-import type { BotsGatewaySenderPort } from '../../domain/ports/bots-gateway-sender.port';
+import { InMemoryPublishingJobRepository } from '@/telegram/infrastructure/repositories/in-memory-publishing-job.repository';
+import { InMemoryCallApprovalRepository } from '@/approval/infrastructure/repositories/in-memory-call-approval.repository';
+import { InMemoryTemplateRepository } from '@/templates/infrastructure/repositories/in-memory-template.repository';
+import { PublishingTemplate } from '@/templates/domain/entities/publishing-template.entity';
+import { VipMessageFormatter } from '@/telegram/infrastructure/formatters/vip-message-formatter';
+import type { TelegramPublisherPort } from '@/telegram/domain/ports/telegram-publisher.port';
+import type { BotTokenResolverPort } from '@/telegram/domain/ports/bot-token-resolver.port';
+import type { BotsGatewaySenderPort } from '@/telegram/domain/ports/bots-gateway-sender.port';
 import { DualSendParityService } from '../services/dual-send-parity.service';
-import { GatewayBotMappingService } from '../../infrastructure/gateway/gateway-bot-mapping.service';
+import { GatewayBotMappingService } from '@/telegram/infrastructure/gateway/gateway-bot-mapping.service';
 
 function telegramConfig(mode: 'direct' | 'dual' | 'gateway') {
   return {

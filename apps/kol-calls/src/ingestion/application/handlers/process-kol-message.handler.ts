@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { KolIngestedMessage } from '../../domain/ports/ingestion-client.port';
+import type { KolIngestedMessage } from '@/ingestion/domain/ports/ingestion-client.port';
 import {
   isKolFrame,
   toKolMessage,
-} from '../../infrastructure/http/dto/raw-kol-message.dto';
+} from '@/ingestion/infrastructure/http/dto/raw-kol-message.dto';
 
 /**
  * Accepts one raw SSE frame at a time.

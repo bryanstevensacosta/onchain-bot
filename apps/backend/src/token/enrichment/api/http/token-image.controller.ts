@@ -9,7 +9,7 @@ import {
   Res,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { TokenImageService } from '../../application/services/token-image.service';
+import { TokenImageService } from '@/token/enrichment/application/services/token-image.service';
 
 const ALLOWED_CHAINS = new Set<string>([
   'ethereum',

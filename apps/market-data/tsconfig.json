@@ -23,6 +23,7 @@
       "gateway/*": ["src/gateway/*"],
       "snapshot/*": ["src/snapshot/*"],
       "aggregators/*": ["src/aggregators/*"],
+      "asset-registry/*": ["src/asset-registry/*"],
       "stream/*": ["src/stream/*"],
       "auth/*": ["src/auth/*"],
       "chain-logo/*": ["src/chain-logo/*"],

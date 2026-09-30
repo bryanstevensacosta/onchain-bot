@@ -6,8 +6,8 @@ import {
   RANKING_WINDOWS,
   RANKING_WINDOW_MS,
   type RankingWindow,
-} from '../../domain/entities/kol-window-stat.entity';
-import { STRONG_THRESHOLD } from '../../domain/kol-rating';
+} from '@/tracking/domain/entities/kol-window-stat.entity';
+import { STRONG_THRESHOLD } from '@/tracking/domain/kol-rating';
 import { TrackedMentionRepository } from '../ports/tracked-mention.repository';
 import { KolWindowStatRepository } from '../ports/kol-window-stat.repository';
 

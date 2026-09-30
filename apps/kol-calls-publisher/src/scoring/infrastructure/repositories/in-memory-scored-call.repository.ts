@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { ScoredCall } from '../../domain/entities/scored-call.entity';
-import { ScoredCallRepository } from '../../application/ports/scored-call.repository';
+import { ScoredCall } from '@/scoring/domain/entities/scored-call.entity';
+import { ScoredCallRepository } from '@/scoring/application/ports/scored-call.repository';
 
 /**
  * In-memory scored-call store (upsert by mentionId = double-delivery

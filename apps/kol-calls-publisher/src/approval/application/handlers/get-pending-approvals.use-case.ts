@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
-import type { CallApproval } from '../../domain/entities/call-approval.entity';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
+import type { CallApproval } from '@/approval/domain/entities/call-approval.entity';
 import { CallApprovalRepository } from '../ports/call-approval.repository';
 
 export interface GetPendingApprovalsInput {

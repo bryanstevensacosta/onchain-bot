@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import { AggregateRoot } from '../../../shared/kernel/aggregate-root';
-import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
-import type { DomainEvent } from '../../../shared/kernel/domain-event';
+import { AggregateRoot } from '@/shared/kernel/aggregate-root';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
+import type { DomainEvent } from '@/shared/kernel/domain-event';
 import {
   PublishingJobFailedEvent,
   PublishingJobPublishedEvent,

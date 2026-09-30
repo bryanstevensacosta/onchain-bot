@@ -1,9 +1,9 @@
 import { ManualPublishUseCase } from './manual-publish.use-case';
-import { DomainError } from '../../../shared/kernel/domain-error';
-import { InMemoryPublishingJobRepository } from '../../infrastructure/repositories/in-memory-publishing-job.repository';
-import { VipMessageFormatter } from '../../infrastructure/formatters/vip-message-formatter';
-import type { TelegramPublisherPort } from '../../domain/ports/telegram-publisher.port';
-import type { BotTokenResolverPort } from '../../domain/ports/bot-token-resolver.port';
+import { DomainError } from '@/shared/kernel/domain-error';
+import { InMemoryPublishingJobRepository } from '@/telegram/infrastructure/repositories/in-memory-publishing-job.repository';
+import { VipMessageFormatter } from '@/telegram/infrastructure/formatters/vip-message-formatter';
+import type { TelegramPublisherPort } from '@/telegram/domain/ports/telegram-publisher.port';
+import type { BotTokenResolverPort } from '@/telegram/domain/ports/bot-token-resolver.port';
 
 describe('ManualPublishUseCase (todo 11, failing-first)', () => {
   it('publishes with an explicit bot + channel and records the job', async () => {

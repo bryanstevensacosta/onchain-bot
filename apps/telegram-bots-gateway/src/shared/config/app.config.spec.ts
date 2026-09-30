@@ -4,14 +4,14 @@ describe('bots-gateway config (Tier-1)', () => {
   const baseEnv = {
     ENCRYPTION_KEY:
       '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
-    DATABASE_URL: 'postgres://localhost:5432/onchain_bot_bots',
+    DATABASE_URL: 'postgres://localhost:5432/telegram_bots_db',
   };
 
   it('builds with valid env (default port 4070)', () => {
     const cfg = buildAppConfig(baseEnv);
     expect(cfg.port).toBe(4070);
     expect(cfg.encryptionKey).toBe(baseEnv.ENCRYPTION_KEY);
-    expect(cfg.databaseUrl).toContain('onchain_bot_bots');
+    expect(cfg.databaseUrl).toContain('telegram_bots_db');
   });
 
   it('reads BOTS_GATEWAY_PORT (staging 4071 / prod 4072)', () => {

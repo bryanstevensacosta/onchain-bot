@@ -1,4 +1,4 @@
-import { DomainError } from '../../../shared/kernel/domain-error';
+import { DomainError } from '@/shared/kernel/domain-error';
 import { EncryptionService } from './encryption.service';
 
 describe('EncryptionService AES-256-GCM (P22/P23, failing-first)', () => {

@@ -1,10 +1,10 @@
 import { Body, Controller, Get, Patch, Post, Query } from '@nestjs/common';
-import { GenerateTextUseCase } from '../../application/use-cases/generate-text.use-case';
-import { GetLlmModelsUseCase } from '../../application/use-cases/get-llm-models.use-case';
-import { GetPipelineFlagsUseCase } from '../../application/use-cases/get-pipeline-flags.use-case';
-import { LlmConfigRepository } from '../../domain/ports/llm-config.repository';
-import { validateLlmConfigPatch, type LlmConfig } from '../../domain/llm-config';
-import { UsageAuditService } from '../../application/usage-audit.service';
+import { GenerateTextUseCase } from '@/llm/application/use-cases/generate-text.use-case';
+import { GetLlmModelsUseCase } from '@/llm/application/use-cases/get-llm-models.use-case';
+import { GetPipelineFlagsUseCase } from '@/llm/application/use-cases/get-pipeline-flags.use-case';
+import { LlmConfigRepository } from '@/llm/domain/ports/llm-config.repository';
+import { validateLlmConfigPatch, type LlmConfig } from '@/llm/domain/llm-config';
+import { UsageAuditService } from '@/llm/application/usage-audit.service';
 import { RequireScope } from 'auth/application/require-scope.decorator';
 
 interface GenerateDto {

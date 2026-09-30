@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ChatGroupEntity } from '../../domain/chat-group.entity';
+import { ChatGroupEntity } from '@/telegram/chain-dexter-bot/domain/chat-group.entity';
 import {
   ChatGroupRepository,
   ChatGroupUpsertInput,
-} from '../../application/ports/chat-group.repository';
+} from '@/telegram/chain-dexter-bot/application/ports/chat-group.repository';
 
 const MAX_ENTRIES = 1000;
 

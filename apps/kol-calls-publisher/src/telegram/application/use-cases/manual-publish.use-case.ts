@@ -1,13 +1,13 @@
 import { Injectable, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
-import type { DomainEvent } from '../../../shared/kernel/domain-event';
-import { assertBindingOwner } from '../../../shared/guards/owner-binding';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
+import type { DomainEvent } from '@/shared/kernel/domain-event';
+import { assertBindingOwner } from '@/shared/guards/owner-binding';
 import type {
   KolPublishMode,
   TelegramConfig,
-} from '../../../shared/config/telegram.config';
-import { PublishingJob } from '../../domain/entities/publishing-job.entity';
+} from '@/shared/config/telegram.config';
+import { PublishingJob } from '@/telegram/domain/entities/publishing-job.entity';
 import { PublishingJobRepository } from '../ports/publishing-job.repository';
 import {
   BotTokenResolverPort,
@@ -15,11 +15,11 @@ import {
   DualSendParityService,
   GatewayBotMappingService,
   TelegramPublisherPort,
-} from '../../../target/telegram-ports';
-import type { TargetKind } from '../../../target/domain/target-binding';
-import type { TargetDispatcherPort } from '../../../target/application/ports/target-dispatcher.port';
-import { VipMessageFormatter } from '../../infrastructure/formatters/vip-message-formatter';
-import { TemplateRepository } from '../../../templates/domain/ports/template.repository';
+} from '@/target/telegram-ports';
+import type { TargetKind } from '@/target/domain/target-binding';
+import type { TargetDispatcherPort } from '@/target/application/ports/target-dispatcher.port';
+import { VipMessageFormatter } from '@/telegram/infrastructure/formatters/vip-message-formatter';
+import { TemplateRepository } from '@/templates/domain/ports/template.repository';
 import { PublishAuditLogService } from '../services/publish-audit-log.service';
 
 export interface ManualPublishInput {

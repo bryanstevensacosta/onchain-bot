@@ -9,16 +9,23 @@
 #   backend = tsc-watch + nodemon, frontend = vite). Only ./apps/<app>/src
 #   is bind-mounted so the image's linux node_modules stay intact
 #   (host darwin binaries would break inside the container).
-# - DBs are PER APP (C-DB-01 pattern, same DB names as each app's own
-#   docker-compose.yml). kol-calls-publisher shares kol-calls' DB (P51).
-#   Ingestion shares the backend postgres (pre-existing dev layout).
+# - ONE postgres server (:5432) with ONE DB PER APP named exactly after
+#   the app (C-DB-01 consolidated 2026-09-28): backend_db,
+#   ingestion_telegram_db, kol_calls_db,
+#   kol_calls_publisher_db, feed_publisher_db,
+#   market_data_db, dexter_db, telegram_bots_db,
+#   scheduling_posts_db, ai_ml_db, threads_publisher_db
+#   (+ _test variants + backend_db_test). Dev local ONLY — staging/prod
+#   keep their own servers (never touch Oracle here).
+#   kol-calls-publisher has its OWN DB (split from kol-calls 2026-09-28).
+#   Ingestion shares the single dev postgres (pre-existing dev layout).
 # - ALL secrets are dummies. Explicit `environment:` wins over `env_file`
 #   (Nest ConfigModule: real env > env files). NEVER point env_file at a
 #   file holding real credentials (ingestion .env has the real MTProto
 #   triple — it is NOT referenced here).
-# - Port clash fixed vs per-app composes: telegram-bots-gateway postgres
-#   used host :5436 in its own compose, colliding with feed-publisher pg
-#   :5436. Here the gateway pg is on host :5437 (container port unchanged).
+# - Single postgres: host :5432 (container :5432). Per-app standalone
+#   composes keep their own pg host ports; THIS file is the consolidated
+#   dev path (all apps → `pg:5432`).
 # - Dev ports are the container/dev defaults (dexter :4060, threads :4100).
 #   :4061/:4101 are the STAGING host ports (C-PORTS-01 triplets), not dev.
 
@@ -26,20 +33,23 @@ name: onchain-bot-dev-central
 
 services:
   # ---------------------------------------------------------------- infra
-  pg-backend:
+  # ------------------------------------------------- single postgres (:5432)
+  # ONE server for all dev apps. Per-app DBs are created on first boot
+  # (synchronize:true) — see header for the full C-DB-01 name list.
+  pg:
     image: postgres:16-alpine
-    container_name: onchain-dev-pg-backend
+    container_name: onchain-dev-pg
     restart: unless-stopped
     environment:
       POSTGRES_USER: onchain_bot
       POSTGRES_PASSWORD: onchain_bot
-      POSTGRES_DB: onchain_bot
+      POSTGRES_DB: backend_db
     ports:
       - '5432:5432'
     volumes:
-      - dev-central-pg-backend:/var/lib/postgresql/data
+      - dev-central-pg:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U onchain_bot -d onchain_bot']
+      test: ['CMD-SHELL', 'pg_isready -U onchain_bot -d backend_db']
       interval: 5s
       timeout: 3s
       retries: 10
@@ -58,24 +68,6 @@ services:
       timeout: 3s
       retries: 10
 
-  pg-kol:
-    image: postgres:16
-    container_name: onchain-dev-pg-kol
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: onchain_bot
-      POSTGRES_PASSWORD: onchain_bot
-      POSTGRES_DB: onchain_bot_kol_system
-    ports:
-      - '5435:5432'
-    volumes:
-      - dev-central-pg-kol:/var/lib/postgresql/data
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U onchain_bot -d onchain_bot_kol_system']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   redis-kol:
     image: redis:7
     container_name: onchain-dev-redis-kol
@@ -86,25 +78,6 @@ services:
       - dev-central-redis-kol:/data
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  pg-feed:
-    image: postgres:16
-    container_name: onchain-dev-pg-feed
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: onchain_bot
-      POSTGRES_PASSWORD: onchain_bot
-      POSTGRES_DB: onchain_bot_feed_publisher
-    ports:
-      - '5436:5432'
-    volumes:
-      - dev-central-pg-feed:/var/lib/postgresql/data
-    healthcheck:
-      test:
-        ['CMD-SHELL', 'pg_isready -U onchain_bot -d onchain_bot_feed_publisher']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -123,45 +96,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # NOTE: own per-app compose used host :5436 here — same as pg-feed above.
-  # Centralized file remaps the gateway pg to host :5437 (container :5432).
-  pg-gateway:
-    image: postgres:16
-    container_name: onchain-dev-pg-gateway
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: onchain_bot_bots
-    ports:
-      - '5437:5432'
-    volumes:
-      - dev-central-pg-gateway:/var/lib/postgresql/data
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U postgres -d onchain_bot_bots']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  pg-market:
-    image: postgres:16
-    container_name: onchain-dev-pg-market
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: onchain_bot
-      POSTGRES_PASSWORD: onchain_bot
-      POSTGRES_DB: onchain_bot_market_data
-    ports:
-      - '5438:5432'
-    volumes:
-      - dev-central-pg-market:/var/lib/postgresql/data
-    healthcheck:
-      test:
-        ['CMD-SHELL', 'pg_isready -U onchain_bot -d onchain_bot_market_data']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   redis-market:
     image: redis:7
     container_name: onchain-dev-redis-market
@@ -172,24 +106,6 @@ services:
       - dev-central-redis-market:/data
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  pg-dexter:
-    image: postgres:16
-    container_name: onchain-dev-pg-dexter
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: onchain_bot
-      POSTGRES_PASSWORD: onchain_bot
-      POSTGRES_DB: onchain_bot_dexter
-    ports:
-      - '5440:5432'
-    volumes:
-      - dev-central-pg-dexter:/var/lib/postgresql/data
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U onchain_bot -d onchain_bot_dexter']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -208,24 +124,6 @@ services:
       timeout: 5s
       retries: 5
 
-  pg-scheduling:
-    image: postgres:16
-    container_name: onchain-dev-pg-scheduling
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: onchain_bot
-      POSTGRES_PASSWORD: onchain_bot
-      POSTGRES_DB: onchain_bot_scheduling
-    ports:
-      - '5442:5432'
-    volumes:
-      - dev-central-pg-scheduling:/var/lib/postgresql/data
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U onchain_bot -d onchain_bot_scheduling']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   redis-scheduling:
     image: redis:7
     container_name: onchain-dev-redis-scheduling
@@ -240,24 +138,6 @@ services:
       timeout: 5s
       retries: 5
 
-  pg-aiml:
-    image: postgres:16
-    container_name: onchain-dev-pg-aiml
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: onchain_bot
-      POSTGRES_PASSWORD: onchain_bot
-      POSTGRES_DB: onchain_bot_ai_ml
-    ports:
-      - '5444:5432'
-    volumes:
-      - dev-central-pg-aiml:/var/lib/postgresql/data
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U onchain_bot -d onchain_bot_ai_ml']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   redis-aiml:
     image: redis:7
     container_name: onchain-dev-redis-aiml
@@ -268,24 +148,6 @@ services:
       - dev-central-redis-aiml:/data
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  pg-threads:
-    image: postgres:16
-    container_name: onchain-dev-pg-threads
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: onchain_bot
-      POSTGRES_PASSWORD: onchain_bot
-      POSTGRES_DB: onchain_bot_threads
-    ports:
-      - '5446:5432'
-    volumes:
-      - dev-central-pg-threads:/var/lib/postgresql/data
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U onchain_bot -d onchain_bot_threads']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -319,11 +181,11 @@ services:
       NODE_ENV: development
       PORT: 3030
       DATABASE_ENABLED: 'true'
-      POSTGRES_HOST: pg-backend
+      POSTGRES_HOST: pg
       POSTGRES_PORT: 5432
       POSTGRES_USER: onchain_bot
       POSTGRES_PASSWORD: onchain_bot
-      POSTGRES_DB: onchain_bot
+      POSTGRES_DB: backend_db
       DATABASE_SYNCHRONIZE: 'true'
       DATABASE_LOGGING: 'false'
       REDIS_HOST: redis-backend
@@ -334,7 +196,7 @@ services:
     volumes:
       - ./apps/backend/src:/repo/apps/backend/src
     depends_on:
-      pg-backend:
+      pg:
         condition: service_healthy
       redis-backend:
         condition: service_healthy
@@ -374,9 +236,9 @@ services:
       INGESTION_TELEGRAM_MTPROTO_SESSION: dev-dummy-session
       INGESTION_TELEGRAM_MTPROTO_LOG_LEVEL: error
       DATABASE_ENABLED: 'true'
-      INGESTION_DATABASE_HOST: pg-backend
+      INGESTION_DATABASE_HOST: pg
       INGESTION_DATABASE_PORT: 5432
-      INGESTION_DATABASE_NAME: onchain_bot_ingestion
+      INGESTION_DATABASE_NAME: ingestion_telegram_db
       INGESTION_DATABASE_USER: onchain_bot
       INGESTION_DATABASE_PASSWORD: onchain_bot
       INGESTION_REDIS_HOST: redis-backend
@@ -387,7 +249,7 @@ services:
       - ./apps/ingestion-telegram/src:/app/apps/ingestion-telegram/src
       - dev-central-ingestion-uploads:/app/uploads
     depends_on:
-      pg-backend:
+      pg:
         condition: service_healthy
       redis-backend:
         condition: service_healthy
@@ -418,7 +280,7 @@ services:
     environment:
       NODE_ENV: development
       FEED_PUBLISHER_PORT: 3040
-      DATABASE_URL: postgres://onchain_bot:onchain_bot@pg-feed:5432/onchain_bot_feed_publisher
+      DATABASE_URL: postgres://onchain_bot:onchain_bot@pg:5432/feed_publisher_db
       REDIS_URL: redis://redis-feed:6379/0
       DATABASE_SYNCHRONIZE: 'true'
       ENCRYPTION_KEY: dev-dummy-encryption-key-00000000000000000000000000000000
@@ -430,7 +292,7 @@ services:
     volumes:
       - ./apps/feed-publisher/src:/app/apps/feed-publisher/src
     depends_on:
-      pg-feed:
+      pg:
         condition: service_healthy
       redis-feed:
         condition: service_healthy
@@ -462,7 +324,7 @@ services:
       NODE_ENV: development
       KOL_CALLS_ENABLED: 'true'
       KOL_CALLS_PORT: 3050
-      DATABASE_URL: postgres://onchain_bot:onchain_bot@pg-kol:5432/onchain_bot_kol_system
+      DATABASE_URL: postgres://onchain_bot:onchain_bot@pg:5432/kol_calls_db
       REDIS_URL: redis://redis-kol:6379/0
       DATABASE_SYNCHRONIZE: 'true'
       ENCRYPTION_KEY: dev-dummy-encryption-key-00000000000000000000000000000000
@@ -476,7 +338,7 @@ services:
     volumes:
       - ./apps/kol-calls/src:/app/apps/kol-calls/src
     depends_on:
-      pg-kol:
+      pg:
         condition: service_healthy
       redis-kol:
         condition: service_healthy
@@ -508,8 +370,8 @@ services:
       NODE_ENV: development
       KOL_CALLS_PUBLISHER_ENABLED: 'true'
       KOL_CALLS_PUBLISHER_PORT: 3060
-      # SAME logical DB as kol-calls initially (P51) — no own postgres.
-      DATABASE_URL: postgres://onchain_bot:onchain_bot@pg-kol:5432/onchain_bot_kol_system
+      # Own logical DB (split from kol-calls 2026-09-28).
+      DATABASE_URL: postgres://onchain_bot:onchain_bot@pg:5432/kol_calls_publisher_db
       REDIS_URL: redis://redis-kol:6379/0
       DATABASE_SYNCHRONIZE: 'true'
       ENCRYPTION_KEY: dev-dummy-encryption-key-00000000000000000000000000000000
@@ -522,7 +384,7 @@ services:
     volumes:
       - ./apps/kol-calls-publisher/src:/app/apps/kol-calls-publisher/src
     depends_on:
-      pg-kol:
+      pg:
         condition: service_healthy
       redis-kol:
         condition: service_healthy
@@ -555,7 +417,7 @@ services:
     environment:
       NODE_ENV: development
       MARKET_DATA_PORT: 4000
-      DATABASE_URL: postgres://onchain_bot:onchain_bot@pg-market:5432/onchain_bot_market_data
+      DATABASE_URL: postgres://onchain_bot:onchain_bot@pg:5432/market_data_db
       REDIS_URL: redis://redis-market:6379/0
       DATABASE_SYNCHRONIZE: 'true'
       ENCRYPTION_KEY: dev-dummy-encryption-key-00000000000000000000000000000000
@@ -564,7 +426,7 @@ services:
     volumes:
       - ./apps/market-data/src:/app/apps/market-data/src
     depends_on:
-      pg-market:
+      pg:
         condition: service_healthy
       redis-market:
         condition: service_healthy
@@ -595,7 +457,7 @@ services:
     environment:
       NODE_ENV: development
       DEXTER_PORT: 4060
-      DATABASE_URL: postgres://onchain_bot:onchain_bot@pg-dexter:5432/onchain_bot_dexter
+      DATABASE_URL: postgres://onchain_bot:onchain_bot@pg:5432/dexter_db
       REDIS_URL: redis://redis-dexter:6379/0
       DATABASE_SYNCHRONIZE: 'true'
       ENCRYPTION_KEY: dev-dummy-encryption-key-00000000000000000000000000000000
@@ -604,7 +466,7 @@ services:
     volumes:
       - ./apps/dexter-onchain-bot/src:/app/apps/dexter-onchain-bot/src
     depends_on:
-      pg-dexter:
+      pg:
         condition: service_healthy
       redis-dexter:
         condition: service_healthy
@@ -635,7 +497,7 @@ services:
     environment:
       NODE_ENV: development
       BOTS_GATEWAY_PORT: 4070
-      DATABASE_URL: postgres://postgres:postgres@pg-gateway:5432/onchain_bot_bots
+      DATABASE_URL: postgres://onchain_bot:onchain_bot@pg:5432/telegram_bots_db
       DATABASE_SYNCHRONIZE: 'true'
       ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
     ports:
@@ -644,7 +506,7 @@ services:
       - ./apps/telegram-bots-gateway/src:/app/apps/telegram-bots-gateway/src
       - dev-central-gateway-avatars:/app/uploads/avatars
     depends_on:
-      pg-gateway:
+      pg:
         condition: service_healthy
     command: npm run start:dev -w @onchain-bot/telegram-bots-gateway
     healthcheck:
@@ -674,7 +536,7 @@ services:
       NODE_ENV: development
       SCHEDULING_POSTS_ENABLED: 'true'
       SCHEDULING_POSTS_PORT: 4080
-      DATABASE_URL: postgres://onchain_bot:onchain_bot@pg-scheduling:5432/onchain_bot_scheduling
+      DATABASE_URL: postgres://onchain_bot:onchain_bot@pg:5432/scheduling_posts_db
       REDIS_URL: redis://redis-scheduling:6379/0
       DATABASE_SYNCHRONIZE: 'true'
       ENCRYPTION_KEY: dev-dummy-encryption-key-00000000000000000000000000000000
@@ -684,7 +546,7 @@ services:
     volumes:
       - ./apps/scheduling-posts/src:/app/apps/scheduling-posts/src
     depends_on:
-      pg-scheduling:
+      pg:
         condition: service_healthy
       redis-scheduling:
         condition: service_healthy
@@ -715,7 +577,7 @@ services:
     environment:
       NODE_ENV: development
       AI_ML_PORT: 4090
-      DATABASE_URL: postgres://onchain_bot:onchain_bot@pg-aiml:5432/onchain_bot_ai_ml
+      DATABASE_URL: postgres://onchain_bot:onchain_bot@pg:5432/ai_ml_db
       REDIS_URL: redis://redis-aiml:6379/0
       DATABASE_SYNCHRONIZE: 'true'
       ENCRYPTION_KEY: dev-dummy-encryption-key-00000000000000000000000000000000
@@ -724,7 +586,7 @@ services:
     volumes:
       - ./apps/ai-ml/src:/app/apps/ai-ml/src
     depends_on:
-      pg-aiml:
+      pg:
         condition: service_healthy
       redis-aiml:
         condition: service_healthy
@@ -755,7 +617,7 @@ services:
     environment:
       NODE_ENV: development
       THREADS_PUBLISHER_PORT: 4100
-      DATABASE_URL: postgres://onchain_bot:onchain_bot@pg-threads:5432/onchain_bot_threads
+      DATABASE_URL: postgres://onchain_bot:onchain_bot@pg:5432/threads_publisher_db
       REDIS_URL: redis://redis-threads:6379/0
       DATABASE_SYNCHRONIZE: 'true'
       ENCRYPTION_KEY: dev-dummy-encryption-key-00000000000000000000000000000000
@@ -765,7 +627,7 @@ services:
     volumes:
       - ./apps/threads-publisher/src:/app/apps/threads-publisher/src
     depends_on:
-      pg-threads:
+      pg:
         condition: service_healthy
       redis-threads:
         condition: service_healthy
@@ -825,23 +687,15 @@ services:
     # No healthcheck: distroless image ships no shell/wget/node.
 
 volumes:
-  dev-central-pg-backend:
+  dev-central-pg:
   dev-central-redis-backend:
-  dev-central-pg-kol:
   dev-central-redis-kol:
-  dev-central-pg-feed:
   dev-central-redis-feed:
-  dev-central-pg-gateway:
   dev-central-redis-market:
-  dev-central-pg-market:
   dev-central-redis-dexter:
-  dev-central-pg-dexter:
   dev-central-redis-scheduling:
-  dev-central-pg-scheduling:
   dev-central-redis-aiml:
-  dev-central-pg-aiml:
   dev-central-redis-threads:
-  dev-central-pg-threads:
   dev-central-ingestion-uploads:
   dev-central-gateway-avatars:
   dev-central-frontend-node_modules:

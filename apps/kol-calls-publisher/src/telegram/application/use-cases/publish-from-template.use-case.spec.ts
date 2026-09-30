@@ -1,14 +1,14 @@
 import { PublishFromTemplateUseCase } from './publish-from-template.use-case';
-import { InMemoryPublishingJobRepository } from '../../infrastructure/repositories/in-memory-publishing-job.repository';
-import { InMemoryCallApprovalRepository } from '../../../approval/infrastructure/repositories/in-memory-call-approval.repository';
-import { InMemoryTemplateRepository } from '../../../templates/infrastructure/repositories/in-memory-template.repository';
-import { InMemoryTelegramBotRepository } from '../../../templates/infrastructure/repositories/in-memory-telegram-bot.repository';
-import { PublishingTemplate } from '../../../templates/domain/entities/publishing-template.entity';
-import { TelegramBot } from '../../../templates/domain/entities/telegram-bot.entity';
-import { VipMessageFormatter } from '../../infrastructure/formatters/vip-message-formatter';
-import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
-import type { TelegramPublisherPort } from '../../domain/ports/telegram-publisher.port';
-import type { BotTokenResolverPort } from '../../domain/ports/bot-token-resolver.port';
+import { InMemoryPublishingJobRepository } from '@/telegram/infrastructure/repositories/in-memory-publishing-job.repository';
+import { InMemoryCallApprovalRepository } from '@/approval/infrastructure/repositories/in-memory-call-approval.repository';
+import { InMemoryTemplateRepository } from '@/templates/infrastructure/repositories/in-memory-template.repository';
+import { InMemoryTelegramBotRepository } from '@/templates/infrastructure/repositories/in-memory-telegram-bot.repository';
+import { PublishingTemplate } from '@/templates/domain/entities/publishing-template.entity';
+import { TelegramBot } from '@/templates/domain/entities/telegram-bot.entity';
+import { VipMessageFormatter } from '@/telegram/infrastructure/formatters/vip-message-formatter';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
+import type { TelegramPublisherPort } from '@/telegram/domain/ports/telegram-publisher.port';
+import type { BotTokenResolverPort } from '@/telegram/domain/ports/bot-token-resolver.port';
 
 function publisherStub() {
   const sent: Array<{ chatId: string; text: string }> = [];

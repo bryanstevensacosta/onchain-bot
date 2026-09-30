@@ -2,7 +2,7 @@ import {
   MarketData,
   MarketDataPort,
   emptyMarketData,
-} from '../../domain/ports/market-data.port';
+} from '@/enrichment/domain/ports/market-data.port';
 import { LocalCascadeMarketDataAdapter } from './local-cascade-market-data.adapter';
 
 function data(partial: Partial<MarketData>): MarketData {

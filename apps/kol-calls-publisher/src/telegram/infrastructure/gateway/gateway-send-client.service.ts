@@ -3,9 +3,9 @@ import { ConfigService } from '@nestjs/config';
 import {
   BotsGatewaySenderPort,
   type GatewaySendInput,
-} from '../../domain/ports/bots-gateway-sender.port';
-import type { SendResult } from '../../domain/ports/telegram-publisher.port';
-import type { TelegramConfig } from '../../../shared/config/telegram.config';
+} from '@/telegram/domain/ports/bots-gateway-sender.port';
+import type { SendResult } from '@/telegram/domain/ports/telegram-publisher.port';
+import type { TelegramConfig } from '@/shared/config/telegram.config';
 import { GatewayHmacSigner } from './gateway-hmac-signer.service';
 
 /**

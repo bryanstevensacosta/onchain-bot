@@ -1,4 +1,4 @@
-import { NormalizedMention } from '../../domain/entities/normalized-mention.entity';
+import { NormalizedMention } from '@/normalization/domain/entities/normalized-mention.entity';
 
 export abstract class NormalizedMentionRepository {
   abstract save(mention: NormalizedMention): Promise<void>;

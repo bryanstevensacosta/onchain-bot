@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { TrackedMention } from '../../domain/entities/tracked-mention.entity';
-import type { RecordCallResult } from '../../domain/entities/tracked-mention.entity';
+import { TrackedMention } from '@/tracking/domain/entities/tracked-mention.entity';
+import type { RecordCallResult } from '@/tracking/domain/entities/tracked-mention.entity';
 import { TrackedMentionRepository } from '../ports/tracked-mention.repository';
 
 export interface RecordMentionInput {

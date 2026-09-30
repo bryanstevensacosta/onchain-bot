@@ -1,4 +1,4 @@
-import type { TargetKind } from '../../domain/target-binding';
+import type { TargetKind } from '@/target/domain/target-binding';
 
 /**
  * One routed dispatch request: the caller names the link

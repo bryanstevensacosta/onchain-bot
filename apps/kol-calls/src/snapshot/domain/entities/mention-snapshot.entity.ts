@@ -1,6 +1,6 @@
-import { AggregateRoot } from '../../../shared/kernel/aggregate-root';
-import { DomainEvent } from '../../../shared/kernel/domain-event';
-import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
+import { AggregateRoot } from '@/shared/kernel/aggregate-root';
+import { DomainEvent } from '@/shared/kernel/domain-event';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
 
 export interface MentionSnapshotProps {
   readonly mentionId: string;

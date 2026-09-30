@@ -1,7 +1,7 @@
-import { AggregateRoot } from '../../../shared/kernel/aggregate-root';
-import { DomainEvent } from '../../../shared/kernel/domain-event';
-import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
-import { NormalizedAddress } from '../../../shared/value-objects/normalized-address.vo';
+import { AggregateRoot } from '@/shared/kernel/aggregate-root';
+import { DomainEvent } from '@/shared/kernel/domain-event';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
+import { NormalizedAddress } from '@/shared/value-objects/normalized-address.vo';
 import { Ticker } from '../value-objects/ticker.vo';
 import { Url } from '../value-objects/url.vo';
 import { ExtractionSnapshotBase } from '../snapshot-base';

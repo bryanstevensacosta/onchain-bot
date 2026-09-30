@@ -13,7 +13,7 @@ import { RequireScope } from 'auth/application/require-scope.decorator';
 import {
   PreviewPlaygroundUseCase,
   type PreviewPlaygroundResult,
-} from '../../application/preview-playground.use-case';
+} from '@/playground/application/preview-playground.use-case';
 
 class PlaygroundDraftDto {
   @IsString()

@@ -1,5 +1,5 @@
 import { RecordMentionUseCase } from './record-mention.use-case';
-import { InMemoryTrackedMentionRepository } from '../../infrastructure/repositories/in-memory-tracked-mention.repository';
+import { InMemoryTrackedMentionRepository } from '@/tracking/infrastructure/repositories/in-memory-tracked-mention.repository';
 
 function at(iso: string): Date {
   return new Date(iso);

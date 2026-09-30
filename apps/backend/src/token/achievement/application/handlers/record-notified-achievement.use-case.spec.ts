@@ -3,7 +3,7 @@ import { AchievementCachePort } from '../ports/achievement-cache.port';
 import { AchievementEventPublisher } from '../ports/achievement-event.publisher';
 import { DomainEvent } from 'shared/kernel/domain-event';
 import { MonitoredCallRecord } from '../ports/monitored-call.repository';
-import { CallAchievementReachedEvent } from '../../domain/events/call-achievement-reached.event';
+import { CallAchievementReachedEvent } from '@/token/achievement/domain/events/call-achievement-reached.event';
 
 class FakeCache extends AchievementCachePort {
   public added: Array<{ callId: string; threshold: number }> = [];

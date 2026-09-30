@@ -1,5 +1,5 @@
 import { TrackingCronScheduler } from './tracking-cron.scheduler';
-import { UpdateTrackedCallsUseCase } from '../../application/handlers/update-tracked-calls.use-case';
+import { UpdateTrackedCallsUseCase } from '@/token/call-tracking/application/handlers/update-tracked-calls.use-case';
 import { SchedulerRegistry } from '@nestjs/schedule';
 
 describe('TrackingCronScheduler', () => {

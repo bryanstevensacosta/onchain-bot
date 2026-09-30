@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { TemplateRepository } from '../../domain/ports/template.repository';
-import type { PublishingTemplate } from '../../domain/entities/publishing-template.entity';
+import { TemplateRepository } from '@/templates/domain/ports/template.repository';
+import type { PublishingTemplate } from '@/templates/domain/entities/publishing-template.entity';
 
 /**
  * In-memory template store (upsert by id = double-delivery guard, P1).

@@ -3,7 +3,7 @@ import {
   TrackPublishedCallUseCase,
   TrackPublishedCallInput,
   TrackPublishedCallResult,
-} from '../../application/handlers/track-published-call.use-case';
+} from '@/token/call-tracking/application/handlers/track-published-call.use-case';
 import { CallPublishedEvent } from 'telegram/shared/domain/events/call-published.event';
 
 describe('CallPublishedTrackedHandler', () => {

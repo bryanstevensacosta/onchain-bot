@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { CommandContext, CommandHandler } from '../command-handler';
-import { MessageFormatterAdapter } from '../../../infrastructure/telegram/message-formatter.adapter';
-import { TelegramBotClient } from '../../../infrastructure/telegram/bot-client';
+import { MessageFormatterAdapter } from '@/telegram/chain-dexter-bot/infrastructure/telegram/message-formatter.adapter';
+import { TelegramBotClient } from '@/telegram/chain-dexter-bot/infrastructure/telegram/bot-client';
 import { TokenScanPipeline } from '../token-scan.pipeline';
 import { ResolvedToken } from '../resolved-token';
 

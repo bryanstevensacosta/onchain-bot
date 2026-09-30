@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
-import { TelegramBotRepository } from '../../domain/ports/telegram-bot.repository';
-import type { RedactedTelegramBot } from '../../domain/entities/telegram-bot.entity';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
+import { TelegramBotRepository } from '@/templates/domain/ports/telegram-bot.repository';
+import type { RedactedTelegramBot } from '@/templates/domain/entities/telegram-bot.entity';
 
 /**
  * Lists the bot catalog — every entry redacted (`token: '***'`).

@@ -7,10 +7,10 @@ import {
   UseFilters,
   UseGuards,
 } from '@nestjs/common';
-import { DomainExceptionFilter } from '../../../shared/filters/domain-exception.filter';
-import { ApiKeyGuard } from '../../../shared/guards/api-key.guard';
-import { NormalizedMentionRepository } from '../../application/ports/normalized-mention.repository';
-import type { NormalizedMention } from '../../domain/entities/normalized-mention.entity';
+import { DomainExceptionFilter } from '@/shared/filters/domain-exception.filter';
+import { ApiKeyGuard } from '@/shared/guards/api-key.guard';
+import { NormalizedMentionRepository } from '@/normalization/application/ports/normalized-mention.repository';
+import type { NormalizedMention } from '@/normalization/domain/entities/normalized-mention.entity';
 import { MentionsQueryDto } from './dto/mentions-query.dto';
 
 function toJson(mention: NormalizedMention): Record<string, unknown> {

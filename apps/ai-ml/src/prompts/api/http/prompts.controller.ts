@@ -15,8 +15,8 @@ import { RequireScope } from 'auth/application/require-scope.decorator';
 import {
   PromptCatalogService,
   type PromptSource,
-} from '../../application/prompt-catalog.service';
-import type { PromptContentType, PromptTemplate } from '../../domain/prompt-template';
+} from '@/prompts/application/prompt-catalog.service';
+import type { PromptContentType, PromptTemplate } from '@/prompts/domain/prompt-template';
 
 class CreatePromptDto {
   @IsString()

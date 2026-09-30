@@ -3,7 +3,7 @@ import { Uuid } from 'shared/common/utils';
 import {
   MonitoredCallRepository,
   MonitoredCallRecord,
-} from '../../application/ports/monitored-call.repository';
+} from '@/token/achievement/application/ports/monitored-call.repository';
 
 @Injectable()
 export class InMemoryMonitoredCallRepository extends MonitoredCallRepository {

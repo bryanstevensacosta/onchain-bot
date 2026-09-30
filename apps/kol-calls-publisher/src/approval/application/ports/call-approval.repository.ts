@@ -1,4 +1,4 @@
-import type { CallApproval } from '../../domain/entities/call-approval.entity';
+import type { CallApproval } from '@/approval/domain/entities/call-approval.entity';
 
 /**
  * Persistence port for per-template approvals (same kol-system DB;

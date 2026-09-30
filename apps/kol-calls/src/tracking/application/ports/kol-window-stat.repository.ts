@@ -1,7 +1,7 @@
 import type {
   KolWindowStat,
   RankingWindow,
-} from '../../domain/entities/kol-window-stat.entity';
+} from '@/tracking/domain/entities/kol-window-stat.entity';
 
 /**
  * Storage port for precomputed (caller, window) ranking rows (same

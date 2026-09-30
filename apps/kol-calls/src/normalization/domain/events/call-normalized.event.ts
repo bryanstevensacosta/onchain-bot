@@ -1,4 +1,4 @@
-import { DomainEvent } from '../../../shared/kernel/domain-event';
+import { DomainEvent } from '@/shared/kernel/domain-event';
 
 export interface CallNormalizedPayload {
   readonly mentionId: string;

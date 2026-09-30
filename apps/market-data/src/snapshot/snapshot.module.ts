@@ -19,6 +19,7 @@ import { AddressSnapshotService } from './application/address-snapshot.service';
 import { SnapshotHistoryJanitorService } from './application/snapshot-history-janitor.service';
 import { HoldersModule } from '../holders/holders.module';
 import { AggregatorsModule } from 'aggregators/aggregators.module';
+import { AssetRegistryModule } from 'asset-registry/asset-registry.module';
 import { SNAPSHOT_QUOTE_PROVIDERS } from './domain/snapshot-quote.types';
 import {
   buildProviderQuoteFetchers,
@@ -53,6 +54,7 @@ import { SnapshotHistoryRepository } from './infrastructure/snapshot-history.rep
     ProvidersModule,
     HoldersModule,
     AggregatorsModule,
+    AssetRegistryModule,
     RateLimiterModule,
     ...(isDatabaseEnabled()
       ? [TypeOrmModule.forFeature([SnapshotHistoryEntity])]

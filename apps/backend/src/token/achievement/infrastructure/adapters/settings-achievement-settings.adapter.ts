@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { AchievementSettingsPort } from '../../application/ports/achievement-settings.port';
+import { AchievementSettingsPort } from '@/token/achievement/application/ports/achievement-settings.port';
 
 export const DEFAULT_MILESTONE_THRESHOLDS: ReadonlyArray<number> = Array.from(
   { length: 99 },

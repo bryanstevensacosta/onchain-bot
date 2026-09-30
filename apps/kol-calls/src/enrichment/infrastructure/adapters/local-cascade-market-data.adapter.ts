@@ -1,9 +1,9 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
-import { LOCAL_CASCADE_DELEGATES } from '../../enrichment.tokens';
+import { LOCAL_CASCADE_DELEGATES } from '@/enrichment/enrichment.tokens';
 import {
   MarketData,
   MarketDataPort,
-} from '../../domain/ports/market-data.port';
+} from '@/enrichment/domain/ports/market-data.port';
 
 /**
  * Local-cascade leaf (DEFAULT while `USE_DATA_SERVICE_API` is unset/false).

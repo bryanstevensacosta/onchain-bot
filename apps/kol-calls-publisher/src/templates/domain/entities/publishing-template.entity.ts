@@ -1,7 +1,7 @@
-import { AggregateRoot } from '../../../shared/kernel/aggregate-root';
-import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
-import type { DomainEvent } from '../../../shared/kernel/domain-event';
-import { DEFAULT_OWNER_ID } from '../../../shared/guards/owner-binding';
+import { AggregateRoot } from '@/shared/kernel/aggregate-root';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
+import type { DomainEvent } from '@/shared/kernel/domain-event';
+import { DEFAULT_OWNER_ID } from '@/shared/guards/owner-binding';
 import { TemplateClassificationConfig } from '../template-classification.config';
 import {
   DEFAULT_SCORING_CONFIG,
@@ -9,7 +9,7 @@ import {
   validateScoringConfig,
   type ScoringConfigPatch,
   type TemplateScoringConfig,
-} from '../../../scoring/domain/scoring-config';
+} from '@/scoring/domain/scoring-config';
 import {
   TemplateActivatedEvent,
   TemplateCreatedEvent,

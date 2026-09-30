@@ -1,4 +1,4 @@
-import type { ChatSettingsEntity } from '../../domain/chat-settings.entity';
+import type { ChatSettingsEntity } from '@/telegram/chain-dexter-bot/domain/chat-settings.entity';
 
 export type ChatSettingsPatch = Partial<
   Pick<

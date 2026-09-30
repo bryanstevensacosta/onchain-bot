@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
-import type { SendResult } from '../../domain/ports/telegram-publisher.port';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
+import type { SendResult } from '@/telegram/domain/ports/telegram-publisher.port';
 
 export interface ParityInput {
   readonly botId: string;

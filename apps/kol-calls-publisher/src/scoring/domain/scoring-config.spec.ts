@@ -1,4 +1,4 @@
-import { DomainError } from '../../shared/kernel/domain-error';
+import { DomainError } from '@/shared/kernel/domain-error';
 import {
   DEFAULT_SCORING_CONFIG,
   mergeScoringConfig,

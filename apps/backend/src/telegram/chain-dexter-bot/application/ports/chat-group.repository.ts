@@ -1,7 +1,7 @@
 import type {
   ChatGroupEntity,
   TelegramChatType,
-} from '../../domain/chat-group.entity';
+} from '@/telegram/chain-dexter-bot/domain/chat-group.entity';
 
 export interface ChatGroupUpsertInput {
   readonly telegramChatId: string;

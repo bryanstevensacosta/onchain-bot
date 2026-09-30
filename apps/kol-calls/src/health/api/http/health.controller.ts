@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { TrackingHealthIndicator } from '../../../tracking/health/tracking-health.indicator';
+import { TrackingHealthIndicator } from '@/tracking/health/tracking-health.indicator';
 
 interface ComponentStatus {
   readonly status: 'up' | 'down';

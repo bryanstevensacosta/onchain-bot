@@ -2,7 +2,7 @@ import { Injectable, Logger, Optional } from '@nestjs/common';
 import {
   KolIngestionClientPort,
   KolSource,
-} from '../../domain/ports/ingestion-client.port';
+} from '@/ingestion/domain/ports/ingestion-client.port';
 
 /**
  * Resolves caller avatar URLs from the KOL source catalog

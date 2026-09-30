@@ -28,6 +28,7 @@ import { TokenSnapshotEntity } from 'token/enrichment/infrastructure/persistence
 import { TypeOrmTokenSnapshotRepository } from 'token/enrichment/infrastructure/persistence/typeorm/repositories/typeorm-token-snapshot.repository';
 import { CallNormalizedHandler } from 'token/enrichment/infrastructure/event-bus/call-normalized.handler';
 import { EnrichmentController } from 'token/enrichment/api/http/enrichment.controller';
+import { EnrichmentRedirectController } from 'token/enrichment/api/http/enrichment-redirect.controller';
 import { TokenImageController } from 'token/enrichment/api/http/token-image.controller';
 import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-process-domain-event.publisher';
 import { TokenImageService } from 'token/enrichment/application/services/token-image.service';
@@ -71,7 +72,11 @@ import {
     ChainRegistryModule,
     TypeOrmModule.forFeature([TokenSnapshotEntity]),
   ],
-  controllers: [EnrichmentController, TokenImageController],
+  controllers: [
+    EnrichmentController,
+    EnrichmentRedirectController,
+    TokenImageController,
+  ],
   providers: [
     CoinMarketCapAdapter,
     DexScreenerAdapter,

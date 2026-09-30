@@ -1,5 +1,5 @@
-import { ValueObject } from '../../../shared/kernel/value-object';
-import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
+import { ValueObject } from '@/shared/kernel/value-object';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
 
 interface ScoreProps {
   readonly value: number;

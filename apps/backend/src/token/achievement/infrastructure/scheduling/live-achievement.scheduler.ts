@@ -2,7 +2,7 @@ import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob } from 'cron';
-import { EvaluateActiveCallsUseCase } from '../../application/handlers/evaluate-active-calls.use-case';
+import { EvaluateActiveCallsUseCase } from '@/token/achievement/application/handlers/evaluate-active-calls.use-case';
 import type { AppConfig } from 'shared/common/config/app.config';
 
 const CRON_NAME = 'live-achievement-scheduler';

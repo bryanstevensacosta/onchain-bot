@@ -1,11 +1,11 @@
 import { Logger } from '@nestjs/common';
-import { ExtractionCandidate } from '../../../extraction/domain/entities/extraction-candidate.entity';
-import { NormalizedAddress } from '../../../shared/value-objects/normalized-address.vo';
-import { Ticker } from '../../../extraction/domain/value-objects/ticker.vo';
-import { ParserPort } from '../../domain/ports/parser.port';
+import { ExtractionCandidate } from '@/extraction/domain/entities/extraction-candidate.entity';
+import { NormalizedAddress } from '@/shared/value-objects/normalized-address.vo';
+import { Ticker } from '@/extraction/domain/value-objects/ticker.vo';
+import { ParserPort } from '@/parsing/domain/ports/parser.port';
 import { ParsedCallRepository } from '../ports/parsed-call.repository';
-import { InMemoryParsedCallRepository } from '../../infrastructure/repositories/in-memory-parsed-call.repository';
-import { HeuristicParserAdapter } from '../../infrastructure/adapters/heuristic-parser.adapter';
+import { InMemoryParsedCallRepository } from '@/parsing/infrastructure/repositories/in-memory-parsed-call.repository';
+import { HeuristicParserAdapter } from '@/parsing/infrastructure/adapters/heuristic-parser.adapter';
 import { ParseFromCandidatesUseCase } from './parse-from-candidates.use-case';
 
 const KOL_ID = '123456789';

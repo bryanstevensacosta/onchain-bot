@@ -8,13 +8,13 @@ services:
     environment:
       POSTGRES_USER: onchain_bot
       POSTGRES_PASSWORD: onchain_bot
-      POSTGRES_DB: onchain_bot_ai_ml
+      POSTGRES_DB: ai_ml_db
     ports:
       - '5444:5432'
     volumes:
       - ai-ml-postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U onchain_bot -d onchain_bot_ai_ml']
+      test: ['CMD-SHELL', 'pg_isready -U onchain_bot -d ai_ml_db']
       interval: 10s
       timeout: 5s
       retries: 5

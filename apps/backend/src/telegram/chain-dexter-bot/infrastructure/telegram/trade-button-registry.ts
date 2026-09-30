@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { ChainDexterBotConfigService } from '../../bot.config';
+import { ChainDexterBotConfigService } from '@/telegram/chain-dexter-bot/bot.config';
 
 /**
  * Trade button codes supported by the bot.

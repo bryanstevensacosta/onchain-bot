@@ -5,9 +5,9 @@ import {
   UseFilters,
   UseGuards,
 } from '@nestjs/common';
-import { DomainExceptionFilter } from '../../../shared/filters/domain-exception.filter';
-import { ApiKeyGuard } from '../../../shared/guards/api-key.guard';
-import { MigrateBotsToGatewayUseCase } from '../../application/use-cases/migrate-bots-to-gateway.use-case';
+import { DomainExceptionFilter } from '@/shared/filters/domain-exception.filter';
+import { ApiKeyGuard } from '@/shared/guards/api-key.guard';
+import { MigrateBotsToGatewayUseCase } from '@/telegram/application/use-cases/migrate-bots-to-gateway.use-case';
 
 /**
  * Vault migration trigger (telegram-bots-gateway todo 4).

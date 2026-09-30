@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob } from 'cron';
-import { UpdateTrackedCallsUseCase } from '../../application/handlers/update-tracked-calls.use-case';
+import { UpdateTrackedCallsUseCase } from '@/token/call-tracking/application/handlers/update-tracked-calls.use-case';
 
 const CRON_NAME = 'tracking-cron-scheduler';
 const DEFAULT_CRON = '*/5 * * * *';

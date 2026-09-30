@@ -75,7 +75,7 @@ Per-app docs (verified, authoritative over this file for details): `apps/backend
 5. **Backends NO escriben feed** — staging/prod solo LEEN vía HTTP API del ingestion-telegram (no réplican tablas ni datos)
 6. **Frontend consume directamente del ingestion-telegram** — `GET /api/feed/messages` apunta al puerto 3032 (no proxy vía backend)
 7. **NO definir ingestion-telegram en `docker-compose.staging.yml` ni `.prod.yml`** — un compose por env: `docker-compose.ingestion.yml` (prod standalone) + `docker-compose.staging-ingestion.yml` (twin)
-8. **Retención 72h de messages + media en ingestion** — janitor `FeedRetentionCleanupScheduler` (ingestion-telegram, lock `9_421_373`, reloj `ingested_at`); 72h por invariante del plan. Valor efectivo en prod pendiente de decisión del operador (el backend prod limpiaba media con 24h; ver dossier task-10 §4)
+8. **Retención 24h de messages + media en ingestion** — janitor `FeedRetentionCleanupScheduler` (ingestion-telegram, lock `9_421_373`, reloj `ingested_at`); 24h por invariante del plan (reducido de 72h por decisión del operador 2026-09-28). Valor efectivo en prod 24h por decisión (el backend prod limpiaba media con 24h; ver dossier task-10 §4)
 
 **Rationale** (per-env 2026-09-22 — cada env es dueño de sus datos):
 
@@ -207,8 +207,9 @@ was removed 2026-09-14 (its PR checks never completed unattended; see
 
 ### Path aliases
 
-- **Backend** (`apps/backend/tsconfig.json`): `shared/*` (+`shared/kernel/*`, `shared/common/*`), `chain/*`, `token/*`, `telegram/*`, `kol/*`, `settings/*`, `dashboard/*`, `data-provider/*`, `health/*`, `src/*` — rooted at `src/`. `@/*` is **not** a backend alias. ⚠️ Dead `discovery/*` alias (no `src/discovery/`) + duplicated `settings/*` key.
-- **Ingestion-telegram**: `shared/*`, `telegram/*`, `stream/*`, `media/*`, `health/*`, `src/*` (+ kernel/common). No `@/*`.
+- **Every Nest app** (`apps/{backend,ingestion-telegram,kol-calls,kol-calls-publisher,feed-publisher,market-data,dexter-onchain-bot,telegram-bots-gateway,scheduling-posts,threads-publisher,ai-ml}/tsconfig.json`): `@/*` → `src/*` (`baseUrl: ./`), for all imports 2+ levels up (2026-09-27 migration, evidence `.omo/evidence/alias-at-migration.log`). Per-domain aliases (`shared/*`, `token/*`, …) remain alongside. Exceptions: backend cross-app relative imports into `market-data/src/**` + market-data `provider/infrastructure/*` → `../../domain/…` stay relative (unresolvable as `@/` under the backend project).
+- **Backend** (`apps/backend/tsconfig.json`): `shared/*` (+`shared/kernel/*`, `shared/common/*`), `chain/*`, `token/*`, `telegram/*`, `kol/*`, `settings/*`, `dashboard/*`, `data-provider/*`, `health/*`, `src/*` — rooted at `src/`. ⚠️ Dead `discovery/*` alias (no `src/discovery/`) + duplicated `settings/*` key.
+- **Ingestion-telegram**: `shared/*`, `core/*`, `metadata/*`, `feed/*`, `registry/*`, `stream/*`, `feed-media/*`, `health/*`, `debug/*`, `src/*` (+ kernel/common).
 - **Frontend** (`apps/frontend/tsconfig.json`): only `@/*` → `src/*` (`baseUrl: ./src`). No `../../../` chains.
 
 ### ESLint (flat configs — differ per app, NOT project-wide)
@@ -648,7 +649,7 @@ Lossy by design: no replay (backfill endpoint deleted with the multi-backend lay
 - **Port cleanup before dev**: `scripts/cleanup-ports.mjs` runs as `predev` hook — kills stale 3030/5173 holders.
 - **MTProto lives in ingestion-telegram** (`INGESTION_TELEGRAM_MTPROTO_*` there, nowhere else). Backend publishing is Bot API (`vip-calls/vip-channel` + feed publisher + chain-dexter-bot). Backend MTProto branch is deleted (forcing it throws `410 Gone`); rollback is a previous image tag, never a backend session.
 - **Frontend port 5173 is strict**: Vite exits if port is held; cleanup script handles this.
-- **`@/*` alias is frontend-only.** Don't use it in backend imports.
+- **`@/*` = `src/*` in every Nest app** (2026-09-27 migration): use it for all imports 2+ levels up; single-level `../x` stays relative.
 - **No CLAUDE.md exists** — conventions live in `apps/backend/docs/spydefi/arch/`, `GOVERNANCE.md` (branches), and per-app AGENTS.md files.
 - **AGENTS.md map**: this file (root) + `apps/{backend,ingestion-telegram,frontend}/AGENTS.md`. No sub-BC AGENTS.md remain (consolidated 2026-09-04).
 

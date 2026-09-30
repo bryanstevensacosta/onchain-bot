@@ -1,5 +1,5 @@
 import { Controller, Get, Query } from '@nestjs/common';
-import { TokenScanService } from '../../application/token-scan.service';
+import { TokenScanService } from '@/telegram/chain-dexter-bot/application/token-scan.service';
 
 @Controller('chain-dexter')
 export class ChainDexterController {

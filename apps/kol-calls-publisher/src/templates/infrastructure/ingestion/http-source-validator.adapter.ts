@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { SourceValidatorPort } from '../../domain/ports/source-validator.port';
+import { SourceValidatorPort } from '@/templates/domain/ports/source-validator.port';
 
 /**
  * Validates template `kolSourceIds` against the owning ingestion-telegram

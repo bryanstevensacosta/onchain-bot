@@ -1,4 +1,4 @@
-import { NormalizedAddress } from '../../../shared/value-objects/normalized-address.vo';
+import { NormalizedAddress } from '@/shared/value-objects/normalized-address.vo';
 
 export interface ScoreGateConfig {
   readonly minScore: number;

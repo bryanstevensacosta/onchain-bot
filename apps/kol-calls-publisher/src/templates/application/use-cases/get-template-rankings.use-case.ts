@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
-import { ScoredCallRepository } from '../../../scoring/application/ports/scored-call.repository';
-import { TemplateRepository } from '../../domain/ports/template.repository';
-import type { RankingStrategy } from '../../domain/entities/publishing-template.entity';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
+import { ScoredCallRepository } from '@/scoring/application/ports/scored-call.repository';
+import { TemplateRepository } from '@/templates/domain/ports/template.repository';
+import type { RankingStrategy } from '@/templates/domain/entities/publishing-template.entity';
 import {
   RankingEngine,
   type RankedCall,

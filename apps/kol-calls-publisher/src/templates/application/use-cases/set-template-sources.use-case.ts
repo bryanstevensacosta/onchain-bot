@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { DomainError, ErrorCode } from '../../../shared/kernel/domain-error';
-import { TemplateRepository } from '../../domain/ports/template.repository';
-import { SourceValidatorPort } from '../../domain/ports/source-validator.port';
-import type { PublishingTemplate } from '../../domain/entities/publishing-template.entity';
+import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
+import { TemplateRepository } from '@/templates/domain/ports/template.repository';
+import { SourceValidatorPort } from '@/templates/domain/ports/source-validator.port';
+import type { PublishingTemplate } from '@/templates/domain/entities/publishing-template.entity';
 
 /**
  * Replaces the template source selector (P16 single dashboard).

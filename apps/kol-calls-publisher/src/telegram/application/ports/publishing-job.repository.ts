@@ -1,4 +1,4 @@
-import type { PublishingJob } from '../../domain/entities/publishing-job.entity';
+import type { PublishingJob } from '@/telegram/domain/entities/publishing-job.entity';
 
 /**
  * Persistence port for publishing jobs (same kol-system DB; in-memory

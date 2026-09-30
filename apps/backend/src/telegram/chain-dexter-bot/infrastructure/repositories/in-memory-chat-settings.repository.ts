@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ChatSettingsEntity } from '../../domain/chat-settings.entity';
+import { ChatSettingsEntity } from '@/telegram/chain-dexter-bot/domain/chat-settings.entity';
 import {
   ChatSettingsPatch,
   ChatSettingsRepository,
-} from '../../application/ports/chat-settings.repository';
+} from '@/telegram/chain-dexter-bot/application/ports/chat-settings.repository';
 
 const DEFAULTS: Omit<ChatSettingsEntity, 'id' | 'chatGroupId' | 'updatedAt'> = {
   enabledTradeButtons: ['DEX', 'PHO', 'TRO'],

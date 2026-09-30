@@ -1,11 +1,11 @@
 import { ConfigService } from '@nestjs/config';
-import { ScoredCall } from '../../../scoring/domain/entities/scored-call.entity';
-import { Score } from '../../../scoring/domain/value-objects/score.vo';
-import { InMemoryScoredCallRepository } from '../../../scoring/infrastructure/repositories/in-memory-scored-call.repository';
-import { InMemoryTemplateRepository } from '../../infrastructure/repositories/in-memory-template.repository';
-import { InMemoryTelegramBotRepository } from '../../infrastructure/repositories/in-memory-telegram-bot.repository';
-import { PublishingTemplate } from '../../domain/entities/publishing-template.entity';
-import { TelegramBot } from '../../domain/entities/telegram-bot.entity';
+import { ScoredCall } from '@/scoring/domain/entities/scored-call.entity';
+import { Score } from '@/scoring/domain/value-objects/score.vo';
+import { InMemoryScoredCallRepository } from '@/scoring/infrastructure/repositories/in-memory-scored-call.repository';
+import { InMemoryTemplateRepository } from '@/templates/infrastructure/repositories/in-memory-template.repository';
+import { InMemoryTelegramBotRepository } from '@/templates/infrastructure/repositories/in-memory-telegram-bot.repository';
+import { PublishingTemplate } from '@/templates/domain/entities/publishing-template.entity';
+import { TelegramBot } from '@/templates/domain/entities/telegram-bot.entity';
 import { RankingEngine } from './ranking-engine.service';
 import { TemplateOrchestratorService } from './template-orchestrator.service';
 

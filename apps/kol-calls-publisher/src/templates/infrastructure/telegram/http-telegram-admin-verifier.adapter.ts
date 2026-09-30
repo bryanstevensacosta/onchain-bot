@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { TelegramAdminVerifierPort } from '../../domain/ports/telegram-admin-verifier.port';
+import { TelegramAdminVerifierPort } from '@/templates/domain/ports/telegram-admin-verifier.port';
 
 /**
  * Bot API admin check (P23-bis): `getMe` (resolve the bot user id) then

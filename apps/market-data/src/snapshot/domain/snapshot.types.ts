@@ -26,6 +26,8 @@ export interface AddressSnapshot extends SnapshotQuote {
   readonly kind: AddressKind;
   readonly key: string;
   readonly status: 'pending' | 'ready';
+  /** Registry id from `asset_registry` (contract+chain), null when unregistered. */
+  readonly assetId: string | null;
   readonly providers: ReadonlyArray<string>;
   /** Registry-order names that contributed at least one quote field. */
   readonly sources: ReadonlyArray<string>;

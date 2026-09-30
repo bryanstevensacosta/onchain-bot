@@ -11,6 +11,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Staging cutover task-16 (STAGING ONLY): `.env.staging.template` annotates `TEMPLATE_ORCHESTRATOR_ENABLED` as DEAD post-P51 (orchestrator lives in kol-calls-publisher — flip it there); `KOL_CALLS_ENABLED=true` unchanged (hot path default). No code deletion; backend legacy KOL (`kol/`, `ingestion/kol/`, `vip-calls/`) carries per-concept `@deprecated` headers pointing at the new apps until the central FINAL REVIEW.
 - Rename `apps/kol-system/` → `apps/kol-calls/` via `git mv` (no behavior change): package `@onchain-bot/kol-calls`, Dockerfile/compose paths, compose project/containers/volumes `onchain-bot-kol-calls[-staging]`, env keys `KOL_CALLS_ENABLED`/`KOL_CALLS_PORT`/`KOL_CALLS_API_KEY` (code honors pre-rename `KOL_SYSTEM_*` as fallback), `.env` templates, scripts, and docs path refs. Functional values unchanged: ports `:3050`/`:3051`/`:3052`, DBs `onchain_bot_kol_system[_staging]`, GHCR history stays under the old image name.
 - Default `PORT` to `3050` (was backend `3030` fallback) so bare `PORT` no longer misleads; canonical runtime port stays `KOL_CALLS_PORT=3050`.
+- `@/*` alias migration (no behavior change): `tsconfig.json` gains `@/* → src/*`, jest `moduleNameMapper` covers `@/` in both `package.json` (unit) and `test/jest-e2e.json` (e2e), and every 2+-level relative import across `src/` switches to `@/`.
+- Dev DB example rename (config only, no code change): `.env.example` `DATABASE_URL` → `postgres://onchain_bot:onchain_bot@localhost:5432/kol_calls_db`; `docker-compose.yml` `POSTGRES_DB` and its `pg_isready` healthcheck follow to `kol_calls_db`.
 
 ### Added
 

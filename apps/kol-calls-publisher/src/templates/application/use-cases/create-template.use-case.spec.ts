@@ -1,5 +1,5 @@
-import { DomainError } from '../../../shared/kernel/domain-error';
-import { InMemoryTemplateRepository } from '../../infrastructure/repositories/in-memory-template.repository';
+import { DomainError } from '@/shared/kernel/domain-error';
+import { InMemoryTemplateRepository } from '@/templates/infrastructure/repositories/in-memory-template.repository';
 import { CreateTemplateUseCase } from './create-template.use-case';
 
 describe('CreateTemplateUseCase (todo 10, failing-first)', () => {

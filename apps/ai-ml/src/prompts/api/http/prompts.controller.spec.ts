@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { ConfigModule } from '@nestjs/config';
-import { PromptsModule } from '../../prompts.module';
+import { PromptsModule } from '@/prompts/prompts.module';
 import { PromptsController } from './prompts.controller';
 
 /**

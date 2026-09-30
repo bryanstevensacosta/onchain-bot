@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ChainId } from 'chain/identity/chain-id.vo';
-import { TokenSnapshot } from '../../domain/entities/token-snapshot.entity';
-import { TokenSnapshotRepository } from '../../application/ports/token-snapshot.repository';
+import { TokenSnapshot } from '@/token/enrichment/domain/entities/token-snapshot.entity';
+import { TokenSnapshotRepository } from '@/token/enrichment/application/ports/token-snapshot.repository';
 
 @Injectable()
 export class InMemoryTokenSnapshotRepository extends TokenSnapshotRepository {
