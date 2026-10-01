@@ -8,9 +8,10 @@
 
 ## Registro
 
-| worktree      | rama                 | base  | path                       | puertos                                                      | propósito                                  | scope IN            | scope OUT           | estado |
-| ------------- | -------------------- | ----- | -------------------------- | ------------------------------------------------------------ | ------------------------------------------ | ------------------- | ------------------- | ------ |
-| frontend-feed | `feat/feed-frontend` | `dev` | `../onchain-bot-feat-feed` | Vite `:5184` (principal `:5173`), backend compartido `:3030` | trabajar `/feed` frontend sin rozar `/kol` | ver § frontend-feed | ver § frontend-feed | activo |
+| worktree      | rama                 | base  | path                         | puertos                                                      | propósito                                       | scope IN            | scope OUT           | estado |
+| ------------- | -------------------- | ----- | ---------------------------- | ------------------------------------------------------------ | ----------------------------------------------- | ------------------- | ------------------- | ------ |
+| frontend-feed | `feat/feed-frontend` | `dev` | `../onchain-bot-feat-feed`   | Vite `:5184` (principal `:5173`), backend compartido `:3030` | trabajar `/feed` frontend sin rozar `/kol`      | ver § frontend-feed | ver § frontend-feed | activo |
+| dexter-bot    | `feat/dexter-bot`    | `dev` | `../onchain-bot-feat-dexter` | N/A (modo solo-editar, sin servidores)                       | trabajar el bot chart dexter sin rozar feed/kol | ver § dexter-bot    | ver § dexter-bot    | activo |
 
 ## frontend-feed
 
@@ -54,6 +55,35 @@ un worktree nuevo cuando el scope no encaja en ninguno existente.
 ### Cómo añadir el próximo (reservado)
 
 - `feat/kol-frontend` → `../onchain-bot-feat-kol` → `:5185` (reservado, no creado).
+
+## dexter-bot
+
+- **Propósito**: trabajar el bot chart dexter sin rozar feed/kol.
+- **Rama**: `feat/dexter-bot` (NUEVA, creada con `-b` desde `dev`).
+- **Base**: `dev`.
+- **Path**: `../onchain-bot-feat-dexter`.
+- **Puertos**: N/A — modo solo-editar, sin servidores (decisión del owner).
+  No se levanta ni backend ni Vite en este worktree; no se copian `.env`
+  y no se toca el Vite `:5184` (PID 19833) del worktree feed.
+- **Scope IN** (bot chart dexter):
+  1. `apps/backend/src/telegram/chain-dexter-bot/` (34 ficheros)
+  2. `apps/frontend/src/pages/dexter/`
+  3. `apps/frontend/src/shared/api/dexter-base.ts`
+- **Scope OUT**: feed, kol, ingestion-telegram, deploy.
+- **Estado**: activo.
+- **Cuándo reusar**: si el cambio toca el bot chart dexter (comandos `/x` `/z` `/c`,
+  scans, charts, trade buttons, página dexter) → **reusar** este worktree,
+  no crear uno nuevo (regla reuso-primero).
+
+### Cierre-PR (dexter-bot)
+
+1. Desde el worktree: `git push -u origin feat/dexter-bot`.
+2. `gh pr create --base dev --head feat/dexter-bot --title 'feat(dexter): <resumen>' --body 'Worktree: ../onchain-bot-feat-dexter. Registry: WORKTREE.md ## dexter-bot'`.
+3. Verificar `gh pr view` + checks CI verdes (GOVERNANCE.md: 1 aprobación + CI + hilos resueltos).
+4. **Dejar el PR abierto para merge humano** (nunca mergear solo).
+5. Limpieza: `git worktree remove ../onchain-bot-feat-dexter` (exige árbol limpio —
+   commitear/stash primero, nunca `--force` sin instrucción explícita) + `git worktree prune`.
+6. Archivar: en el principal `dev`, marcar esta sección como `estado: archivada`.
 
 ## Comandos canónicos
 
