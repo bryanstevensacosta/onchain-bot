@@ -8,6 +8,7 @@ import {
 } from './database.module';
 import { DEXTER_PERSISTED_ENTITIES } from './entities';
 import { EmojiMapOrmEntity } from '../../templates/infrastructure/persistence/typeorm/emoji-map.orm-entity';
+import { MessageTemplateOrmEntity } from '../../templates/infrastructure/persistence/typeorm/message-template.orm-entity';
 
 describe('DatabaseModule wiring seam (todo 1 foundation)', () => {
   const OLD_ENV = process.env;
@@ -87,6 +88,11 @@ describe('DatabaseModule wiring seam (todo 1 foundation)', () => {
 
   describe('DEXTER_PERSISTED_ENTITIES', () => {
     it('registers todo-5 EmojiMapOrmEntity (todo 3 appends MessageTemplateOrmEntity)', () => {
+      expect(DEXTER_PERSISTED_ENTITIES).toContain(EmojiMapOrmEntity);
+    });
+
+    it('registers todo-3 MessageTemplateOrmEntity (EmojiMap assertion intact)', () => {
+      expect(DEXTER_PERSISTED_ENTITIES).toContain(MessageTemplateOrmEntity);
       expect(DEXTER_PERSISTED_ENTITIES).toContain(EmojiMapOrmEntity);
     });
   });
