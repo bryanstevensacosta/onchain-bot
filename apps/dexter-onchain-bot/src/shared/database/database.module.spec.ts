@@ -7,6 +7,7 @@ import {
   resolveDatabaseUrl,
 } from './database.module';
 import { DEXTER_PERSISTED_ENTITIES } from './entities';
+import { EmojiMapOrmEntity } from '../../templates/infrastructure/persistence/typeorm/emoji-map.orm-entity';
 
 describe('DatabaseModule wiring seam (todo 1 foundation)', () => {
   const OLD_ENV = process.env;
@@ -71,9 +72,9 @@ describe('DatabaseModule wiring seam (todo 1 foundation)', () => {
       expect(() => parseDatabaseUrlOrThrow('http://localhost/db')).toThrow(
         /protocol/,
       );
-      expect(() => parseDatabaseUrlOrThrow('postgres://localhost:5432/')).toThrow(
-        /missing database name/,
-      );
+      expect(() =>
+        parseDatabaseUrlOrThrow('postgres://localhost:5432/'),
+      ).toThrow(/missing database name/);
     });
   });
 
@@ -85,8 +86,8 @@ describe('DatabaseModule wiring seam (todo 1 foundation)', () => {
   });
 
   describe('DEXTER_PERSISTED_ENTITIES', () => {
-    it('starts empty — todos 3/5 register their orm-entities here', () => {
-      expect(DEXTER_PERSISTED_ENTITIES).toEqual([]);
+    it('registers todo-5 EmojiMapOrmEntity (todo 3 appends MessageTemplateOrmEntity)', () => {
+      expect(DEXTER_PERSISTED_ENTITIES).toContain(EmojiMapOrmEntity);
     });
   });
 
