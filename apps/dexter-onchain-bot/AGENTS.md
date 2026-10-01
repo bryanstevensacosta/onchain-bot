@@ -86,6 +86,17 @@ src/
 │       └── keyboard/
 │           ├── trade-button-registry.ts # 8 buttons (affiliate tags rebranded dexter-*)
 │           └── inline-keyboard.builder.ts # scan + trade-button keyboards
+├── templates/                  # message templates + display maps (MarkdownV2, {{double-brace}})
+│   ├── domain/                 # MessageTemplate + DisplayMap entities/validators + repo ports (closed v1 command enum)
+│   ├── application/            # DisplayResolverService (DISPLAY_RESOLVER) + PreviewTemplateUseCase
+│   ├── infrastructure/
+│   │   ├── persistence/        # TypeORM + in-memory repos (MESSAGE_TEMPLATE_REPOSITORY symbol, DisplayMapRepository token)
+│   │   └── seed/message-template-seed.service.ts # seeds 7 templates/6 commands (ca/x/z/c/cc/bare)
+│   └── api/http/               # message-templates + template-preview + display-maps controllers (management via HTTP API only)
+├── placeholders/               # renderer + registry ({{key}} only, {% rejected)
+│   ├── domain/placeholder-registry.ts # 22 base + 6 derived keys + per-command whitelist
+│   ├── application/template-renderer.service.ts # TemplateRendererService (DISPLAY_RESOLVER-backed)
+│   └── api/http/placeholders.controller.ts # placeholder catalog reference
 └── settings/                   # chat config + bot config
     ├── domain/chat-settings.ts # settings model + repo ports + defaults (TypeORM NOT moved)
     ├── application/chat-settings.service.ts # getOrCreate/update/toggle (in-memory wired)
@@ -102,7 +113,7 @@ Root files: `package.json` (`@onchain-bot/dexter-onchain-bot`), `nest-cli.json`,
 
 ## MODULES
 
-`DexterModule` (single composition-root module over the 4 sub-BC
+`DexterModule` (single composition-root module over the 6 sub-BC
 folders — deliberately NOT one Nest module per sub-BC: the poller and
 webhook in gateway depend on the router in commands, while the
 handlers in commands depend on the client/keyboards/registry in
@@ -123,6 +134,26 @@ behavioral gain; per-BC modules remain future work):
   token, now defined in the scan domain port and re-exported by
   `DexterModule`; `TokenScanPipeline` alias) → `MessageFormatterAdapter`
   - scan domain detector/extractor (pure functions).
+- templates/ + placeholders/: `MESSAGE_TEMPLATE_REPOSITORY` symbol →
+  `TypeOrmMessageTemplateRepository` (`DATABASE_ENABLED=true`, own
+  `DataSource`) or the shared `InMemoryMessageTemplateRepository`
+  (`false`); `DisplayMapRepository` (abstract-class token, own token) →
+  TypeORM/in-memory pair the same way; `DISPLAY_RESOLVER` →
+  `DisplayResolverService` (`useExisting`, both modes — in-memory
+  starts with an EMPTY display catalog so `{{chainDisplay}}` renders
+  `""` until rows arrive via API, no reboot needed) +
+  `TemplateRendererService` + `PreviewTemplateUseCase` +
+  `MessageTemplateSeedService`. Seed runs `runOnce()` then `refresh()`
+  in ONE `onApplicationBootstrap` (same-module hooks run
+  concurrently — never split seed/warmup). No `forwardRef` anywhere
+  (single root holds); every class-token ctor param carries an
+  explicit `@Inject(X)` (import-elision guard, see TS CONVENTIONS).
+- `DexterController GET /dexter/token?address=` also returns
+  `templateUsed: { command, name, version } | null` (active `ca`
+  template + clean render → rendered `text`; otherwise legacy
+  text/scanCard + null; ambiguous/invalid/not-found shapes
+  byte-identical, no `templateUsed` key). `POST /dexter/health`
+  untouched.
 
 Commands: `/start` (rewritten: lookup info + usage, zero publish words),
 `/ca` (new: full card), `/x` full, `/z` compact, `/c` chart+scan, `/cc`
@@ -131,26 +162,40 @@ chart-only, `/tb` trade-button config (+ `tb:toggle:` callbacks), `/help`,
 through `BareAddressHandler`: first extracted contract is scanned;
 text with no contract gets the "no veo ningún contrato" reply.
 
+> Message templates note (todos 1-13, DONE 2026-10-01): all command
+> cards (`ca`/`x`/`z`/`c`/`cc`/bare) render from DB templates in
+> MarkdownV2 with `{{double-brace}}` syntax (`{%` rejected; 22 base +
+> 6 derived keys + `timeframe`), exactly 1 active template per command
+> (partial unique index + in-memory guard). Keyboards abandoned on
+> `c`/`cc` — chart-link-only text cards (no `reply_markup` until
+> gateway todo 7 covers it; gateway `SendDto` has none). Management
+> via HTTP API only (`POST /api/dexter/templates`,
+> `/api/dexter/display-maps` CRUD, preview endpoints — no
+> Telegram-side template editing in v1). Live precedent:
+> feed-publisher prompt-templates (controller-first validation, 409
+> guards). DISAMBIGUATION: `src/templates/` = Dexter bot message
+> templates, NOT the future frontend-feed `templates` rename.
+
 ## ENV INVENTORY
 
-| Variable                                                                     | Default                                 | Meaning                                                                       |
-| ---------------------------------------------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------------- |
-| `DEXTER_ENABLED`                                                             | `false`                                 | master switch                                                                 |
-| `DEXTER_PORT` / `DEXTER_HOST`                                                | `4060` / `0.0.0.0`                      | bind (triplet 4060/4061/4062; dev may pin 127.0.0.1)                          |
-| `DEXTER_BOT_TOKEN`                                                           | `''`                                    | lookup bot token (wins over legacy — direct-leg credential only since todo 6) |
-| `CHAIN_DEXTER_BOT_TOKEN`                                                     | `''`                                    | legacy fallback (deprecated, honored)                                         |
-| `DEXTER_BOT_VAULT_ID`                                                        | `''`                                    | gateway vault id for this bot (todo 6; set by hand after migration)           |
-| `DEXTER_SEND_MODE`                                                           | `dual`                                  | `direct` (deprecated) \| `dual` (both legs + parity) \| `gateway` (cutover)   |
-| `BOTS_GATEWAY_URL` / `BOTS_GATEWAY_CLIENT_ID` / `BOTS_GATEWAY_CLIENT_SECRET` | `http://localhost:4070` / `''` / `''`   | gateway base + HMAC client (empty = keyless/unsigned dev)                     |
-| `DEXTER_INGRESS_SECRET`                                                      | `null`                                  | shared secret for `POST /dexter/ingress` (empty = unsigned dev)               |
-| `DEXTER_WEBHOOK_SECRET/URL`                                                  | —                                       | webhook auth + registration                                                   |
-| `DEXTER_INGEST_MODE`                                                         | `polling`                               | `webhook` (staging/prod) or `polling` (dev)                                   |
-| `DEXTER_POLLING_INTERVAL_MS`                                                 | `1000`                                  | poller cadence (min 100)                                                      |
-| `MARKET_DATA_URL` / `MARKET_DATA_API_KEY` / `MARKET_DATA_TIMEOUT_MS`         | `http://localhost:4000` / `''` / `2000` | ONLY market-data source                                                       |
-| `DEXTER_RATE_LIMIT_PER_USER`                                                 | `30`                                    | per-user commands per 60 s                                                    |
-| `DEXTER_DEFAULT_TRADE_BUTTONS`                                               | `DEX,PHO,TRO`                           | default button set                                                            |
-| `DATABASE_URL`                                                               | `…/onchain_bot_dexter`                  | RESERVED (v1 is in-memory; no TypeORM wired)                                  |
-| `REDIS_URL`                                                                  | `…/6387/0`                              | RESERVED (limiter is in-process)                                              |
+| Variable                                                                     | Default                                 | Meaning                                                                                                               |
+| ---------------------------------------------------------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `DEXTER_ENABLED`                                                             | `false`                                 | master switch                                                                                                         |
+| `DEXTER_PORT` / `DEXTER_HOST`                                                | `4060` / `0.0.0.0`                      | bind (triplet 4060/4061/4062; dev may pin 127.0.0.1)                                                                  |
+| `DEXTER_BOT_TOKEN`                                                           | `''`                                    | lookup bot token (wins over legacy — direct-leg credential only since todo 6)                                         |
+| `CHAIN_DEXTER_BOT_TOKEN`                                                     | `''`                                    | legacy fallback (deprecated, honored)                                                                                 |
+| `DEXTER_BOT_VAULT_ID`                                                        | `''`                                    | gateway vault id for this bot (todo 6; set by hand after migration)                                                   |
+| `DEXTER_SEND_MODE`                                                           | `dual`                                  | `direct` (deprecated) \| `dual` (both legs + parity) \| `gateway` (cutover)                                           |
+| `BOTS_GATEWAY_URL` / `BOTS_GATEWAY_CLIENT_ID` / `BOTS_GATEWAY_CLIENT_SECRET` | `http://localhost:4070` / `''` / `''`   | gateway base + HMAC client (empty = keyless/unsigned dev)                                                             |
+| `DEXTER_INGRESS_SECRET`                                                      | `null`                                  | shared secret for `POST /dexter/ingress` (empty = unsigned dev)                                                       |
+| `DEXTER_WEBHOOK_SECRET/URL`                                                  | —                                       | webhook auth + registration                                                                                           |
+| `DEXTER_INGEST_MODE`                                                         | `polling`                               | `webhook` (staging/prod) or `polling` (dev)                                                                           |
+| `DEXTER_POLLING_INTERVAL_MS`                                                 | `1000`                                  | poller cadence (min 100)                                                                                              |
+| `MARKET_DATA_URL` / `MARKET_DATA_API_KEY` / `MARKET_DATA_TIMEOUT_MS`         | `http://localhost:4000` / `''` / `2000` | ONLY market-data source                                                                                               |
+| `DEXTER_RATE_LIMIT_PER_USER`                                                 | `30`                                    | per-user commands per 60 s                                                                                            |
+| `DEXTER_DEFAULT_TRADE_BUTTONS`                                               | `DEX,PHO,TRO`                           | default button set                                                                                                    |
+| `DATABASE_URL`                                                               | `…/onchain_bot_dexter`                  | templates/display repos: TypeORM when `DATABASE_ENABLED=true`, in-memory when `false` (chat settings still in-memory) |
+| `REDIS_URL`                                                                  | `…/6387/0`                              | RESERVED (limiter is in-process)                                                                                      |
 
 ## PORTS
 
@@ -397,6 +442,22 @@ todo 6 added 10 suites / 35 tests (±0 since); bare-address added
   boot route diff empty.
 - No root `dev:dexter` script: task constraint (read-only outside the
   app dir) wins over the setup checklist — documented here instead.
+- Message templates (todos 1-13, DONE 2026-10-01): `src/templates/`
+  (domain entities + ports, TypeORM + in-memory repos behind a
+  `DATABASE_ENABLED` factory-switch, 3 migrations pending, seed 7
+  templates/6 commands) + `src/placeholders/` (registry +
+  `TemplateRendererService`) wired in `DexterModule`
+  (`MESSAGE_TEMPLATE_REPOSITORY`, `DisplayMapRepository`,
+  `DISPLAY_RESOLVER` → `DisplayResolverService` useExisting);
+  seed-then-refresh in a single `onApplicationBootstrap`; commands
+  served by templates (`ca`/`x`/`z`/`c`/`cc`/bare, keyboards
+  abandoned — chart-link-only); closed v1 command enum; EmojiMap →
+  DisplayMap rename (`{{chainDisplay}}`, route
+  `/api/dexter/display-maps`); `GET /dexter/token` exposes
+  `templateUsed`. Verified: jest 40/288 green, `tsc --noEmit` clean,
+  double boot (`false` in-memory + `true` TypeORM) with
+  display-via-API-no-reboot. `src/templates/` = Dexter bot message
+  templates, NOT the future frontend-feed `templates` rename.
 
 ## NOTES
 
