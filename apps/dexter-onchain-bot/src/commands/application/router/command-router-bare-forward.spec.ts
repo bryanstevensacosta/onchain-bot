@@ -2,6 +2,10 @@ import { CommandRouterService } from './command-router.service';
 import { DEFAULT_CHAT_SETTINGS } from '@/settings/domain/chat-settings';
 import { extractForwardCandidates } from '@/scan/domain/extractor/forward-extractor';
 import type { TelegramUpdate } from '@/telegram/domain/ports/telegram.port';
+import { BareAddressHandler } from '../handlers/bare-address.handler';
+import { MessageTemplate } from '@/templates/domain/message-template.entity';
+import type { TemplateCommand } from '@/placeholders/domain/placeholder-registry';
+import { TemplateRendererService } from '@/placeholders/application/template-renderer.service';
 
 const SOL = 'So11111111111111111111111111111111111111112';
 
@@ -97,5 +101,110 @@ describe('CommandRouter bare-address + forward handling', () => {
     await router.dispatch(makeUpdate('/nope arg'));
     expect(bot.sent).toHaveLength(1);
     expect(bot.sent[0].text).toMatch(/desconocido/);
+  });
+});
+
+describe('CommandRouter bare-address + template integration (todo 10)', () => {
+  const TOKEN = {
+    address: SOL,
+    chain: 'solana',
+    symbol: 'SOL',
+    name: 'Solana',
+    marketCapUsd: 1_000_000,
+    fdvUsd: 2_000_000,
+    priceUsd: 100,
+    priceChange24h: 5,
+    liquidityUsd: 50_000,
+    lockedLiquidityPercent: null,
+    burnedPercent: null,
+    volume24hUsd: 10_000,
+    holders: 1000,
+    top10HolderPercent: 10,
+    top20HolderPercent: 20,
+    totalSupply: 500_000_000,
+    circulatingSupply: 400_000_000,
+    maxSupply: 1_000_000_000,
+    devWallets: null,
+    devPctSupply: null,
+    poolAddress: null,
+    source: 'market-data-http',
+  };
+
+  function makeRepo(
+    actives: Partial<Record<TemplateCommand, MessageTemplate | null>>,
+  ) {
+    return {
+      findAll: async () => [],
+      findByCommand: async () => [],
+      findById: async () => null,
+      findActiveByCommand: async (
+        cmd: TemplateCommand,
+      ): Promise<MessageTemplate | null> => actives[cmd] ?? null,
+      save: async (t: MessageTemplate) => t,
+      delete: async () => false,
+    };
+  }
+
+  function makeLiveHarness(
+    actives: Partial<Record<TemplateCommand, MessageTemplate | null>>,
+  ) {
+    const bot = makeBot();
+    const fallback = new BareAddressHandler(
+      { resolve: async () => TOKEN } as never,
+      {
+        formatScanCard: () => ({
+          text: 'BUILT-IN-CARD',
+          truncated: false,
+          parseMode: 'MarkdownV2' as const,
+        }),
+        escapeMarkdownV2: (s: string) => s,
+      } as never,
+      {} as never,
+      {} as never,
+      bot as never,
+      makeRepo(actives) as never,
+      new TemplateRendererService() as never,
+    );
+    const contextResolver = {
+      resolve: async () => ({
+        chatId: 42,
+        chatType: 'private' as const,
+        telegramChatId: '42',
+        settings: { ...DEFAULT_CHAT_SETTINGS },
+        user: { id: 7, isBot: false as const },
+        isAdmin: false,
+        raw: {},
+      }),
+    };
+    const router = new CommandRouterService(
+      contextResolver as never,
+      bot as never,
+      { toggleTradeButton: async () => ({}) } as never,
+      { buildScanKeyboard: () => ({ inline_keyboard: [] }) } as never,
+      { isAllowed: () => true },
+      fallback as never,
+    );
+    return { bot, router };
+  }
+
+  it('bare with an active bare template renders it through the router', async () => {
+    const { bot, router } = makeLiveHarness({
+      bare: MessageTemplate.create({
+        command: 'bare',
+        name: 'bare-ca-v1',
+        bodyMarkdown: 'BARE-CARD ${{symbol}}',
+        isActive: true,
+      }),
+    });
+    await router.dispatch(makeUpdate(SOL));
+    expect(bot.sent).toHaveLength(1);
+    expect(bot.sent[0].text).toContain('BARE-CARD $SOL');
+  });
+
+  it('bare without actives falls back to the built-in card through the router', async () => {
+    const { bot, router } = makeLiveHarness({});
+    await router.dispatch(makeUpdate(SOL));
+    expect(bot.sent).toHaveLength(1);
+    expect(bot.sent[0].text).toBe('BUILT-IN-CARD');
   });
 });

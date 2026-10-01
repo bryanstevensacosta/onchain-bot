@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import type { CommandContext } from '@/commands/domain/ports/command-handler.port';
 import { InlineKeyboardBuilder } from '@/telegram/infrastructure/keyboard/inline-keyboard.builder';
 import { MessageFormatterAdapter } from '@/scan/infrastructure/formatter/message-formatter';
@@ -7,6 +7,11 @@ import { TradeButtonRegistry } from '@/telegram/infrastructure/keyboard/trade-bu
 import { TokenScanPipeline } from '@/scan/application/pipeline/token-scan.pipeline';
 import { extractForwardCandidates } from '@/scan/domain/extractor/forward-extractor';
 import { sendFullScan } from './ca.handler';
+import {
+  MESSAGE_TEMPLATE_REPOSITORY,
+  type MessageTemplateRepository,
+} from '@/templates/domain/ports/message-template.repository';
+import { TemplateRendererService } from '@/placeholders/application/template-renderer.service';
 
 /**
  * Bare-address + forward fallback (Tramo 3, todo 9, P13 — NEW).
@@ -25,6 +30,12 @@ export class BareAddressHandler {
     private readonly registry: TradeButtonRegistry,
     private readonly keyboards: InlineKeyboardBuilder,
     private readonly bot: TelegramBotClient,
+    @Inject(MESSAGE_TEMPLATE_REPOSITORY)
+    @Optional()
+    private readonly templates?: MessageTemplateRepository | null,
+    @Inject(TemplateRendererService)
+    @Optional()
+    private readonly renderer?: TemplateRendererService | null,
   ) {}
 
   public async handleText(
@@ -49,6 +60,9 @@ export class BareAddressHandler {
       this.registry,
       this.keyboards,
       this.bot,
+      this.templates ?? null,
+      this.renderer ?? null,
+      ['bare', 'ca'],
     );
   }
 }
