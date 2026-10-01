@@ -34,6 +34,7 @@ import { DisplayResolverService } from './templates/application/display-resolver
 import { DisplayMapRepository } from './templates/domain/ports/display-map.repository';
 import { InMemoryDisplayMapRepository } from './templates/infrastructure/persistence/in-memory/in-memory-display-map.repository';
 import { InMemoryMessageTemplateRepository } from './templates/infrastructure/persistence/in-memory/in-memory-message-template.repository';
+import { MessageTemplateSeedService } from './templates/infrastructure/seed/message-template-seed.service';
 import {
   MESSAGE_TEMPLATE_REPOSITORY,
   type MessageTemplateRepository,
@@ -266,6 +267,9 @@ export { SCAN_PIPELINE };
       provide: MESSAGE_TEMPLATE_REPOSITORY,
       useExisting: InMemoryMessageTemplateRepository,
     },
+    // todo 9 minimal seed wiring (idempotent catalog seed on bootstrap;
+    // DisplayMap rows are operator/API-owned — templates only here).
+    MessageTemplateSeedService,
     // todo 7 preview wiring (same in-memory bindings as todos 6/8; the
     // use-case takes the interface port, so useFactory carries the
     // explicit inject array — same shape as ChatSettingsService above).
