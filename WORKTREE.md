@@ -21,7 +21,7 @@
 - **Path**: `../onchain-bot-feat-feed`.
 - **Puertos**: Vite `:5184` en el worktree (el principal usa `:5173` con `strictPort: true`
   y muere si el puerto está ocupado) contra backend **compartido** `:3030` del principal
-  (excepción local documentada al 1:1 per-env, solo para UI — no se duplica backend ni ingestión).
+  (excepción local documentada al 1:1 per-env, solo para UI — no se duplica backend ni ingestión). Los upstreams `:3031` (ingestion), `:3040` (feed-publisher) y `:4080` (scheduling-posts) también se comparten del entorno principal.
 - **Scope IN** (8 grupos feed):
   1. `apps/frontend/src/pages/feed/`
   2. `apps/frontend/src/entities/feed/`
@@ -31,8 +31,9 @@
   6. `apps/frontend/src/widgets/live-feed/ui/live-feed.tsx`
   7. `apps/frontend/src/widgets/feed-sessions/`
   8. `apps/frontend/src/shared/api/feed-publisher-base.ts`
-- **Scope OUT**: `/kols`, backend, ingestion-telegram, otros widgets.
+- **Scope OUT**: `/kols`, otros widgets; backend e ingestion-telegram (lectura vía proxies sí, cambios no); fases backend del refactor (D6–D12: adapters→telegram-bots, queue→publishing-queue, dual-serve wire) van en worktree/rama aparte.
 - **Estado**: activo.
+- **Specs**: `.kiro/specs/refactor-feed-frontend/overview.md` (inventario CRUDO v1.0 del /feed) + `refactor.md` (v0.1 vivo: D1–D12 fijadas, R1–R6 abiertas).
 - **Cuándo reusar**: si el cambio cabe en el scope IN existente → **reusar** este worktree,
   no crear uno nuevo (regla reuso-primero, ver abajo).
 
