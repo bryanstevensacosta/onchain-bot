@@ -4,10 +4,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { TemplateRendererService } from '@/placeholders/application/template-renderer.service';
-import { EmojiResolverService } from '@/templates/application/emoji-resolver.service';
-import { EMOJI_PLACEHOLDER_KEYS } from '@/templates/domain/emoji-map.validators';
-import { InMemoryEmojiMapRepository } from '@/templates/infrastructure/persistence/in-memory/in-memory-emoji-map.repository';
-import { EmojiMapsController } from './emoji-maps.controller';
+import { DisplayResolverService } from '@/templates/application/display-resolver.service';
+import { DISPLAY_PLACEHOLDER_KEYS } from '@/templates/domain/display-map.validators';
+import { InMemoryDisplayMapRepository } from '@/templates/infrastructure/persistence/in-memory/in-memory-display-map.repository';
+import { DisplayMapsController } from './display-maps.controller';
 
 const statusOf = async (run: () => Promise<unknown>): Promise<number> => {
   try {
@@ -33,14 +33,14 @@ const responseOf = async (
   throw new Error('expected the call to throw');
 };
 
-describe('EmojiMapsController (todo 8)', () => {
+describe('DisplayMapsController (todo 8 display catalog)', () => {
   const setup = (): {
-    controller: EmojiMapsController;
-    resolver: EmojiResolverService;
+    controller: DisplayMapsController;
+    resolver: DisplayResolverService;
   } => {
-    const repo = new InMemoryEmojiMapRepository();
-    const resolver = new EmojiResolverService(repo);
-    return { controller: new EmojiMapsController(repo, resolver), resolver };
+    const repo = new InMemoryDisplayMapRepository();
+    const resolver = new DisplayResolverService(repo);
+    return { controller: new DisplayMapsController(repo, resolver), resolver };
   };
 
   it('POST creates (chain, solana, 🟣) and GET lists it', async () => {
@@ -48,12 +48,12 @@ describe('EmojiMapsController (todo 8)', () => {
     const created = await controller.create({
       placeholderKey: 'chain',
       matchValue: 'solana',
-      emoji: '🟣',
+      display: '🟣',
     });
     expect(created.id).toEqual(expect.any(String));
     expect(created.placeholderKey).toBe('chain');
     expect(created.matchValue).toBe('solana');
-    expect(created.emoji).toBe('🟣');
+    expect(created.display).toBe('🟣');
     const all = await controller.list();
     expect(all).toHaveLength(1);
   });
@@ -63,12 +63,12 @@ describe('EmojiMapsController (todo 8)', () => {
     await controller.create({
       placeholderKey: 'chain',
       matchValue: 'solana',
-      emoji: '🟣',
+      display: '🟣',
     });
     await controller.create({
       placeholderKey: 'chain',
       matchValue: 'ethereum',
-      emoji: '🔵',
+      display: '🔵',
     });
     const filtered = await controller.list('chain');
     expect(filtered).toHaveLength(2);
@@ -86,7 +86,7 @@ describe('EmojiMapsController (todo 8)', () => {
       error: string;
       valid: string[];
     };
-    expect(body.valid).toEqual([...EMOJI_PLACEHOLDER_KEYS]);
+    expect(body.valid).toEqual([...DISPLAY_PLACEHOLDER_KEYS]);
     expect(body.valid).toContain('chain');
   });
 
@@ -95,13 +95,13 @@ describe('EmojiMapsController (todo 8)', () => {
     await controller.create({
       placeholderKey: 'chain',
       matchValue: 'solana',
-      emoji: '🟣',
+      display: '🟣',
     });
     await expect(
       controller.create({
         placeholderKey: 'chain',
         matchValue: 'solana',
-        emoji: '🟪',
+        display: '🟪',
       }),
     ).rejects.toBeInstanceOf(ConflictException);
     expect(
@@ -109,7 +109,7 @@ describe('EmojiMapsController (todo 8)', () => {
         controller.create({
           placeholderKey: 'chain',
           matchValue: 'solana',
-          emoji: '🟪',
+          display: '🟪',
         }),
       ),
     ).toBe(409);
@@ -120,13 +120,13 @@ describe('EmojiMapsController (todo 8)', () => {
     await controller.create({
       placeholderKey: 'chain',
       matchValue: 'solana',
-      emoji: '🟣',
+      display: '🟣',
     });
     await expect(
       controller.create({
         placeholderKey: 'chain',
         matchValue: 'Solana',
-        emoji: '🟪',
+        display: '🟪',
       }),
     ).rejects.toBeInstanceOf(ConflictException);
   });
@@ -137,47 +137,70 @@ describe('EmojiMapsController (todo 8)', () => {
       controller.create({
         placeholderKey: 'precio',
         matchValue: 'x',
-        emoji: '🟣',
+        display: '🟣',
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
     const body = (await responseOf(() =>
       controller.create({
         placeholderKey: 'precio',
         matchValue: 'x',
-        emoji: '🟣',
+        display: '🟣',
       }),
     )) as { error: string; valid: string[] };
     expect(body.valid).toContain('chain');
   });
 
-  it("POST empty emoji → 400 (and oversize matchValue → 400)", async () => {
+  it("POST empty display → 400 (and oversize matchValue → 400)", async () => {
     const { controller } = setup();
     await expect(
       controller.create({
         placeholderKey: 'chain',
         matchValue: 'solana',
-        emoji: '',
+        display: '',
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
     await expect(
       controller.create({
         placeholderKey: 'chain',
         matchValue: 'x'.repeat(41),
-        emoji: '🟣',
+        display: '🟣',
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('PATCH updates emoji + refreshes the resolver cache', async () => {
+  it('POST accepts display text and mixed forms (SOL, 🟣 SOL)', async () => {
+    const { controller } = setup();
+    const text = await controller.create({
+      placeholderKey: 'chain',
+      matchValue: 'solana',
+      display: 'SOL',
+    });
+    expect(text.display).toBe('SOL');
+    const mixed = await controller.create({
+      placeholderKey: 'chain',
+      matchValue: 'ethereum',
+      display: '🟣 SOL',
+    });
+    expect(mixed.display).toBe('🟣 SOL');
+    await expect(
+      controller.create({
+        placeholderKey: 'chain',
+        matchValue: 'base',
+        display: 'x'.repeat(41),
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('PATCH updates display + refreshes the resolver cache', async () => {
     const { controller, resolver } = setup();
     const created = await controller.create({
       placeholderKey: 'chain',
       matchValue: 'solana',
-      emoji: '🟣',
+      display: '🟣',
     });
     const refresh = jest.spyOn(resolver, 'refresh');
-    const updated = await controller.update(created.id, { emoji: '💜' });
-    expect(updated.emoji).toBe('💜');
+    const updated = await controller.update(created.id, { display: '💜' });
+    expect(updated.display).toBe('💜');
     expect(refresh).toHaveBeenCalled();
     expect(resolver.resolve('chain', 'solana')).toBe('💜');
   });
@@ -185,10 +208,10 @@ describe('EmojiMapsController (todo 8)', () => {
   it('PATCH unknown id → 404; DELETE unknown id → 404', async () => {
     const { controller } = setup();
     await expect(
-      controller.update('missing-id', { emoji: '💜' }),
+      controller.update('missing-id', { display: '💜' }),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(
-      await statusOf(() => controller.update('missing-id', { emoji: '💜' })),
+      await statusOf(() => controller.update('missing-id', { display: '💜' })),
     ).toBe(404);
     await expect(controller.remove('missing-id')).rejects.toBeInstanceOf(
       NotFoundException,
@@ -200,12 +223,12 @@ describe('EmojiMapsController (todo 8)', () => {
     const created = await controller.create({
       placeholderKey: 'chain',
       matchValue: 'ton',
-      emoji: '💎',
+      display: '💎',
     });
     await controller.remove(created.id);
     expect(await controller.list()).toHaveLength(0);
     await expect(
-      controller.update(created.id, { emoji: '🟣' }),
+      controller.update(created.id, { display: '🟣' }),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
@@ -214,14 +237,14 @@ describe('EmojiMapsController (todo 8)', () => {
     await controller.create({
       placeholderKey: 'chain',
       matchValue: 'solana',
-      emoji: '🟣',
+      display: '🟣',
     });
     const renderer = new TemplateRendererService(resolver);
-    const out = renderer.render('{{chainEmoji}}', { chain: 'solana' }, 'ca');
+    const out = renderer.render('{{chainDisplay}}', { chain: 'solana' }, 'ca');
     expect(out.text).toContain('🟣');
     // case-insensitive read path: 'Solana' resolves the same row
     const upper = renderer.render(
-      '{{chainEmoji}}',
+      '{{chainDisplay}}',
       { chain: 'Solana' },
       'ca',
     );

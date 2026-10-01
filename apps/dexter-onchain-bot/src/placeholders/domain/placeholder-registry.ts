@@ -49,7 +49,7 @@ export const BASE_TOKEN_PLACEHOLDERS: readonly string[] = [
 
 /** Renderer-computed keys (MarkdownV2-safe by construction). */
 export const DERIVED_PLACEHOLDERS: readonly string[] = [
-  'chainEmoji',
+  'chainDisplay',
   'scanLinks',
   'dexscreenerUrl',
   'geckoterminalUrl',

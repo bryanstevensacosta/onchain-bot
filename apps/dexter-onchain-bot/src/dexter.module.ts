@@ -21,10 +21,10 @@ import { BotsGatewaySenderPort } from './telegram/domain/ports/bots-gateway-send
 import { GatewayMigrationController } from './telegram/api/http/gateway-migration.controller';
 import { DexterBotBindingController } from './telegram/api/http/bot-binding.controller';
 import { DexterIngressController } from './telegram/api/http/ingress.controller';
-import { EmojiMapsController } from './templates/api/http/emoji-maps.controller';
-import { EmojiResolverService } from './templates/application/emoji-resolver.service';
-import { EmojiMapRepository } from './templates/domain/ports/emoji-map.repository';
-import { InMemoryEmojiMapRepository } from './templates/infrastructure/persistence/in-memory/in-memory-emoji-map.repository';
+import { DisplayMapsController } from './templates/api/http/display-maps.controller';
+import { DisplayResolverService } from './templates/application/display-resolver.service';
+import { DisplayMapRepository } from './templates/domain/ports/display-map.repository';
+import { InMemoryDisplayMapRepository } from './templates/infrastructure/persistence/in-memory/in-memory-display-map.repository';
 import {
   InMemoryChatGroupRepository,
   InMemoryChatSettingsRepository,
@@ -96,10 +96,10 @@ export { SCAN_PIPELINE };
     GatewayMigrationController,
     DexterBotBindingController,
     DexterIngressController,
-    // todo 8 (dexter-message-templates): emoji-maps CRUD. Additive only —
+    // todo 8 (dexter-message-templates): display-maps CRUD. Additive only —
     // the full templates/placeholders wiring (TypeORM switch,
-    // EMOJI_RESOLVER binding, seed) lands in todo 13.
-    EmojiMapsController,
+    // DISPLAY_RESOLVER binding, seed) lands in todo 13.
+    DisplayMapsController,
   ],
   providers: [
     DexterBotConfigService,
@@ -230,14 +230,14 @@ export { SCAN_PIPELINE };
       ],
     },
     UpdatePollerService,
-    // todo 8 minimal emoji wiring (in-memory repo + resolver so the
+    // todo 8 minimal display wiring (in-memory repo + resolver so the
     // controller's refresh() works; todo 13 adds the TypeORM switch).
-    InMemoryEmojiMapRepository,
+    InMemoryDisplayMapRepository,
     {
-      provide: EmojiMapRepository,
-      useExisting: InMemoryEmojiMapRepository,
+      provide: DisplayMapRepository,
+      useExisting: InMemoryDisplayMapRepository,
     },
-    EmojiResolverService,
+    DisplayResolverService,
   ],
   exports: [
     DexterBotConfigService,

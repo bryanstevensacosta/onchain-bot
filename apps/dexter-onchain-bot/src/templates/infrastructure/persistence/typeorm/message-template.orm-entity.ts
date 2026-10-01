@@ -13,7 +13,7 @@ import { Column, Entity, Index, PrimaryColumn, Unique } from 'typeorm';
  *   per command; concurrent activates race on this index — losers get
  *   `23505`, mapped to `MessageTemplateDuplicateError`, never raw 500).
  *
- * Column naming follows the sibling `emoji-map.orm-entity.ts` convention
+ * Column naming follows the sibling `display-map.orm-entity.ts` convention
  * (camelCase properties, TypeORM default naming — NOT snake_case).
  */
 @Entity('dexter_message_templates')

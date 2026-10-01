@@ -5,7 +5,7 @@ import {
   UnknownPlaceholder,
   UnsupportedTemplateSyntax,
 } from '@/placeholders/application/template-renderer.service';
-import type { EmojiResolverPort } from '@/placeholders/application/template-renderer.service';
+import type { DisplayResolverPort } from '@/placeholders/application/template-renderer.service';
 import {
   PLACEHOLDERS_BY_COMMAND,
   placeholdersFor,
@@ -66,13 +66,13 @@ const NULL_TOKEN: ResolvedToken = {
   poolAddress: null,
 };
 
-const stubResolver = (emoji: string): EmojiResolverPort => ({
+const stubResolver = (display: string): DisplayResolverPort => ({
   resolve: (placeholderKey: string, matchValue: string) =>
-    placeholderKey === 'chain' && matchValue === 'solana' ? emoji : '',
+    placeholderKey === 'chain' && matchValue === 'solana' ? display : '',
 });
 
 const RICK_BODY = [
-  '{{chainEmoji}} *${{symbol}}* \\| {{name}} — {{chain}}',
+  '{{chainDisplay}} *${{symbol}}* \\| {{name}} — {{chain}}',
   '`{{address}}`',
   '',
   '💰 {{priceUsd}} \\({{priceChange24h}}\\) • MC {{marketCapUsd}} • Liq {{liquidityUsd}}',
@@ -96,7 +96,7 @@ describe('TemplateRendererService (todo 4 closed semantics)', () => {
     expect(out.truncated).toBe(false);
     expect(out.text.length).toBeLessThanOrEqual(TEMPLATE_MAX_LENGTH);
     expect(out.placeholdersUsed).toEqual(
-      expect.arrayContaining(['symbol', 'chainEmoji', 'devLine', 'scanLinks']),
+      expect.arrayContaining(['symbol', 'chainDisplay', 'devLine', 'scanLinks']),
     );
   });
 
@@ -179,15 +179,15 @@ describe('TemplateRendererService (todo 4 closed semantics)', () => {
 
   it('cleans dangling separators left by empty derived values', () => {
     const renderer = new TemplateRendererService();
-    const out = renderer.render('Stats • {{chainEmoji}}\nNext', TOKEN, 'ca');
+    const out = renderer.render('Stats • {{chainDisplay}}\nNext', TOKEN, 'ca');
     expect(out.text).not.toContain('•');
     expect(out.text).toContain('Stats');
     expect(out.text).toContain('Next');
   });
 
-  it('falls back to "" when no emoji resolver is injected', () => {
+  it('falls back to "" when no display resolver is injected', () => {
     const renderer = new TemplateRendererService();
-    const out = renderer.render('[{{chainEmoji}}] {{symbol}}', TOKEN, 'bare');
+    const out = renderer.render('[{{chainDisplay}}] {{symbol}}', TOKEN, 'bare');
     expect(out.text).toBe('[] SOL');
   });
 

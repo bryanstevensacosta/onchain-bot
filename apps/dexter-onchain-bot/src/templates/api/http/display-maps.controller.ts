@@ -13,40 +13,41 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { EmojiMap } from '@/templates/domain/emoji-map.entity';
+import { DisplayMap } from '@/templates/domain/display-map.entity';
 import {
-  EMOJI_PLACEHOLDER_KEYS,
-  EmojiMapDuplicateError,
-  EmojiMapValidationError,
-} from '@/templates/domain/emoji-map.validators';
-import { EmojiMapRepository } from '@/templates/domain/ports/emoji-map.repository';
-import { EmojiResolverService } from '@/templates/application/emoji-resolver.service';
+  DISPLAY_PLACEHOLDER_KEYS,
+  DisplayMapDuplicateError,
+  DisplayMapValidationError,
+} from '@/templates/domain/display-map.validators';
+import { DisplayMapRepository } from '@/templates/domain/ports/display-map.repository';
+import { DisplayResolverService } from '@/templates/application/display-resolver.service';
 import {
-  CreateEmojiMapDto,
-  UpdateEmojiMapDto,
-} from './dto/emoji-map.dto';
+  CreateDisplayMapDto,
+  UpdateDisplayMapDto,
+} from './dto/display-map.dto';
 
-export interface EmojiMapView {
+export interface DisplayMapView {
   readonly id: string;
   readonly placeholderKey: string;
   readonly matchValue: string;
-  readonly emoji: string;
+  readonly display: string;
   readonly createdAt: Date;
 }
 
-const toView = (map: EmojiMap): EmojiMapView => ({
+const toView = (map: DisplayMap): DisplayMapView => ({
   id: map.id,
   placeholderKey: map.placeholderKey,
   matchValue: map.matchValue,
-  emoji: map.emoji,
+  display: map.display,
   createdAt: map.createdAt,
 });
 
-const isKeyError = (error: EmojiMapValidationError): boolean =>
+const isKeyError = (error: DisplayMapValidationError): boolean =>
   /placeholderKey/.test(error.message);
 
 /**
- * Emoji-map catalog (`GET /api/dexter/emoji-maps`).
+ * Display-map catalog (`GET /api/dexter/display-maps`,
+ * display-catalog rename).
  *
  * v1 sin auth como /dexter/token — read/write gestion-solo-HTTP-API sin
  * guard (mismo regimen que el lookup `/dexter/*` existente; auth llega
@@ -54,30 +55,30 @@ const isKeyError = (error: EmojiMapValidationError): boolean =>
  *
  * Domain errors map to HTTP explicitly (never a raw 500):
  * unknown `placeholderKey` -> 400 + whitelist; empty/invalid
- * `matchValue`/`emoji` -> 400; duplicate pair -> 409; unknown id -> 404.
+ * `matchValue`/`display` -> 400; duplicate pair -> 409; unknown id -> 404.
  * After every write the render cache is refreshed
- * (`EmojiResolverService.refresh()`) so `{{chainEmoji}}` renders stay
- * fresh without a reboot (full `EMOJI_RESOLVER` binding lands in todo 13).
+ * (`DisplayResolverService.refresh()`) so `{{chainDisplay}}` renders stay
+ * fresh without a reboot (full `DISPLAY_RESOLVER` binding lands in todo 13).
  */
-@Controller('api/dexter/emoji-maps')
-export class EmojiMapsController {
+@Controller('api/dexter/display-maps')
+export class DisplayMapsController {
   public constructor(
-    private readonly maps: EmojiMapRepository,
-    private readonly resolver: EmojiResolverService,
+    private readonly maps: DisplayMapRepository,
+    private readonly resolver: DisplayResolverService,
   ) {}
 
   @Get()
   public async list(
     @Query('placeholderKey') placeholderKey?: string,
-  ): Promise<readonly EmojiMapView[]> {
+  ): Promise<readonly DisplayMapView[]> {
     if (placeholderKey !== undefined) {
       const key = placeholderKey.trim();
       if (
-        !(EMOJI_PLACEHOLDER_KEYS as readonly string[]).includes(key)
+        !(DISPLAY_PLACEHOLDER_KEYS as readonly string[]).includes(key)
       ) {
         throw new BadRequestException({
           error: `Unknown placeholderKey ${JSON.stringify(placeholderKey)}`,
-          valid: [...EMOJI_PLACEHOLDER_KEYS],
+          valid: [...DISPLAY_PLACEHOLDER_KEYS],
         });
       }
       return (await this.maps.findByKey(key)).map(toView);
@@ -87,52 +88,52 @@ export class EmojiMapsController {
 
   @Post()
   public async create(
-    @Body() dto: CreateEmojiMapDto,
-  ): Promise<EmojiMapView> {
-    let map: EmojiMap;
+    @Body() dto: CreateDisplayMapDto,
+  ): Promise<DisplayMapView> {
+    let map: DisplayMap;
     try {
-      map = EmojiMap.create({
+      map = DisplayMap.create({
         placeholderKey: dto.placeholderKey,
         matchValue: dto.matchValue,
-        emoji: dto.emoji,
+        display: dto.display,
       });
     } catch (error) {
-      throw EmojiMapsController.toBadRequest(error);
+      throw DisplayMapsController.toBadRequest(error);
     }
     try {
       const saved = await this.maps.save(map);
       await this.resolver.refresh();
       return toView(saved);
     } catch (error) {
-      throw EmojiMapsController.toConflict(error);
+      throw DisplayMapsController.toConflict(error);
     }
   }
 
   @Patch(':id')
   public async update(
     @Param('id') id: string,
-    @Body() dto: UpdateEmojiMapDto,
-  ): Promise<EmojiMapView> {
+    @Body() dto: UpdateDisplayMapDto,
+  ): Promise<DisplayMapView> {
     const existing = await this.maps.findOne(id);
     if (!existing) {
-      throw new NotFoundException(`EmojiMap ${id} not found`);
+      throw new NotFoundException(`DisplayMap ${id} not found`);
     }
     try {
       if (dto.matchValue !== undefined) {
         existing.updateMatchValue(dto.matchValue);
       }
-      if (dto.emoji !== undefined) {
-        existing.updateEmoji(dto.emoji);
+      if (dto.display !== undefined) {
+        existing.updateDisplay(dto.display);
       }
     } catch (error) {
-      throw EmojiMapsController.toBadRequest(error);
+      throw DisplayMapsController.toBadRequest(error);
     }
     try {
       const saved = await this.maps.save(existing);
       await this.resolver.refresh();
       return toView(saved);
     } catch (error) {
-      throw EmojiMapsController.toConflict(error);
+      throw DisplayMapsController.toConflict(error);
     }
   }
 
@@ -141,18 +142,18 @@ export class EmojiMapsController {
   public async remove(@Param('id') id: string): Promise<void> {
     const existing = await this.maps.findOne(id);
     if (!existing) {
-      throw new NotFoundException(`EmojiMap ${id} not found`);
+      throw new NotFoundException(`DisplayMap ${id} not found`);
     }
     await this.maps.delete(id);
     await this.resolver.refresh();
   }
 
   private static toBadRequest(error: unknown): Error {
-    if (error instanceof EmojiMapValidationError) {
+    if (error instanceof DisplayMapValidationError) {
       if (isKeyError(error)) {
         return new BadRequestException({
           error: error.message,
-          valid: [...EMOJI_PLACEHOLDER_KEYS],
+          valid: [...DISPLAY_PLACEHOLDER_KEYS],
         });
       }
       return new BadRequestException({ error: error.message });
@@ -161,11 +162,11 @@ export class EmojiMapsController {
   }
 
   private static toConflict(error: unknown): Error {
-    if (error instanceof EmojiMapDuplicateError) {
+    if (error instanceof DisplayMapDuplicateError) {
       return new ConflictException({ error: error.message });
     }
-    if (error instanceof EmojiMapValidationError) {
-      return EmojiMapsController.toBadRequest(error);
+    if (error instanceof DisplayMapValidationError) {
+      return DisplayMapsController.toBadRequest(error);
     }
     throw error;
   }

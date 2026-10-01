@@ -12,7 +12,7 @@ describe('message-template mapper roundtrip (todo 3)', () => {
     MessageTemplate.create({
       command: 'ca',
       name: 'full-dexter-v1',
-      bodyMarkdown: '{{chainEmoji}} ${{symbol}} | {{name}}',
+      bodyMarkdown: '{{chainDisplay}} ${{symbol}} | {{name}}',
       isActive: true,
     });
 
@@ -23,7 +23,7 @@ describe('message-template mapper roundtrip (todo 3)', () => {
     expect(row.id).toBe(domain.id);
     expect(row.command).toBe('ca');
     expect(row.name).toBe('full-dexter-v1');
-    expect(row.bodyMarkdown).toBe('{{chainEmoji}} ${{symbol}} | {{name}}');
+    expect(row.bodyMarkdown).toBe('{{chainDisplay}} ${{symbol}} | {{name}}');
     expect(row.isActive).toBe(true);
     expect(row.version).toBe(1);
     expect(row.createdAt).toBe(domain.createdAt);

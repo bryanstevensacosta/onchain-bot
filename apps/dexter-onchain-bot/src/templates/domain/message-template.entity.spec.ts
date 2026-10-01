@@ -9,7 +9,7 @@ import {
   validateVersion,
 } from '@/templates/domain/message-template.validators';
 
-const BODY = '{{chainEmoji}} *${{symbol}}* \\| {{name}}';
+const BODY = '{{chainDisplay}} *${{symbol}}* \\| {{name}}';
 
 const VALID_COMMANDS = ['ca', 'x', 'z', 'c', 'cc', 'bare'] as const;
 

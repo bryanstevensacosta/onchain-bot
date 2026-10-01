@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { EmojiMap } from '@/templates/domain/emoji-map.entity';
-import { EmojiMapDuplicateError } from '@/templates/domain/emoji-map.validators';
-import { EmojiMapRepository } from '@/templates/domain/ports/emoji-map.repository';
+import { DisplayMap } from '@/templates/domain/display-map.entity';
+import { DisplayMapDuplicateError } from '@/templates/domain/display-map.validators';
+import { DisplayMapRepository } from '@/templates/domain/ports/display-map.repository';
 
 /**
- * In-memory `EmojiMapRepository` (todo 5). Live binding when
- * `DATABASE_ENABLED=false` and in specs. Starts EMPTY — default seed
+ * In-memory `DisplayMapRepository` (display-catalog rename). Live binding
+ * when `DATABASE_ENABLED=false` and in specs. Starts EMPTY — default seed
  * rows are inserted by the todo-9 seed service, never here.
  *
  * `matchValue` is normalized lowercase-trimmed at the entity boundary,
@@ -13,10 +13,10 @@ import { EmojiMapRepository } from '@/templates/domain/ports/emoji-map.repositor
  * collapsed before they reach the store).
  */
 @Injectable()
-export class InMemoryEmojiMapRepository extends EmojiMapRepository {
-  private readonly store = new Map<string, EmojiMap>();
+export class InMemoryDisplayMapRepository extends DisplayMapRepository {
+  private readonly store = new Map<string, DisplayMap>();
 
-  public async findAll(): Promise<readonly EmojiMap[]> {
+  public async findAll(): Promise<readonly DisplayMap[]> {
     return [...this.store.values()].sort(
       (a, b) =>
         a.placeholderKey.localeCompare(b.placeholderKey) ||
@@ -24,26 +24,26 @@ export class InMemoryEmojiMapRepository extends EmojiMapRepository {
     );
   }
 
-  public async findByKey(placeholderKey: string): Promise<readonly EmojiMap[]> {
+  public async findByKey(placeholderKey: string): Promise<readonly DisplayMap[]> {
     const key = placeholderKey.trim();
     return [...this.store.values()]
       .filter((map) => map.placeholderKey === key)
       .sort((a, b) => a.matchValue.localeCompare(b.matchValue));
   }
 
-  public async findOne(id: string): Promise<EmojiMap | null> {
+  public async findOne(id: string): Promise<DisplayMap | null> {
     return this.store.get(id) ?? null;
   }
 
-  public async save(map: EmojiMap): Promise<EmojiMap> {
+  public async save(map: DisplayMap): Promise<DisplayMap> {
     for (const existing of this.store.values()) {
       if (
         existing.id !== map.id &&
         existing.placeholderKey === map.placeholderKey &&
         existing.matchValue === map.matchValue
       ) {
-        throw new EmojiMapDuplicateError(
-          `EmojiMap (${map.placeholderKey}, ${map.matchValue}) already exists`,
+        throw new DisplayMapDuplicateError(
+          `DisplayMap (${map.placeholderKey}, ${map.matchValue}) already exists`,
           { placeholderKey: map.placeholderKey, matchValue: map.matchValue },
         );
       }

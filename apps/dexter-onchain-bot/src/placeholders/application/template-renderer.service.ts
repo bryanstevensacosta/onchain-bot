@@ -11,14 +11,14 @@ export const TEMPLATE_MAX_LENGTH = 4096;
 
 export const TRADE_HINT_TEXT = '🤖 Use /c <address> <timeframe> for chart';
 
-/** DI token for the todo-5 `EmojiMap` resolver (port owned here). */
-export const EMOJI_RESOLVER = Symbol('EMOJI_RESOLVER');
+/** DI token for the todo-5 `DisplayMap` resolver (port owned here). */
+export const DISPLAY_RESOLVER = Symbol('DISPLAY_RESOLVER');
 
 /**
- * Minimal emoji-mapping port. Todo 5 provides the TypeORM-backed
+ * Minimal display-mapping port. Todo 5 provides the TypeORM-backed
  * implementation; the renderer only depends on this interface.
  */
-export interface EmojiResolverPort {
+export interface DisplayResolverPort {
   resolve(placeholderKey: string, matchValue: string): string;
 }
 
@@ -115,9 +115,9 @@ const shortenWallet = (wallet: string): string =>
 @Injectable()
 export class TemplateRendererService {
   public constructor(
-    @Inject(EMOJI_RESOLVER)
+    @Inject(DISPLAY_RESOLVER)
     @Optional()
-    private readonly emojiResolver?: EmojiResolverPort | null,
+    private readonly displayResolver?: DisplayResolverPort | null,
   ) {}
 
   public render(
@@ -195,8 +195,8 @@ export class TemplateRendererService {
       case 'devLine': {
         return MessageFormatterAdapter.formatDevLine(values as ResolvedToken);
       }
-      case 'chainEmoji': {
-        return this.emojiResolver?.resolve('chain', String(values.chain ?? '')) ?? '';
+      case 'chainDisplay': {
+        return this.displayResolver?.resolve('chain', String(values.chain ?? '')) ?? '';
       }
       case 'dexscreenerUrl': {
         if (!values.address) return '';

@@ -1,118 +1,130 @@
-import { EmojiMap } from '@/templates/domain/emoji-map.entity';
+import { DisplayMap } from '@/templates/domain/display-map.entity';
 import {
-  EmojiMapDuplicateError,
-  EmojiMapValidationError,
-  MAX_EMOJI_GRAPHEMES,
+  DisplayMapDuplicateError,
+  DisplayMapValidationError,
+  MAX_DISPLAY_LENGTH,
   MAX_MATCH_VALUE_LENGTH,
-  validateEmoji,
+  validateDisplay,
   validateMatchValue,
   validatePlaceholderKey,
-} from '@/templates/domain/emoji-map.validators';
-import { InMemoryEmojiMapRepository } from '@/templates/infrastructure/persistence/in-memory/in-memory-emoji-map.repository';
+} from '@/templates/domain/display-map.validators';
+import { InMemoryDisplayMapRepository } from '@/templates/infrastructure/persistence/in-memory/in-memory-display-map.repository';
 
-describe('EmojiMap entity', () => {
+describe('DisplayMap entity', () => {
   it('creates a valid row with a generated uuid', () => {
-    const map = EmojiMap.create({
+    const map = DisplayMap.create({
       placeholderKey: 'chain',
       matchValue: 'solana',
-      emoji: '🟣',
+      display: '🟣',
     });
     expect(map.id).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
     );
     expect(map.placeholderKey).toBe('chain');
     expect(map.matchValue).toBe('solana');
-    expect(map.emoji).toBe('🟣');
+    expect(map.display).toBe('🟣');
     expect(map.createdAt).toBeInstanceOf(Date);
   });
 
   it('normalizes matchValue to lowercase-trimmed form', () => {
-    const map = EmojiMap.create({
+    const map = DisplayMap.create({
       placeholderKey: 'chain',
       matchValue: '  Solana ',
-      emoji: '🟣',
+      display: '🟣',
     });
     expect(map.matchValue).toBe('solana');
   });
 
   it('reconstitutes without re-validating stored rows', () => {
     const createdAt = new Date('2026-01-01T00:00:00.000Z');
-    const map = EmojiMap.reconstitute({
+    const map = DisplayMap.reconstitute({
       id: 'row-1',
       placeholderKey: 'chain',
       matchValue: 'solana',
-      emoji: '🟣',
+      display: '🟣',
       createdAt,
     });
     expect(map.id).toBe('row-1');
     expect(map.createdAt).toBe(createdAt);
   });
 
-  it('updates emoji and matchValue through validators', () => {
-    const map = EmojiMap.create({
+  it('updates display and matchValue through validators', () => {
+    const map = DisplayMap.create({
       placeholderKey: 'chain',
       matchValue: 'solana',
-      emoji: '🟣',
+      display: '🟣',
     });
-    map.updateEmoji('🔷');
-    expect(map.emoji).toBe('🔷');
+    map.updateDisplay('🔷');
+    expect(map.display).toBe('🔷');
     map.updateMatchValue('Ethereum');
     expect(map.matchValue).toBe('ethereum');
-    expect(() => map.updateEmoji('')).toThrow(EmojiMapValidationError);
+    expect(() => map.updateDisplay('')).toThrow(DisplayMapValidationError);
   });
 
   it('rejects a placeholderKey outside the whitelist', () => {
     expect(() =>
-      EmojiMap.create({
+      DisplayMap.create({
         placeholderKey: 'precio',
         matchValue: 'solana',
-        emoji: '🟣',
+        display: '🟣',
       }),
-    ).toThrow(EmojiMapValidationError);
-    expect(() => validatePlaceholderKey('')).toThrow(EmojiMapValidationError);
-    expect(() => validatePlaceholderKey(42)).toThrow(EmojiMapValidationError);
+    ).toThrow(DisplayMapValidationError);
+    expect(() => validatePlaceholderKey('')).toThrow(DisplayMapValidationError);
+    expect(() => validatePlaceholderKey(42)).toThrow(DisplayMapValidationError);
   });
 
   it('accepts derived placeholder keys from the whitelist', () => {
-    expect(validatePlaceholderKey('chainEmoji')).toBe('chainEmoji');
+    expect(validatePlaceholderKey('chainDisplay')).toBe('chainDisplay');
     expect(validatePlaceholderKey('timeframe')).toBe('timeframe');
   });
 
   it('rejects empty and overlong matchValue', () => {
-    expect(() => validateMatchValue('')).toThrow(EmojiMapValidationError);
-    expect(() => validateMatchValue('   ')).toThrow(EmojiMapValidationError);
+    expect(() => validateMatchValue('')).toThrow(DisplayMapValidationError);
+    expect(() => validateMatchValue('   ')).toThrow(DisplayMapValidationError);
     expect(() =>
       validateMatchValue('x'.repeat(MAX_MATCH_VALUE_LENGTH + 1)),
-    ).toThrow(EmojiMapValidationError);
+    ).toThrow(DisplayMapValidationError);
     expect(validateMatchValue('x'.repeat(MAX_MATCH_VALUE_LENGTH))).toHaveLength(
       MAX_MATCH_VALUE_LENGTH,
     );
   });
 
-  it('rejects empty and overlong emoji', () => {
-    expect(() => validateEmoji('')).toThrow(EmojiMapValidationError);
-    expect(() => validateEmoji('   ')).toThrow(EmojiMapValidationError);
-    expect(() => validateEmoji('🟣'.repeat(MAX_EMOJI_GRAPHEMES + 1))).toThrow(
-      EmojiMapValidationError,
+  it('rejects empty and overlong display', () => {
+    expect(() => validateDisplay('')).toThrow(DisplayMapValidationError);
+    expect(() => validateDisplay('   ')).toThrow(DisplayMapValidationError);
+    expect(() =>
+      validateDisplay('x'.repeat(MAX_DISPLAY_LENGTH + 1)),
+    ).toThrow(DisplayMapValidationError);
+    expect(validateDisplay('x'.repeat(MAX_DISPLAY_LENGTH))).toHaveLength(
+      MAX_DISPLAY_LENGTH,
     );
-    expect(validateEmoji('🔵🌊')).toBe('🔵🌊');
+  });
+
+  it('accepts display text, emoji, and mixed forms', () => {
+    expect(validateDisplay('SOL')).toBe('SOL');
+    expect(validateDisplay('🟣')).toBe('🟣');
+    expect(validateDisplay('🟣 SOL')).toBe('🟣 SOL');
+    expect(validateDisplay('  SOL  ')).toBe('SOL');
+    expect(() => validateDisplay('x'.repeat(41))).toThrow(
+      DisplayMapValidationError,
+    );
   });
 });
 
-describe('InMemoryEmojiMapRepository', () => {
+describe('InMemoryDisplayMapRepository', () => {
   it('round-trips CRUD sorted by key then value', async () => {
-    const repo = new InMemoryEmojiMapRepository();
+    const repo = new InMemoryDisplayMapRepository();
     await repo.save(
-      EmojiMap.create({
+      DisplayMap.create({
         placeholderKey: 'chain',
         matchValue: 'solana',
-        emoji: '🟣',
+        display: '🟣',
       }),
     );
-    const second = EmojiMap.create({
+    const second = DisplayMap.create({
       placeholderKey: 'chain',
       matchValue: 'base',
-      emoji: '🔵',
+      display: '🔵',
     });
     await repo.save(second);
 
@@ -134,22 +146,22 @@ describe('InMemoryEmojiMapRepository', () => {
   });
 
   it('rejects a duplicate (placeholderKey, matchValue) pair', async () => {
-    const repo = new InMemoryEmojiMapRepository();
+    const repo = new InMemoryDisplayMapRepository();
     await repo.save(
-      EmojiMap.create({
+      DisplayMap.create({
         placeholderKey: 'chain',
         matchValue: 'solana',
-        emoji: '🟣',
+        display: '🟣',
       }),
     );
     await expect(
       repo.save(
-        EmojiMap.create({
+        DisplayMap.create({
           placeholderKey: 'chain',
           matchValue: 'Solana',
-          emoji: '🟣',
+          display: '🟣',
         }),
       ),
-    ).rejects.toThrow(EmojiMapDuplicateError);
+    ).rejects.toThrow(DisplayMapDuplicateError);
   });
 });

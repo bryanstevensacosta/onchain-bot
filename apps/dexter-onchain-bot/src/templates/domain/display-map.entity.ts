@@ -1,50 +1,51 @@
 /**
- * EmojiMap domain entity (todo 5, dexter-message-templates).
+ * DisplayMap domain entity (dexter-message-templates, display-catalog rename).
  *
- * Table-driven emoji config for the template renderer: one row maps a
- * `(placeholderKey, matchValue)` pair to an `emoji` string
- * (e.g. `('chain', 'solana') -> '🟣'`). Pure domain — no Nest, no I/O.
+ * Table-driven display config for the template renderer: one row maps a
+ * `(placeholderKey, matchValue)` pair to a `display` string
+ * (e.g. `('chain', 'solana') -> '🟣'`, `('chain', 'solana') -> 'SOL'`,
+ * or `('chain', 'solana') -> '🟣 SOL'`). Pure domain — no Nest, no I/O.
  *
  * v1 covers `chain` only. Default seed rows (solana/ethereum/base/bsc/
  * arbitrum/polygon/unknown) are INSERTED by the todo-9 seed service —
  * never hardcoded here or in the resolver.
  *
  * v1 EXCLUSION (documented): `ChatSettings.emojiMode` is NOT consulted.
- * The resolver returns the mapped emoji regardless of per-chat prefs;
+ * The resolver returns the mapped display regardless of per-chat prefs;
  * honoring `emojiMode=false` is a fase-2 concern (plan §36).
  */
 
 import { randomUUID } from 'crypto';
 import {
-  validateEmoji,
+  validateDisplay,
   validateMatchValue,
   validatePlaceholderKey,
-} from './emoji-map.validators';
+} from './display-map.validators';
 
-export interface EmojiMapProps {
+export interface DisplayMapProps {
   readonly id: string;
   readonly placeholderKey: string;
   readonly matchValue: string;
-  readonly emoji: string;
+  readonly display: string;
   readonly createdAt: Date;
 }
 
-export class EmojiMap {
+export class DisplayMap {
   private state: {
     placeholderKey: string;
     matchValue: string;
-    emoji: string;
+    display: string;
     readonly createdAt: Date;
   };
 
   private readonly rawId: string;
 
-  protected constructor(id: string, props: Omit<EmojiMapProps, 'id'>) {
+  protected constructor(id: string, props: Omit<DisplayMapProps, 'id'>) {
     this.rawId = id;
     this.state = {
       placeholderKey: props.placeholderKey,
       matchValue: props.matchValue,
-      emoji: props.emoji,
+      display: props.display,
       createdAt: props.createdAt,
     };
   }
@@ -53,22 +54,22 @@ export class EmojiMap {
     id?: string;
     placeholderKey: unknown;
     matchValue: unknown;
-    emoji: unknown;
+    display: unknown;
     createdAt?: Date;
-  }): EmojiMap {
-    return new EmojiMap(input.id ?? randomUUID(), {
+  }): DisplayMap {
+    return new DisplayMap(input.id ?? randomUUID(), {
       placeholderKey: validatePlaceholderKey(input.placeholderKey),
       matchValue: validateMatchValue(input.matchValue),
-      emoji: validateEmoji(input.emoji),
+      display: validateDisplay(input.display),
       createdAt: input.createdAt ?? new Date(),
     });
   }
 
-  public static reconstitute(props: EmojiMapProps): EmojiMap {
-    return new EmojiMap(props.id, {
+  public static reconstitute(props: DisplayMapProps): DisplayMap {
+    return new DisplayMap(props.id, {
       placeholderKey: props.placeholderKey,
       matchValue: props.matchValue,
-      emoji: props.emoji,
+      display: props.display,
       createdAt: props.createdAt,
     });
   }
@@ -85,16 +86,16 @@ export class EmojiMap {
     return this.state.matchValue;
   }
 
-  public get emoji(): string {
-    return this.state.emoji;
+  public get display(): string {
+    return this.state.display;
   }
 
   public get createdAt(): Date {
     return this.state.createdAt;
   }
 
-  public updateEmoji(raw: unknown): void {
-    this.state.emoji = validateEmoji(raw);
+  public updateDisplay(raw: unknown): void {
+    this.state.display = validateDisplay(raw);
   }
 
   public updateMatchValue(raw: unknown): void {

@@ -43,7 +43,7 @@ describe('placeholder-registry (todo 4 closed vocabulary)', () => {
 
   it('holds the six derived keys (devLine is derived, not base)', () => {
     expect([...DERIVED_PLACEHOLDERS]).toEqual([
-      'chainEmoji',
+      'chainDisplay',
       'scanLinks',
       'dexscreenerUrl',
       'geckoterminalUrl',

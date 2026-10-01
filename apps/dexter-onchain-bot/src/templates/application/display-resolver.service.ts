@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { EmojiMap } from '../domain/emoji-map.entity';
-import { EmojiMapRepository } from '../domain/ports/emoji-map.repository';
-import type { EmojiResolverPort } from '@/placeholders/application/template-renderer.service';
+import { DisplayMap } from '../domain/display-map.entity';
+import { DisplayMapRepository } from '../domain/ports/display-map.repository';
+import type { DisplayResolverPort } from '@/placeholders/application/template-renderer.service';
 
 /**
- * Table-driven `EmojiResolverPort` implementation (todo 5).
+ * Table-driven `DisplayResolverPort` implementation (renamed from
+ * EmojiResolver).
  *
- * Implements EXACTLY the `EmojiResolverPort` interface owned by
+ * Implements EXACTLY the `DisplayResolverPort` interface owned by
  * `src/placeholders/application/template-renderer.service.ts`
  * (`resolve(placeholderKey, matchValue): string`) — no competing
  * interface is defined here.
@@ -15,25 +16,25 @@ import type { EmojiResolverPort } from '@/placeholders/application/template-rend
  * during `render()`, so lookups run against an in-memory cache;
  * `refresh()` reloads the cache from the repository (called at boot /
  * after CRUD writes — wiring in todo 13, which also binds this class to
- * the `EMOJI_RESOLVER` symbol). Unknown pairs fall back to `""` (never
- * throw, never a hardcoded emoji — seed data comes from todo 9).
+ * the `DISPLAY_RESOLVER` symbol). Unknown pairs fall back to `""` (never
+ * throw, never a hardcoded display — seed data comes from todo 9).
  *
  * v1 EXCLUSION (documented): `ChatSettings.emojiMode` is NOT consulted
  * here. The resolver is chat-agnostic by design; honoring
  * `emojiMode=false` is a fase-2 concern (plan §36).
  */
 @Injectable()
-export class EmojiResolverService implements EmojiResolverPort {
+export class DisplayResolverService implements DisplayResolverPort {
   private readonly cache = new Map<string, Map<string, string>>();
 
-  public constructor(private readonly maps: EmojiMapRepository) {}
+  public constructor(private readonly maps: DisplayMapRepository) {}
 
   /** Reload the lookup cache from the repository. */
   public async refresh(): Promise<void> {
     const all = await this.maps.findAll();
     const next = new Map<string, Map<string, string>>();
     for (const map of all) {
-      EmojiResolverService.index(next, map);
+      DisplayResolverService.index(next, map);
     }
     this.cache.clear();
     for (const [key, matches] of next) {
@@ -53,9 +54,9 @@ export class EmojiResolverService implements EmojiResolverPort {
   }
 
   /**
-   * Snapshot of every cached `(matchValue -> emoji)` pair for a key
+   * Snapshot of every cached `(matchValue -> display)` pair for a key
    * (defensive copy; mutating it never touches the cache). Todo 8
-   * (emoji API) and todo 7 (preview) consume this for listings.
+   * (display API) and todo 7 (preview) consume this for listings.
    */
   public resolveAll(placeholderKey: string): ReadonlyMap<string, string> {
     if (typeof placeholderKey !== 'string') {
@@ -66,13 +67,13 @@ export class EmojiResolverService implements EmojiResolverPort {
 
   private static index(
     into: Map<string, Map<string, string>>,
-    map: EmojiMap,
+    map: DisplayMap,
   ): void {
     let matches = into.get(map.placeholderKey);
     if (!matches) {
       matches = new Map<string, string>();
       into.set(map.placeholderKey, matches);
     }
-    matches.set(map.matchValue, map.emoji);
+    matches.set(map.matchValue, map.display);
   }
 }

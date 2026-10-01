@@ -1,11 +1,11 @@
-import type { EmojiResolverPort } from '@/placeholders/application/template-renderer.service';
-import { EmojiResolverService } from '@/templates/application/emoji-resolver.service';
-import { EmojiMap } from '@/templates/domain/emoji-map.entity';
+import type { DisplayResolverPort } from '@/placeholders/application/template-renderer.service';
+import { DisplayResolverService } from '@/templates/application/display-resolver.service';
+import { DisplayMap } from '@/templates/domain/display-map.entity';
 import {
-  EmojiMapDuplicateError,
-  EmojiMapValidationError,
-} from '@/templates/domain/emoji-map.validators';
-import { InMemoryEmojiMapRepository } from '@/templates/infrastructure/persistence/in-memory/in-memory-emoji-map.repository';
+  DisplayMapDuplicateError,
+  DisplayMapValidationError,
+} from '@/templates/domain/display-map.validators';
+import { InMemoryDisplayMapRepository } from '@/templates/infrastructure/persistence/in-memory/in-memory-display-map.repository';
 
 /** v1 `chain` matrix (seed-shaped rows; seeds themselves land in todo 9). */
 const CHAIN_ROWS: ReadonlyArray<readonly [string, string]> = [
@@ -18,29 +18,29 @@ const CHAIN_ROWS: ReadonlyArray<readonly [string, string]> = [
   ['unknown', '⬜'],
 ];
 
-const buildResolver = async (): Promise<EmojiResolverService> => {
-  const repo = new InMemoryEmojiMapRepository();
-  for (const [matchValue, emoji] of CHAIN_ROWS) {
+const buildResolver = async (): Promise<DisplayResolverService> => {
+  const repo = new InMemoryDisplayMapRepository();
+  for (const [matchValue, display] of CHAIN_ROWS) {
     await repo.save(
-      EmojiMap.create({ placeholderKey: 'chain', matchValue, emoji }),
+      DisplayMap.create({ placeholderKey: 'chain', matchValue, display }),
     );
   }
-  const resolver = new EmojiResolverService(repo);
+  const resolver = new DisplayResolverService(repo);
   await resolver.refresh();
   return resolver;
 };
 
-describe('EmojiResolverService', () => {
-  it('implements the placeholders-owned EmojiResolverPort', async () => {
+describe('DisplayResolverService', () => {
+  it('implements the placeholders-owned DisplayResolverPort', async () => {
     const resolver = await buildResolver();
-    const port: EmojiResolverPort = resolver;
+    const port: DisplayResolverPort = resolver;
     expect(port.resolve('chain', 'solana')).toBe('🟣');
   });
 
   it('resolves the full chain matrix exactly', async () => {
     const resolver = await buildResolver();
-    for (const [matchValue, emoji] of CHAIN_ROWS) {
-      expect(resolver.resolve('chain', matchValue)).toBe(emoji);
+    for (const [matchValue, display] of CHAIN_ROWS) {
+      expect(resolver.resolve('chain', matchValue)).toBe(display);
     }
   });
 
@@ -62,7 +62,7 @@ describe('EmojiResolverService', () => {
   });
 
   it('returns "" before any refresh (empty cache)', () => {
-    const resolver = new EmojiResolverService(new InMemoryEmojiMapRepository());
+    const resolver = new DisplayResolverService(new InMemoryDisplayMapRepository());
     expect(resolver.resolve('chain', 'solana')).toBe('');
   });
 
@@ -78,45 +78,45 @@ describe('EmojiResolverService', () => {
   });
 
   it('surfaces duplicate pairs as domain errors, not raw failures', async () => {
-    const repo = new InMemoryEmojiMapRepository();
+    const repo = new InMemoryDisplayMapRepository();
     await repo.save(
-      EmojiMap.create({
+      DisplayMap.create({
         placeholderKey: 'chain',
         matchValue: 'solana',
-        emoji: '🟣',
+        display: '🟣',
       }),
     );
     await expect(
       repo.save(
-        EmojiMap.create({
+        DisplayMap.create({
           placeholderKey: 'chain',
           matchValue: 'solana',
-          emoji: '🔷',
+          display: '🔷',
         }),
       ),
-    ).rejects.toThrow(EmojiMapDuplicateError);
+    ).rejects.toThrow(DisplayMapDuplicateError);
   });
 
-  it('rejects empty emoji at the entity boundary', () => {
+  it('rejects empty display at the entity boundary', () => {
     expect(() =>
-      EmojiMap.create({
+      DisplayMap.create({
         placeholderKey: 'chain',
         matchValue: 'ton',
-        emoji: '',
+        display: '',
       }),
-    ).toThrow(EmojiMapValidationError);
+    ).toThrow(DisplayMapValidationError);
   });
 
   it('picks up rows saved after a refresh on the next refresh', async () => {
-    const repo = new InMemoryEmojiMapRepository();
-    const resolver = new EmojiResolverService(repo);
+    const repo = new InMemoryDisplayMapRepository();
+    const resolver = new DisplayResolverService(repo);
     await resolver.refresh();
     expect(resolver.resolve('chain', 'ton')).toBe('');
     await repo.save(
-      EmojiMap.create({
+      DisplayMap.create({
         placeholderKey: 'chain',
         matchValue: 'ton',
-        emoji: '💎',
+        display: '💎',
       }),
     );
     expect(resolver.resolve('chain', 'ton')).toBe('');
