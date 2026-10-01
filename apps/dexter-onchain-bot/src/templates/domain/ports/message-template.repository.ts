@@ -22,3 +22,17 @@ export interface MessageTemplateRepository {
   save(template: MessageTemplate): Promise<MessageTemplate>;
   delete(id: string): Promise<boolean>;
 }
+
+/**
+ * DI token for the repository (todo 6, dexter-message-templates).
+ *
+ * The port is an `interface` (dexter `ChatGroupRepository` convention),
+ * so — unlike the abstract-class `DisplayMapRepository` — it cannot
+ * serve as its own Nest token. `DexterModule` binds
+ * `{ provide: MESSAGE_TEMPLATE_REPOSITORY, useExisting:
+ * InMemoryMessageTemplateRepository }` (todo 13 adds the TypeORM
+ * switch behind the same token).
+ */
+export const MESSAGE_TEMPLATE_REPOSITORY = Symbol(
+  'MESSAGE_TEMPLATE_REPOSITORY',
+);

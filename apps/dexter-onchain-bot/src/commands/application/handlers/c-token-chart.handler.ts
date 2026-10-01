@@ -6,7 +6,7 @@ import type {
 import { TelegramBotClient } from '@/telegram/infrastructure/telegram/bot-client';
 import { TokenScanPipeline } from '@/scan/application/pipeline/token-scan.pipeline';
 
-const VALID_TIMEFRAMES = new Set(['1m', '5m', '15m', '1h', '4h', '1d', '1w']);
+export const VALID_TIMEFRAMES = new Set(['1m', '5m', '15m', '1h', '4h', '1d', '1w']);
 
 /**
  * /c — scan + chart link (inherited from backend chain-dexter-bot
