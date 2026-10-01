@@ -62,7 +62,10 @@ import { appConfig } from './shared/infrastructure/config/app.config';
                 synchronize: database.synchronize,
                 migrationsRun: false,
                 entities: [SnapshotHistoryEntity, AssetRegistryEntity],
-                migrations: [CreateSnapshotHistory1772000000000, CreateAssetRegistry1773000000000],
+                migrations: [
+                  CreateSnapshotHistory1772000000000,
+                  CreateAssetRegistry1773000000000,
+                ],
               };
             },
           }),

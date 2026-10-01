@@ -1,4 +1,7 @@
-import { Thread, type ThreadSnapshot } from '@/threads/domain/entities/thread.entity';
+import {
+  Thread,
+  type ThreadSnapshot,
+} from '@/threads/domain/entities/thread.entity';
 import type { ThreadMessageSnapshot } from '@/threads/domain/entities/thread-message.entity';
 import { ThreadOrmEntity } from '../thread.orm-entity';
 import { ThreadMessageOrmEntity } from '../thread-message.orm-entity';
@@ -25,9 +28,7 @@ export function toThreadOrm(thread: Thread): {
     snapshot.nextAttemptAt === null ? null : new Date(snapshot.nextAttemptAt);
   threadRow.createdAt = new Date(snapshot.createdAt);
   threadRow.updatedAt = new Date(snapshot.updatedAt);
-  const messageRows = snapshot.messages.map((message) =>
-    toMessageOrm(message),
-  );
+  const messageRows = snapshot.messages.map((message) => toMessageOrm(message));
   return { threadRow, messageRows };
 }
 

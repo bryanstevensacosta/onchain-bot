@@ -58,7 +58,7 @@ describe('EnqueueMatchingMessageUseCase', () => {
         blockedReason: 'Duplicate content of queue',
         duplicateOf: { channelId: '-1009', messageId: 3 },
       }),
-    } as unknown as Partial<DeduplicationService>);
+    });
     const entry = await useCase.execute({ message: makeMessage() });
     expect(entry?.status).toBe('BLOCKED');
     expect(entry?.blockedReason).toBe('Duplicate content of queue');
@@ -77,7 +77,7 @@ describe('EnqueueMatchingMessageUseCase', () => {
       });
     const { useCase, deduplication } = build({
       checkDuplicate,
-    } as unknown as Partial<DeduplicationService>);
+    });
     await useCase.execute({ message: makeMessage() });
     const second = await useCase.execute({ message: makeMessage() });
     expect(second).toBeNull();
@@ -101,7 +101,7 @@ describe('EnqueueMatchingMessageUseCase', () => {
         .fn()
         .mockRejectedValue(new Error('embeddings unavailable')),
       markAsSeen: jest.fn().mockRejectedValue(new Error('store down')),
-    } as unknown as Partial<DeduplicationService>);
+    });
     const entry = await useCase.execute({ message: makeMessage() });
     expect(entry?.status).toBe('PENDING');
   });

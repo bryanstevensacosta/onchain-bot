@@ -16,8 +16,12 @@ describe('InMemoryExchangeAdapter', () => {
     await adapter.connect();
     expect(adapter.connectCount).toBe(1);
     expect(adapter.connected).toBe(true);
-    await adapter.watch([{ exchange: 'binance', symbol: 'BTC/USDT', kind: 'ticker' }]);
-    await adapter.watch([{ exchange: 'binance', symbol: 'ETH/USDT', kind: 'ticker' }]);
+    await adapter.watch([
+      { exchange: 'binance', symbol: 'BTC/USDT', kind: 'ticker' },
+    ]);
+    await adapter.watch([
+      { exchange: 'binance', symbol: 'ETH/USDT', kind: 'ticker' },
+    ]);
     expect(adapter.watchedSymbols()).toEqual(['BTC/USDT', 'ETH/USDT']);
     expect(adapter.connectCount).toBe(1);
     await adapter.disconnect();
@@ -28,12 +32,20 @@ describe('InMemoryExchangeAdapter', () => {
     const seen: Array<StreamEvent> = [];
     adapter.onEvent((event) => seen.push(event));
     await adapter.connect();
-    await adapter.watch([{ exchange: 'kraken', symbol: 'SOL/USDT', kind: 'ticker' }]);
+    await adapter.watch([
+      { exchange: 'kraken', symbol: 'SOL/USDT', kind: 'ticker' },
+    ]);
     adapter.pump();
     adapter.pump();
     expect(seen.length).toBe(2);
-    expect(seen[0]).toMatchObject({ kind: 'ticker', exchange: 'kraken', symbol: 'SOL/USDT' });
-    await adapter.unwatch([{ exchange: 'kraken', symbol: 'SOL/USDT', kind: 'ticker' }]);
+    expect(seen[0]).toMatchObject({
+      kind: 'ticker',
+      exchange: 'kraken',
+      symbol: 'SOL/USDT',
+    });
+    await adapter.unwatch([
+      { exchange: 'kraken', symbol: 'SOL/USDT', kind: 'ticker' },
+    ]);
     adapter.pump();
     expect(seen.length).toBe(2);
     await adapter.disconnect();

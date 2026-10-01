@@ -24,10 +24,18 @@ describe('chain-logo domain', () => {
   });
 
   it('builds primary TrustWallet URLs for the catalog chains', () => {
-    expect(primaryLogoUrl('solana')).toContain('/blockchains/solana/info/logo.png');
-    expect(primaryLogoUrl('ethereum')).toContain('/blockchains/ethereum/info/logo.png');
-    expect(primaryLogoUrl('polygon')).toContain('/blockchains/polygon/info/logo.png');
-    expect(primaryLogoUrl('  SOLANA ')).toContain('/blockchains/solana/info/logo.png');
+    expect(primaryLogoUrl('solana')).toContain(
+      '/blockchains/solana/info/logo.png',
+    );
+    expect(primaryLogoUrl('ethereum')).toContain(
+      '/blockchains/ethereum/info/logo.png',
+    );
+    expect(primaryLogoUrl('polygon')).toContain(
+      '/blockchains/polygon/info/logo.png',
+    );
+    expect(primaryLogoUrl('  SOLANA ')).toContain(
+      '/blockchains/solana/info/logo.png',
+    );
   });
 
   it('returns null primary/fallback urls for unknown chains', () => {

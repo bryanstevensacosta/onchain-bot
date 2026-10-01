@@ -18,10 +18,7 @@ import { KeywordRepository } from '@/keywords/application/ports/keyword.reposito
 import { BlacklistPhraseRepository } from '@/keywords/application/ports/blacklist-phrase.repository';
 import { ChannelFilterRepository } from '@/filters/application/ports/channel-filter.repository';
 import { EvaluateMessageDto } from '../input/message-match.input';
-import type {
-  DryRunView,
-  MessageStatusView,
-} from './message-match.views';
+import type { DryRunView, MessageStatusView } from './message-match.views';
 
 /**
  * Per-message match UX (`/feed-publisher/matching`, todos 17/18).

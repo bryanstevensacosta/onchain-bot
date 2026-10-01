@@ -21,10 +21,8 @@ import { BotApiClient } from './infrastructure/bot-api-client';
     {
       provide: 'TELEGRAM_API_BASE',
       useFactory: (config: ConfigService) =>
-        config.get<string>(
-          'app.telegramApiBase',
-          'https://api.telegram.org',
-        ) ?? 'https://api.telegram.org',
+        config.get<string>('app.telegramApiBase', 'https://api.telegram.org') ??
+        'https://api.telegram.org',
       inject: [ConfigService],
     },
   ],

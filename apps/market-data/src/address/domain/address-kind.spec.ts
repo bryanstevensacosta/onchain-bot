@@ -1,4 +1,8 @@
-import { AddressKind, isAddressKind, normalizeAddressKind } from './address-kind';
+import {
+  AddressKind,
+  isAddressKind,
+  normalizeAddressKind,
+} from './address-kind';
 
 describe('address-kind', () => {
   it('accepts the four known kinds', () => {

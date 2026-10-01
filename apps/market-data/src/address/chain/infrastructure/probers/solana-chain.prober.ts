@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { ChainProberPort, ProbeResult } from '../../application/ports/chain-prober.port';
+import {
+  ChainProberPort,
+  ProbeResult,
+} from '../../application/ports/chain-prober.port';
 
 /**
  * SolanaChainProber (Tramo 3, todo 2, v1 format-only).
@@ -13,8 +16,16 @@ export class SolanaChainProber extends ChainProberPort {
 
   public async probe(address: string): Promise<ProbeResult> {
     if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test((address ?? '').trim())) {
-      return { responded: false, isContract: null, notes: ['solana:format_invalid'] };
+      return {
+        responded: false,
+        isContract: null,
+        notes: ['solana:format_invalid'],
+      };
     }
-    return { responded: true, isContract: null, notes: ['solana:format_valid'] };
+    return {
+      responded: true,
+      isContract: null,
+      notes: ['solana:format_valid'],
+    };
   }
 }

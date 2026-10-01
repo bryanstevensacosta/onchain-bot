@@ -71,7 +71,9 @@ function normalizeSchedule(
 ): TemplateSchedule {
   const base = defaultSchedule();
   if (!patch) return base;
-  const mode = patch.mode ?? base.mode;
+  // Widened to string: patch arrives over HTTP/JSON, so runtime values can
+  // fall outside TemplateScheduleMode even though the type says otherwise.
+  const mode: string = patch.mode ?? base.mode;
   if (mode !== 'off' && mode !== 'one-shot' && mode !== 'recurring') {
     throw new DomainError(
       ErrorCode.VALIDATION,

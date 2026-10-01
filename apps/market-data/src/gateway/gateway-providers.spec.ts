@@ -42,7 +42,9 @@ describe('gateway providers (P43)', () => {
   });
 
   it('GET /api/v1/providers/nope returns 404', async () => {
-    const res = await request(app.getHttpServer()).get('/api/v1/providers/nope');
+    const res = await request(app.getHttpServer()).get(
+      '/api/v1/providers/nope',
+    );
     expect(res.status).toBe(404);
   });
 });

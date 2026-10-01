@@ -46,9 +46,7 @@ export class DualSendParityService {
   ): { diverged: boolean; reasons: string[] } {
     const reasons: string[] = [];
     if (plannedOk !== gateway.ok) {
-      reasons.push(
-        `ok-mismatch (planned:${plannedOk} gateway:${gateway.ok})`,
-      );
+      reasons.push(`ok-mismatch (planned:${plannedOk} gateway:${gateway.ok})`);
     }
     return { diverged: reasons.length > 0, reasons };
   }

@@ -19,6 +19,10 @@ export function buildGatewayClientKey(client: string): string {
   return `gw:${client}`;
 }
 
-export function buildBatchCacheKey(chain: string, address: string, kind: string): string {
+export function buildBatchCacheKey(
+  chain: string,
+  address: string,
+  kind: string,
+): string {
   return `GET:/api/v1/addresses/${chain}/${address}?kind=${kind}`;
 }

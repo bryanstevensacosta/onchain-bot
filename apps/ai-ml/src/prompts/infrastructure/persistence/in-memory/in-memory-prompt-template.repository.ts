@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import type { PromptContentType, PromptTemplate } from '@/prompts/domain/prompt-template';
+import type {
+  PromptContentType,
+  PromptTemplate,
+} from '@/prompts/domain/prompt-template';
 import {
   DuplicateTemplateError,
   PromptTemplateRepository,
@@ -35,7 +38,10 @@ export class InMemoryPromptTemplateRepository extends PromptTemplateRepository {
     return rows;
   }
 
-  private stamp(row: PromptTemplate, patch: Partial<PromptTemplate>): PromptTemplate {
+  private stamp(
+    row: PromptTemplate,
+    patch: Partial<PromptTemplate>,
+  ): PromptTemplate {
     return { ...row, ...patch, updatedAt: new Date().toISOString() };
   }
 
@@ -126,7 +132,9 @@ export class InMemoryPromptTemplateRepository extends PromptTemplateRepository {
     return null;
   }
 
-  public async listVersions(name: string): Promise<ReadonlyArray<PromptTemplate>> {
+  public async listVersions(
+    name: string,
+  ): Promise<ReadonlyArray<PromptTemplate>> {
     const rows = this.versions.get(name);
     if (!rows) {
       return [];
@@ -142,7 +150,12 @@ export class InMemoryPromptTemplateRepository extends PromptTemplateRepository {
     const out: Array<PromptTemplate> = [];
     for (const rows of this.versions.values()) {
       for (const row of rows.values()) {
-        if (row.isActive && (!contentType || row.contentType === contentType || row.contentType === 'global')) {
+        if (
+          row.isActive &&
+          (!contentType ||
+            row.contentType === contentType ||
+            row.contentType === 'global')
+        ) {
           out.push({ ...row });
         }
       }
@@ -150,14 +163,20 @@ export class InMemoryPromptTemplateRepository extends PromptTemplateRepository {
     return out.sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  public async activate(name: string, version: number): Promise<PromptTemplate> {
+  public async activate(
+    name: string,
+    version: number,
+  ): Promise<PromptTemplate> {
     const rows = this.versions.get(name);
     const target = rows?.get(version) ?? null;
     if (!rows || !target) {
       throw new TemplateVersionNotFoundError(name, version);
     }
     for (const [otherVersion, current] of rows) {
-      rows.set(otherVersion, this.stamp(current, { isActive: otherVersion === version }));
+      rows.set(
+        otherVersion,
+        this.stamp(current, { isActive: otherVersion === version }),
+      );
     }
     const activated = rows.get(version);
     if (!activated) {

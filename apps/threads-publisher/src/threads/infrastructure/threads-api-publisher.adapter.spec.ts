@@ -17,7 +17,7 @@ describe('ThreadsApiPublisherAdapter', () => {
   it('refuses with FAKE token without network', async () => {
     process.env.THREADS_ACCESS_TOKEN = 'FAKE';
     const spy = jest.spyOn(globalThis, 'fetch');
-    const adapter = new ThreadsApiPublisherAdapter({} as never);
+    const adapter = new ThreadsApiPublisherAdapter({});
     const res = await adapter.publish({ text: 'hello' });
     expect(res.ok).toBe(false);
     expect(spy).not.toHaveBeenCalled();
@@ -28,7 +28,7 @@ describe('ThreadsApiPublisherAdapter', () => {
     const spy = jest
       .spyOn(globalThis, 'fetch')
       .mockRejectedValue(new Error('must not be called'));
-    const adapter = new ThreadsApiPublisherAdapter({} as never);
+    const adapter = new ThreadsApiPublisherAdapter({});
     const res = await adapter.publish({ text: 'hello' });
     expect(res.ok).toBe(false);
     if (!res.ok) {
@@ -54,7 +54,7 @@ describe('ThreadsApiPublisherAdapter', () => {
         ok: true,
         json: async () => ({ id: 'media-1' }),
       } as Response);
-    const adapter = new ThreadsApiPublisherAdapter({} as never);
+    const adapter = new ThreadsApiPublisherAdapter({});
     adapter.pollIntervalMs = 0;
     const res = await adapter.publish({ text: 'hello threads' });
     expect(res.ok).toBe(true);
@@ -69,11 +69,14 @@ describe('ThreadsApiPublisherAdapter', () => {
         ok: true,
         json: async () => ({ id: 'container-2' }),
       } as Response)
-      .mockImplementation(async () => ({
-        ok: true,
-        json: async () => ({ status: 'IN_PROGRESS' }),
-      }) as Response);
-    const adapter = new ThreadsApiPublisherAdapter({} as never);
+      .mockImplementation(
+        async () =>
+          ({
+            ok: true,
+            json: async () => ({ status: 'IN_PROGRESS' }),
+          }) as Response,
+      );
+    const adapter = new ThreadsApiPublisherAdapter({});
     adapter.pollIntervalMs = 0;
     adapter.maxPollAttempts = 2;
     const res = await adapter.publish({ text: 'hello' });

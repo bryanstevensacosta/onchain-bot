@@ -29,15 +29,22 @@ function futureFireAt(): string {
   return new Date(Date.now() + 3600_000).toISOString();
 }
 
-function request(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+function request(
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
   return {
     sessionId: 'morning-desk',
-    binding: { target: 'telegram', bindingId: 'b-1', botId: 'bot_X', chatId: '-100123' },
+    binding: {
+      target: 'telegram',
+      bindingId: 'b-1',
+      botId: 'bot_X',
+      chatId: '-100123',
+    },
     content: { kind: 'pre-written', text: 'GM', mediaIds: [], buttons: null },
     scheduleKind: { kind: 'once', fireAt: futureFireAt() },
     idempotencyKey: '3f6b4c2a-0000-4000-8000-000000000001',
     ...overrides,
-  } as Record<string, unknown>;
+  };
 }
 
 async function harness() {
@@ -103,7 +110,12 @@ describe('SchedulePostUseCase', () => {
       await codeOf(
         useCase.execute(
           request({
-            binding: { target: 'telegram', bindingId: 'b-9', botId: 'bot_X', chatId: '-100123' },
+            binding: {
+              target: 'telegram',
+              bindingId: 'b-9',
+              botId: 'bot_X',
+              chatId: '-100123',
+            },
           }) as never,
         ),
       ),
@@ -112,7 +124,12 @@ describe('SchedulePostUseCase', () => {
       await codeOf(
         useCase.execute(
           request({
-            binding: { target: 'telegram', bindingId: 'b-1', botId: 'bot_Y', chatId: '-100123' },
+            binding: {
+              target: 'telegram',
+              bindingId: 'b-1',
+              botId: 'bot_Y',
+              chatId: '-100123',
+            },
           }) as never,
         ),
       ),
@@ -121,7 +138,12 @@ describe('SchedulePostUseCase', () => {
       await codeOf(
         useCase.execute(
           request({
-            binding: { target: 'telegram', bindingId: 'b-1', botId: 'bot_X', chatId: '-100999' },
+            binding: {
+              target: 'telegram',
+              bindingId: 'b-1',
+              botId: 'bot_X',
+              chatId: '-100999',
+            },
           }) as never,
         ),
       ),
@@ -133,22 +155,8 @@ describe('SchedulePostUseCase', () => {
     expect(
       await codeOf(
         useCase.execute(
-          request({ scheduleKind: { kind: 'once', fireAt: '2020-01-01T00:00:00.000Z' } }) as never,
-        ),
-      ),
-    ).toBe('SCHEDULE_INVALID');
-    expect(
-      await codeOf(
-        useCase.execute(
-          request({ scheduleKind: { kind: 'cron', cronExpr: 'nope', timezone: 'UTC' } }) as never,
-        ),
-      ),
-    ).toBe('SCHEDULE_INVALID');
-    expect(
-      await codeOf(
-        useCase.execute(
           request({
-            scheduleKind: { kind: 'cron', cronExpr: '0 8 * * *', timezone: 'Europe/Madrid' },
+            scheduleKind: { kind: 'once', fireAt: '2020-01-01T00:00:00.000Z' },
           }) as never,
         ),
       ),
@@ -156,7 +164,31 @@ describe('SchedulePostUseCase', () => {
     expect(
       await codeOf(
         useCase.execute(
-          request({ content: { kind: 'content-ref', queueEntryId: 'missing' } }) as never,
+          request({
+            scheduleKind: { kind: 'cron', cronExpr: 'nope', timezone: 'UTC' },
+          }) as never,
+        ),
+      ),
+    ).toBe('SCHEDULE_INVALID');
+    expect(
+      await codeOf(
+        useCase.execute(
+          request({
+            scheduleKind: {
+              kind: 'cron',
+              cronExpr: '0 8 * * *',
+              timezone: 'Europe/Madrid',
+            },
+          }) as never,
+        ),
+      ),
+    ).toBe('SCHEDULE_INVALID');
+    expect(
+      await codeOf(
+        useCase.execute(
+          request({
+            content: { kind: 'content-ref', queueEntryId: 'missing' },
+          }) as never,
         ),
       ),
     ).toBe('SCHEDULE_INVALID');
@@ -178,10 +210,17 @@ describe('SchedulePostUseCase', () => {
     expect(
       await codeOf(
         useCase.execute(
-          request({ idempotencyKey: '3f6b4c2a-0000-4000-8000-000000000009' }) as never,
+          request({
+            idempotencyKey: '3f6b4c2a-0000-4000-8000-000000000009',
+          }) as never,
         ),
       ),
     ).toBe('RATE_LIMITED');
-    expect(await posts.findBySessionKey('morning-desk', '3f6b4c2a-0000-4000-8000-000000000009')).toBeNull();
+    expect(
+      await posts.findBySessionKey(
+        'morning-desk',
+        '3f6b4c2a-0000-4000-8000-000000000009',
+      ),
+    ).toBeNull();
   });
 });

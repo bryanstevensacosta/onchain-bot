@@ -12,17 +12,25 @@ import { PromptsController } from './prompts.controller';
 describe('PromptsController (todo 1)', () => {
   const build = async (): Promise<PromptsController> => {
     const module = await Test.createTestingModule({
-      imports: [ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }), PromptsModule],
+      imports: [
+        ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }),
+        PromptsModule,
+      ],
     }).compile();
     return module.get(PromptsController);
   };
 
   it('CRUD + history + rollback over HTTP surface', async () => {
     const ctl = await build();
-    const created = await ctl.create({ name: 'http-tpl', content: 'Hi {{who}}' });
+    const created = await ctl.create({
+      name: 'http-tpl',
+      content: 'Hi {{who}}',
+    });
     expect(created.version).toBe(1);
 
-    const second = await ctl.createVersion('http-tpl', { content: 'Hi {{who}} v2' });
+    const second = await ctl.createVersion('http-tpl', {
+      content: 'Hi {{who}} v2',
+    });
     expect(second.version).toBe(2);
 
     const history = await ctl.listVersions('http-tpl');

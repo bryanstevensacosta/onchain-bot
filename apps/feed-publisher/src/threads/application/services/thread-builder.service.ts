@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { Thread, type ThreadSnapshot } from '@/threads/domain/entities/thread.entity';
+import {
+  Thread,
+  type ThreadSnapshot,
+} from '@/threads/domain/entities/thread.entity';
 import type { ThreadMessageInput } from '@/threads/domain/entities/thread-message.entity';
 
 /**

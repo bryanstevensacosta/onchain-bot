@@ -17,8 +17,14 @@ import type { TemplateContentType } from '@/llm/domain/prompt-template.entity';
 import { PromptTemplateRepository } from '@/llm/domain/ports/prompt-template.repository';
 import { LlmConfigRepository } from '@/llm/domain/ports/llm-config.repository';
 import { KeywordRepository } from '@/keywords/application/ports/keyword.repository';
-import { toTemplateView, type PromptTemplateView } from '@/llm/application/mappers/llm.mapper';
-import { CreatePromptTemplateDto, UpdatePromptTemplateDto } from '../input/llm.input';
+import {
+  toTemplateView,
+  type PromptTemplateView,
+} from '@/llm/application/mappers/llm.mapper';
+import {
+  CreatePromptTemplateDto,
+  UpdatePromptTemplateDto,
+} from '../input/llm.input';
 
 /**
  * GLOBAL prompt-template catalog (`/api/llm/templates`).
@@ -49,7 +55,9 @@ export class PromptTemplatesController {
   @ApiOperation({ summary: 'Get a single prompt template' })
   @ApiResponse({ status: 200, description: 'Prompt template' })
   @ApiResponse({ status: 404, description: 'Unknown template id' })
-  public async getTemplate(@Param('id') id: string): Promise<PromptTemplateView> {
+  public async getTemplate(
+    @Param('id') id: string,
+  ): Promise<PromptTemplateView> {
     const template = await this.templateRepo.findById(id);
     if (!template) {
       throw new NotFoundException(`PromptTemplate ${id} not found`);
@@ -66,12 +74,14 @@ export class PromptTemplatesController {
   ): Promise<PromptTemplateView> {
     const existing = await this.templateRepo.findAll();
     if (existing.some((t) => t.name === dto.name)) {
-      throw new ConflictException(`PromptTemplate name already exists: ${dto.name}`);
+      throw new ConflictException(
+        `PromptTemplate name already exists: ${dto.name}`,
+      );
     }
     const created = PromptTemplate.create({
       name: dto.name,
       description: dto.description ?? null,
-      contentType: dto.contentType as TemplateContentType | undefined,
+      contentType: dto.contentType,
       model: dto.model,
       supportsVision: dto.supportsVision ?? true,
       maxTokens: dto.maxTokens,
@@ -100,13 +110,15 @@ export class PromptTemplatesController {
     if (dto.name !== undefined) {
       const all = await this.templateRepo.findAll();
       if (all.some((t) => t.id !== id && t.name === dto.name)) {
-        throw new ConflictException(`PromptTemplate name already exists: ${dto.name}`);
+        throw new ConflictException(
+          `PromptTemplate name already exists: ${dto.name}`,
+        );
       }
     }
     existing.update({
       name: dto.name,
       description: dto.description,
-      contentType: dto.contentType as TemplateContentType | undefined,
+      contentType: dto.contentType,
       model: dto.model,
       supportsVision: dto.supportsVision,
       maxTokens: dto.maxTokens,
@@ -132,13 +144,18 @@ export class PromptTemplatesController {
     }
     const cfg = await this.llmConfigRepo.load();
     if (cfg.defaultTemplateId === id) {
-      throw new ConflictException({ error: 'template in use: set as default in LlmConfig' });
+      throw new ConflictException({
+        error: 'template in use: set as default in LlmConfig',
+      });
     }
     const keywords = await this.keywordRepo.findAll();
     const bound = keywords.filter((kw) => kw.templateId === id);
     if (bound.length > 0) {
-      const label = bound.length === 1 ? '1 keyword' : `${bound.length} keywords`;
-      throw new ConflictException({ error: `template in use: bound to ${label}` });
+      const label =
+        bound.length === 1 ? '1 keyword' : `${bound.length} keywords`;
+      throw new ConflictException({
+        error: `template in use: bound to ${label}`,
+      });
     }
     await this.templateRepo.delete(id);
   }

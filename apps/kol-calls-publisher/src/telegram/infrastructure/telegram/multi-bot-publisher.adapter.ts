@@ -141,8 +141,7 @@ export class MultiBotPublisherAdapter extends TelegramPublisherPort {
       const result = json.result as { message_id?: number } | undefined;
       return { ok: true, messageId: result?.message_id ?? null, error: null };
     }
-    const description =
-      (json?.description as string | undefined) ?? 'unknown error';
+    const description = json?.description ?? 'unknown error';
     this.logger.error(`Telegram API error: ${description}`);
     return { ok: false, messageId: null, error: description };
   }
@@ -163,8 +162,7 @@ export class MultiBotPublisherAdapter extends TelegramPublisherPort {
       const result = json.result as { message_id?: number } | undefined;
       return { ok: true, messageId: result?.message_id ?? null, error: null };
     }
-    const description =
-      (json?.description as string | undefined) ?? 'unknown error';
+    const description = json?.description ?? 'unknown error';
     this.logger.error(`Telegram sendPhoto API error: ${description}`);
     return { ok: false, messageId: null, error: description };
   }

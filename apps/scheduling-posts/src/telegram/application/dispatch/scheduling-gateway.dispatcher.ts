@@ -62,8 +62,7 @@ export class SchedulingGatewayDispatcher extends ScheduledAdDispatcherPort {
       return {
         ok: false,
         messageId: null,
-        error:
-          `SchedulingGatewayDispatcher: missing targetChannel for ${target} (not configured)`,
+        error: `SchedulingGatewayDispatcher: missing targetChannel for ${target} (not configured)`,
       };
     }
     if (!this.isGatewayCompatible(ad)) {
@@ -142,7 +141,8 @@ export class SchedulingGatewayDispatcher extends ScheduledAdDispatcherPort {
       return {
         ok: false,
         messageId: null,
-        error: 'SchedulingGatewayDispatcher: gateway client unwired (not configured)',
+        error:
+          'SchedulingGatewayDispatcher: gateway client unwired (not configured)',
       };
     }
     const result = await this.gateway.sendViaGateway({

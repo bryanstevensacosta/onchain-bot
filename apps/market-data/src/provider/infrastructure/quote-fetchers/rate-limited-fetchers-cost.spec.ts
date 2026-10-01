@@ -9,13 +9,17 @@ function fetcher(name: string, cost?: number): QuoteFetcher {
     supportsChains: ['solana'],
     endpoint: 'quote',
     fetch: async () => ({ priceUsd: 1 }),
-    ...(cost === undefined ? {} : { limiterConfig: {
-      windowMs: 60_000,
-      limitPerWindow: 60,
-      endpointCosts: { quote: cost },
-      backoffInitialMs: 1_000,
-      backoffMaxMs: 30_000,
-    } }),
+    ...(cost === undefined
+      ? {}
+      : {
+          limiterConfig: {
+            windowMs: 60_000,
+            limitPerWindow: 60,
+            endpointCosts: { quote: cost },
+            backoffInitialMs: 1_000,
+            backoffMaxMs: 30_000,
+          },
+        }),
   };
 }
 

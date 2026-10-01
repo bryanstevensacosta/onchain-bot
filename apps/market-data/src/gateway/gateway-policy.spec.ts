@@ -49,10 +49,14 @@ describe('gateway edge policies (P43)', () => {
 
   it('serves requests with the api key and marks cache MISS then HIT', async () => {
     const server = app.getHttpServer();
-    const first = await request(server).get('/api/v1/chains').set('x-api-key', 'edge-test-key');
+    const first = await request(server)
+      .get('/api/v1/chains')
+      .set('x-api-key', 'edge-test-key');
     expect(first.status).toBe(200);
     expect(first.headers['x-cache']).toBe('MISS');
-    const second = await request(server).get('/api/v1/chains').set('x-api-key', 'edge-test-key');
+    const second = await request(server)
+      .get('/api/v1/chains')
+      .set('x-api-key', 'edge-test-key');
     expect(second.status).toBe(200);
     expect(second.headers['x-cache']).toBe('HIT');
   });

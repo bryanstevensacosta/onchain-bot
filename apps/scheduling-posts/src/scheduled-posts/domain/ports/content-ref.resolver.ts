@@ -11,6 +11,11 @@ export interface ResolvedContentRef {
  * feed-publisher; the HTTP resolver is the cutover follow-up).
  */
 export abstract class ContentRefResolver {
-  public abstract resolve(queueEntryId: string): Promise<ResolvedContentRef | null>;
-  public abstract seed(entryId: string, resolved: ResolvedContentRef): Promise<void>;
+  public abstract resolve(
+    queueEntryId: string,
+  ): Promise<ResolvedContentRef | null>;
+  public abstract seed(
+    entryId: string,
+    resolved: ResolvedContentRef,
+  ): Promise<void>;
 }

@@ -35,11 +35,20 @@ export class AssetResolverService {
     return this.active().upsert(input);
   }
 
-  public async resolve(input: { chain: string; contract: string }): Promise<AssetRecord> {
-    const found = await this.active().findByContract(input.chain, input.contract);
+  public async resolve(input: {
+    chain: string;
+    contract: string;
+  }): Promise<AssetRecord> {
+    const found = await this.active().findByContract(
+      input.chain,
+      input.contract,
+    );
     if (found === null) {
       throw new AssetNotFoundError(
-        'Unknown asset ' + normalizeChain(input.chain) + ':' + normalizeContract(input.contract),
+        'Unknown asset ' +
+          normalizeChain(input.chain) +
+          ':' +
+          normalizeContract(input.contract),
       );
     }
     return found;
@@ -61,11 +70,18 @@ export class AssetResolverService {
     return found;
   }
 
-  public async resolveBySymbol(chain: string, symbol: string): Promise<AssetRecord> {
+  public async resolveBySymbol(
+    chain: string,
+    symbol: string,
+  ): Promise<AssetRecord> {
     const rows = await this.active().findBySymbol(chain, symbol);
     if (rows.length === 0) {
       throw new AssetNotFoundError(
-        'Unknown symbol "' + symbol + '" on chain "' + normalizeChain(chain) + '"',
+        'Unknown symbol "' +
+          symbol +
+          '" on chain "' +
+          normalizeChain(chain) +
+          '"',
       );
     }
     if (rows.length > 1) {

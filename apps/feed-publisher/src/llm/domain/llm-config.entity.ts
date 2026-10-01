@@ -55,9 +55,13 @@ export class LlmConfig extends AggregateRoot<number> {
     llmMaxAttempts: number;
     updatedAt?: Date;
   }): LlmConfig {
-    const defaultTemplateId = validateDefaultTemplateId(input.defaultTemplateId);
+    const defaultTemplateId = validateDefaultTemplateId(
+      input.defaultTemplateId,
+    );
     const dailyCap = validateDailyCap(input.dailyCap);
-    const dailyResetUtcHour = validateDailyResetUtcHour(input.dailyResetUtcHour);
+    const dailyResetUtcHour = validateDailyResetUtcHour(
+      input.dailyResetUtcHour,
+    );
     const { randomDelayMinMs, randomDelayMaxMs } = validateRandomDelayWindow(
       input.randomDelayMinMs,
       input.randomDelayMaxMs,
@@ -169,7 +173,9 @@ export class LlmConfig extends AggregateRoot<number> {
         : this.state.llmMaxAttempts,
     );
     this.state.targetChannel =
-      patch.targetChannel !== undefined ? patch.targetChannel : this.state.targetChannel;
+      patch.targetChannel !== undefined
+        ? patch.targetChannel
+        : this.state.targetChannel;
     this.state.llmEnabled =
       patch.llmEnabled !== undefined ? patch.llmEnabled : this.state.llmEnabled;
     this.state.publishingEnabled =

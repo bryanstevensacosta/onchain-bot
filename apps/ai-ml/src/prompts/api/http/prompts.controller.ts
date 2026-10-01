@@ -9,14 +9,24 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { IsIn, IsInt, IsOptional, IsString, Length, Min } from 'class-validator';
+import {
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Length,
+  Min,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { RequireScope } from 'auth/application/require-scope.decorator';
 import {
   PromptCatalogService,
   type PromptSource,
 } from '@/prompts/application/prompt-catalog.service';
-import type { PromptContentType, PromptTemplate } from '@/prompts/domain/prompt-template';
+import type {
+  PromptContentType,
+  PromptTemplate,
+} from '@/prompts/domain/prompt-template';
 
 class CreatePromptDto {
   @IsString()
@@ -127,7 +137,10 @@ export class PromptsController {
     @Param('name') name: string,
     @Query('version') version?: string,
   ): Promise<PromptTemplate> {
-    return this.catalog.get(name, version === undefined ? undefined : Number(version));
+    return this.catalog.get(
+      name,
+      version === undefined ? undefined : Number(version),
+    );
   }
 
   @Post()
@@ -162,6 +175,9 @@ export class PromptsController {
     @Param('name') name: string,
     @Query('version') version?: string,
   ): Promise<void> {
-    await this.catalog.delete(name, version === undefined ? undefined : Number(version));
+    await this.catalog.delete(
+      name,
+      version === undefined ? undefined : Number(version),
+    );
   }
 }

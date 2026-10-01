@@ -12,7 +12,12 @@ import { RateLimiterPort } from '../domain/rate-limiter.port';
 export class RateLimiterService implements RateLimiterPort {
   private readonly hits = new Map<string, number[]>();
 
-  public tryAcquire(key: string, limit: number, windowMs: number, now: number = Date.now()): boolean {
+  public tryAcquire(
+    key: string,
+    limit: number,
+    windowMs: number,
+    now: number = Date.now(),
+  ): boolean {
     const at = now;
     const window = this.hits.get(key) ?? [];
     const live = window.filter((timestamp) => at - timestamp < windowMs);

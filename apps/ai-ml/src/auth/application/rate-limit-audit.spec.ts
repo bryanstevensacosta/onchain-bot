@@ -21,9 +21,24 @@ describe('ApiKeyRateLimiter', () => {
 describe('AccessAuditService', () => {
   it('records decisions and drops oldest past capacity', () => {
     const audit = new AccessAuditService(2);
-    audit.record({ keyId: 'k1', method: 'GET', path: '/api/llm/models', status: 200 });
-    audit.record({ keyId: 'anon', method: 'POST', path: '/api/llm/generate', status: 401 });
-    audit.record({ keyId: 'k1', method: 'POST', path: '/api/llm/generate', status: 200 });
+    audit.record({
+      keyId: 'k1',
+      method: 'GET',
+      path: '/api/llm/models',
+      status: 200,
+    });
+    audit.record({
+      keyId: 'anon',
+      method: 'POST',
+      path: '/api/llm/generate',
+      status: 401,
+    });
+    audit.record({
+      keyId: 'k1',
+      method: 'POST',
+      path: '/api/llm/generate',
+      status: 200,
+    });
     expect(audit.size()).toBe(2);
     expect(audit.list()[0].status).toBe(401);
   });

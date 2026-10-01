@@ -30,14 +30,20 @@ describe('LlmConfig', () => {
   });
 
   it('rejects an empty default template binding', () => {
-    expect(() => LlmConfig.load({ ...base, defaultTemplateId: '  ' })).toThrow();
+    expect(() =>
+      LlmConfig.load({ ...base, defaultTemplateId: '  ' }),
+    ).toThrow();
   });
 
   it('rejects invalid knobs on load and update', () => {
     expect(() => LlmConfig.load({ ...base, dailyCap: 0 })).toThrow();
     expect(() => LlmConfig.load({ ...base, dailyResetUtcHour: 24 })).toThrow();
     expect(() =>
-      LlmConfig.load({ ...base, randomDelayMinMs: 5000, randomDelayMaxMs: 1000 }),
+      LlmConfig.load({
+        ...base,
+        randomDelayMinMs: 5000,
+        randomDelayMaxMs: 1000,
+      }),
     ).toThrow();
     expect(() => LlmConfig.load({ ...base, llmMaxAttempts: 0 })).toThrow();
     const cfg = LlmConfig.load({ ...base });

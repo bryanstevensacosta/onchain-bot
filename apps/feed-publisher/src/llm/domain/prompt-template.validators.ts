@@ -95,7 +95,9 @@ export const validateTemperature = (raw: unknown): number => {
   return raw as number;
 };
 
-export const validateReasoningEffort = (raw: unknown): ReasoningEffort | null => {
+export const validateReasoningEffort = (
+  raw: unknown,
+): ReasoningEffort | null => {
   if (!ALLOWED_REASONING_EFFORTS.includes(raw as ReasoningEffort | null)) {
     fail(
       'PromptTemplate reasoningEffort must be one of: null, low, medium, high, max',

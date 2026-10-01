@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import type { ThreadsPublishInput, ThreadsPublishResult } from 'threads/ports/threads-api-publisher.port';
+import type {
+  ThreadsPublishInput,
+  ThreadsPublishResult,
+} from 'threads/ports/threads-api-publisher.port';
 import { ThreadsApiPublisherPort } from 'threads/ports/threads-api-publisher.port';
 import { ThreadsApiPublisherAdapter } from 'threads/infrastructure/threads-api-publisher.adapter';
 import { GatewaySendClient } from './gateway-send-client';

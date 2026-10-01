@@ -12,7 +12,5 @@ export interface EnqueueResult {
  * live so the cron tick is exercisable end-to-end without drops.
  */
 export abstract class MatchedMessageEnqueuePort {
-  public abstract enqueue(
-    message: FilteredFeedMessage,
-  ): Promise<EnqueueResult>;
+  public abstract enqueue(message: FilteredFeedMessage): Promise<EnqueueResult>;
 }

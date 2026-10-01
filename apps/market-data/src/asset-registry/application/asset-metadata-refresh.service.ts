@@ -9,7 +9,9 @@ export interface AssetRefreshOptions {
   readonly delayBetweenItemsMs?: number;
   readonly fetchMetadata?: (
     row: AssetRecord,
-  ) => Promise<Partial<Pick<AssetRecord, 'name' | 'symbol' | 'logoUrl' | 'categories'>>>;
+  ) => Promise<
+    Partial<Pick<AssetRecord, 'name' | 'symbol' | 'logoUrl' | 'categories'>>
+  >;
 }
 
 export const ASSET_REGISTRY_REFRESH_INTERVAL_MS_DEFAULT = 6 * 60 * 60 * 1000;
@@ -60,10 +62,14 @@ export class AssetMetadataRefreshService {
     @Optional() private readonly store: AssetRegistryPort | null = null,
     options?: AssetRefreshOptions,
   ) {
-    this.intervalMs = resolveRefreshIntervalMs(process.env, options?.intervalMs);
+    this.intervalMs = resolveRefreshIntervalMs(
+      process.env,
+      options?.intervalMs,
+    );
     this.batchSize = options?.batchSize ?? ASSET_REGISTRY_REFRESH_BATCH_DEFAULT;
     this.delayBetweenItemsMs =
-      options?.delayBetweenItemsMs ?? ASSET_REGISTRY_REFRESH_ITEM_DELAY_MS_DEFAULT;
+      options?.delayBetweenItemsMs ??
+      ASSET_REGISTRY_REFRESH_ITEM_DELAY_MS_DEFAULT;
     this.fetchMetadata = options?.fetchMetadata;
   }
 
@@ -115,7 +121,14 @@ export class AssetMetadataRefreshService {
           }
           refreshed += 1;
         } catch (error: unknown) {
-          this.logger.warn('asset refresh skipped ' + row.chain + ':' + row.contract + ': ' + String(error));
+          this.logger.warn(
+            'asset refresh skipped ' +
+              row.chain +
+              ':' +
+              row.contract +
+              ': ' +
+              String(error),
+          );
         }
         if (this.delayBetweenItemsMs > 0) {
           await sleep(this.delayBetweenItemsMs);

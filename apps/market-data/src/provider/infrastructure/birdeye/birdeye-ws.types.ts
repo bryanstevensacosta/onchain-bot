@@ -18,7 +18,10 @@ export const BIRDEYE_WS_PROTOCOL = 'echo-protocol';
 /** Keepalive: client ping cadence so idle NATs never drop the conn. */
 export const BIRDEYE_WS_PING_INTERVAL_MS = 25_000;
 
-export type BirdeyeWsSubscribeType = 'SUBSCRIBE_PRICE' | 'SUBSCRIBE_TXS' | 'SUBSCRIBE_NEW_PAIR';
+export type BirdeyeWsSubscribeType =
+  | 'SUBSCRIBE_PRICE'
+  | 'SUBSCRIBE_TXS'
+  | 'SUBSCRIBE_NEW_PAIR';
 
 export interface BirdeyeWsSubscribeMessage {
   readonly type: BirdeyeWsSubscribeType;
@@ -38,8 +41,12 @@ export interface BirdeyeWsSubscribeMessage {
  * previous price sub), so every watched mint rides a single `complex`
  * query — 1m/usd legs OR-ed together, exactly as documented.
  */
-export function buildPriceSubscribe(addresses: ReadonlyArray<string>): BirdeyeWsSubscribeMessage {
-  const legs = addresses.map((address) => `(address = ${address} AND chartType = 1m AND currency = usd)`);
+export function buildPriceSubscribe(
+  addresses: ReadonlyArray<string>,
+): BirdeyeWsSubscribeMessage {
+  const legs = addresses.map(
+    (address) => `(address = ${address} AND chartType = 1m AND currency = usd)`,
+  );
   return {
     type: 'SUBSCRIBE_PRICE',
     data: { queryType: 'complex', query: legs.join(' OR ') },
@@ -47,10 +54,16 @@ export function buildPriceSubscribe(addresses: ReadonlyArray<string>): BirdeyeWs
 }
 
 /** Same overwrite rule as price: one combined txs sub per connection. */
-export function buildTxsSubscribe(addresses: ReadonlyArray<string>): BirdeyeWsSubscribeMessage {
+export function buildTxsSubscribe(
+  addresses: ReadonlyArray<string>,
+): BirdeyeWsSubscribeMessage {
   return {
     type: 'SUBSCRIBE_TXS',
-    data: { queryType: 'complex', query: addresses.map((address) => `address = ${address}`).join(' OR '), txsType: 'all' },
+    data: {
+      queryType: 'complex',
+      query: addresses.map((address) => `address = ${address}`).join(' OR '),
+      txsType: 'all',
+    },
   };
 }
 
@@ -59,7 +72,11 @@ export function buildNewPairSubscribe(): BirdeyeWsSubscribeMessage {
   return { type: 'SUBSCRIBE_NEW_PAIR' };
 }
 
-export type BirdeyeWsPushType = 'WELCOME' | 'PRICE_DATA' | 'TXS_DATA' | 'NEW_PAIR_DATA';
+export type BirdeyeWsPushType =
+  | 'WELCOME'
+  | 'PRICE_DATA'
+  | 'TXS_DATA'
+  | 'NEW_PAIR_DATA';
 
 export interface BirdeyeWsPricePush {
   readonly o: number;

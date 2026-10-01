@@ -58,7 +58,11 @@ describe('ParseFromCandidatesUseCase (P5: 1:1, no collapse)', () => {
 
   it('parses one ParsedCall per candidate (3 mentions -> 3 parsed)', async () => {
     const { useCase } = setup();
-    const candidates = [candidate(0, 'a'), candidate(1, 'b'), candidate(2, 'c')];
+    const candidates = [
+      candidate(0, 'a'),
+      candidate(1, 'b'),
+      candidate(2, 'c'),
+    ];
 
     const result = await useCase.execute({
       candidates,
@@ -71,18 +75,18 @@ describe('ParseFromCandidatesUseCase (P5: 1:1, no collapse)', () => {
 
   it('preserves each mention address (NO collapse to addresses[0])', async () => {
     const { useCase } = setup();
-    const candidates = [candidate(0, 'a'), candidate(1, 'b'), candidate(2, 'c')];
+    const candidates = [
+      candidate(0, 'a'),
+      candidate(1, 'b'),
+      candidate(2, 'c'),
+    ];
 
     const result = await useCase.execute({ candidates, rawText: 'gem' });
 
     const addresses = result.parsed.map((p) => p.address.value);
     expect(new Set(addresses).size).toBe(3);
-    expect(addresses).toEqual(
-      candidates.map((c) => c.contractAddress.value),
-    );
-    expect(result.parsed.map((p) => p.id)).toEqual(
-      candidates.map((c) => c.id),
-    );
+    expect(addresses).toEqual(candidates.map((c) => c.contractAddress.value));
+    expect(result.parsed.map((p) => p.id)).toEqual(candidates.map((c) => c.id));
   });
 
   it('keeps per-candidate ticker over message-level heuristic', async () => {

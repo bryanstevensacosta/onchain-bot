@@ -20,7 +20,11 @@ export class InMemoryLlmConfigRepository extends LlmConfigRepository {
 
   /** Test/dev seeding (not part of the port). */
   public seed(initial: Partial<LlmConfig>): void {
-    this.current = { ...this.current, ...initial, updatedAt: new Date().toISOString() };
+    this.current = {
+      ...this.current,
+      ...initial,
+      updatedAt: new Date().toISOString(),
+    };
   }
 
   public async get(): Promise<LlmConfig> {
@@ -31,7 +35,11 @@ export class InMemoryLlmConfigRepository extends LlmConfigRepository {
     llmEnabled?: boolean;
     publishingEnabled?: boolean;
   }): Promise<LlmConfig> {
-    this.current = { ...this.current, ...patch, updatedAt: new Date().toISOString() };
+    this.current = {
+      ...this.current,
+      ...patch,
+      updatedAt: new Date().toISOString(),
+    };
     return { ...this.current };
   }
 }

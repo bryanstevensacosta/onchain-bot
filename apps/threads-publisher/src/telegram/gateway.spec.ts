@@ -6,11 +6,11 @@ import { ThreadsBlacklistPhrase } from 'threads/domain/threads-blacklist-phrase.
 
 describe('gateway + matching', () => {
   it('defaults publish mode to dual', () => {
-    expect(resolveThreadsPublishMode({} as never)).toBe('dual');
-    expect(resolveThreadsPublishMode({ THREADS_PUBLISH_MODE: 'gateway' } as never)).toBe(
+    expect(resolveThreadsPublishMode({})).toBe('dual');
+    expect(resolveThreadsPublishMode({ THREADS_PUBLISH_MODE: 'gateway' })).toBe(
       'gateway',
     );
-    expect(resolveThreadsPublishMode({ THREADS_PUBLISH_MODE: 'bogus' } as never)).toBe(
+    expect(resolveThreadsPublishMode({ THREADS_PUBLISH_MODE: 'bogus' })).toBe(
       'dual',
     );
   });

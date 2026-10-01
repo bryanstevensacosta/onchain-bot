@@ -30,9 +30,7 @@ async function bootstrap(): Promise<void> {
   await app.listen(port);
 }
 
-// eslint-disable-next-line no-console
 bootstrap().catch((err) => {
-  // eslint-disable-next-line no-console
   console.error('kol-calls-publisher bootstrap failed', err);
   process.exit(1);
 });

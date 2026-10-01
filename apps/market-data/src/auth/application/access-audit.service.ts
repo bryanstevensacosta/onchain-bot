@@ -22,7 +22,9 @@ export interface AuditEntry extends AuditEntryInput {
 export class AccessAuditService {
   private readonly entries: AuditEntry[] = [];
 
-  public constructor(@Optional() @Inject('ACCESS_AUDIT_MAX_ENTRIES') maxEntries?: number) {
+  public constructor(
+    @Optional() @Inject('ACCESS_AUDIT_MAX_ENTRIES') maxEntries?: number,
+  ) {
     this.maxEntries = maxEntries ?? 1000;
   }
 
@@ -30,7 +32,11 @@ export class AccessAuditService {
 
   public record(input: AuditEntryInput): void {
     const cleanPath = input.path.split('?')[0] ?? input.path;
-    this.entries.push({ ...input, path: cleanPath, at: new Date().toISOString() });
+    this.entries.push({
+      ...input,
+      path: cleanPath,
+      at: new Date().toISOString(),
+    });
     while (this.entries.length > this.maxEntries) {
       this.entries.shift();
     }

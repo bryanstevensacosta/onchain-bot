@@ -21,7 +21,10 @@ describe('BirdeyeWsAdapter (Birdeye WS realtime)', () => {
   }
 
   function createMockSocket(): MockSocket {
-    const handlers = new Map<string, Array<(...args: Array<unknown>) => void>>();
+    const handlers = new Map<
+      string,
+      Array<(...args: Array<unknown>) => void>
+    >();
     const socket: MockSocket = {
       sent: [],
       handlers,
@@ -31,7 +34,10 @@ describe('BirdeyeWsAdapter (Birdeye WS realtime)', () => {
       ping: (): void => undefined,
       pong: (): void => undefined,
       close: (): void => undefined,
-      on: (event: string, listener: (...args: Array<unknown>) => void): void => {
+      on: (
+        event: string,
+        listener: (...args: Array<unknown>) => void,
+      ): void => {
         const held = handlers.get(event) ?? [];
         held.push(listener);
         handlers.set(event, held);
@@ -48,7 +54,10 @@ describe('BirdeyeWsAdapter (Birdeye WS realtime)', () => {
     return socket;
   }
 
-  function createAdapter(): { adapter: BirdeyeWsAdapter; sockets: Array<MockSocket> } {
+  function createAdapter(): {
+    adapter: BirdeyeWsAdapter;
+    sockets: Array<MockSocket>;
+  } {
     const sockets: Array<MockSocket> = [];
     const adapter = new BirdeyeWsAdapter('test-key', {
       socketFactory: () => {
@@ -81,10 +90,14 @@ describe('BirdeyeWsAdapter (Birdeye WS realtime)', () => {
     openFirst(sockets);
     await pending;
     expect(opened).toHaveLength(1);
-    expect(opened[0].url).toBe('wss://public-api.birdeye.so/socket/solana?x-api-key=test-key');
+    expect(opened[0].url).toBe(
+      'wss://public-api.birdeye.so/socket/solana?x-api-key=test-key',
+    );
     expect(opened[0].protocols).toBe('echo-protocol');
 
-    await adapter.watch([{ exchange: 'birdeye', symbol: MINT, kind: 'ticker' }]);
+    await adapter.watch([
+      { exchange: 'birdeye', symbol: MINT, kind: 'ticker' },
+    ]);
     expect(sockets[0].sent.map((raw) => JSON.parse(raw))).toEqual([
       { type: 'SUBSCRIBE_NEW_PAIR' },
       {
@@ -94,7 +107,14 @@ describe('BirdeyeWsAdapter (Birdeye WS realtime)', () => {
           query: `(address = ${MINT} AND chartType = 1m AND currency = usd)`,
         },
       },
-      { type: 'SUBSCRIBE_TXS', data: { queryType: 'complex', query: `address = ${MINT}`, txsType: 'all' } },
+      {
+        type: 'SUBSCRIBE_TXS',
+        data: {
+          queryType: 'complex',
+          query: `address = ${MINT}`,
+          txsType: 'all',
+        },
+      },
     ]);
     await adapter.disconnect();
   });
@@ -106,7 +126,9 @@ describe('BirdeyeWsAdapter (Birdeye WS realtime)', () => {
     const pending = adapter.connect();
     const socket = openFirst(sockets);
     await pending;
-    await adapter.watch([{ exchange: 'birdeye', symbol: MINT, kind: 'ticker' }]);
+    await adapter.watch([
+      { exchange: 'birdeye', symbol: MINT, kind: 'ticker' },
+    ]);
     socket.emitLocal(
       'message',
       JSON.stringify({
@@ -143,7 +165,9 @@ describe('BirdeyeWsAdapter (Birdeye WS realtime)', () => {
     const pending = adapter.connect();
     const socket = openFirst(sockets);
     await pending;
-    await adapter.watch([{ exchange: 'birdeye', symbol: MINT, kind: 'ohlcv', timeframe: '1m' }]);
+    await adapter.watch([
+      { exchange: 'birdeye', symbol: MINT, kind: 'ohlcv', timeframe: '1m' },
+    ]);
     socket.emitLocal(
       'message',
       JSON.stringify({
@@ -194,14 +218,20 @@ describe('BirdeyeWsAdapter (Birdeye WS realtime)', () => {
     const firstPending = adapter.connect();
     const first = openFirst(sockets);
     await firstPending;
-    await adapter.watch([{ exchange: 'birdeye', symbol: MINT, kind: 'ticker' }]);
+    await adapter.watch([
+      { exchange: 'birdeye', symbol: MINT, kind: 'ticker' },
+    ]);
     const sentBefore = first.sent.length;
     expect(sentBefore).toBeGreaterThan(0);
 
     first.emitLocal('close');
     expect(adapter.connected).toBe(false);
     expect(errors).toEqual([
-      { code: 'EXCHANGE_DOWN', message: expect.any(String), exchange: 'birdeye' },
+      {
+        code: 'EXCHANGE_DOWN',
+        message: expect.any(String),
+        exchange: 'birdeye',
+      },
     ]);
 
     const secondPending = adapter.connect();
@@ -220,7 +250,10 @@ describe('BirdeyeWsAdapter (Birdeye WS realtime)', () => {
     const socket = openFirst(sockets);
     await pending;
     socket.emitLocal('message', JSON.stringify({ type: 'WELCOME' }));
-    socket.emitLocal('message', JSON.stringify({ type: 'SOMETHING_NEW', data: {} }));
+    socket.emitLocal(
+      'message',
+      JSON.stringify({ type: 'SOMETHING_NEW', data: {} }),
+    );
     socket.emitLocal('message', 'not-json{{{');
     expect(events).toEqual([]);
     await adapter.disconnect();

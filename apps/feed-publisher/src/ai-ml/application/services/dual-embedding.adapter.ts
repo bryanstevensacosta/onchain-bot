@@ -49,7 +49,9 @@ export class DualEmbeddingAdapter extends EmbeddingPort {
       return this.remote.embed(text);
     }
     if (!this.local) {
-      throw new Error('dual/local embedding mode without a local leg (wiring bug)');
+      throw new Error(
+        'dual/local embedding mode without a local leg (wiring bug)',
+      );
     }
     const localVector = await this.local.embed(text);
     if (mode === 'local' || !this.remote || !this.parity) {

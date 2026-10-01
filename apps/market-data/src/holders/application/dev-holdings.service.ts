@@ -34,7 +34,10 @@ export class DevHoldingsService extends DevHoldingsPort {
   ): Promise<DevHoldingsResult> {
     const providerErrors: Record<string, string> = {};
     if (chain !== 'solana') {
-      return emptyDevHoldings({ birdeye: 'unsupported chain', helius: 'unsupported chain' });
+      return emptyDevHoldings({
+        birdeye: 'unsupported chain',
+        helius: 'unsupported chain',
+      });
     }
     try {
       const [profile, positions] = await Promise.all([
@@ -52,7 +55,8 @@ export class DevHoldingsService extends DevHoldingsPort {
       }
       providerErrors['birdeye'] = 'no data';
     } catch (err) {
-      providerErrors['birdeye'] = err instanceof Error ? err.message : String(err);
+      providerErrors['birdeye'] =
+        err instanceof Error ? err.message : String(err);
     }
     try {
       const probable = await this.fromHelius(mint);
@@ -66,7 +70,8 @@ export class DevHoldingsService extends DevHoldingsPort {
       }
       providerErrors['helius'] = 'no data';
     } catch (err) {
-      providerErrors['helius'] = err instanceof Error ? err.message : String(err);
+      providerErrors['helius'] =
+        err instanceof Error ? err.message : String(err);
     }
     this.logger.debug(`dev holdings unresolved for ${mint}`);
     return emptyDevHoldings(providerErrors);
@@ -75,7 +80,10 @@ export class DevHoldingsService extends DevHoldingsPort {
   private fromBirdeye(
     positions: Awaited<ReturnType<BirdeyeService['getDevPositions']>>,
     profile: Awaited<ReturnType<BirdeyeService['getHolderProfile']>>,
-  ): { readonly wallets: ReadonlyArray<DevWalletHolding>; readonly pct: number | null } | null {
+  ): {
+    readonly wallets: ReadonlyArray<DevWalletHolding>;
+    readonly pct: number | null;
+  } | null {
     const items = positions?.items ?? [];
     if (items.length === 0) {
       const devTag = (profile?.tags ?? []).find((t) => t.tag === 'dev');
@@ -88,7 +96,9 @@ export class DevHoldingsService extends DevHoldingsPort {
         wallets: [
           {
             wallet: profile?.address ?? 'dev',
-            holdAmount: toNumber(devTag.holdAmount ?? profile?.devHoldAmount ?? null),
+            holdAmount: toNumber(
+              devTag.holdAmount ?? profile?.devHoldAmount ?? null,
+            ),
             percentOfSupply: pct,
             pnlUsd: toNumber(devTag.pnlUsd ?? profile?.devPnlUsd ?? null),
             tag: 'dev',
@@ -104,10 +114,18 @@ export class DevHoldingsService extends DevHoldingsPort {
       pnlUsd: toNumber(it.pnlUsd),
       tag: it.tag ?? 'dev',
     }));
-    const pct = wallets.reduce<number>((acc, w) => acc + (w.percentOfSupply ?? 0), 0);
-    const hasAny = wallets.some((w) => w.holdAmount !== null || w.percentOfSupply !== null);
+    const pct = wallets.reduce<number>(
+      (acc, w) => acc + (w.percentOfSupply ?? 0),
+      0,
+    );
+    const hasAny = wallets.some(
+      (w) => w.holdAmount !== null || w.percentOfSupply !== null,
+    );
     if (!hasAny) return null;
-    return { wallets, pct: pct > 0 ? pct : wallets[0]?.percentOfSupply ?? null };
+    return {
+      wallets,
+      pct: pct > 0 ? pct : (wallets[0]?.percentOfSupply ?? null),
+    };
   }
 
   private async fromHelius(

@@ -41,7 +41,10 @@ export class InMemoryAssetRegistryRepository extends AssetRegistryPort {
         (input.geckoId ?? prev?.geckoId ?? null) === null
           ? null
           : String(input.geckoId ?? prev?.geckoId ?? '').toLowerCase(),
-      providerIds: { ...(prev?.providerIds ?? {}), ...(input.providerIds ?? {}) },
+      providerIds: {
+        ...(prev?.providerIds ?? {}),
+        ...(input.providerIds ?? {}),
+      },
       logoUrl: input.logoUrl ?? prev?.logoUrl ?? null,
       categories: input.categories ?? prev?.categories ?? [],
       updatedAt: now,
@@ -50,8 +53,14 @@ export class InMemoryAssetRegistryRepository extends AssetRegistryPort {
     return next;
   }
 
-  public async findByContract(chain: string, contract: string): Promise<AssetRecord | null> {
-    return this.rows.get(InMemoryAssetRegistryRepository.key(chain, contract)) ?? null;
+  public async findByContract(
+    chain: string,
+    contract: string,
+  ): Promise<AssetRecord | null> {
+    return (
+      this.rows.get(InMemoryAssetRegistryRepository.key(chain, contract)) ??
+      null
+    );
   }
 
   public async findByCmcId(cmcId: number): Promise<AssetRecord | null> {
@@ -73,12 +82,18 @@ export class InMemoryAssetRegistryRepository extends AssetRegistryPort {
     return null;
   }
 
-  public async findBySymbol(chain: string, symbol: string): Promise<ReadonlyArray<AssetRecord>> {
+  public async findBySymbol(
+    chain: string,
+    symbol: string,
+  ): Promise<ReadonlyArray<AssetRecord>> {
     const wantChain = normalizeChain(chain);
     const wantSymbol = (symbol ?? '').trim().toLowerCase();
     const out: Array<AssetRecord> = [];
     for (const row of this.rows.values()) {
-      if (row.chain === wantChain && (row.symbol ?? '').toLowerCase() === wantSymbol) {
+      if (
+        row.chain === wantChain &&
+        (row.symbol ?? '').toLowerCase() === wantSymbol
+      ) {
         out.push(row);
       }
     }
@@ -87,7 +102,9 @@ export class InMemoryAssetRegistryRepository extends AssetRegistryPort {
 
   public async listStale(limit: number): Promise<ReadonlyArray<AssetRecord>> {
     return [...this.rows.values()]
-      .sort((a, b) => (a.updatedAt < b.updatedAt ? -1 : a.updatedAt > b.updatedAt ? 1 : 0))
+      .sort((a, b) =>
+        a.updatedAt < b.updatedAt ? -1 : a.updatedAt > b.updatedAt ? 1 : 0,
+      )
       .slice(0, Math.max(0, limit));
   }
 }

@@ -4,7 +4,10 @@ import { SnapshotHistoryRepository } from '../infrastructure/snapshot-history.re
 import type { QuoteFetcher } from '../domain/snapshot-quote.types';
 import type { AddressSnapshot } from '../domain/snapshot.types';
 
-function okFetcher(name: string, quote: Record<string, number | string>): QuoteFetcher {
+function okFetcher(
+  name: string,
+  quote: Record<string, number | string>,
+): QuoteFetcher {
   return {
     name,
     supportsChains: ['solana'],
@@ -27,7 +30,10 @@ interface CacheStub {
   set: jest.Mock;
 }
 
-function buildService(fetchers: ReadonlyArray<QuoteFetcher>, cache: CacheStub | null) {
+function buildService(
+  fetchers: ReadonlyArray<QuoteFetcher>,
+  cache: CacheStub | null,
+) {
   const catalog = {
     findById: async (id: string) => (id === 'solana' ? { id } : null),
   };
@@ -55,7 +61,10 @@ function buildService(fetchers: ReadonlyArray<QuoteFetcher>, cache: CacheStub | 
   return { service, registry, history, cache };
 }
 
-const INPUT = { chain: 'solana', value: 'So11111111111111111111111111111111111111112' };
+const INPUT = {
+  chain: 'solana',
+  value: 'So11111111111111111111111111111111111111112',
+};
 
 /**
  * Service-level aggregation contract (Tramo 3, todo-3 gap): one ok +
@@ -69,7 +78,10 @@ describe('AddressSnapshotService (live aggregation)', () => {
       set: jest.fn(async () => undefined),
     };
     const { service, history } = buildService(
-      [okFetcher('dexscreener', { priceUsd: 1.5, symbol: 'WIF' }), failFetcher('geckoterminal', 'boom')],
+      [
+        okFetcher('dexscreener', { priceUsd: 1.5, symbol: 'WIF' }),
+        failFetcher('geckoterminal', 'boom'),
+      ],
       cache,
     );
     const snapshot = await service.getSnapshot(INPUT);
@@ -88,7 +100,10 @@ describe('AddressSnapshotService (live aggregation)', () => {
       set: jest.fn(async () => undefined),
     };
     const { service } = buildService(
-      [failFetcher('dexscreener', 'down-a'), failFetcher('geckoterminal', 'down-b')],
+      [
+        failFetcher('dexscreener', 'down-a'),
+        failFetcher('geckoterminal', 'down-b'),
+      ],
       cache,
     );
     const snapshot = await service.getSnapshot(INPUT);
@@ -100,7 +115,11 @@ describe('AddressSnapshotService (live aggregation)', () => {
   });
 
   it('cache hit skips every provider call and history write', async () => {
-    const cached = { status: 'ready', priceUsd: 9, key: 'solana:abc' } as AddressSnapshot;
+    const cached = {
+      status: 'ready',
+      priceUsd: 9,
+      key: 'solana:abc',
+    } as AddressSnapshot;
     const cache: CacheStub = {
       get: jest.fn(async () => cached),
       set: jest.fn(async () => undefined),

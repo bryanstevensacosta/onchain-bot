@@ -16,14 +16,13 @@ const template = (): PromptTemplate =>
     promptText: 'Title: {{title}}\nBody: {{original}}',
   });
 
-const templateRepo = (): PromptTemplateRepository =>
-  ({
-    findById: async (id: string): Promise<PromptTemplate | null> =>
-      id === 'default-feed' ? template() : null,
-    findAll: async (): Promise<ReadonlyArray<PromptTemplate>> => [template()],
-    save: async (t: PromptTemplate): Promise<PromptTemplate> => t,
-    delete: async (): Promise<boolean> => true,
-  }) as PromptTemplateRepository;
+const templateRepo = (): PromptTemplateRepository => ({
+  findById: async (id: string): Promise<PromptTemplate | null> =>
+    id === 'default-feed' ? template() : null,
+  findAll: async (): Promise<ReadonlyArray<PromptTemplate>> => [template()],
+  save: async (t: PromptTemplate): Promise<PromptTemplate> => t,
+  delete: async (): Promise<boolean> => true,
+});
 
 class RecordingPort extends LlmPort {
   public calls = 0;
@@ -41,10 +40,17 @@ const generator = (): FeedLlmGenerator =>
     renderPromptFor: (body: string) => `FAKE:${body}`,
   }) as unknown as FeedLlmGenerator;
 
-const useCase = (port: RecordingPort): { useCase: PreviewPromptUseCase; port: RecordingPort } => {
+const useCase = (
+  port: RecordingPort,
+): { useCase: PreviewPromptUseCase; port: RecordingPort } => {
   const config = { get: (): string => '' } as unknown as ConfigService;
   return {
-    useCase: new PreviewPromptUseCase(generator(), templateRepo(), port, config),
+    useCase: new PreviewPromptUseCase(
+      generator(),
+      templateRepo(),
+      port,
+      config,
+    ),
     port,
   };
 };
@@ -59,7 +65,9 @@ describe('PreviewPromptUseCase (side-effect free)', () => {
       rawTitle: 'Mercado',
     });
     expect(result.content).toBeNull();
-    expect(result.renderedUserPrompt).toBe('FAKE:Title: {{title}}\nBody: {{original}}');
+    expect(result.renderedUserPrompt).toBe(
+      'FAKE:Title: {{title}}\nBody: {{original}}',
+    );
     expect(port.calls).toBe(0);
   });
 

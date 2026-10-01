@@ -1,6 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ThreadsApiPublisherPort } from '../ports/threads-api-publisher.port';
-import type { ThreadsPublishInput, ThreadsPublishResult } from '../ports/threads-api-publisher.port';
+import type {
+  ThreadsPublishInput,
+  ThreadsPublishResult,
+} from '../ports/threads-api-publisher.port';
 
 /**
  * Direct Meta Threads adapter (TEXT-only MVP, backend parity).

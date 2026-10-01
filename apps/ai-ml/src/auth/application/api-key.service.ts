@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
-import { toApiKeyView, type ApiKeyRecord, type ApiKeyView } from '../domain/api-key-record';
+import {
+  toApiKeyView,
+  type ApiKeyRecord,
+  type ApiKeyView,
+} from '../domain/api-key-record';
 import {
   generateApiKey,
   hashApiKey,
@@ -65,7 +69,9 @@ export class ApiKeyService {
     }
     const scopes = [...input.scopes];
     if (scopes.length === 0 || !scopes.every(isValidScope)) {
-      throw new Error('At least one valid scope is required (read|generate|admin)');
+      throw new Error(
+        'At least one valid scope is required (read|generate|admin)',
+      );
     }
     const rateLimitPerMin = input.rateLimitPerMin ?? 60;
     if (!Number.isFinite(rateLimitPerMin) || rateLimitPerMin < 1) {
@@ -97,7 +103,10 @@ export class ApiKeyService {
       if (entry.keyHash.length !== candidate.length) {
         continue;
       }
-      const match = timingSafeEqual(Buffer.from(entry.keyHash), Buffer.from(candidate));
+      const match = timingSafeEqual(
+        Buffer.from(entry.keyHash),
+        Buffer.from(candidate),
+      );
       if (!match) {
         continue;
       }

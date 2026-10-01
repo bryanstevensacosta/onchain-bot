@@ -49,11 +49,7 @@ describe('ThreadPublisherCronScheduler', () => {
     const { repo, publisher, health } = makeHarness();
     await saveQueued(repo, 't1', [{ content: 'one' }]);
     const disabled = new ThreadPublisherCronScheduler(
-      new PublishThreadUseCase(
-        repo,
-        publisher,
-        new ThreadSchedulerService(),
-      ),
+      new PublishThreadUseCase(repo, publisher, new ThreadSchedulerService()),
       repo,
       health,
       { addCronJob: jest.fn(), getCronJob: jest.fn() } as never,
@@ -75,7 +71,9 @@ describe('ThreadPublisherCronScheduler', () => {
 
   it('skips DRAFT threads (never enqueued)', async () => {
     const { repo, publisher, scheduler } = makeHarness();
-    await repo.save(Thread.create({ id: 'draft', messages: [{ content: 'x' }] }));
+    await repo.save(
+      Thread.create({ id: 'draft', messages: [{ content: 'x' }] }),
+    );
     await scheduler.tick(AT);
     expect(publisher.sent).toHaveLength(0);
   });

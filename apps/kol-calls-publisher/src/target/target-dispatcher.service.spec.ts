@@ -68,7 +68,7 @@ describe('kol-calls-publisher target dispatcher (todo 10)', () => {
   it('routes telegram bindings via the gateway with vault ids', async () => {
     const fake = fakeGateway();
     const dispatcher = new TargetDispatcherService(
-      fake.sender as never,
+      fake.sender,
       fake.mapping as never,
       undefined,
     );

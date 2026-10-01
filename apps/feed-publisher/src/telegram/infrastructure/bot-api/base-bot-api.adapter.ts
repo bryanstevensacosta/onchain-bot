@@ -416,8 +416,8 @@ export abstract class BaseBotApiAdapter extends TelegramPublisherPort {
     ];
     const files = filesResult.bytesArray.map((bytes, index) => ({
       fieldName: `photo${index}`,
-      fileName: basename(imagePaths[index] as string),
-      mimeType: guessMimeType(extname(imagePaths[index] as string)),
+      fileName: basename(imagePaths[index]),
+      mimeType: guessMimeType(extname(imagePaths[index])),
       bytes,
     }));
     const body = buildMediaGroupMultipartBody(boundary, textFields, files);

@@ -22,9 +22,7 @@ describe('CcxtService REST adapter (P48)', () => {
     expect(CcxtService.isCexSymbol('BTC/USDT')).toBe(true);
     expect(CcxtService.isCexSymbol('sol/usdc')).toBe(true);
     expect(
-      CcxtService.isCexSymbol(
-        'So11111111111111111111111111111111111111112',
-      ),
+      CcxtService.isCexSymbol('So11111111111111111111111111111111111111112'),
     ).toBe(false);
     expect(CcxtService.isCexSymbol('0x1234')).toBe(false);
     expect(CcxtService.isCexSymbol('')).toBe(false);
@@ -53,9 +51,7 @@ describe('CcxtService REST adapter (P48)', () => {
     await expect(
       service.fetchTicker('binance', 'BTC/USDT'),
     ).resolves.toBeNull();
-    await expect(
-      service.fetchOHLCV('binance', 'BTC/USDT'),
-    ).resolves.toBeNull();
+    await expect(service.fetchOHLCV('binance', 'BTC/USDT')).resolves.toBeNull();
   });
 
   it('maps fetchTicker through the stubbed lib (ccxt hit first)', async () => {
@@ -70,9 +66,10 @@ describe('CcxtService REST adapter (P48)', () => {
         },
       }),
     );
-    await expect(
-      service.fetchTicker('binance', 'BTC/USDT'),
-    ).resolves.toEqual({ symbol: 'BTC/USDT', last: 42000.5 });
+    await expect(service.fetchTicker('binance', 'BTC/USDT')).resolves.toEqual({
+      symbol: 'BTC/USDT',
+      last: 42000.5,
+    });
   });
 
   it('exposes the full limiter config via the port (P48-bis)', () => {

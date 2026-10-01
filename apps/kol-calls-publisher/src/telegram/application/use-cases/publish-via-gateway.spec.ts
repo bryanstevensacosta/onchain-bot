@@ -33,7 +33,7 @@ function directStub() {
       sent.push({ chatId: input.chatId, text: input.text });
       return { ok: true, messageId: 7, error: null };
     },
-  } as TelegramPublisherPort;
+  };
   return { port, sent };
 }
 
@@ -44,7 +44,7 @@ function gatewayStub() {
       sent.push({ botId: input.botId, chatId: input.chatId, text: input.text });
       return { ok: true, messageId: 4242, error: null };
     },
-  } as BotsGatewaySenderPort;
+  };
   return { port, sent };
 }
 
@@ -139,7 +139,7 @@ describe('gateway publish modes (gateway todo 4, failing-first)', () => {
         messageId: null,
         error: 'connect refused',
       }),
-    } as BotsGatewaySenderPort;
+    };
     const resolver: BotTokenResolverPort = {
       resolveBotToken: async () => 'TOKEN-1',
     };

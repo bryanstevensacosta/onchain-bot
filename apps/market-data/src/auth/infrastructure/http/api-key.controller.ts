@@ -1,5 +1,16 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Post } from '@nestjs/common';
-import { ApiKeyService, type CreateKeyInput } from 'auth/application/api-key.service';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Post,
+} from '@nestjs/common';
+import {
+  ApiKeyService,
+  type CreateKeyInput,
+} from 'auth/application/api-key.service';
 import { AccessAuditService } from 'auth/application/access-audit.service';
 import { RequireScope } from 'auth/application/require-scope.decorator';
 import type { ApiKeyView } from 'auth/domain/api-key-record';
@@ -30,10 +41,17 @@ export class ApiKeyController {
   ) {}
 
   @Post('keys')
-  public async create(@Body() body: CreateBody): Promise<{ key: string; keyPrefix: string; id: string; name: string }> {
+  public async create(
+    @Body() body: CreateBody,
+  ): Promise<{ key: string; keyPrefix: string; id: string; name: string }> {
     const input = this.parseCreate(body);
     const created = await this.keys.create(input);
-    return { key: created.plaintext, keyPrefix: created.record.keyPrefix, id: created.record.id, name: created.record.name };
+    return {
+      key: created.plaintext,
+      keyPrefix: created.record.keyPrefix,
+      id: created.record.id,
+      name: created.record.name,
+    };
   }
 
   @Get('keys')
@@ -43,9 +61,16 @@ export class ApiKeyController {
 
   @Post('keys/:id/rotate')
   @HttpCode(201)
-  public async rotate(@Param('id') id: string): Promise<{ key: string; keyPrefix: string; id: string; name: string }> {
+  public async rotate(
+    @Param('id') id: string,
+  ): Promise<{ key: string; keyPrefix: string; id: string; name: string }> {
     const created = await this.keys.rotate(id);
-    return { key: created.plaintext, keyPrefix: created.record.keyPrefix, id: created.record.id, name: created.record.name };
+    return {
+      key: created.plaintext,
+      keyPrefix: created.record.keyPrefix,
+      id: created.record.id,
+      name: created.record.name,
+    };
   }
 
   @Delete('keys/:id')
@@ -65,7 +90,8 @@ export class ApiKeyController {
     const scopes = rawScopes.filter(isValidScope);
     const rateLimitPerMin =
       typeof body.rateLimitPerMin === 'number' ? body.rateLimitPerMin : 60;
-    const expiresAt = typeof body.expiresAt === 'string' ? body.expiresAt : null;
+    const expiresAt =
+      typeof body.expiresAt === 'string' ? body.expiresAt : null;
     return { name, scopes, rateLimitPerMin, expiresAt };
   }
 }

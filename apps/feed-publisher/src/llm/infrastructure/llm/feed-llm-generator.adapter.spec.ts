@@ -1,5 +1,8 @@
 import { FeedLlmGenerator } from './feed-llm-generator.adapter';
-import { LlmPort, type LlmGenerateRequest } from '@/llm/application/ports/llm.port';
+import {
+  LlmPort,
+  type LlmGenerateRequest,
+} from '@/llm/application/ports/llm.port';
 import { LlmFailedError } from 'shared/exceptions/feed-publisher.error';
 import { LlmConfig } from '@/llm/domain/llm-config.entity';
 import { PromptTemplate } from '@/llm/domain/prompt-template.entity';
@@ -9,7 +12,9 @@ import type { PromptTemplateRepository } from '@/llm/domain/ports/prompt-templat
 
 class FakeLlmPort extends LlmPort {
   public calls: LlmGenerateRequest[] = [];
-  public constructor(private readonly handler: (req: LlmGenerateRequest) => Promise<string>) {
+  public constructor(
+    private readonly handler: (req: LlmGenerateRequest) => Promise<string>,
+  ) {
     super();
   }
   public async generateText(request: LlmGenerateRequest): Promise<string> {
@@ -61,7 +66,7 @@ const repos = (template: PromptTemplate | null, failWith?: Error) => {
   const configRepo = {
     load: async (): Promise<LlmConfig> => seedConfig(),
     save: async (cfg: LlmConfig): Promise<LlmConfig> => cfg,
-  } as LlmConfigRepository;
+  };
   const templateRepo = {
     findById: async (): Promise<PromptTemplate | null> => {
       if (failWith) throw failWith;
@@ -107,8 +112,8 @@ describe('FeedLlmGenerator', () => {
     });
     const port = new FakeLlmPort(async () => 'GENERATED');
     const { configRepo, templateRepo } = repos(seedTemplate());
-    (templateRepo.findById as unknown as (id: string) => Promise<PromptTemplate | null>) =
-      async (id: string) => (id === 'kw-1' ? keyword : seedTemplate());
+    templateRepo.findById = async (id: string) =>
+      id === 'kw-1' ? keyword : seedTemplate();
     const generator = new FeedLlmGenerator(port, templateRepo, configRepo);
     const result = await generator.generateForEntry(
       entry({ keywordTemplateId: 'kw-1' }),

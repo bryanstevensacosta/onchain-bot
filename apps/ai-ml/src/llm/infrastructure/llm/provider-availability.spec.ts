@@ -14,14 +14,20 @@ describe('provider availability (no network)', () => {
 
   it('gateway reports available with baseUrl + key', async () => {
     const adapter = new LlmGatewayAdapter(
-      configWith({ LLM_GATEWAY_BASE_URL: 'http://localhost:4000', LLM_GATEWAY_API_KEY: 'k' }),
+      configWith({
+        LLM_GATEWAY_BASE_URL: 'http://localhost:4000',
+        LLM_GATEWAY_API_KEY: 'k',
+      }),
     );
     await expect(adapter.isAvailable()).resolves.toBe(true);
   });
 
   it('gateway falls back to OPENAI_API_KEY when no gateway key', async () => {
     const adapter = new LlmGatewayAdapter(
-      configWith({ LLM_GATEWAY_BASE_URL: 'http://localhost:4000', OPENAI_API_KEY: 'sk-x' }),
+      configWith({
+        LLM_GATEWAY_BASE_URL: 'http://localhost:4000',
+        OPENAI_API_KEY: 'sk-x',
+      }),
     );
     await expect(adapter.isAvailable()).resolves.toBe(true);
   });

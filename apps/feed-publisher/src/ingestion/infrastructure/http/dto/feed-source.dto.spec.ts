@@ -22,8 +22,6 @@ describe('feed-source.dto', () => {
   });
 
   it('defaults the type when absent', () => {
-    expect(toFeedSource({ channelId: '-1001' })?.type).toBe(
-      'crypto-news',
-    );
+    expect(toFeedSource({ channelId: '-1001' })?.type).toBe('crypto-news');
   });
 });

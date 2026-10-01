@@ -18,9 +18,7 @@ export class InMemoryMatchedMessageCollector extends MatchedMessageEnqueuePort {
   private readonly buffer: FilteredFeedMessage[] = [];
   private readonly MAX_BUFFERED = 500;
 
-  public async enqueue(
-    message: FilteredFeedMessage,
-  ): Promise<EnqueueResult> {
+  public async enqueue(message: FilteredFeedMessage): Promise<EnqueueResult> {
     this.buffer.push(message);
     while (this.buffer.length > this.MAX_BUFFERED) {
       this.buffer.shift();

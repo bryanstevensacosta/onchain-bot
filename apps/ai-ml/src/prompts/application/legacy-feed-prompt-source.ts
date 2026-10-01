@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { extractVariables, type PromptContentType, type PromptTemplate } from '../domain/prompt-template';
+import {
+  extractVariables,
+  type PromptContentType,
+  type PromptTemplate,
+} from '../domain/prompt-template';
 
 /**
  * LegacyFeedPromptSource (ai-ml, todo 1): read-only migration snapshot

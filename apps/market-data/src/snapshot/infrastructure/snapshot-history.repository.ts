@@ -3,10 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 import type { AddressKind } from 'address/domain/address-kind';
 import type { SnapshotQuote } from '../domain/snapshot-quote.types';
-import {
-  SnapshotHistoryEntity,
-  toHistoryRow,
-} from './snapshot-history.entity';
+import { SnapshotHistoryEntity, toHistoryRow } from './snapshot-history.entity';
 
 export interface SnapshotHistoryRow {
   readonly key: string;
@@ -64,7 +61,9 @@ export class SnapshotHistoryRepository {
     return toHistoryRow(persisted);
   }
 
-  public async listRecent(limit = 50): Promise<ReadonlyArray<SnapshotHistoryRow>> {
+  public async listRecent(
+    limit = 50,
+  ): Promise<ReadonlyArray<SnapshotHistoryRow>> {
     if (this.store === undefined || this.store === null) {
       return this.rows.slice(-limit);
     }

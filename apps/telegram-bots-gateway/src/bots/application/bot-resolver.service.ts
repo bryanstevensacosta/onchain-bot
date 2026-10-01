@@ -137,8 +137,7 @@ export class BotResolverService {
   }
 
   private async fetchWithTimeout(url: string) {
-    const fetchFn: FetchFn =
-      this.fetchFn ?? (globalThis.fetch as unknown as FetchFn);
+    const fetchFn: FetchFn = this.fetchFn ?? globalThis.fetch;
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 10_000);
     try {

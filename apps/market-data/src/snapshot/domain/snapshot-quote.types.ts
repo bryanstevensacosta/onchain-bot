@@ -97,10 +97,7 @@ export interface QuoteFetcher {
   readonly covers?: (chain: string, address: string) => boolean;
   readonly endpoint?: string;
   readonly limiterConfig?: ProviderRateLimitConfig;
-  fetch(
-    chain: string,
-    address: string,
-  ): Promise<Partial<SnapshotQuote> | null>;
+  fetch(chain: string, address: string): Promise<Partial<SnapshotQuote> | null>;
 }
 
 /** DI token for the ordered fetcher list (P48-bis: ccxt first where it covers). */

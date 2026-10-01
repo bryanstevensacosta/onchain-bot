@@ -59,7 +59,7 @@ function dispatcherStub(result: {
         ? { ok: true as const, remoteId: result.remoteId ?? 'thread-1' }
         : { ok: false as const, error: result.error ?? 'threads boom' };
     },
-  } as unknown as TargetDispatcherPort;
+  };
   return { targets, dispatched };
 }
 

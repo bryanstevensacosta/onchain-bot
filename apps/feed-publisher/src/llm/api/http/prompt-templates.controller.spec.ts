@@ -34,23 +34,28 @@ const harness = (opts?: {
   const store = new Map<string, PromptTemplate>();
   const seeded = template('default-feed');
   (seeded as { id?: string }).id = 'default-feed';
-  store.set('default-feed', PromptTemplate.reconstitute({
-    id: 'default-feed',
-    name: 'default-feed',
-    description: null,
-    contentType: 'global',
-    model: 'gpt-4o-mini',
-    supportsVision: true,
-    maxTokens: 800,
-    temperature: 0.7,
-    reasoningEffort: null,
-    promptText: 'Rewrite:\n{{original}}',
-    systemPromptText: '',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  }));
+  store.set(
+    'default-feed',
+    PromptTemplate.reconstitute({
+      id: 'default-feed',
+      name: 'default-feed',
+      description: null,
+      contentType: 'global',
+      model: 'gpt-4o-mini',
+      supportsVision: true,
+      maxTokens: 800,
+      temperature: 0.7,
+      reasoningEffort: null,
+      promptText: 'Rewrite:\n{{original}}',
+      systemPromptText: '',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }),
+  );
   const templateRepo = {
-    findAll: async (): Promise<ReadonlyArray<PromptTemplate>> => [...store.values()],
+    findAll: async (): Promise<ReadonlyArray<PromptTemplate>> => [
+      ...store.values(),
+    ],
     findById: async (id: string): Promise<PromptTemplate | null> =>
       store.get(id) ?? null,
     save: async (t: PromptTemplate): Promise<PromptTemplate> => {
@@ -58,19 +63,24 @@ const harness = (opts?: {
       return t;
     },
     delete: async (id: string): Promise<boolean> => store.delete(id),
-  } as PromptTemplateRepository;
+  };
   const llmRepo = {
     load: async (): Promise<LlmConfig> => LlmConfig.load({ ...base }),
     save: async (cfg: LlmConfig): Promise<LlmConfig> => cfg,
-  } as LlmConfigRepository;
+  };
   const keywordRepo = {
     findAll: async (): Promise<ReadonlyArray<Keyword>> => opts?.keywords ?? [],
-    findEnabled: async (): Promise<ReadonlyArray<Keyword>> => opts?.keywords ?? [],
+    findEnabled: async (): Promise<ReadonlyArray<Keyword>> =>
+      opts?.keywords ?? [],
     save: async (): Promise<void> => undefined,
     delete: async (): Promise<void> => undefined,
   } as KeywordRepository;
   return {
-    controller: new PromptTemplatesController(templateRepo, llmRepo, keywordRepo),
+    controller: new PromptTemplatesController(
+      templateRepo,
+      llmRepo,
+      keywordRepo,
+    ),
     store,
   };
 };
@@ -79,9 +89,11 @@ describe('PromptTemplatesController', () => {
   it('lists and reads templates', async () => {
     const { controller } = harness();
     await expect(controller.listTemplates()).resolves.toHaveLength(1);
-    await expect(controller.getTemplate('default-feed')).resolves.toMatchObject({
-      id: 'default-feed',
-    });
+    await expect(controller.getTemplate('default-feed')).resolves.toMatchObject(
+      {
+        id: 'default-feed',
+      },
+    );
     await expect(controller.getTemplate('missing')).rejects.toBeInstanceOf(
       NotFoundException,
     );
@@ -110,9 +122,9 @@ describe('PromptTemplatesController', () => {
 
   it('refuses to delete the default-bound template (409)', async () => {
     const { controller } = harness();
-    await expect(controller.deleteTemplate('default-feed')).rejects.toBeInstanceOf(
-      ConflictException,
-    );
+    await expect(
+      controller.deleteTemplate('default-feed'),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 
   it('refuses to delete a keyword-bound template (409)', async () => {
@@ -141,23 +153,29 @@ describe('PromptTemplatesController', () => {
       }),
     );
     const templateRepo = {
-      findAll: async (): Promise<ReadonlyArray<PromptTemplate>> => [...store.values()],
+      findAll: async (): Promise<ReadonlyArray<PromptTemplate>> => [
+        ...store.values(),
+      ],
       findById: async (id: string): Promise<PromptTemplate | null> =>
         store.get(id) ?? null,
       save: async (t: PromptTemplate): Promise<PromptTemplate> => t,
       delete: async (id: string): Promise<boolean> => store.delete(id),
-    } as PromptTemplateRepository;
+    };
     const llmRepo = {
       load: async (): Promise<LlmConfig> => LlmConfig.load({ ...base }),
       save: async (cfg: LlmConfig): Promise<LlmConfig> => cfg,
-    } as LlmConfigRepository;
+    };
     const keywordRepo = {
       findAll: async (): Promise<ReadonlyArray<Keyword>> => [bound],
       findEnabled: async (): Promise<ReadonlyArray<Keyword>> => [bound],
       save: async (): Promise<void> => undefined,
       delete: async (): Promise<void> => undefined,
     } as KeywordRepository;
-    const controller = new PromptTemplatesController(templateRepo, llmRepo, keywordRepo);
+    const controller = new PromptTemplatesController(
+      templateRepo,
+      llmRepo,
+      keywordRepo,
+    );
     await expect(controller.deleteTemplate('kw-bound')).rejects.toBeInstanceOf(
       ConflictException,
     );

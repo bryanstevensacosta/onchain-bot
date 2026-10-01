@@ -33,9 +33,7 @@ async function bootstrap(): Promise<void> {
   await app.listen(port, host);
 }
 
-// eslint-disable-next-line no-console
 bootstrap().catch((err) => {
-  // eslint-disable-next-line no-console
   console.error('ai-ml bootstrap failed', err);
   process.exit(1);
 });

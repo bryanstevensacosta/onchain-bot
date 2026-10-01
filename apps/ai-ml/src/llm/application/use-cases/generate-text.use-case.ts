@@ -53,7 +53,12 @@ export class GenerateTextUseCase {
         latencyMs,
         status: 'ok',
       });
-      return { text, provider: this.llm.providerName, model: request.model ?? 'default', latencyMs };
+      return {
+        text,
+        provider: this.llm.providerName,
+        model: request.model ?? 'default',
+        latencyMs,
+      };
     } catch (err) {
       this.audit.record({
         keyId: opts?.keyId ?? 'anonymous',

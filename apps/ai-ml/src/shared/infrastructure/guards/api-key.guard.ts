@@ -72,7 +72,8 @@ export class ApiKeyGuard implements CanActivate {
     const provided = request?.headers?.[API_KEY_HEADER];
     const presented = typeof provided === 'string' ? provided : undefined;
     const method = (request?.method ?? 'GET').toUpperCase();
-    const rawPath = request?.path ?? request?.originalUrl ?? request?.url ?? '/';
+    const rawPath =
+      request?.path ?? request?.originalUrl ?? request?.url ?? '/';
     const path = rawPath.split('?')[0] ?? '/';
     const audit = (keyId: string, status: number): void => {
       this.audit?.record({ keyId, method, path, status });
@@ -96,7 +97,11 @@ export class ApiKeyGuard implements CanActivate {
           throw new ForbiddenException('Rate limit exceeded');
         }
         if (request) {
-          request.authKey = { id: record.id, name: record.name, scopes: record.scopes };
+          request.authKey = {
+            id: record.id,
+            name: record.name,
+            scopes: record.scopes,
+          };
         }
         audit(record.id, 200);
         return true;

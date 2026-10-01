@@ -23,11 +23,10 @@ const entry = (rawContent: string): PublisherQueueEntry =>
     imagePaths: [],
   });
 
-const configRepo = (cfg: LlmConfig): LlmConfigRepository =>
-  ({
-    load: async (): Promise<LlmConfig> => cfg,
-    save: async (next: LlmConfig): Promise<LlmConfig> => next,
-  }) as LlmConfigRepository;
+const configRepo = (cfg: LlmConfig): LlmConfigRepository => ({
+  load: async (): Promise<LlmConfig> => cfg,
+  save: async (next: LlmConfig): Promise<LlmConfig> => next,
+});
 
 describe('LlmArticleRendererAdapter (drain-path flags)', () => {
   it('passes raw content through when the LLM flag is off (no generation)', async () => {
@@ -38,7 +37,9 @@ describe('LlmArticleRendererAdapter (drain-path flags)', () => {
     } as never;
     const renderer = new LlmArticleRendererAdapter(
       generator,
-      configRepo(LlmConfig.load({ ...base, llmEnabled: false, publishingEnabled: true })),
+      configRepo(
+        LlmConfig.load({ ...base, llmEnabled: false, publishingEnabled: true }),
+      ),
     );
     await expect(renderer.render(entry('crudo'))).resolves.toEqual({
       content: 'crudo',
@@ -53,7 +54,9 @@ describe('LlmArticleRendererAdapter (drain-path flags)', () => {
     } as never;
     const renderer = new LlmArticleRendererAdapter(
       generator,
-      configRepo(LlmConfig.load({ ...base, llmEnabled: true, publishingEnabled: false })),
+      configRepo(
+        LlmConfig.load({ ...base, llmEnabled: true, publishingEnabled: false }),
+      ),
     );
     await expect(renderer.render(entry('crudo'))).resolves.toEqual({
       content: 'crudo',
@@ -68,7 +71,9 @@ describe('LlmArticleRendererAdapter (drain-path flags)', () => {
     } as never;
     const renderer = new LlmArticleRendererAdapter(
       generator,
-      configRepo(LlmConfig.load({ ...base, llmEnabled: true, publishingEnabled: true })),
+      configRepo(
+        LlmConfig.load({ ...base, llmEnabled: true, publishingEnabled: true }),
+      ),
     );
     await expect(renderer.render(entry('crudo'))).resolves.toEqual({
       content: 'Noticia refinada',

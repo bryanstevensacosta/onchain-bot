@@ -1,7 +1,4 @@
-import {
-  BotApiClient,
-  type BotFetchFn,
-} from './bot-api-client';
+import { BotApiClient, type BotFetchFn } from './bot-api-client';
 import { SendAccountingService } from '../application/send-accounting.service';
 
 function okSendMessage(messageId: number) {
@@ -30,13 +27,11 @@ describe('BotApiClient 429 backoff (todo 2, red)', () => {
     let calls = 0;
     const fetchMock = jest.fn(async () => {
       calls += 1;
-      return (calls === 1
-        ? rateLimited(0)
-        : okSendMessage(42)) as unknown as Awaited<ReturnType<BotFetchFn>>;
+      return calls === 1 ? rateLimited(0) : okSendMessage(42);
     });
     const accounting = new SendAccountingService();
     const client = new BotApiClient(
-      fetchMock as unknown as BotFetchFn,
+      fetchMock,
       'https://api.telegram.org',
       accounting,
     );
@@ -55,7 +50,7 @@ describe('BotApiClient 429 backoff (todo 2, red)', () => {
     const fetchMock = jest.fn(async () => rateLimited(0));
     const accounting = new SendAccountingService();
     const client = new BotApiClient(
-      fetchMock as unknown as BotFetchFn,
+      fetchMock,
       'https://api.telegram.org',
       accounting,
       { maxRetries: 2 },
@@ -74,11 +69,14 @@ describe('BotApiClient 429 backoff (todo 2, red)', () => {
     const fetchMock = jest.fn(async () => ({
       ok: true,
       status: 200,
-      json: async () => ({ ok: false, description: 'Bad Request: chat not found' }),
+      json: async () => ({
+        ok: false,
+        description: 'Bad Request: chat not found',
+      }),
     }));
     const accounting = new SendAccountingService();
     const client = new BotApiClient(
-      fetchMock as unknown as BotFetchFn,
+      fetchMock,
       'https://api.telegram.org',
       accounting,
     );

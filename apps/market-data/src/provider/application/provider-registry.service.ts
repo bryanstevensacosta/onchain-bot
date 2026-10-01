@@ -8,7 +8,10 @@ import type { ProviderStatus } from '../domain/provider-health.vo';
 import { ProviderFailoverPolicy } from './provider-failover.policy';
 import { ProviderHealthChecker } from './provider-health-checker.service';
 
-export type { ProviderHealth, ProviderStatus } from '../domain/provider-health.vo';
+export type {
+  ProviderHealth,
+  ProviderStatus,
+} from '../domain/provider-health.vo';
 
 /**
  * ProviderRegistryService (Tramo 3, todos 2+4, provider-hex).
@@ -42,7 +45,9 @@ export class ProviderRegistryService {
   }
 
   public listStatus(): ReadonlyArray<ProviderStatus> {
-    return this.listProviders().map((descriptor) => this.toStatus(descriptor.name));
+    return this.listProviders().map((descriptor) =>
+      this.toStatus(descriptor.name),
+    );
   }
 
   public getStatus(name: string): ProviderStatus | null {

@@ -7,8 +7,7 @@ import { TelegramRateLimiter } from './telegram-rate-limiter.service';
 
 function makeConfig(env: Record<string, string>): ConfigService {
   return {
-    get: (key: string, fallback = ''): string =>
-      env[key] ?? (fallback as string),
+    get: (key: string, fallback = ''): string => env[key] ?? fallback,
   } as unknown as ConfigService;
 }
 

@@ -104,7 +104,7 @@ describe('UpdateFanoutService (todo 3, red)', () => {
       init?: { headers?: Record<string, string> },
     ): Promise<Response> => {
       headersSeen.push(init?.headers ?? {});
-      return (await okFetch()()) as Response;
+      return await okFetch()();
     }) as (url: unknown, init?: Record<string, unknown>) => Promise<Response>;
     const fanout = new UpdateFanoutService(
       registry,

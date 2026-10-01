@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { LlmConfigRepository } from '@/llm/domain/ports/llm-config.repository';
-import { resolvePipelineFlags, type ResolvedPipelineFlags } from '@/llm/domain/pipeline-flags';
+import {
+  resolvePipelineFlags,
+  type ResolvedPipelineFlags,
+} from '@/llm/domain/pipeline-flags';
 
 /**
  * GetPipelineFlagsUseCase (ai-ml, todo 0): resolve the 3-flag view.

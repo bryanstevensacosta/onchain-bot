@@ -8,7 +8,7 @@ function mockFetchOnce(payload: unknown, ok = true, status = 200): jest.Mock {
     status,
     json: async () => payload,
   });
-  global.fetch = fn as unknown as typeof fetch;
+  global.fetch = fn;
   return fn;
 }
 

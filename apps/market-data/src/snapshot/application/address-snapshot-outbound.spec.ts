@@ -55,7 +55,7 @@ function harness(options: {
     new SnapshotHistoryRepository(),
     [okFetcher('dexscreener')],
     cache as never,
-    limiter as never,
+    limiter,
   );
   return { service, calls, cache };
 }

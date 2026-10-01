@@ -1,11 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { resolveAiMlMode } from '../ai-ml-mode';
 import { AiMlLlmClientAdapter } from '../infrastructure/ai-ml-llm-client.adapter';
-import { AiMlParityService, type AiMlParitySummary } from '../application/services/ai-ml-parity.service';
+import {
+  AiMlParityService,
+  type AiMlParitySummary,
+} from '../application/services/ai-ml-parity.service';
 
 export interface AiMlStatusView {
   readonly mode: string;
-  readonly remote: { readonly reachable: boolean; readonly latencyMs: number | null };
+  readonly remote: {
+    readonly reachable: boolean;
+    readonly latencyMs: number | null;
+  };
   readonly parity: AiMlParitySummary;
   readonly diverged: boolean;
 }

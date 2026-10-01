@@ -8,12 +8,19 @@ describe('GenerateTextUseCase', () => {
   it('generates via mock and audits sizes only (never content)', async () => {
     const audit = new UsageAuditService();
     const useCase = new GenerateTextUseCase(new MockLlmAdapter(), audit);
-    const result = await useCase.execute({ prompt: 'secret prompt' }, { keyId: 'k1' });
+    const result = await useCase.execute(
+      { prompt: 'secret prompt' },
+      { keyId: 'k1' },
+    );
     expect(result.provider).toBe('mock');
     expect(result.text).toContain('[LLM MOCK]');
     const entries = audit.list();
     expect(entries).toHaveLength(1);
-    expect(entries[0]).toMatchObject({ keyId: 'k1', provider: 'mock', status: 'ok' });
+    expect(entries[0]).toMatchObject({
+      keyId: 'k1',
+      provider: 'mock',
+      status: 'ok',
+    });
     expect(JSON.stringify(entries[0])).not.toContain('secret prompt');
   });
 

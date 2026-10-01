@@ -30,7 +30,7 @@ export class DefaultExchangeAdapterFactory implements ExchangeAdapterFactory {
 
   public create(exchange: string): ExchangeWsPort {
     if (exchange.toLowerCase() === 'birdeye') {
-      return new BirdeyeWsAdapter(process.env.BIRDEYE_API_KEY ?? '') as unknown as ExchangeWsPort;
+      return new BirdeyeWsAdapter(process.env.BIRDEYE_API_KEY ?? '');
     }
     if ((this.driver ?? 'memory').toLowerCase() === 'ccxt') {
       return new CcxtExchangeAdapter(exchange);

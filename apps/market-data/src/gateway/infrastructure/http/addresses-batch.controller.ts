@@ -79,35 +79,39 @@ export class AddressesBatchController {
     const kind = item.kind ?? 'token';
     const key = buildBatchCacheKey(item.chain, item.address, kind);
     try {
-      return await this.cache.getOrSet(key, GATEWAY_BATCH_TTL_SECONDS, async () => {
-        const snap = await this.snapshots.getSnapshot({
-          chain: item.chain,
-          value: item.address,
-          kindHint: item.kind,
-        });
-        return {
-          chain: snap.chain,
-          address: snap.address,
-          kind: snap.kind,
-          key: snap.key,
-          status: snap.status,
-          providers: snap.providers,
-          sources: snap.sources,
-          providerErrors: snap.providerErrors,
-          priceUsd: snap.priceUsd,
-          liquidityUsd: snap.liquidityUsd,
-          volume24hUsd: snap.volume24hUsd,
-          marketCapUsd: snap.marketCapUsd,
-          fdvUsd: snap.fdvUsd,
-          priceChange24h: snap.priceChange24h,
-          holders: snap.holders,
-          top10HolderPercent: snap.top10HolderPercent,
-          symbol: snap.symbol,
-          name: snap.name,
-          lockedLiquidityPercent: snap.lockedLiquidityPercent,
-          burnedPercent: snap.burnedPercent,
-        } as Record<string, unknown>;
-      });
+      return await this.cache.getOrSet(
+        key,
+        GATEWAY_BATCH_TTL_SECONDS,
+        async () => {
+          const snap = await this.snapshots.getSnapshot({
+            chain: item.chain,
+            value: item.address,
+            kindHint: item.kind,
+          });
+          return {
+            chain: snap.chain,
+            address: snap.address,
+            kind: snap.kind,
+            key: snap.key,
+            status: snap.status,
+            providers: snap.providers,
+            sources: snap.sources,
+            providerErrors: snap.providerErrors,
+            priceUsd: snap.priceUsd,
+            liquidityUsd: snap.liquidityUsd,
+            volume24hUsd: snap.volume24hUsd,
+            marketCapUsd: snap.marketCapUsd,
+            fdvUsd: snap.fdvUsd,
+            priceChange24h: snap.priceChange24h,
+            holders: snap.holders,
+            top10HolderPercent: snap.top10HolderPercent,
+            symbol: snap.symbol,
+            name: snap.name,
+            lockedLiquidityPercent: snap.lockedLiquidityPercent,
+            burnedPercent: snap.burnedPercent,
+          };
+        },
+      );
     } catch (err) {
       return {
         chain: item.chain,

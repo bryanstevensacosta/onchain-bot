@@ -96,10 +96,7 @@ describe('DefaultAggregationPolicyService (ordered provider list)', () => {
 
   it('never drops chain-unsupported fetchers (eligibility stays with the aggregator)', () => {
     const input = [fetcher('moralis')];
-    const ordered = policy.orderFetchers(
-      input,
-      ctx({ chain: 'solana' }),
-    );
+    const ordered = policy.orderFetchers(input, ctx({ chain: 'solana' }));
     expect(ordered).toHaveLength(1);
   });
 });

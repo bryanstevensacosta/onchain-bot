@@ -80,7 +80,8 @@ export class ScheduledPostsModule implements OnModuleInit {
   ) {}
 
   public async onModuleInit(): Promise<void> {
-    const raw = this.config.get<string>('SCHEDULING_SESSION_BINDINGS', '') ?? '';
+    const raw =
+      this.config.get<string>('SCHEDULING_SESSION_BINDINGS', '') ?? '';
     for (const session of parseSessionBindings(raw)) {
       await this.sessions.seed(session);
     }

@@ -19,15 +19,15 @@ describe('ThreadSchedulerService', () => {
     const thread = makeThread();
     const at = (s: number) =>
       new Date(new Date('2026-09-25T10:00:00.000Z').getTime() + s * 1000);
-    expect(
-      scheduler.dueMessages(thread, at(0)).map((m) => m.index),
-    ).toEqual([0]);
-    expect(
-      scheduler.dueMessages(thread, at(60)).map((m) => m.index),
-    ).toEqual([0, 1]);
-    expect(
-      scheduler.dueMessages(thread, at(120)).map((m) => m.index),
-    ).toEqual([0, 1, 2]);
+    expect(scheduler.dueMessages(thread, at(0)).map((m) => m.index)).toEqual([
+      0,
+    ]);
+    expect(scheduler.dueMessages(thread, at(60)).map((m) => m.index)).toEqual([
+      0, 1,
+    ]);
+    expect(scheduler.dueMessages(thread, at(120)).map((m) => m.index)).toEqual([
+      0, 1, 2,
+    ]);
   });
 
   it('nextMessageDueAt points at the first unpublished message due time', () => {

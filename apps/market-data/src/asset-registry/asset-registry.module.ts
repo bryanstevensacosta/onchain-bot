@@ -20,15 +20,19 @@ import { TypeOrmAssetRegistryRepository } from './infrastructure/typeorm-asset-r
  */
 @Module({
   imports: [
-    ...(isDatabaseEnabled() ? [TypeOrmModule.forFeature([AssetRegistryEntity])] : []),
+    ...(isDatabaseEnabled()
+      ? [TypeOrmModule.forFeature([AssetRegistryEntity])]
+      : []),
   ],
   providers: [
     InMemoryAssetRegistryRepository,
     TypeOrmAssetRegistryRepository,
     {
       provide: AssetRegistryPort,
-      useFactory: (memory: InMemoryAssetRegistryRepository, pg: TypeOrmAssetRegistryRepository) =>
-        isDatabaseEnabled() ? pg : memory,
+      useFactory: (
+        memory: InMemoryAssetRegistryRepository,
+        pg: TypeOrmAssetRegistryRepository,
+      ) => (isDatabaseEnabled() ? pg : memory),
       inject: [InMemoryAssetRegistryRepository, TypeOrmAssetRegistryRepository],
     },
     {
@@ -38,11 +42,16 @@ import { TypeOrmAssetRegistryRepository } from './infrastructure/typeorm-asset-r
     },
     {
       provide: AssetMetadataRefreshService,
-      useFactory: (store: AssetRegistryPort) => new AssetMetadataRefreshService(store),
+      useFactory: (store: AssetRegistryPort) =>
+        new AssetMetadataRefreshService(store),
       inject: [AssetRegistryPort],
     },
   ],
-  exports: [AssetRegistryPort, AssetResolverService, AssetMetadataRefreshService],
+  exports: [
+    AssetRegistryPort,
+    AssetResolverService,
+    AssetMetadataRefreshService,
+  ],
 })
 export class AssetRegistryModule implements OnModuleInit, OnModuleDestroy {
   public constructor(private readonly refresh: AssetMetadataRefreshService) {}

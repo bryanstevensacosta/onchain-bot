@@ -98,8 +98,12 @@ export class SchedulePostUseCase {
     const post = ScheduledPost.create({
       sessionId: request.sessionId,
       binding: { ...request.binding },
-      content: JSON.parse(JSON.stringify(request.content)) as ScheduleRequest['content'],
-      scheduleKind: JSON.parse(JSON.stringify(request.scheduleKind)) as ScheduleRequest['scheduleKind'],
+      content: JSON.parse(
+        JSON.stringify(request.content),
+      ) as ScheduleRequest['content'],
+      scheduleKind: JSON.parse(
+        JSON.stringify(request.scheduleKind),
+      ) as ScheduleRequest['scheduleKind'],
       idempotencyKey: request.idempotencyKey,
     });
     await this.posts.save(post);
@@ -125,10 +129,14 @@ export class SchedulePostUseCase {
       return;
     }
     if (kind.kind === 'cron') {
-      if (kind.timezone !== 'UTC') {
+      // Widened to string: scheduleKind arrives over HTTP/JSON, so runtime
+      // values can fall outside the 'UTC' literal even though the type
+      // says otherwise.
+      const timezone: string = kind.timezone;
+      if (timezone !== 'UTC') {
         throw new DomainError(
           ErrorCode.SCHEDULE_INVALID,
-          `timezone must be UTC (got ${kind.timezone})`,
+          `timezone must be UTC (got ${timezone})`,
         );
       }
       CronDueChecker.assertValid(kind.cronExpr);

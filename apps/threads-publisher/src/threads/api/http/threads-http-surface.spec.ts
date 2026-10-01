@@ -8,7 +8,9 @@ import { HealthController } from 'health/api/http/health.controller';
 describe('threads http surface', () => {
   it('keywords CRUD roundtrip', async () => {
     const ctrl = new ThreadsKeywordsController();
-    const created = (await ctrl.create({ phrase: 'bitcoin' })) as { id: string };
+    const created = (await ctrl.create({ phrase: 'bitcoin' })) as {
+      id: string;
+    };
     expect((await ctrl.list()).length).toBe(1);
     await ctrl.remove(created.id);
     expect((await ctrl.list()).length).toBe(0);

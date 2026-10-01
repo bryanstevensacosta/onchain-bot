@@ -1,4 +1,9 @@
-import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
+import {
+  CallHandler,
+  ExecutionContext,
+  Injectable,
+  NestInterceptor,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Observable, map, of, tap } from 'rxjs';
 import { CacheService } from '../application/cache.service';
@@ -20,15 +25,25 @@ export class CacheInterceptor implements NestInterceptor {
     private readonly reflector: Reflector,
   ) {}
 
-  public async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<unknown>> {
-    const request = context.switchToHttp().getRequest<{ method: string; url: string }>();
-    const response = context.switchToHttp().getResponse<{ setHeader: (name: string, value: string) => void; statusCode: number }>();
+  public async intercept(
+    context: ExecutionContext,
+    next: CallHandler,
+  ): Promise<Observable<unknown>> {
+    const request = context
+      .switchToHttp()
+      .getRequest<{ method: string; url: string }>();
+    const response = context.switchToHttp().getResponse<{
+      setHeader: (name: string, value: string) => void;
+      statusCode: number;
+    }>();
     if (request?.method !== 'GET') {
       return next.handle();
     }
     const ttl =
-      this.reflector.getAllAndOverride<number>(CACHE_TTL_KEY, [context.getHandler(), context.getClass()]) ??
-      DEFAULT_TTL_SECONDS;
+      this.reflector.getAllAndOverride<number>(CACHE_TTL_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]) ?? DEFAULT_TTL_SECONDS;
     const key = `GET:${request.url}`;
     const cached = await this.cache.get<unknown>(key);
     if (cached !== null) {
@@ -38,7 +53,11 @@ export class CacheInterceptor implements NestInterceptor {
     response.setHeader('x-cache', 'MISS');
     return next.handle().pipe(
       tap((body) => {
-        if (response.statusCode >= 200 && response.statusCode < 300 && body !== undefined) {
+        if (
+          response.statusCode >= 200 &&
+          response.statusCode < 300 &&
+          body !== undefined
+        ) {
           void this.cache.set(key, body, ttl);
         }
       }),

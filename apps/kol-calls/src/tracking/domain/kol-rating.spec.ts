@@ -1,8 +1,4 @@
-import {
-  classifyMultiple,
-  outcomeWeight,
-  rateKol,
-} from './kol-rating';
+import { classifyMultiple, outcomeWeight, rateKol } from './kol-rating';
 
 describe('kol-rating (todo 12, failing-first, backend outcome mirror)', () => {
   it('reuses the backend STRONG>=5x outcome pattern', () => {

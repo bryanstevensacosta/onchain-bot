@@ -7,7 +7,12 @@ import { InMemoryBotVaultRepository } from './infrastructure/in-memory-bot-vault
 
 @Module({
   controllers: [VaultController],
-  providers: [VaultService, BotBindingService, EncryptionService, InMemoryBotVaultRepository],
+  providers: [
+    VaultService,
+    BotBindingService,
+    EncryptionService,
+    InMemoryBotVaultRepository,
+  ],
   exports: [VaultService, BotBindingService, EncryptionService],
 })
 export class VaultModule {}

@@ -19,6 +19,10 @@ import { TelegramHealthIndicator } from './health/telegram-health.indicator';
       useClass: DualThreadsPublisher,
     },
   ],
-  exports: [ThreadsApiPublisherPort, GatewaySendClient, TelegramHealthIndicator],
+  exports: [
+    ThreadsApiPublisherPort,
+    GatewaySendClient,
+    TelegramHealthIndicator,
+  ],
 })
 export class TelegramModule {}

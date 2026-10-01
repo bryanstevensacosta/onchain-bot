@@ -20,7 +20,9 @@ describe('HealthController', () => {
   });
 
   it('GET /api/health -> 200 + { status: ok }', async () => {
-    const res = await request(app.getHttpServer()).get('/api/health').expect(200);
+    const res = await request(app.getHttpServer())
+      .get('/api/health')
+      .expect(200);
 
     expect(res.body).toMatchObject({ status: 'ok' });
   });

@@ -6,17 +6,25 @@ import { ApiKeyService } from 'auth/application/api-key.service';
 import { AccessAuditService } from 'auth/application/access-audit.service';
 import { ApiKeyRateLimiter } from 'auth/application/api-key-rate-limiter';
 
-const contextFor = (headers: Record<string, string>, path = '/api/llm/models'): never => {
+const contextFor = (
+  headers: Record<string, string>,
+  path = '/api/llm/models',
+): never => {
   const handler = jest.fn();
   const klass = jest.fn();
   return {
     getHandler: () => handler,
     getClass: () => klass,
-    switchToHttp: () => ({ getRequest: () => ({ headers, method: 'GET', path }) }),
+    switchToHttp: () => ({
+      getRequest: () => ({ headers, method: 'GET', path }),
+    }),
   } as never;
 };
 
-const guardWith = (env: Record<string, string>, keys?: ApiKeyService): ApiKeyGuard =>
+const guardWith = (
+  env: Record<string, string>,
+  keys?: ApiKeyService,
+): ApiKeyGuard =>
   new ApiKeyGuard(
     new Reflector(),
     new ConfigService(env),
@@ -46,7 +54,9 @@ describe('ApiKeyGuard', () => {
   });
 
   it('verifies store keys and enforces scopes (403)', async () => {
-    const keys = new ApiKeyService(new ConfigService({ ENCRYPTION_KEY: 'pepper' }));
+    const keys = new ApiKeyService(
+      new ConfigService({ ENCRYPTION_KEY: 'pepper' }),
+    );
     const created = await keys.create({ name: 'reader', scopes: ['read'] });
     const guard = guardWith({}, keys);
     await expect(
@@ -67,7 +77,9 @@ describe('ApiKeyGuard', () => {
   });
 
   it('rate-limits over-budget keys (429 path)', async () => {
-    const keys = new ApiKeyService(new ConfigService({ ENCRYPTION_KEY: 'pepper' }));
+    const keys = new ApiKeyService(
+      new ConfigService({ ENCRYPTION_KEY: 'pepper' }),
+    );
     const created = await keys.create({
       name: 'tight',
       scopes: ['read'],

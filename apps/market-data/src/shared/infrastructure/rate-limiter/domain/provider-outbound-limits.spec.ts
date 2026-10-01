@@ -57,9 +57,9 @@ describe('resolveProviderOutboundBudget (centralized outbound limits)', () => {
       ...descriptors,
       { name: 'ccxt', rateLimitPerMin: 600, endpointCosts: { ohlcv: 5 } },
     ];
-    expect(
-      resolveProviderOutboundBudget(withCosts, 'ccxt', 'ohlcv').cost,
-    ).toBe(5);
+    expect(resolveProviderOutboundBudget(withCosts, 'ccxt', 'ohlcv').cost).toBe(
+      5,
+    );
     expect(
       resolveProviderOutboundBudget(withCosts, 'ccxt', 'ticker').cost,
     ).toBe(1);

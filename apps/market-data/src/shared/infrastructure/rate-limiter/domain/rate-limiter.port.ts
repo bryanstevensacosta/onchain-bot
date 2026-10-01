@@ -14,7 +14,12 @@
  * infra outages fail open too (allow the call).
  */
 export abstract class RateLimiterPort {
-  public abstract tryAcquire(key: string, limit: number, windowMs: number, now?: number): boolean | Promise<boolean>;
+  public abstract tryAcquire(
+    key: string,
+    limit: number,
+    windowMs: number,
+    now?: number,
+  ): boolean | Promise<boolean>;
   public abstract resetKey(key: string): void;
   public abstract resetAll(): void;
 }

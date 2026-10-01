@@ -37,7 +37,15 @@ import { StreamModule } from 'stream/stream.module';
  * stream/ broker's shared per-exchange connections).
  */
 @Module({
-  imports: [AddressModule, ChainModule, ChainLogoModule, ProviderModule, SnapshotModule, StreamModule, AssetRegistryModule],
+  imports: [
+    AddressModule,
+    ChainModule,
+    ChainLogoModule,
+    ProviderModule,
+    SnapshotModule,
+    StreamModule,
+    AssetRegistryModule,
+  ],
   controllers: [
     AddressesController,
     AddressesBatchController,

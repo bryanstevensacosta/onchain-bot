@@ -35,7 +35,7 @@ export function parseSessionBindings(raw: string): SessionRecord[] {
           }
           bindings.push({
             bindingId,
-            target: target as SchedulingTarget,
+            target: target,
             botId,
             defaultChatId,
             botVerified: binding.botVerified === true,

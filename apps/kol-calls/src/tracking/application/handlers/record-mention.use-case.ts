@@ -28,7 +28,9 @@ export interface RecordMentionResult extends RecordCallResult {
 export class RecordMentionUseCase {
   public constructor(private readonly tracked: TrackedMentionRepository) {}
 
-  public async execute(input: RecordMentionInput): Promise<RecordMentionResult> {
+  public async execute(
+    input: RecordMentionInput,
+  ): Promise<RecordMentionResult> {
     const existing = await this.tracked.findByKolContract(
       input.kolId,
       input.chain,

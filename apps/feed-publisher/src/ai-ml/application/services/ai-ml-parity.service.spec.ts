@@ -12,16 +12,16 @@ describe('AiMlParityService', () => {
   it('compareLlmTexts matches byte-identical mock output', () => {
     const parity = new AiMlParityService();
     const text = '[LLM MOCK] Generated text for: hello';
-    expect(
-      parity.compareLlmTexts(text, text, { mockMode: true }),
-    ).toBe('matched');
+    expect(parity.compareLlmTexts(text, text, { mockMode: true })).toBe(
+      'matched',
+    );
   });
 
   it('compareLlmTexts diverges on mock drift (same algorithm must agree)', () => {
     const parity = new AiMlParityService();
-    expect(
-      parity.compareLlmTexts('mock-a', 'mock-b', { mockMode: true }),
-    ).toBe('diverged');
+    expect(parity.compareLlmTexts('mock-a', 'mock-b', { mockMode: true })).toBe(
+      'diverged',
+    );
   });
 
   it('compareLlmTexts matches outcome-level for real providers (both non-empty)', () => {
@@ -64,9 +64,9 @@ describe('AiMlParityService', () => {
     const parity = new AiMlParityService();
     const local = { content: 'Rewrite {{original}}', systemContent: 'Editor' };
     expect(parity.comparePrompts(local, { ...local })).toBe('matched');
-    expect(
-      parity.comparePrompts(local, { ...local, content: 'Other' }),
-    ).toBe('diverged');
+    expect(parity.comparePrompts(local, { ...local, content: 'Other' })).toBe(
+      'diverged',
+    );
     expect(parity.comparePrompts(local, null)).toBe('diverged');
     expect(parity.comparePrompts(null, null)).toBe('matched');
   });

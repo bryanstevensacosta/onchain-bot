@@ -2,13 +2,11 @@ import { buildAppConfig } from './app.config';
 
 describe('buildAppConfig', () => {
   it('defaults to dev port :4000', () => {
-    expect(buildAppConfig({} as NodeJS.ProcessEnv).port).toBe(4000);
+    expect(buildAppConfig({}).port).toBe(4000);
   });
 
   it('honours MARKET_DATA_PORT', () => {
-    expect(
-      buildAppConfig({ MARKET_DATA_PORT: '4001' } as NodeJS.ProcessEnv).port,
-    ).toBe(4001);
+    expect(buildAppConfig({ MARKET_DATA_PORT: '4001' }).port).toBe(4001);
   });
 
   it('flows provider API keys from env (mocked)', () => {
@@ -28,7 +26,7 @@ describe('buildAppConfig', () => {
       FLUXRPC_API_KEY: 'flux-k',
       FLUXRPC_RPC: 'https://flux-rpc',
       FLUXRPC_WS: 'wss://flux-ws',
-    } as NodeJS.ProcessEnv);
+    });
     expect(cfg.birdeye.apiKey).toBe('birdeye-k');
     expect(cfg.helius.apiKey).toBe('helius-k');
     expect(cfg.helius.mainnet.rpcUrl).toBe('https://helius-mainnet');
@@ -48,7 +46,7 @@ describe('buildAppConfig', () => {
   });
 
   it('defaults every provider key to empty (skip-without-key)', () => {
-    const cfg = buildAppConfig({} as NodeJS.ProcessEnv);
+    const cfg = buildAppConfig({});
     expect(cfg.birdeye.apiKey).toBe('');
     expect(cfg.helius.apiKey).toBe('');
     expect(cfg.helius.mainnet.rpcUrl).toBe('');

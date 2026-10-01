@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { ChainProberPort, ProbeResult } from '../../application/ports/chain-prober.port';
+import {
+  ChainProberPort,
+  ProbeResult,
+} from '../../application/ports/chain-prober.port';
 
 /**
  * EvmChainProber (Tramo 3, todo 2, v1 format-only).
@@ -14,7 +17,11 @@ export class EvmChainProber extends ChainProberPort {
 
   public async probe(address: string): Promise<ProbeResult> {
     if (!/^0x[a-fA-F0-9]{40}$/.test((address ?? '').trim())) {
-      return { responded: false, isContract: null, notes: ['evm:format_invalid'] };
+      return {
+        responded: false,
+        isContract: null,
+        notes: ['evm:format_invalid'],
+      };
     }
     return { responded: true, isContract: null, notes: ['evm:format_valid'] };
   }

@@ -15,7 +15,10 @@ import {
 
 export type StreamTickListener = (event: StreamEvent) => void;
 
-export type StreamExchangeErrorListener = (exchange: string, info: StreamErrorInfo) => void;
+export type StreamExchangeErrorListener = (
+  exchange: string,
+  info: StreamErrorInfo,
+) => void;
 
 export type StreamSleeper = (ms: number) => Promise<void>;
 
@@ -52,7 +55,8 @@ export class ExchangeConnectionManager {
   private readonly sleeper: StreamSleeper;
 
   public constructor(
-    @Inject(EXCHANGE_ADAPTER_FACTORY) private readonly factory: ExchangeAdapterFactory,
+    @Inject(EXCHANGE_ADAPTER_FACTORY)
+    private readonly factory: ExchangeAdapterFactory,
     @Optional() @Inject(STREAM_SLEEPER) sleeper?: StreamSleeper,
   ) {
     this.sleeper = sleeper ?? defaultSleeper;
@@ -74,7 +78,10 @@ export class ExchangeConnectionManager {
     }
     const key = streamKey({ ...sub, exchange });
     const held = entry.refs.get(key);
-    entry.refs.set(key, { sub: { ...sub, exchange }, count: (held?.count ?? 0) + 1 });
+    entry.refs.set(key, {
+      sub: { ...sub, exchange },
+      count: (held?.count ?? 0) + 1,
+    });
     await entry.port.watch([{ ...sub, exchange }]);
   }
 
@@ -133,7 +140,12 @@ export class ExchangeConnectionManager {
       return existing;
     }
     const port = this.factory.create(exchange);
-    const entry: ExchangeEntry = { port, refs: new Map(), downAttempts: 0, reconnecting: false };
+    const entry: ExchangeEntry = {
+      port,
+      refs: new Map(),
+      downAttempts: 0,
+      reconnecting: false,
+    };
     port.onEvent((event) => {
       for (const listener of this.tickListeners) {
         listener(event);
@@ -146,7 +158,10 @@ export class ExchangeConnectionManager {
     return entry;
   }
 
-  private async handleExchangeError(exchange: string, message: string): Promise<void> {
+  private async handleExchangeError(
+    exchange: string,
+    message: string,
+  ): Promise<void> {
     const entry = this.entries.get(exchange);
     if (!entry || entry.refs.size === 0) {
       return;

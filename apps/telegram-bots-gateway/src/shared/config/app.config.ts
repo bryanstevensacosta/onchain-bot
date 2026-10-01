@@ -36,7 +36,8 @@ export function buildAppConfig(
     databaseUrl,
     databaseSynchronize: (env.DATABASE_SYNCHRONIZE ?? 'true') === 'true',
     avatarDir: (env.AVATAR_DIR ?? 'uploads/avatars').trim(),
-    telegramApiBase: (env.TELEGRAM_API_BASE ?? 'https://api.telegram.org').trim() ||
+    telegramApiBase:
+      (env.TELEGRAM_API_BASE ?? 'https://api.telegram.org').trim() ||
       'https://api.telegram.org',
     clockSkewSec: Number(env.BOTS_GATEWAY_CLOCK_SKEW_SEC ?? 300) || 300,
   };

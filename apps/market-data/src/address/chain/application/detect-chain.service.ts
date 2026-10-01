@@ -24,7 +24,9 @@ export class DetectChainService {
     private readonly catalog: ChainCatalogPort,
   ) {
     if (probers.length === 0) {
-      throw new Error('DetectChainService requires at least one ChainProberPort');
+      throw new Error(
+        'DetectChainService requires at least one ChainProberPort',
+      );
     }
   }
 
@@ -34,7 +36,9 @@ export class DetectChainService {
       throw new Error('address cannot be empty');
     }
 
-    const settled = await Promise.allSettled(this.probers.map((prober) => prober.probe(trimmed)));
+    const settled = await Promise.allSettled(
+      this.probers.map((prober) => prober.probe(trimmed)),
+    );
 
     let best: DetectChainResult | null = null;
     for (let i = 0; i < settled.length; i++) {

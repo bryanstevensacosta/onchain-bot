@@ -161,8 +161,8 @@ export class SubscriptionRegistryService {
           secret?: unknown;
         }>) {
           this.subscribe(botId, {
-            appId: String(sub.appId ?? ''),
-            url: String(sub.url ?? ''),
+            appId: typeof sub.appId === 'string' ? sub.appId : '',
+            url: typeof sub.url === 'string' ? sub.url : '',
             secret:
               typeof sub.secret === 'string' && sub.secret
                 ? sub.secret

@@ -5,14 +5,8 @@ import {
   KolIngestionClientPort,
   KolSource,
 } from '@/ingestion/domain/ports/ingestion-client.port';
-import {
-  RawKolSourceDto,
-  toKolSource,
-} from './dto/kol-source.dto';
-import {
-  RawKolMessageDto,
-  toKolMessage,
-} from './dto/raw-kol-message.dto';
+import { RawKolSourceDto, toKolSource } from './dto/kol-source.dto';
+import { RawKolMessageDto, toKolMessage } from './dto/raw-kol-message.dto';
 
 export const DEFAULT_INGESTION_BASE_URL = 'http://localhost:3031';
 

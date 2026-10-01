@@ -24,7 +24,9 @@ export class ScheduledPostsCronScheduler {
   public async tick(): Promise<void> {
     if (!this.isEnabled()) return;
     if (this.running) {
-      this.logger.warn('scheduled-posts tick skipped: previous tick still running');
+      this.logger.warn(
+        'scheduled-posts tick skipped: previous tick still running',
+      );
       return;
     }
     this.running = true;
@@ -43,10 +45,14 @@ export class ScheduledPostsCronScheduler {
   }
 
   private isEnabled(): boolean {
-    const enabled = (this.config.get<string>('SCHEDULING_POSTS_ENABLED', 'false') ?? 'false')
-      .toLowerCase() === 'true';
-    const cron = (this.config.get<string>('SCHEDULING_CRON_ENABLED', 'true') ?? 'true')
-      .toLowerCase() !== 'false';
+    const enabled =
+      (
+        this.config.get<string>('SCHEDULING_POSTS_ENABLED', 'false') ?? 'false'
+      ).toLowerCase() === 'true';
+    const cron =
+      (
+        this.config.get<string>('SCHEDULING_CRON_ENABLED', 'true') ?? 'true'
+      ).toLowerCase() !== 'false';
     return enabled && cron;
   }
 }

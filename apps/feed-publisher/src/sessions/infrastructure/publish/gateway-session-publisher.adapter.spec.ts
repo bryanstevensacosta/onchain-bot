@@ -39,9 +39,7 @@ function makeDispatcher(result: { ok: boolean }): {
 describe('GatewaySessionPublisher', () => {
   it('delegates plans to the target dispatcher (sessions keep working)', async () => {
     const { dispatcher } = makeDispatcher({ ok: true });
-    const publisher = new GatewaySessionPublisher(
-      dispatcher as unknown as TargetDispatcherPort,
-    );
+    const publisher = new GatewaySessionPublisher(dispatcher);
     await publisher.publish({
       sessionId: 's1',
       target: 'telegram',
@@ -62,9 +60,7 @@ describe('GatewaySessionPublisher', () => {
 
   it('routes threads plans to the threads leg (todo 10)', async () => {
     const { dispatcher } = makeDispatcher({ ok: true });
-    const publisher = new GatewaySessionPublisher(
-      dispatcher as unknown as TargetDispatcherPort,
-    );
+    const publisher = new GatewaySessionPublisher(dispatcher);
     await publisher.publish({
       sessionId: 's1',
       target: 'threads',
@@ -80,9 +76,7 @@ describe('GatewaySessionPublisher', () => {
 
   it('fail-closes dispatcher errors with a throw (audited upstream)', async () => {
     const { dispatcher } = makeDispatcher({ ok: false });
-    const publisher = new GatewaySessionPublisher(
-      dispatcher as unknown as TargetDispatcherPort,
-    );
+    const publisher = new GatewaySessionPublisher(dispatcher);
     await expect(
       publisher.publish({
         sessionId: 's1',

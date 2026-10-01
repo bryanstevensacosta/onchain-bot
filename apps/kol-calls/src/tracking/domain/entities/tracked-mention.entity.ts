@@ -67,15 +67,10 @@ export class TrackedMention extends AggregateRoot<string> {
     this.lastMentionIdValue = lastMentionId;
   }
 
-  public static buildId(
-    kolId: string,
-    chain: string,
-    address: string,
-  ): string {
+  public static buildId(kolId: string, chain: string, address: string): string {
     // Solana addresses are Base58 case-sensitive; lowercase EVM only
     // (same nuance as ScoredCall — backend-mirror, read-only reference).
-    const normalizedAddr =
-      chain === 'solana' ? address : address.toLowerCase();
+    const normalizedAddr = chain === 'solana' ? address : address.toLowerCase();
     return `${kolId}:${chain}:${normalizedAddr}`;
   }
 

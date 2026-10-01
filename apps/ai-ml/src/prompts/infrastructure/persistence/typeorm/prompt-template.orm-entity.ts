@@ -8,7 +8,9 @@ import { Entity, PrimaryColumn, Column, Index } from 'typeorm';
  * carries `isActive = true` (the rollback pointer).
  */
 @Entity('ai_ml_prompt_templates')
-@Index('uq_ai_ml_prompt_templates_name_version', ['name', 'version'], { unique: true })
+@Index('uq_ai_ml_prompt_templates_name_version', ['name', 'version'], {
+  unique: true,
+})
 export class PromptTemplateOrmEntity {
   @PrimaryColumn({ type: 'uuid' })
   public id!: string;

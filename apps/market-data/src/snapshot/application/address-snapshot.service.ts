@@ -10,9 +10,7 @@ import { CacheService } from 'cache/application/cache.service';
 import { RateLimiterPort } from 'rate-limiter/domain/rate-limiter.port';
 import { resolveProviderOutboundBudget } from 'rate-limiter/domain/provider-outbound-limits';
 import { AddressIdVo } from 'address/domain/address-id.vo';
-import {
-  AddressKindDetectorService,
-} from 'address/application/address-kind-detector.service';
+import { AddressKindDetectorService } from 'address/application/address-kind-detector.service';
 import {
   AddressSnapshot,
   AddressSnapshotInput,
@@ -25,9 +23,7 @@ import {
   type QuoteFetcher,
 } from '../domain/snapshot-quote.types';
 import { SnapshotAggregatorService } from 'aggregators/application/snapshot-aggregator.service';
-import {
-  AggregationPolicyPort,
-} from 'aggregators/domain/aggregation-policy.port';
+import { AggregationPolicyPort } from 'aggregators/domain/aggregation-policy.port';
 import { SnapshotHistoryRepository } from '../infrastructure/snapshot-history.repository';
 import { applyOutboundRateLimit } from 'provider/infrastructure/quote-fetchers/rate-limited-fetchers';
 import { DevHoldingsPort } from '../../holders/domain/holdings.port';
@@ -102,7 +98,10 @@ export class AddressSnapshotService {
     }
   }
 
-  public async getSnapshot(input: AddressSnapshotInput): Promise<AddressSnapshot> {    const chain = (input.chain ?? '').trim();
+  public async getSnapshot(
+    input: AddressSnapshotInput,
+  ): Promise<AddressSnapshot> {
+    const chain = (input.chain ?? '').trim();
     if (chain === '') {
       throw new NotFoundException('Chain qualifier is required');
     }
@@ -171,7 +170,7 @@ export class AddressSnapshotService {
     if (kind === 'token' && this.devHoldings) {
       try {
         const dev = await this.devHoldings.resolve(known.id, input.value);
-        devWallets = (dev.devWallets ?? null) as AddressSnapshot['devWallets'];
+        devWallets = dev.devWallets ?? null;
         devPctSupply = dev.devPctSupply;
         for (const [k, v] of Object.entries(dev.providerErrors)) {
           providerErrors[`dev:${k}`] = v;

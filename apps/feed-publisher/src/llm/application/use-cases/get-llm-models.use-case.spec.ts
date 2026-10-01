@@ -19,16 +19,12 @@ describe('GetLlmModelsUseCase', () => {
   });
 
   it('projects the gateway model list down to id + owner', async () => {
-    global.fetch = (async () =>
-      ({
-        ok: true,
-        json: async () => ({
-          data: [
-            { id: 'gpt-4o-mini', owned_by: 'openai' },
-            { id: 'other' },
-          ],
-        }),
-      })) as unknown as typeof fetch;
+    global.fetch = (async () => ({
+      ok: true,
+      json: async () => ({
+        data: [{ id: 'gpt-4o-mini', owned_by: 'openai' }, { id: 'other' }],
+      }),
+    })) as unknown as typeof fetch;
     const uc = new GetLlmModelsUseCase(
       configWith({ LLM_GATEWAY_BASE_URL: 'http://gateway:4000' }),
     );

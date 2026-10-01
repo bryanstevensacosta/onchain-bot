@@ -3,7 +3,9 @@ import type { TemplateContentType } from '@/llm/domain/prompt-template.entity';
 import { PromptTemplateOrmEntity } from '../prompt-template.orm-entity';
 
 /** Domain <-> TypeORM mapper for `PromptTemplate` (unwired until GAP-1). */
-export const toPromptTemplateRow = (template: PromptTemplate): PromptTemplateOrmEntity => {
+export const toPromptTemplateRow = (
+  template: PromptTemplate,
+): PromptTemplateOrmEntity => {
   const row = new PromptTemplateOrmEntity();
   row.id = template.id;
   row.name = template.name;
@@ -21,7 +23,9 @@ export const toPromptTemplateRow = (template: PromptTemplate): PromptTemplateOrm
   return row;
 };
 
-export const toPromptTemplateDomain = (row: PromptTemplateOrmEntity): PromptTemplate =>
+export const toPromptTemplateDomain = (
+  row: PromptTemplateOrmEntity,
+): PromptTemplate =>
   PromptTemplate.reconstitute({
     id: row.id,
     name: row.name,

@@ -90,7 +90,7 @@ describe('PublishSessionMessageUseCase (todo 14, P50)', () => {
       new PublishRateLimiter(10, 60_000),
       publisher,
       new PublishAuditLog(),
-      mapping as unknown as import('@/telegram/infrastructure/gateway/gateway-bot-mapping.service').GatewayBotMappingService,
+      mapping,
     );
     const result = await useCase.execute({
       sessionId: 'tab-news',

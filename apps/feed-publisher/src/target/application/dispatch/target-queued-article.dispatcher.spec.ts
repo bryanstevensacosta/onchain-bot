@@ -28,7 +28,7 @@ describe('TargetQueuedArticleDispatcher (todo 10)', () => {
       .mockResolvedValue({ ok: true, remoteId: 'tg-1' });
     const dispatcher = new TargetQueuedArticleDispatcher(config(), {
       dispatch,
-    } as unknown as TargetDispatcherPort);
+    });
     const result = await dispatcher.dispatch(entry('crypto-news'), 'hello');
     expect(result).toEqual({ telegramMessageId: 'tg-1' });
     expect(dispatch).toHaveBeenCalledWith(
@@ -53,7 +53,7 @@ describe('TargetQueuedArticleDispatcher (todo 10)', () => {
     const dispatch = jest.fn();
     const dispatcher = new TargetQueuedArticleDispatcher(empty, {
       dispatch,
-    } as unknown as TargetDispatcherPort);
+    });
     await expect(
       dispatcher.dispatch(entry('crypto-news'), 'hello'),
     ).rejects.toThrow('not configured');
@@ -66,7 +66,7 @@ describe('TargetQueuedArticleDispatcher (todo 10)', () => {
       .mockResolvedValue({ ok: true, remoteId: 'th-9' });
     const dispatcher = new TargetQueuedArticleDispatcher(config(), {
       dispatch,
-    } as unknown as TargetDispatcherPort);
+    });
     const result = await dispatcher.dispatch(entry('threads'), 'hello');
     expect(result).toEqual({ telegramMessageId: 'th-9' });
     expect(dispatch).toHaveBeenCalledWith(

@@ -61,7 +61,10 @@ export class ScheduledPostsController {
   public async byId(@Param('id') id: string): Promise<Record<string, unknown>> {
     const post = await this.posts.findById(id);
     if (!post) {
-      throw new DomainError(ErrorCode.NOT_FOUND, `unknown scheduled post ${id}`);
+      throw new DomainError(
+        ErrorCode.NOT_FOUND,
+        `unknown scheduled post ${id}`,
+      );
     }
     return post.toSnapshot() as unknown as Record<string, unknown>;
   }

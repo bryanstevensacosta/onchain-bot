@@ -35,13 +35,19 @@ export class PerBotRateLimiterService {
   }
 
   /** Acquires a send slot, waiting for quota when needed. Resolves with the time waited. */
-  public async acquire(botId: string, chatId: string): Promise<{ waitedMs: number }> {
+  public async acquire(
+    botId: string,
+    chatId: string,
+  ): Promise<{ waitedMs: number }> {
     const prev = this.tails.get(botId) ?? Promise.resolve();
     let release!: () => void;
     const cur = new Promise<void>((resolve) => {
       release = resolve;
     });
-    this.tails.set(botId, prev.then(() => cur));
+    this.tails.set(
+      botId,
+      prev.then(() => cur),
+    );
     await prev;
     const startedAt = Date.now();
     try {
@@ -76,18 +82,25 @@ export class PerBotRateLimiterService {
     return Math.max(0, wait);
   }
 
-  private prune(key: string, rows: Map<string, number[]>, now: number): number[] {
+  private prune(
+    key: string,
+    rows: Map<string, number[]>,
+    now: number,
+  ): number[] {
     const kept = (rows.get(key) ?? []).filter((t) => t > now - WINDOW_MS);
     rows.set(key, kept);
     return kept;
   }
 
   private record(botId: string, chatId: string, now: number): void {
-    this.botStamps.get(`bot:${botId}`)?.push(now) ??
-      this.botStamps.set(`bot:${botId}`, [now]);
+    const botKey = `bot:${botId}`;
+    const botStamps = this.botStamps.get(botKey);
+    if (botStamps) botStamps.push(now);
+    else this.botStamps.set(botKey, [now]);
     const chatKey = `chat:${botId}:${chatId}`;
-    this.chatStamps.get(chatKey)?.push(now) ??
-      this.chatStamps.set(chatKey, [now]);
+    const chatStamps = this.chatStamps.get(chatKey);
+    if (chatStamps) chatStamps.push(now);
+    else this.chatStamps.set(chatKey, [now]);
   }
 
   private static sleep(ms: number): Promise<void> {

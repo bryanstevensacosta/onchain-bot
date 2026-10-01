@@ -17,7 +17,10 @@ import { DefaultExchangeAdapterFactory } from './infrastructure/exchange-adapter
 @Module({
   imports: [AuthModule],
   providers: [
-    { provide: EXCHANGE_ADAPTER_FACTORY, useClass: DefaultExchangeAdapterFactory },
+    {
+      provide: EXCHANGE_ADAPTER_FACTORY,
+      useClass: DefaultExchangeAdapterFactory,
+    },
     ExchangeConnectionManager,
     StreamBrokerService,
   ],

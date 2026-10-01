@@ -29,9 +29,9 @@ describe('LlmController', () => {
   });
 
   it('rejects empty prompts', async () => {
-    await expect(buildController().generateText({ prompt: '  ' })).rejects.toThrow(
-      'prompt is required',
-    );
+    await expect(
+      buildController().generateText({ prompt: '  ' }),
+    ).rejects.toThrow('prompt is required');
   });
 
   it('lists mock models without network', async () => {
@@ -46,7 +46,10 @@ describe('LlmController', () => {
     await controller.patchConfig({ llmEnabled: true, publishingEnabled: true });
     const config = await controller.getConfig();
     expect(config.llmEnabled).toBe(true);
-    const flags = (await controller.getFlags('true')) as { mode: string; llmActive: boolean };
+    const flags = (await controller.getFlags('true')) as {
+      mode: string;
+      llmActive: boolean;
+    };
     expect(flags.mode).toBe('full-pipeline');
     expect(flags.llmActive).toBe(true);
   });

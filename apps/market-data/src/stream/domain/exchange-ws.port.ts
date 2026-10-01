@@ -1,4 +1,8 @@
-import type { StreamErrorInfo, StreamEvent, StreamSubscription } from './stream-types';
+import type {
+  StreamErrorInfo,
+  StreamEvent,
+  StreamSubscription,
+} from './stream-types';
 
 /**
  * Exchange WS port (Tramo 3, todo 11, P49 — stream domain).
@@ -20,7 +24,9 @@ export abstract class ExchangeWsPort {
 
   public abstract watch(subs: ReadonlyArray<StreamSubscription>): Promise<void>;
 
-  public abstract unwatch(subs: ReadonlyArray<StreamSubscription>): Promise<void>;
+  public abstract unwatch(
+    subs: ReadonlyArray<StreamSubscription>,
+  ): Promise<void>;
 
   public abstract onEvent(listener: (event: StreamEvent) => void): void;
 

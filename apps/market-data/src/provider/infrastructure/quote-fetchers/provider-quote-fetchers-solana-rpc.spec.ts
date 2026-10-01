@@ -78,8 +78,20 @@ describe('solana-rpc quote fetcher (free supplies + top holders)', () => {
             uiAmountString: '10000000000',
           }),
           getTokenLargestAccounts: async () => [
-            { address: 'A1', amount: '1000000000000000', decimals: 6, uiAmount: 1000000000, uiAmountString: '1000000000' },
-            { address: 'A2', amount: '500000000000000', decimals: 6, uiAmount: 500000000, uiAmountString: '500000000' },
+            {
+              address: 'A1',
+              amount: '1000000000000000',
+              decimals: 6,
+              uiAmount: 1000000000,
+              uiAmountString: '1000000000',
+            },
+            {
+              address: 'A2',
+              amount: '500000000000000',
+              decimals: 6,
+              uiAmount: 500000000,
+              uiAmountString: '500000000',
+            },
           ],
         },
       }),

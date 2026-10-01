@@ -14,7 +14,9 @@ const FETCH_TIMEOUT_MS = 8000;
 export class HttpChainLogoFetcher extends ChainLogoFetcherPort {
   public async fetchBytes(url: string): Promise<Buffer | null> {
     try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+      const res = await fetch(url, {
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      });
       if (!res.ok) {
         return null;
       }
@@ -27,7 +29,9 @@ export class HttpChainLogoFetcher extends ChainLogoFetcherPort {
 
   public async fetchJson(url: string): Promise<{ image?: unknown } | null> {
     try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+      const res = await fetch(url, {
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      });
       if (!res.ok) {
         return null;
       }

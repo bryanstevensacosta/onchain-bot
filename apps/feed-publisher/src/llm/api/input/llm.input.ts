@@ -21,7 +21,10 @@ const CONTENT_TYPES = ['crypto-news', 'threads', 'global'] as const;
 export type TemplateContentTypeDto = (typeof CONTENT_TYPES)[number];
 
 export class CreatePromptTemplateDto {
-  @ApiProperty({ description: 'Template name (unique)', example: 'default-feed' })
+  @ApiProperty({
+    description: 'Template name (unique)',
+    example: 'default-feed',
+  })
   @IsString()
   @Length(1, 100)
   public name!: string;
@@ -44,7 +47,9 @@ export class CreatePromptTemplateDto {
   @Length(1, 200)
   public model!: string;
 
-  @ApiPropertyOptional({ description: 'Whether the template supports vision input' })
+  @ApiPropertyOptional({
+    description: 'Whether the template supports vision input',
+  })
   @IsOptional()
   @IsBoolean()
   public supportsVision?: boolean;
@@ -61,12 +66,17 @@ export class CreatePromptTemplateDto {
   @Max(2)
   public temperature!: number;
 
-  @ApiPropertyOptional({ description: 'Reasoning effort', enum: REASONING_EFFORTS })
+  @ApiPropertyOptional({
+    description: 'Reasoning effort',
+    enum: REASONING_EFFORTS,
+  })
   @IsOptional()
   @IsIn(REASONING_EFFORTS)
   public reasoningEffort?: ReasoningEffortDto | null;
 
-  @ApiProperty({ description: 'User prompt text ({{title}} {{original}} {{hasImage}})' })
+  @ApiProperty({
+    description: 'User prompt text ({{title}} {{original}} {{hasImage}})',
+  })
   @IsString()
   @Length(1)
   public promptText!: string;
@@ -89,7 +99,10 @@ export class UpdatePromptTemplateDto {
   @IsString()
   public description?: string | null;
 
-  @ApiPropertyOptional({ description: 'Owning content type', enum: CONTENT_TYPES })
+  @ApiPropertyOptional({
+    description: 'Owning content type',
+    enum: CONTENT_TYPES,
+  })
   @IsOptional()
   @IsIn(CONTENT_TYPES)
   public contentType?: TemplateContentTypeDto;
@@ -100,7 +113,9 @@ export class UpdatePromptTemplateDto {
   @Length(1, 200)
   public model?: string;
 
-  @ApiPropertyOptional({ description: 'Whether the template supports vision input' })
+  @ApiPropertyOptional({
+    description: 'Whether the template supports vision input',
+  })
   @IsOptional()
   @IsBoolean()
   public supportsVision?: boolean;
@@ -119,7 +134,10 @@ export class UpdatePromptTemplateDto {
   @Max(2)
   public temperature?: number;
 
-  @ApiPropertyOptional({ description: 'Reasoning effort', enum: REASONING_EFFORTS })
+  @ApiPropertyOptional({
+    description: 'Reasoning effort',
+    enum: REASONING_EFFORTS,
+  })
   @IsOptional()
   @IsIn(REASONING_EFFORTS)
   public reasoningEffort?: ReasoningEffortDto | null;
@@ -167,12 +185,17 @@ export class PreviewPromptDraftDto {
   @Max(2)
   public temperature?: number;
 
-  @ApiPropertyOptional({ description: 'Reasoning effort', enum: REASONING_EFFORTS })
+  @ApiPropertyOptional({
+    description: 'Reasoning effort',
+    enum: REASONING_EFFORTS,
+  })
   @IsOptional()
   @IsIn(REASONING_EFFORTS)
   public reasoningEffort?: ReasoningEffortDto | null;
 
-  @ApiPropertyOptional({ description: 'Informational only on the dry-run path' })
+  @ApiPropertyOptional({
+    description: 'Informational only on the dry-run path',
+  })
   @IsOptional()
   @IsBoolean()
   public supportsVision?: boolean;
@@ -195,7 +218,9 @@ export class PreviewPromptDto {
 
   @ApiPropertyOptional({ description: 'Article title override (nullable)' })
   @IsOptional()
-  @ValidateIf((o: PreviewPromptDto) => o.rawTitle !== null && o.rawTitle !== undefined)
+  @ValidateIf(
+    (o: PreviewPromptDto) => o.rawTitle !== null && o.rawTitle !== undefined,
+  )
   @IsString()
   public rawTitle?: string | null;
 
@@ -223,20 +248,26 @@ export class UpdateLlmConfigDto {
   @IsString()
   public defaultTemplateId?: string;
 
-  @ApiPropertyOptional({ description: 'Target Telegram channel', example: '-1001234567890' })
+  @ApiPropertyOptional({
+    description: 'Target Telegram channel',
+    example: '-1001234567890',
+  })
   @IsOptional()
   @IsString()
   @Length(1, 64)
   public targetChannel?: string;
 
   @ApiPropertyOptional({
-    description: 'LLM refinement enabled (locked in production; requires publishingEnabled)',
+    description:
+      'LLM refinement enabled (locked in production; requires publishingEnabled)',
   })
   @IsOptional()
   @IsBoolean()
   public llmEnabled?: boolean;
 
-  @ApiPropertyOptional({ description: 'Master publishing switch (queue drain)' })
+  @ApiPropertyOptional({
+    description: 'Master publishing switch (queue drain)',
+  })
   @IsOptional()
   @IsBoolean()
   public publishingEnabled?: boolean;
@@ -246,14 +277,19 @@ export class UpdateLlmConfigDto {
   @IsBoolean()
   public rejectNonLatin?: boolean;
 
-  @ApiPropertyOptional({ description: 'Max publishes per day (min 1)', example: 36 })
+  @ApiPropertyOptional({
+    description: 'Max publishes per day (min 1)',
+    example: 36,
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   public dailyCap?: number;
 
-  @ApiPropertyOptional({ description: 'UTC hour of the daily cap reset (0-23)' })
+  @ApiPropertyOptional({
+    description: 'UTC hour of the daily cap reset (0-23)',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -261,14 +297,18 @@ export class UpdateLlmConfigDto {
   @Max(23)
   public dailyResetUtcHour?: number;
 
-  @ApiPropertyOptional({ description: 'Min random delay between publishes (ms)' })
+  @ApiPropertyOptional({
+    description: 'Min random delay between publishes (ms)',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(0)
   public randomDelayMinMs?: number;
 
-  @ApiPropertyOptional({ description: 'Max random delay between publishes (ms, min 1)' })
+  @ApiPropertyOptional({
+    description: 'Max random delay between publishes (ms, min 1)',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -288,7 +328,9 @@ export class UpdateLlmConfigDto {
    * `forbidNonWhitelisted` pipe lets it through to the guard below,
    * which rejects it with a hint instead of a shape error.
    */
-  @ApiPropertyOptional({ description: 'Rejected here — use PATCH feed-publisher/matching/config' })
+  @ApiPropertyOptional({
+    description: 'Rejected here — use PATCH feed-publisher/matching/config',
+  })
   @IsOptional()
   public matchingEnabled?: unknown;
 }

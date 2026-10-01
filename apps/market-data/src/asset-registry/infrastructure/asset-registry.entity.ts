@@ -74,6 +74,8 @@ export function toAssetRecord(entity: AssetRegistryEntity): AssetRecord {
     logoUrl: entity.logoUrl,
     categories: [...(entity.categories ?? [])],
     updatedAt:
-      entity.updatedAt instanceof Date ? entity.updatedAt.toISOString() : String(entity.updatedAt),
+      entity.updatedAt instanceof Date
+        ? entity.updatedAt.toISOString()
+        : String(entity.updatedAt),
   };
 }

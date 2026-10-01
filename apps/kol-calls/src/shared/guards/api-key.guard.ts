@@ -32,7 +32,11 @@ export class ApiKeyGuard implements CanActivate {
   public canActivate(context: ExecutionContext): boolean {
     const expected =
       this.injectedApiKey ??
-      (process.env.KOL_CALLS_API_KEY ?? process.env.KOL_SYSTEM_API_KEY ?? '').trim();
+      (
+        process.env.KOL_CALLS_API_KEY ??
+        process.env.KOL_SYSTEM_API_KEY ??
+        ''
+      ).trim();
     if (expected === '') {
       return true;
     }

@@ -1,5 +1,8 @@
 import { Injectable, Optional } from '@nestjs/common';
-import { CircuitBreakerPort, CircuitState } from '../domain/circuit-breaker.port';
+import {
+  CircuitBreakerPort,
+  CircuitState,
+} from '../domain/circuit-breaker.port';
 
 interface CircuitRow {
   failures: number;
@@ -43,13 +46,21 @@ export class CircuitBreakerService implements CircuitBreakerPort {
   }
 
   public recordFailure(key: string, now: number = Date.now()): void {
-    const row = this.circuits.get(key) ?? { failures: 0, state: 'closed' as CircuitState, openedAt: 0 };
+    const row = this.circuits.get(key) ?? {
+      failures: 0,
+      state: 'closed' as CircuitState,
+      openedAt: 0,
+    };
     const failures = row.failures + 1;
     if (failures >= this.failureThreshold) {
       this.circuits.set(key, { failures, state: 'open', openedAt: now });
       return;
     }
-    this.circuits.set(key, { failures, state: row.state, openedAt: row.openedAt });
+    this.circuits.set(key, {
+      failures,
+      state: row.state,
+      openedAt: row.openedAt,
+    });
   }
 
   public getState(key: string): CircuitState {

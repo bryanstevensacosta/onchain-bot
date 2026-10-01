@@ -34,9 +34,7 @@ const MAX_RECONNECT_DELAY_MS = 30_000;
  * Sends `x-api-key` (`INGESTION_TELEGRAM_API_KEY`) from day one (P30).
  */
 @Injectable()
-export class FeedIngestionClient
-  implements OnModuleInit, OnModuleDestroy
-{
+export class FeedIngestionClient implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(FeedIngestionClient.name);
   private readonly baseUrl: string;
   private readonly apiKey: string;
@@ -213,9 +211,7 @@ export class FeedIngestionClient
         );
         const caughtUp = await this.catchUpAfterReconnect();
         if (caughtUp > 0) {
-          this.logger.log(
-            `Catch-up accepted ${caughtUp} missed feed row(s)`,
-          );
+          this.logger.log(`Catch-up accepted ${caughtUp} missed feed row(s)`);
         }
         await this.sleep(delay);
       }

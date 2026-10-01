@@ -91,12 +91,7 @@ export class TelegramQueuedArticleDispatcher extends QueuedArticleDispatcherPort
       images.length > 1
         ? await adapter.sendMediaGroup(chatId, content, images)
         : images.length === 1
-          ? await adapter.sendPhoto(
-              chatId,
-              content,
-              images[0] as string,
-              undefined,
-            )
+          ? await adapter.sendPhoto(chatId, content, images[0], undefined)
           : await adapter.sendMessage(chatId, content, undefined, undefined);
     return { result };
   }

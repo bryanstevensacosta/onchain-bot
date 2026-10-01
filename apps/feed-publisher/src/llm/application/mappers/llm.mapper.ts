@@ -45,7 +45,9 @@ export const toConfigView = (cfg: LlmConfig): LlmConfigView => ({
   updatedAt: cfg.updatedAt.toISOString(),
 });
 
-export const toTemplateView = (template: PromptTemplate): PromptTemplateView => ({
+export const toTemplateView = (
+  template: PromptTemplate,
+): PromptTemplateView => ({
   id: template.id,
   name: template.name,
   description: template.description,

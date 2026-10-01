@@ -1,7 +1,4 @@
-import {
-  ScheduledPost,
-  type ScheduleKindOnce,
-} from './scheduled-post.entity';
+import { ScheduledPost, type ScheduleKindOnce } from './scheduled-post.entity';
 
 const BINDING = {
   target: 'telegram' as const,
@@ -34,7 +31,12 @@ describe('ScheduledPost', () => {
       ScheduledPost.create({
         sessionId: 's',
         binding: BINDING,
-        content: { kind: 'pre-written', text: '  ', mediaIds: [], buttons: null },
+        content: {
+          kind: 'pre-written',
+          text: '  ',
+          mediaIds: [],
+          buttons: null,
+        },
         scheduleKind: once('2026-09-27T08:00:00.000Z'),
         idempotencyKey: 'k1',
       }),

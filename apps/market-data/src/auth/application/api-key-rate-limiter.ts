@@ -10,7 +10,11 @@ import { Injectable } from '@nestjs/common';
 export class ApiKeyRateLimiter {
   private readonly hits = new Map<string, number[]>();
 
-  public tryAcquire(keyId: string, limitPerMin: number, now: number = Date.now()): boolean {
+  public tryAcquire(
+    keyId: string,
+    limitPerMin: number,
+    now: number = Date.now(),
+  ): boolean {
     const live = (this.hits.get(keyId) ?? []).filter((t) => now - t < 60_000);
     if (live.length >= limitPerMin) {
       this.hits.set(keyId, live);

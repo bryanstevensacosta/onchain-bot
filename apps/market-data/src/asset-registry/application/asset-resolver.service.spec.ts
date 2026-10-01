@@ -1,4 +1,7 @@
-import { AmbiguousAssetError, AssetNotFoundError } from 'asset-registry/domain/asset-record';
+import {
+  AmbiguousAssetError,
+  AssetNotFoundError,
+} from 'asset-registry/domain/asset-record';
 import { InMemoryAssetRegistryRepository } from 'asset-registry/infrastructure/in-memory-asset-registry.repository';
 import { AssetResolverService } from 'asset-registry/application/asset-resolver.service';
 
@@ -21,7 +24,10 @@ describe('AssetResolverService (failing-first)', () => {
       logoUrl: null,
       categories: ['dex'],
     });
-    const found = await resolver.resolve({ chain: 'solana', contract: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN' });
+    const found = await resolver.resolve({
+      chain: 'solana',
+      contract: 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN',
+    });
     expect(found.symbol).toBe('JUP');
     expect(found.cmcId).toBe(29210);
   });
@@ -39,17 +45,25 @@ describe('AssetResolverService (failing-first)', () => {
       logoUrl: null,
       categories: [],
     });
-    await expect(resolver.resolveByCmcId(29210)).resolves.toMatchObject({ symbol: 'JUP' });
-    await expect(resolver.resolveByGeckoId('JUPITER')).resolves.toMatchObject({ symbol: 'JUP' });
+    await expect(resolver.resolveByCmcId(29210)).resolves.toMatchObject({
+      symbol: 'JUP',
+    });
+    await expect(resolver.resolveByGeckoId('JUPITER')).resolves.toMatchObject({
+      symbol: 'JUP',
+    });
   });
 
   it('throws AssetNotFoundError on unknown contract / cmc / gecko', async () => {
     const { resolver } = seed();
-    await expect(resolver.resolve({ chain: 'solana', contract: 'nope' })).rejects.toBeInstanceOf(
+    await expect(
+      resolver.resolve({ chain: 'solana', contract: 'nope' }),
+    ).rejects.toBeInstanceOf(AssetNotFoundError);
+    await expect(resolver.resolveByCmcId(1)).rejects.toBeInstanceOf(
       AssetNotFoundError,
     );
-    await expect(resolver.resolveByCmcId(1)).rejects.toBeInstanceOf(AssetNotFoundError);
-    await expect(resolver.resolveByGeckoId('nope')).rejects.toBeInstanceOf(AssetNotFoundError);
+    await expect(resolver.resolveByGeckoId('nope')).rejects.toBeInstanceOf(
+      AssetNotFoundError,
+    );
   });
 
   it('never silently picks on symbol collision: same symbol+chain without contract throws', async () => {
@@ -76,7 +90,9 @@ describe('AssetResolverService (failing-first)', () => {
       logoUrl: null,
       categories: [],
     });
-    await expect(resolver.resolveBySymbol('bsc', 'SECT')).rejects.toBeInstanceOf(AmbiguousAssetError);
+    await expect(
+      resolver.resolveBySymbol('bsc', 'SECT'),
+    ).rejects.toBeInstanceOf(AmbiguousAssetError);
   });
 
   it('resolves a unique symbol+chain without ambiguity', async () => {
@@ -92,6 +108,8 @@ describe('AssetResolverService (failing-first)', () => {
       logoUrl: null,
       categories: [],
     });
-    await expect(resolver.resolveBySymbol('solana', 'jup')).resolves.toMatchObject({ contract: 'bbb' });
+    await expect(
+      resolver.resolveBySymbol('solana', 'jup'),
+    ).resolves.toMatchObject({ contract: 'bbb' });
   });
 });

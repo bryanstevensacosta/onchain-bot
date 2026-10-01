@@ -39,7 +39,10 @@ export class EnqueueThreadsMessageUseCase {
         );
         return duplicate;
       }
-      if (duplicate.status === 'FAILED' && this.isBlocking(duplicate.lastError)) {
+      if (
+        duplicate.status === 'FAILED' &&
+        this.isBlocking(duplicate.lastError)
+      ) {
         return duplicate;
       }
       await this.queueRepo.delete(duplicate.id);

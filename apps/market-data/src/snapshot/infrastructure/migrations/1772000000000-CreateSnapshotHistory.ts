@@ -15,9 +15,7 @@ export class CreateSnapshotHistory1772000000000 implements MigrationInterface {
   public readonly name = 'CreateSnapshotHistory1772000000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      'CREATE EXTENSION IF NOT EXISTS "pgcrypto"',
-    );
+    await queryRunner.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
     await queryRunner.query(
       'CREATE TABLE "snapshot_history" (' +
         '"id" uuid NOT NULL DEFAULT gen_random_uuid(), ' +

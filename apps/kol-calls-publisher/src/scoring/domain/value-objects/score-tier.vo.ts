@@ -1,7 +1,12 @@
 import { ValueObject } from '@/shared/kernel/value-object';
 import { DomainError, ErrorCode } from '@/shared/kernel/domain-error';
 
-export type ScoreTierValue = 'STRONG' | 'DECENT' | 'NEUTRAL' | 'RISKY' | 'AVOID';
+export type ScoreTierValue =
+  | 'STRONG'
+  | 'DECENT'
+  | 'NEUTRAL'
+  | 'RISKY'
+  | 'AVOID';
 
 interface ScoreTierProps {
   readonly value: ScoreTierValue;
@@ -40,11 +45,18 @@ export class ScoreTier extends ValueObject<ScoreTierProps> {
     super(props);
   }
 
-  public static fromScore(score: number, thresholds: ScoringTierThresholds): ScoreTier {
+  public static fromScore(
+    score: number,
+    thresholds: ScoringTierThresholds,
+  ): ScoreTier {
     if (!Number.isFinite(score) || score < 0 || score > 100) {
-      throw new DomainError(ErrorCode.VALIDATION, `Score must be 0..100, got ${score}`, {
-        score,
-      });
+      throw new DomainError(
+        ErrorCode.VALIDATION,
+        `Score must be 0..100, got ${score}`,
+        {
+          score,
+        },
+      );
     }
     if (score >= thresholds.strong) return ScoreTier.STRONG;
     if (score >= thresholds.decent) return ScoreTier.DECENT;
@@ -66,9 +78,13 @@ export class ScoreTier extends ValueObject<ScoreTierProps> {
       case 'AVOID':
         return ScoreTier.AVOID;
       default:
-        throw new DomainError(ErrorCode.VALIDATION, `Unknown ScoreTier value: ${value}`, {
-          value,
-        });
+        throw new DomainError(
+          ErrorCode.VALIDATION,
+          `Unknown ScoreTier value: ${value}`,
+          {
+            value,
+          },
+        );
     }
   }
 

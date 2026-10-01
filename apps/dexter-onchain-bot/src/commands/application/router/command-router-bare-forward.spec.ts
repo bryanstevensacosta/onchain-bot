@@ -63,7 +63,7 @@ function makeHarness() {
     bot as never,
     { toggleTradeButton: async () => ({}) } as never,
     { buildScanKeyboard: () => ({ inline_keyboard: [] }) } as never,
-    { isAllowed: () => true } as never,
+    { isAllowed: () => true },
     fallback as never,
   );
   return { bot, scanned, router };

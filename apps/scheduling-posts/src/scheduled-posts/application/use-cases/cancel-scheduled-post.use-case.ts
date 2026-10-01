@@ -16,10 +16,17 @@ export class CancelScheduledPostUseCase {
     private readonly callbacks: ScheduleResultCallbackPort,
   ) {}
 
-  public async execute(postId: string, sessionId: string, reason = 'cancelled'): Promise<ScheduledPost> {
+  public async execute(
+    postId: string,
+    sessionId: string,
+    reason = 'cancelled',
+  ): Promise<ScheduledPost> {
     const post = await this.posts.findById(postId);
     if (!post) {
-      throw new DomainError(ErrorCode.NOT_FOUND, `unknown scheduled post ${postId}`);
+      throw new DomainError(
+        ErrorCode.NOT_FOUND,
+        `unknown scheduled post ${postId}`,
+      );
     }
     const cancelled = post.cancel(sessionId, reason);
     const saved = await this.posts.save(cancelled);

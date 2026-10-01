@@ -1,8 +1,4 @@
-import {
-  isFeedData,
-  isFeedFrame,
-  toFeedMessage,
-} from './raw-feed-message.dto';
+import { isFeedData, isFeedFrame, toFeedMessage } from './raw-feed-message.dto';
 
 describe('raw-feed-message.dto', () => {
   it('maps a feed row with tolerant keys', () => {

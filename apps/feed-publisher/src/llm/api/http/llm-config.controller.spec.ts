@@ -31,7 +31,7 @@ const harness = (overrides?: {
       stored = cfg;
       return cfg;
     },
-  } as LlmConfigRepository;
+  };
   const matchingRepo = {
     load: async (): Promise<MatchingConfig> =>
       MatchingConfig.load({ enabled: overrides?.matching ?? false }),
@@ -63,32 +63,35 @@ describe('LlmConfigController', () => {
   it('rejects foreign matchingEnabled with a hint at the owning endpoint', async () => {
     const { controller } = harness();
     await expect(
-      controller.updateConfig({ matchingEnabled: true } as never),
+      controller.updateConfig({ matchingEnabled: true }),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('rejects llmEnabled=true while publishing is off (2-flag invariant)', async () => {
     const { controller } = harness({ publishing: false });
-    await expect(controller.updateConfig({ llmEnabled: true })).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      controller.updateConfig({ llmEnabled: true }),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('locks llmEnabled in production', async () => {
     process.env.NODE_ENV = 'production';
     const { controller } = harness({ publishing: true });
-    await expect(controller.updateConfig({ llmEnabled: false })).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      controller.updateConfig({ llmEnabled: false }),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('exposes the composed 3-flag view', async () => {
-    const { controller } = harness({ llm: true, publishing: true, matching: true });
+    const { controller } = harness({
+      llm: true,
+      publishing: true,
+      matching: true,
+    });
     await expect(controller.getFlags()).resolves.toMatchObject({
       mode: 'full-pipeline',
       llmActive: true,
       flags: { matching: true, llm: true, publishing: true },
     });
   });
-
 });

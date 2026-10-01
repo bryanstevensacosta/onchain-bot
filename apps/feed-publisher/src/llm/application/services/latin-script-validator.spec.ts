@@ -1,8 +1,13 @@
-import { findNonLatinCharacter, isLatinScriptOnly } from './latin-script-validator';
+import {
+  findNonLatinCharacter,
+  isLatinScriptOnly,
+} from './latin-script-validator';
 
 describe('latin-script-validator', () => {
   it('accepts Latin text with accents, digits, punctuation and emoji', () => {
-    expect(isLatinScriptOnly('Bitcoin sube un 5% 🚀 — ¿qué sigue, señor Muñoz?')).toBe(true);
+    expect(
+      isLatinScriptOnly('Bitcoin sube un 5% 🚀 — ¿qué sigue, señor Muñoz?'),
+    ).toBe(true);
     expect(isLatinScriptOnly('')).toBe(true);
   });
 

@@ -32,7 +32,9 @@ export class AuthModule implements OnModuleInit {
       );
     }
     if (!pepper) {
-      this.logger.warn('ENCRYPTION_KEY is empty — keyless dev mode (fail-open). Never deploy like this.');
+      this.logger.warn(
+        'ENCRYPTION_KEY is empty — keyless dev mode (fail-open). Never deploy like this.',
+      );
     }
   }
 }

@@ -14,9 +14,9 @@ import { MatchingHealthState } from '../state/matching-health.state';
  * ingestion module is primary). Guards, in order: MATCHING_CRON_ENABLED
  * env master switch, then the DB MatchingConfig flag (C-FLAGS-01), then
  * an overlap guard against concurrent ticks. Interval is dynamic:
-  * every 1 minute standalone, every CRYPTO_NEWS_POLLING_INTERVAL_MINUTES
-  * (default 5, legacy env name preserved) when USE_SSE_CRYPTO_NEWS is on
-  * (legacy env name preserved).
+ * every 1 minute standalone, every CRYPTO_NEWS_POLLING_INTERVAL_MINUTES
+ * (default 5, legacy env name preserved) when USE_SSE_CRYPTO_NEWS is on
+ * (legacy env name preserved).
  */
 @Injectable()
 export class EnqueueMatchingCronScheduler implements OnApplicationBootstrap {

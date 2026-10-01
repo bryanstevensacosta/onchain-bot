@@ -1,7 +1,4 @@
-import type {
-  ProviderDescriptor,
-  ProviderKind,
-} from './provider-descriptor';
+import type { ProviderDescriptor, ProviderKind } from './provider-descriptor';
 
 /**
  * Per-provider limiter configuration (Tramo 3, todo 16, P48-bis).

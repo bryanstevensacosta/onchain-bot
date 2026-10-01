@@ -2,7 +2,14 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 const AUTH_DIR = path.join(__dirname);
-const GUARD = path.join(__dirname, '..', 'shared', 'infrastructure', 'guards', 'api-key.guard.ts');
+const GUARD = path.join(
+  __dirname,
+  '..',
+  'shared',
+  'infrastructure',
+  'guards',
+  'api-key.guard.ts',
+);
 const SECRET_PATTERNS = [/md_[A-Za-z0-9_-]{10,}/, /sk-[A-Za-z0-9]{8,}/];
 
 function walk(dir: string): string[] {
@@ -11,7 +18,11 @@ function walk(dir: string): string[] {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       out.push(...walk(full));
-    } else if (entry.isFile() && entry.name.endsWith('.ts') && !entry.name.endsWith('.spec.ts')) {
+    } else if (
+      entry.isFile() &&
+      entry.name.endsWith('.ts') &&
+      !entry.name.endsWith('.spec.ts')
+    ) {
       out.push(full);
     }
   }
@@ -33,9 +44,14 @@ describe('log-secret scan (P46 grep gate)', () => {
       const lines = src.split('\n');
       lines.forEach((line, idx) => {
         const hasKeyVar = /\b(plaintext|rawKey|apiKey|api_key)\b/i.test(line);
-        const logsIt = /\b(console\.(log|warn|error|debug)|this\.logger\.(log|warn|error|debug|verbose))\s*\(/.test(line);
+        const logsIt =
+          /\b(console\.(log|warn|error|debug)|this\.logger\.(log|warn|error|debug|verbose))\s*\(/.test(
+            line,
+          );
         if (hasKeyVar && logsIt) {
-          violations.push(`${file}:${idx + 1}: possible key material in log call: ${line.trim().slice(0, 120)}`);
+          violations.push(
+            `${file}:${idx + 1}: possible key material in log call: ${line.trim().slice(0, 120)}`,
+          );
         }
       });
       if (/res\.json\s*\([^)]*plaintext/i.test(src)) {
@@ -63,7 +79,9 @@ describe('log-secret scan (P46 grep gate)', () => {
           if (/\bplaintext\b/.test(line) && !/^\s*(\*|\/\/)/.test(line)) {
             const owner = methodOf(idx);
             if (owner !== 'create' && owner !== 'rotate') {
-              violations.push(`${file}:${idx + 1}: plaintext reference outside create/rotate (${owner})`);
+              violations.push(
+                `${file}:${idx + 1}: plaintext reference outside create/rotate (${owner})`,
+              );
             }
           }
         });

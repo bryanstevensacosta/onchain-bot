@@ -1,4 +1,11 @@
-import { Body, Controller, Get, HttpException, HttpStatus, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpException,
+  HttpStatus,
+  Post,
+} from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import {
   PreviewPromptUseCase,
@@ -24,9 +31,13 @@ export class LlmPlaygroundController {
   ) {}
 
   @Post('preview')
-  @ApiOperation({ summary: 'Dry-run prompt preview (render or one LLM call; never persists)' })
+  @ApiOperation({
+    summary: 'Dry-run prompt preview (render or one LLM call; never persists)',
+  })
   @ApiResponse({ status: 200, description: 'Preview result' })
-  public async preview(@Body() dto: PreviewPromptDto): Promise<PreviewPromptResult> {
+  public async preview(
+    @Body() dto: PreviewPromptDto,
+  ): Promise<PreviewPromptResult> {
     return this.previewPrompt.execute({
       templateId: dto.templateId,
       draft: dto.draft,
@@ -45,7 +56,10 @@ export class LlmPlaygroundController {
       return await this.getLlmModels.execute();
     } catch (err) {
       throw new HttpException(
-        { error: 'gateway unreachable', cause: err instanceof Error ? err.message : String(err) },
+        {
+          error: 'gateway unreachable',
+          cause: err instanceof Error ? err.message : String(err),
+        },
         HttpStatus.BAD_GATEWAY,
       );
     }

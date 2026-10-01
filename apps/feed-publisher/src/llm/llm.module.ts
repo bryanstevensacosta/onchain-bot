@@ -55,15 +55,21 @@ import { LlmHealthIndicator } from './health/llm-health.indicator';
     forwardRef(() => MatchingModule),
     AiMlModule,
   ],
-  controllers: [LlmConfigController, PromptTemplatesController, LlmPlaygroundController],
+  controllers: [
+    LlmConfigController,
+    PromptTemplatesController,
+    LlmPlaygroundController,
+  ],
   providers: [
     MockLlmAdapter,
     LlmGatewayAdapter,
     {
       // Legacy local leg (mock | gateway) — serves only via DualLlmAdapter now.
       provide: LOCAL_LLM_PORT,
-      useFactory: (mock: MockLlmAdapter, gateway: LlmGatewayAdapter): LlmPort =>
-        process.env.USE_MOCK_AI === 'true' ? mock : gateway,
+      useFactory: (
+        mock: MockLlmAdapter,
+        gateway: LlmGatewayAdapter,
+      ): LlmPort => (process.env.USE_MOCK_AI === 'true' ? mock : gateway),
       inject: [MockLlmAdapter, LlmGatewayAdapter],
     },
     DualLlmAdapter,

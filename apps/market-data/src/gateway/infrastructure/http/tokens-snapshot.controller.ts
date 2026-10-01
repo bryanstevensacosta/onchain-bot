@@ -21,10 +21,10 @@ export class TokensSnapshotController {
     @Param('chain') chain: string,
     @Param('address') address: string,
   ): Promise<unknown> {
-    return (await this.snapshots.getSnapshot({
+    return await this.snapshots.getSnapshot({
       chain,
       value: address,
       kindHint: 'token',
-    })) as unknown;
+    });
   }
 }

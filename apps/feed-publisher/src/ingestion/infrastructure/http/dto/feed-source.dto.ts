@@ -19,9 +19,7 @@ function asString(value: unknown): string | null {
   return typeof value === 'string' && value.length > 0 ? value : null;
 }
 
-export function toFeedSource(
-  raw: RawFeedSourceDto,
-): FeedSource | null {
+export function toFeedSource(raw: RawFeedSourceDto): FeedSource | null {
   const channelId =
     asString(raw.channelId) ?? asString(raw.channel_id) ?? asString(raw.peerId);
   if (!channelId) {

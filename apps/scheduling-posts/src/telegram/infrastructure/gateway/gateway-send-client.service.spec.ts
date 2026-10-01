@@ -27,14 +27,14 @@ describe('GatewaySendClient', () => {
       status,
       json: () => Promise.resolve(payload),
     });
-    global.fetch = mock as unknown as typeof fetch;
+    global.fetch = mock;
     return mock;
   }
 
   it('rejects empty text without touching the network', async () => {
     const client = new GatewaySendClient();
     const fetchSpy = jest.fn();
-    global.fetch = fetchSpy as unknown as typeof fetch;
+    global.fetch = fetchSpy;
     const out = await client.sendViaGateway(input({ text: '' }));
     expect(out).toMatchObject({ ok: false, messageId: null });
     expect(fetchSpy).not.toHaveBeenCalled();
@@ -43,9 +43,7 @@ describe('GatewaySendClient', () => {
   it('posts one message chunk and returns the gateway message id', async () => {
     const fetchMock = mockFetchOnce({ ok: true, message_id: 777 });
     const client = new GatewaySendClient();
-    const out = await client.sendViaGateway(
-      input({ clientMsgId: 'sp_01' }),
-    );
+    const out = await client.sendViaGateway(input({ clientMsgId: 'sp_01' }));
     expect(out).toEqual({ ok: true, messageId: 777, error: null });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
@@ -71,7 +69,7 @@ describe('GatewaySendClient', () => {
   it('rejects gateway-incompatible shapes fail-closed (no network)', async () => {
     const client = new GatewaySendClient();
     const fetchSpy = jest.fn();
-    global.fetch = fetchSpy as unknown as typeof fetch;
+    global.fetch = fetchSpy;
     const photoLocal = await client.sendViaGateway(
       input({ kind: 'photo', text: 'cap' }),
     );
@@ -90,9 +88,7 @@ describe('GatewaySendClient', () => {
     const denied = await client.sendViaGateway(input());
     expect(denied).toMatchObject({ ok: false, messageId: null });
 
-    global.fetch = jest.fn().mockRejectedValue(
-      new Error('socket hang up'),
-    ) as unknown as typeof fetch;
+    global.fetch = jest.fn().mockRejectedValue(new Error('socket hang up'));
     const down = await client.sendViaGateway(input());
     expect(down).toMatchObject({ ok: false, messageId: null });
     expect(down.error).toMatch(/socket hang up/);

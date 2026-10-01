@@ -21,9 +21,7 @@ import { FeedIngestionClientPort } from '@/ingestion/domain/ports/ingestion-clie
 export class IngestionFeedAdapter extends FeedPort {
   private readonly logger = new Logger(IngestionFeedAdapter.name);
 
-  public constructor(
-    private readonly ingestion: FeedIngestionClientPort,
-  ) {
+  public constructor(private readonly ingestion: FeedIngestionClientPort) {
     super();
   }
 
@@ -31,10 +29,7 @@ export class IngestionFeedAdapter extends FeedPort {
     limit: number,
     channelId?: string,
   ): Promise<ReadonlyArray<FeedMessage>> {
-    const rows = await this.ingestion.fetchRecentFeedMessages(
-      limit,
-      channelId,
-    );
+    const rows = await this.ingestion.fetchRecentFeedMessages(limit, channelId);
     const out: FeedMessage[] = [];
     for (const row of rows) {
       const marker = row.messageType;

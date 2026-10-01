@@ -10,7 +10,9 @@ import { SolanaChainProber } from './probers/solana-chain.prober';
 describe('chain probers (v1 format-only)', () => {
   it('EVM accepts a valid 0x address', async () => {
     const prober = new EvmChainProber();
-    const result = await prober.probe('0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2');
+    const result = await prober.probe(
+      '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+    );
     expect(result.responded).toBe(true);
   });
 
@@ -23,13 +25,17 @@ describe('chain probers (v1 format-only)', () => {
 
   it('Solana accepts a valid base58 address', async () => {
     const prober = new SolanaChainProber();
-    const result = await prober.probe('So11111111111111111111111111111111111111112');
+    const result = await prober.probe(
+      'So11111111111111111111111111111111111111112',
+    );
     expect(result.responded).toBe(true);
   });
 
   it('Solana rejects an EVM address', async () => {
     const prober = new SolanaChainProber();
-    const result = await prober.probe('0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2');
+    const result = await prober.probe(
+      '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2',
+    );
     expect(result.responded).toBe(false);
     expect(result.isContract).toBeNull();
   });

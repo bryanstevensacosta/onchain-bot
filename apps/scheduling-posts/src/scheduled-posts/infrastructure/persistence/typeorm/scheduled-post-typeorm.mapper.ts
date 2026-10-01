@@ -14,8 +14,14 @@ export class ScheduledPostTypeormMapper {
     row.id = snap.id;
     row.sessionId = snap.sessionId;
     row.binding = { ...snap.binding };
-    row.content = JSON.parse(JSON.stringify(snap.content)) as Record<string, unknown>;
-    row.scheduleKind = JSON.parse(JSON.stringify(snap.scheduleKind)) as Record<string, unknown>;
+    row.content = JSON.parse(JSON.stringify(snap.content)) as Record<
+      string,
+      unknown
+    >;
+    row.scheduleKind = JSON.parse(JSON.stringify(snap.scheduleKind)) as Record<
+      string,
+      unknown
+    >;
     row.idempotencyKey = snap.idempotencyKey;
     row.state = snap.state;
     row.messageId = snap.messageId;
@@ -40,7 +46,8 @@ export class ScheduledPostTypeormMapper {
         chatId: row.binding.chatId,
       },
       content: row.content as unknown as ScheduledPostProps['content'],
-      scheduleKind: row.scheduleKind as unknown as ScheduledPostProps['scheduleKind'],
+      scheduleKind:
+        row.scheduleKind as unknown as ScheduledPostProps['scheduleKind'],
       idempotencyKey: row.idempotencyKey,
       state: row.state as ScheduledPostProps['state'],
       messageId: row.messageId,

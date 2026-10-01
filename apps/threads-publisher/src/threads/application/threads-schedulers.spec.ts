@@ -31,7 +31,7 @@ describe('threads schedulers', () => {
         truncated: false,
       }),
     };
-    const drain = new ProcessNextThreadsArticleUseCase(repo, publisher as never);
+    const drain = new ProcessNextThreadsArticleUseCase(repo, publisher);
     const enqueue = new EnqueueThreadsMessageUseCase(repo);
     await enqueue.execute({
       channelId: '-1001',
@@ -53,7 +53,7 @@ describe('threads schedulers', () => {
 
   it('skips the drain when publishing is disabled', async () => {
     const repo = new InMemoryThreadsQueueRepository();
-    const adapter = new ThreadsApiPublisherAdapter({} as never);
+    const adapter = new ThreadsApiPublisherAdapter({});
     const drain = new ProcessNextThreadsArticleUseCase(repo, adapter);
     const res = await drain.execute(ThreadsLlmConfig.default());
     expect(res.processed).toBe(false);

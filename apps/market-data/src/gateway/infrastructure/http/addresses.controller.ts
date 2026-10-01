@@ -39,10 +39,10 @@ export class AddressesController {
         'Chain qualifier is required (GET /api/v1/addresses/:chain/:address)',
       );
     }
-    return (await this.snapshots.getSnapshot({
+    return await this.snapshots.getSnapshot({
       chain,
       value: address,
       kindHint: kind,
-    })) as unknown;
+    });
   }
 }

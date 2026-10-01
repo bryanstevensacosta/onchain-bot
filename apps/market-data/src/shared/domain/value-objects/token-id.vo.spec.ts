@@ -16,12 +16,8 @@ describe('TokenIdVo (deprecated alias, kind=token)', () => {
     );
     expect(id).toBeInstanceOf(AddressIdVo);
     expect(id.kind).toBe('token');
-    expect(id.key).toBe(
-      'solana:so11111111111111111111111111111111111111112',
-    );
-    expect(id.address).toBe(
-      'so11111111111111111111111111111111111111112',
-    );
+    expect(id.key).toBe('solana:so11111111111111111111111111111111111111112');
+    expect(id.address).toBe('so11111111111111111111111111111111111111112');
   });
 
   it('parses a key back into chain + address with kind=token', () => {

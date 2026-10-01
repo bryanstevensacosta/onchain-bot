@@ -27,7 +27,7 @@ describe('buildSchedulingPostsConfig', () => {
       SCHEDULING_CRON_ENABLED: 'false',
       PUBLISH_RATE_LIMIT_PER_MIN: '25',
       SCHEDULING_POSTS_UPLOADS_ROOT: '/data/uploads',
-    } as NodeJS.ProcessEnv);
+    });
     expect(cfg.port).toBe(4081);
     expect(cfg.enabled).toBe(true);
     expect(cfg.apiKey).toBe('k');
@@ -46,15 +46,13 @@ describe('buildSchedulingPostsConfig', () => {
 
 describe('validateSchedulingPostsConfig', () => {
   it('throws Tier-1 when DATABASE_URL is missing', () => {
-    expect(() =>
-      validateSchedulingPostsConfig({} as NodeJS.ProcessEnv),
-    ).toThrow(/DATABASE_URL/);
+    expect(() => validateSchedulingPostsConfig({})).toThrow(/DATABASE_URL/);
   });
 
   it('passes with DATABASE_URL set and warns on empty optionals', () => {
     const { warnings } = validateSchedulingPostsConfig({
       DATABASE_URL: 'postgres://localhost:5432/scheduling_posts_db',
-    } as NodeJS.ProcessEnv);
+    });
     expect(warnings.join(' ')).toMatch(/SCHEDULING_POSTS_API_KEY/);
   });
 });

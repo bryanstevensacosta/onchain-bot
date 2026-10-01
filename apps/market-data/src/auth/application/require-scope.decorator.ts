@@ -9,5 +9,6 @@ import type { ApiKeyScope } from '../domain/api-key-scope';
  */
 export const REQUIRED_SCOPE_KEY = 'marketDataRequiredScope';
 
-export const RequireScope = (scope: ApiKeyScope): MethodDecorator & ClassDecorator =>
-  SetMetadata(REQUIRED_SCOPE_KEY, scope);
+export const RequireScope = (
+  scope: ApiKeyScope,
+): MethodDecorator & ClassDecorator => SetMetadata(REQUIRED_SCOPE_KEY, scope);

@@ -19,7 +19,11 @@ export const STREAM_BACKOFF_BASE_MS = 1000;
 
 export const STREAM_BACKOFF_MAX_MS = 30_000;
 
-export const STREAM_DEFAULT_EXCHANGES: ReadonlyArray<string> = ['binance', 'coinbase', 'kraken'];
+export const STREAM_DEFAULT_EXCHANGES: ReadonlyArray<string> = [
+  'binance',
+  'coinbase',
+  'kraken',
+];
 
 export const STREAM_TICKER_SCOPE: ApiKeyScope = 'read';
 

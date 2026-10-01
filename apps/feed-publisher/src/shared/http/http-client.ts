@@ -1,5 +1,9 @@
 import axios, { AxiosInstance } from 'axios';
-import { DEFAULT_RETRY_POLICY, RetryPolicyOptions, withRetry } from './retry-policy';
+import {
+  DEFAULT_RETRY_POLICY,
+  RetryPolicyOptions,
+  withRetry,
+} from './retry-policy';
 
 /**
  * SharedHttpClient (Tramo 2, todo 1).
@@ -18,7 +22,10 @@ export class SharedHttpClient {
     this.axios = axios.create({ timeout: timeoutMs });
   }
 
-  public async get<T>(url: string, headers: Record<string, string> = {}): Promise<T> {
+  public async get<T>(
+    url: string,
+    headers: Record<string, string> = {},
+  ): Promise<T> {
     return withRetry(async () => {
       const response = await this.axios.get<T>(url, { headers });
       return response.data;

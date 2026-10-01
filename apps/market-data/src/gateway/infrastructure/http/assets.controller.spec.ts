@@ -17,8 +17,14 @@ describe('AssetsController (failing-first)', () => {
       categories: [],
     });
     const controller = new AssetsController(new AssetResolverService(repo));
-    await expect(controller.resolve('solana', 'AAA')).resolves.toMatchObject({ symbol: 'JUP' });
-    await expect(controller.resolveByCmc('29210')).resolves.toMatchObject({ symbol: 'JUP' });
-    await expect(controller.resolveByGecko('jupiter')).resolves.toMatchObject({ symbol: 'JUP' });
+    await expect(controller.resolve('solana', 'AAA')).resolves.toMatchObject({
+      symbol: 'JUP',
+    });
+    await expect(controller.resolveByCmc('29210')).resolves.toMatchObject({
+      symbol: 'JUP',
+    });
+    await expect(controller.resolveByGecko('jupiter')).resolves.toMatchObject({
+      symbol: 'JUP',
+    });
   });
 });

@@ -16,9 +16,13 @@ const base = {
 const useCase = (matching: boolean, llm: boolean, publishing: boolean) => {
   const llmRepo = {
     load: async (): Promise<LlmConfig> =>
-      LlmConfig.load({ ...base, llmEnabled: llm, publishingEnabled: publishing }),
+      LlmConfig.load({
+        ...base,
+        llmEnabled: llm,
+        publishingEnabled: publishing,
+      }),
     save: async (cfg: LlmConfig): Promise<LlmConfig> => cfg,
-  } as LlmConfigRepository;
+  };
   const matchingRepo = {
     load: async (): Promise<MatchingConfig> =>
       MatchingConfig.load({ enabled: matching }),
@@ -29,14 +33,16 @@ const useCase = (matching: boolean, llm: boolean, publishing: boolean) => {
 
 describe('GetPipelineFlagsUseCase', () => {
   it('composes the 3-flag view with the truth-table mode', async () => {
-    await expect(
-      useCase(true, true, true).execute(),
-    ).resolves.toMatchObject({ mode: 'full-pipeline', llmActive: true });
-    await expect(
-      useCase(true, true, false).execute(),
-    ).resolves.toMatchObject({ mode: 'enqueue-only', llmActive: false });
-    await expect(
-      useCase(false, false, false).execute(),
-    ).resolves.toMatchObject({ mode: 'all-paused', llmActive: false });
+    await expect(useCase(true, true, true).execute()).resolves.toMatchObject({
+      mode: 'full-pipeline',
+      llmActive: true,
+    });
+    await expect(useCase(true, true, false).execute()).resolves.toMatchObject({
+      mode: 'enqueue-only',
+      llmActive: false,
+    });
+    await expect(useCase(false, false, false).execute()).resolves.toMatchObject(
+      { mode: 'all-paused', llmActive: false },
+    );
   });
 });

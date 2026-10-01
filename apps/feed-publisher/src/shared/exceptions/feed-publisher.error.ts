@@ -8,9 +8,13 @@ import { DomainError, ErrorCode } from '../kernel/domain-error';
  */
 export class QueueFullError extends DomainError {
   constructor(pending: number) {
-    super(ErrorCode.QUEUE_FULL, `Publisher queue is full (${pending} pending)`, {
-      pending,
-    });
+    super(
+      ErrorCode.QUEUE_FULL,
+      `Publisher queue is full (${pending} pending)`,
+      {
+        pending,
+      },
+    );
     this.name = 'QueueFullError';
   }
 }

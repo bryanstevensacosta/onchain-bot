@@ -18,7 +18,9 @@ export class GetLlmModelsUseCase {
   public async execute(): Promise<{ provider: string; models: string[] }> {
     const provider = this.llm.providerName;
     if (provider === 'gateway') {
-      const baseUrl = this.config.get<string>('LLM_GATEWAY_BASE_URL', '').replace(/\/+$/, '');
+      const baseUrl = this.config
+        .get<string>('LLM_GATEWAY_BASE_URL', '')
+        .replace(/\/+$/, '');
       const apiKey =
         this.config.get<string>('LLM_GATEWAY_API_KEY', '') ||
         this.config.get<string>('OPENAI_API_KEY', '');
@@ -34,14 +36,19 @@ export class GetLlmModelsUseCase {
         const body = (await res.json()) as { data?: Array<{ id?: string }> };
         const models = (body.data ?? [])
           .map((m) => m.id)
-          .filter((id): id is string => typeof id === 'string' && id.length > 0);
+          .filter(
+            (id): id is string => typeof id === 'string' && id.length > 0,
+          );
         return { provider, models: models.length > 0 ? models : [fallback] };
       } catch {
         return { provider, models: [fallback] };
       }
     }
     if (provider === 'openai') {
-      return { provider, models: [this.config.get<string>('LLM_MODEL', 'gpt-4o-mini')] };
+      return {
+        provider,
+        models: [this.config.get<string>('LLM_MODEL', 'gpt-4o-mini')],
+      };
     }
     return { provider, models: ['mock-default'] };
   }

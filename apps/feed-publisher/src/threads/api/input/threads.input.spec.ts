@@ -22,9 +22,9 @@ describe('CreateThreadDto (v2 contract shape)', () => {
       { messages: [{ content: 'ok', delaySeconds: 1.5 }] },
     ]) {
       const dto = plainToInstance(CreateThreadDto, body);
-      expect(await validate(dto).then((errors) => errors.length)).toBeGreaterThan(
-        0,
-      );
+      expect(
+        await validate(dto).then((errors) => errors.length),
+      ).toBeGreaterThan(0);
     }
   });
 });

@@ -17,7 +17,10 @@ import { LlmHealthIndicator } from './health/llm-health.indicator';
 describe('LlmModule', () => {
   it('wires config + templates + playground + health (todo 5)', async () => {
     const module = await Test.createTestingModule({
-      imports: [ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }), LlmModule],
+      imports: [
+        ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }),
+        LlmModule,
+      ],
     }).compile();
     expect(module.get(LlmModule)).toBeDefined();
     expect(module.get(LlmConfigController)).toBeDefined();

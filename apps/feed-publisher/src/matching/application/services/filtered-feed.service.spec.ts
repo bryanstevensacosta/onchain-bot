@@ -32,12 +32,7 @@ describe('FilteredFeedService', () => {
       save: jest.fn(),
       delete: jest.fn(),
     };
-    return new FilteredFeedService(
-      feedPort,
-      filters,
-      keywords,
-      blacklist,
-    );
+    return new FilteredFeedService(feedPort, filters, keywords, blacklist);
   }
 
   function row(

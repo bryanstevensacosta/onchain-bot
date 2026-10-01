@@ -22,13 +22,26 @@ const BINDING = {
 };
 
 function session(overrides: Partial<SessionRecord> = {}): SessionRecord {
-  return { sessionId: 'morning-desk', active: true, bindings: [BINDING], ...overrides };
+  return {
+    sessionId: 'morning-desk',
+    active: true,
+    bindings: [BINDING],
+    ...overrides,
+  };
 }
 
-function oncePost(sessionId = 'morning-desk', fireAt = '2026-09-27T08:00:00.000Z'): ScheduledPost {
+function oncePost(
+  sessionId = 'morning-desk',
+  fireAt = '2026-09-27T08:00:00.000Z',
+): ScheduledPost {
   return ScheduledPost.create({
     sessionId,
-    binding: { target: 'telegram', bindingId: 'b-1', botId: 'bot_X', chatId: '-100123' },
+    binding: {
+      target: 'telegram',
+      bindingId: 'b-1',
+      botId: 'bot_X',
+      chatId: '-100123',
+    },
     content: { kind: 'pre-written', text: 'GM', mediaIds: [], buttons: null },
     scheduleKind: { kind: 'once', fireAt },
     idempotencyKey: `k-${Math.random().toString(36).slice(2)}`,
@@ -57,10 +70,18 @@ async function harness(
   const callbacks = new InMemoryCallbackRecorder();
   const sent: FireHarness['sent'] = [];
   const dispatcher = {
-    publishScheduledPost: jest.fn().mockImplementation((input: { botId: string; chatId: string; text: string }) => {
-      sent.push({ botId: input.botId, chatId: input.chatId, text: input.text });
-      return Promise.resolve(gatewayResult);
-    }),
+    publishScheduledPost: jest
+      .fn()
+      .mockImplementation(
+        (input: { botId: string; chatId: string; text: string }) => {
+          sent.push({
+            botId: input.botId,
+            chatId: input.chatId,
+            text: input.text,
+          });
+          return Promise.resolve(gatewayResult);
+        },
+      ),
   } as never;
   const fire = new FireDuePostsUseCase(
     posts,
@@ -117,8 +138,18 @@ describe('FireDuePostsUseCase', () => {
     const capped = await h.posts.save(
       ScheduledPost.create({
         sessionId: 'morning-desk',
-        binding: { target: 'telegram', bindingId: 'b-1', botId: 'bot_X', chatId: '-100123' },
-        content: { kind: 'pre-written', text: 'two', mediaIds: [], buttons: null },
+        binding: {
+          target: 'telegram',
+          bindingId: 'b-1',
+          botId: 'bot_X',
+          chatId: '-100123',
+        },
+        content: {
+          kind: 'pre-written',
+          text: 'two',
+          mediaIds: [],
+          buttons: null,
+        },
         scheduleKind: { kind: 'once', fireAt: '2026-09-27T08:00:00.000Z' },
         idempotencyKey: 'k-cap-2',
       }),
@@ -143,8 +174,18 @@ describe('FireDuePostsUseCase', () => {
     const held = await h.posts.save(
       ScheduledPost.create({
         sessionId: 'tight',
-        binding: { target: 'telegram', bindingId: 'b-1', botId: 'bot_X', chatId: '-100123' },
-        content: { kind: 'pre-written', text: 'held', mediaIds: [], buttons: null },
+        binding: {
+          target: 'telegram',
+          bindingId: 'b-1',
+          botId: 'bot_X',
+          chatId: '-100123',
+        },
+        content: {
+          kind: 'pre-written',
+          text: 'held',
+          mediaIds: [],
+          buttons: null,
+        },
         scheduleKind: { kind: 'once', fireAt: '2026-09-27T08:00:00.000Z' },
         idempotencyKey: 'k-tight-2',
       }),
@@ -180,33 +221,56 @@ describe('FireDuePostsUseCase', () => {
   it('fails revoked bots and hijacked channels at fire time (BOT_REVOKED / CHANNEL_MISMATCH)', async () => {
     const revoked = await harness();
     await revoked.sessions.seed(
-      session({ sessionId: 'rev', bindings: [{ ...BINDING, botVerified: false }] }),
+      session({
+        sessionId: 'rev',
+        bindings: [{ ...BINDING, botVerified: false }],
+      }),
     );
     const rp = await revoked.posts.save(oncePost('rev'));
     await revoked.fire.fireDue(TICK);
     expect((await revoked.posts.findById(rp.id))!.state).toBe('failed');
     expect((await revoked.posts.findById(rp.id))!.reason).toBe('BOT_REVOKED');
-    expect(revoked.callbacks.emitted[0]).toMatchObject({ state: 'failed', reason: 'BOT_REVOKED' });
+    expect(revoked.callbacks.emitted[0]).toMatchObject({
+      state: 'failed',
+      reason: 'BOT_REVOKED',
+    });
 
     const hijacked = await harness();
     await hijacked.sessions.seed(
-      session({ sessionId: 'hij', bindings: [{ ...BINDING, defaultChatId: '-100555' }] }),
+      session({
+        sessionId: 'hij',
+        bindings: [{ ...BINDING, defaultChatId: '-100555' }],
+      }),
     );
     const hp = await hijacked.posts.save(oncePost('hij'));
     await hijacked.fire.fireDue(TICK);
     expect((await hijacked.posts.findById(hp.id))!.state).toBe('failed');
-    expect((await hijacked.posts.findById(hp.id))!.reason).toBe('CHANNEL_MISMATCH');
+    expect((await hijacked.posts.findById(hp.id))!.reason).toBe(
+      'CHANNEL_MISMATCH',
+    );
   });
 
   it('cancels posts of closed sessions (SESSION_CLOSED) and fails missing media (MEDIA_MISSING)', async () => {
     const { posts, callbacks, fire, sessions } = await harness();
-    await sessions.seed(session({ sessionId: 'dead', active: false, bindings: [BINDING] }));
+    await sessions.seed(
+      session({ sessionId: 'dead', active: false, bindings: [BINDING] }),
+    );
     const dp = await posts.save(oncePost('dead'));
     const mp = await posts.save(
       ScheduledPost.create({
         sessionId: 'morning-desk',
-        binding: { target: 'telegram', bindingId: 'b-1', botId: 'bot_X', chatId: '-100123' },
-        content: { kind: 'pre-written', text: 'pic', mediaIds: ['ghost-media'], buttons: null },
+        binding: {
+          target: 'telegram',
+          bindingId: 'b-1',
+          botId: 'bot_X',
+          chatId: '-100123',
+        },
+        content: {
+          kind: 'pre-written',
+          text: 'pic',
+          mediaIds: ['ghost-media'],
+          buttons: null,
+        },
         scheduleKind: { kind: 'once', fireAt: '2026-09-27T08:00:00.000Z' },
         idempotencyKey: 'k-media-1',
       }),
@@ -226,8 +290,18 @@ describe('FireDuePostsUseCase', () => {
     const post = await posts.save(
       ScheduledPost.create({
         sessionId: 'morning-desk',
-        binding: { target: 'telegram', bindingId: 'b-1', botId: 'bot_X', chatId: '-100123' },
-        content: { kind: 'pre-written', text: 'daily', mediaIds: [], buttons: null },
+        binding: {
+          target: 'telegram',
+          bindingId: 'b-1',
+          botId: 'bot_X',
+          chatId: '-100123',
+        },
+        content: {
+          kind: 'pre-written',
+          text: 'daily',
+          mediaIds: [],
+          buttons: null,
+        },
         scheduleKind: { kind: 'cron', cronExpr: '0 8 * * *', timezone: 'UTC' },
         idempotencyKey: 'k-cron-1',
       }),
@@ -247,8 +321,18 @@ describe('FireDuePostsUseCase', () => {
     const second = await posts.save(
       ScheduledPost.create({
         sessionId: 'morning-desk',
-        binding: { target: 'telegram', bindingId: 'b-1', botId: 'bot_X', chatId: '-100123' },
-        content: { kind: 'pre-written', text: 'now', mediaIds: [], buttons: null },
+        binding: {
+          target: 'telegram',
+          bindingId: 'b-1',
+          botId: 'bot_X',
+          chatId: '-100123',
+        },
+        content: {
+          kind: 'pre-written',
+          text: 'now',
+          mediaIds: [],
+          buttons: null,
+        },
         scheduleKind: { kind: 'once', fireAt: '2026-09-27T09:00:00.000Z' },
         idempotencyKey: 'k-now-1',
       }),
@@ -257,16 +341,30 @@ describe('FireDuePostsUseCase', () => {
     expect(out.state).toBe('fired');
     expect(sent).toHaveLength(2);
     expect(callbacks.emitted).toHaveLength(2);
-    await expect(fire.publishNow(post.id, 'morning-desk')).rejects.toThrow(/terminal/);
+    await expect(fire.publishNow(post.id, 'morning-desk')).rejects.toThrow(
+      /terminal/,
+    );
     const third = await posts.save(
       ScheduledPost.create({
         sessionId: 'morning-desk',
-        binding: { target: 'telegram', bindingId: 'b-1', botId: 'bot_X', chatId: '-100123' },
-        content: { kind: 'pre-written', text: 'third', mediaIds: [], buttons: null },
+        binding: {
+          target: 'telegram',
+          bindingId: 'b-1',
+          botId: 'bot_X',
+          chatId: '-100123',
+        },
+        content: {
+          kind: 'pre-written',
+          text: 'third',
+          mediaIds: [],
+          buttons: null,
+        },
         scheduleKind: { kind: 'once', fireAt: '2026-09-27T09:00:00.000Z' },
         idempotencyKey: 'k-now-2',
       }),
     );
-    await expect(fire.publishNow(third.id, 'intruder')).rejects.toThrow(/owner/);
+    await expect(fire.publishNow(third.id, 'intruder')).rejects.toThrow(
+      /owner/,
+    );
   });
 });

@@ -13,7 +13,11 @@ import {
   primaryLogoUrl,
 } from '../domain/chain-logo';
 
-export type ChainLogoSource = 'cache' | 'trustwallet' | 'coingecko' | 'placeholder';
+export type ChainLogoSource =
+  | 'cache'
+  | 'trustwallet'
+  | 'coingecko'
+  | 'placeholder';
 
 export interface ChainLogoResult {
   readonly bytes: Buffer;
@@ -46,7 +50,9 @@ export class ChainLogoService {
     @Optional() baseDir?: string,
   ) {
     this.baseDir =
-      baseDir ?? process.env.CHAIN_LOGO_DIR ?? join(process.cwd(), 'uploads', 'chain-logo');
+      baseDir ??
+      process.env.CHAIN_LOGO_DIR ??
+      join(process.cwd(), 'uploads', 'chain-logo');
   }
 
   public logoFilePath(chainId: string): string {
@@ -60,7 +66,11 @@ export class ChainLogoService {
     }
     const cached = await this.readCached(normalized);
     if (cached !== null) {
-      return { bytes: cached, source: 'cache', filePath: this.logoFilePath(normalized) };
+      return {
+        bytes: cached,
+        source: 'cache',
+        filePath: this.logoFilePath(normalized),
+      };
     }
     return this.refreshLogo(normalized);
   }
@@ -73,14 +83,24 @@ export class ChainLogoService {
     const primary = await this.fetchPrimary(normalized);
     if (primary !== null) {
       await this.persist(normalized, primary);
-      return { bytes: primary, source: 'trustwallet', filePath: this.logoFilePath(normalized) };
+      return {
+        bytes: primary,
+        source: 'trustwallet',
+        filePath: this.logoFilePath(normalized),
+      };
     }
     const fallback = await this.fetchFallback(normalized);
     if (fallback !== null) {
       await this.persist(normalized, fallback);
-      return { bytes: fallback, source: 'coingecko', filePath: this.logoFilePath(normalized) };
+      return {
+        bytes: fallback,
+        source: 'coingecko',
+        filePath: this.logoFilePath(normalized),
+      };
     }
-    this.logger.warn(`chain-logo upstream 404 for ${normalized}, serving placeholder`);
+    this.logger.warn(
+      `chain-logo upstream 404 for ${normalized}, serving placeholder`,
+    );
     await this.persist(normalized, PLACEHOLDER_PNG);
     return {
       bytes: PLACEHOLDER_PNG,
@@ -109,7 +129,9 @@ export class ChainLogoService {
     try {
       return await this.fetcher.fetchBytes(url);
     } catch (error) {
-      this.logger.warn(`chain-logo primary fetch failed for ${normalized}: ${String(error)}`);
+      this.logger.warn(
+        `chain-logo primary fetch failed for ${normalized}: ${String(error)}`,
+      );
       return null;
     }
   }
@@ -127,7 +149,9 @@ export class ChainLogoService {
       }
       return await this.fetcher.fetchBytes(image);
     } catch (error) {
-      this.logger.warn(`chain-logo fallback fetch failed for ${normalized}: ${String(error)}`);
+      this.logger.warn(
+        `chain-logo fallback fetch failed for ${normalized}: ${String(error)}`,
+      );
       return null;
     }
   }
@@ -137,7 +161,9 @@ export class ChainLogoService {
       await mkdir(this.baseDir, { recursive: true });
       await writeFile(this.logoFilePath(normalized), bytes);
     } catch (error) {
-      this.logger.warn(`chain-logo persist failed for ${normalized}: ${String(error)}`);
+      this.logger.warn(
+        `chain-logo persist failed for ${normalized}: ${String(error)}`,
+      );
     }
   }
 }

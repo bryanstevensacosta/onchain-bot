@@ -5,6 +5,7 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { DomainError, ErrorCode } from '../kernel/domain-error';
 
 /**
@@ -17,7 +18,7 @@ export class DomainExceptionFilter implements ExceptionFilter {
 
   public catch(exception: DomainError, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
-    const response = ctx.getResponse();
+    const response = ctx.getResponse<Response>();
 
     const status = this.getHttpStatus(exception.code);
     const isExpected =

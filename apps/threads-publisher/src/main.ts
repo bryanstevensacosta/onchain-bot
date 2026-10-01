@@ -33,11 +33,9 @@ async function bootstrap(): Promise<void> {
   try {
     const { warnings } = validateThreadsPublisherConfig();
     for (const warning of warnings) {
-      // eslint-disable-next-line no-console
       console.warn(`threads-publisher config: ${warning}`);
     }
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error('threads-publisher config invalid', err);
     process.exit(1);
   }
@@ -45,9 +43,7 @@ async function bootstrap(): Promise<void> {
   await app.listen(cfg.port);
 }
 
-// eslint-disable-next-line no-console
 bootstrap().catch((err) => {
-  // eslint-disable-next-line no-console
   console.error('threads-publisher bootstrap failed', err);
   process.exit(1);
 });

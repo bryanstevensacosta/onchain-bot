@@ -42,9 +42,7 @@ describe('RedisTokenBucketAdapter (token-bucket + fail-open)', () => {
         throw new Error('ECONNREFUSED');
       },
     };
-    const adapter = new RedisTokenBucketAdapter(
-      broken as unknown as never,
-    );
+    const adapter = new RedisTokenBucketAdapter(broken);
     await expect(
       adapter.tryAcquire('outbound:dexscreener', 60, 60_000),
     ).resolves.toBe(true);
@@ -61,9 +59,7 @@ describe('RedisTokenBucketAdapter (token-bucket + fail-open)', () => {
         return 1;
       },
     };
-    const adapter = new RedisTokenBucketAdapter(
-      memory as unknown as never,
-    );
+    const adapter = new RedisTokenBucketAdapter(memory);
     await expect(adapter.tryAcquire('k', 1, 60_000)).resolves.toBe(true);
     await expect(adapter.tryAcquire('k', 1, 60_000)).resolves.toBe(false);
   });

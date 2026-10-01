@@ -2,14 +2,10 @@ import { KolIngestionClientService } from './kol-ingestion-client.service';
 import { ProcessKolMessageHandler } from '../handlers/process-kol-message.handler';
 
 function makeService(): KolIngestionClientService {
-  return new KolIngestionClientService(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { get: () => undefined } as any,
-    {
-      listKolSources: async () => [],
-      fetchRecentKolMessages: async () => [],
-    },
-  );
+  return new KolIngestionClientService({ get: () => undefined } as any, {
+    listKolSources: async () => [],
+    fetchRecentKolMessages: async () => [],
+  });
 }
 
 describe('KolIngestionClientService', () => {
@@ -25,7 +21,6 @@ describe('KolIngestionClientService', () => {
   it('catchUpAfterReconnect forwards only kol rows to the handler', async () => {
     const handled: unknown[] = [];
     const service = new KolIngestionClientService(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       { get: () => undefined } as any,
       {
         listKolSources: async () => [],
@@ -46,7 +41,7 @@ describe('KolIngestionClientService', () => {
           },
         ],
       },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       { handle: (frame: unknown) => (handled.push(frame), true) } as any,
     );
     await service.catchUpAfterReconnect();
@@ -81,13 +76,11 @@ describe('KolIngestionClientService', () => {
     try {
       const fetchRecentKolMessages = jest.fn(async () => []);
       const service = new KolIngestionClientService(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         { get: () => undefined } as any,
         {
           listKolSources: async () => [],
           fetchRecentKolMessages,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any,
+        },
       );
       expect(
         'pollTimer' in (service as unknown as Record<string, unknown>),
@@ -138,13 +131,11 @@ describe('KolIngestionClientService', () => {
     const fetchRecentKolMessages = jest.fn(async () => rows);
     const handler = new ProcessKolMessageHandler();
     const service = new KolIngestionClientService(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       { get: () => undefined } as any,
       {
         listKolSources: async () => [],
         fetchRecentKolMessages,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any,
+      },
       handler,
     );
     expect(

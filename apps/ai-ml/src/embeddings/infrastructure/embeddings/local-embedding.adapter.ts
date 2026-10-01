@@ -64,7 +64,7 @@ export class LocalEmbeddingAdapter extends EmbeddingPort {
       const embedding: Array<number> = [];
       const data = result.data;
       for (let i = 0; i < data.length; i++) {
-        embedding.push(data[i] as number);
+        embedding.push(data[i]);
       }
       if (embedding.length === 0) {
         throw new Error('empty embedding vector');
@@ -141,7 +141,7 @@ export class LocalEmbeddingAdapter extends EmbeddingPort {
     try {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const mod = await Function('return import("@xenova/transformers")')();
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       return { pipeline: mod.pipeline, env: mod.env };
     } catch (err) {
       throw new Error(

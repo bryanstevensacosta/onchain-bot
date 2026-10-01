@@ -50,7 +50,7 @@ describe('MessageMatchStatusUseCase', () => {
       findEnabled: jest.fn().mockResolvedValue([]),
       save: jest.fn(),
       delete: jest.fn(),
-    } as unknown as KeywordRepository;
+    };
     const blacklistRepo: BlacklistPhraseRepository = {
       findAll: jest.fn().mockResolvedValue([
         BlacklistPhrase.reconstitute({
@@ -68,7 +68,7 @@ describe('MessageMatchStatusUseCase', () => {
       findEnabled: jest.fn().mockResolvedValue([]),
       save: jest.fn(),
       delete: jest.fn(),
-    } as unknown as BlacklistPhraseRepository;
+    };
     const filters: ChannelFilterRepository = {
       findFiltersByChannelId: jest.fn().mockResolvedValue([]),
       findAll: jest.fn().mockResolvedValue([]),

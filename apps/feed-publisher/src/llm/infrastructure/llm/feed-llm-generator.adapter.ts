@@ -56,7 +56,9 @@ export class FeedLlmGenerator {
     model: string;
   }> {
     if (process.env.USE_MOCK_AI === 'true') {
-      this.logger.log('USE_MOCK_AI active — returning raw content, skipping LLM call');
+      this.logger.log(
+        'USE_MOCK_AI active — returning raw content, skipping LLM call',
+      );
       return {
         content: entry.rawContent,
         systemPrompt: null,
@@ -151,7 +153,10 @@ export class FeedLlmGenerator {
   }
 
   /** Exposed for tests + playground: same render path as generation. */
-  public renderPromptFor(templatePromptText: string, entry: PublisherQueueEntry): string {
+  public renderPromptFor(
+    templatePromptText: string,
+    entry: PublisherQueueEntry,
+  ): string {
     return renderPrompt(templatePromptText, entry);
   }
 
@@ -165,12 +170,18 @@ export class FeedLlmGenerator {
     try {
       const resolved = await this.promptClient.resolve(template.name);
       if (resolved === null) {
-        this.parity.recordPrompt('diverged', 'ai-ml missing template ' + template.name);
+        this.parity.recordPrompt(
+          'diverged',
+          'ai-ml missing template ' + template.name,
+        );
         return;
       }
       this.parity.recordPrompt(
         this.parity.comparePrompts(
-          { content: template.promptText, systemContent: template.systemPromptText },
+          {
+            content: template.promptText,
+            systemContent: template.systemPromptText,
+          },
           {
             content: resolved.template.content,
             systemContent: resolved.template.systemContent,
@@ -180,7 +191,9 @@ export class FeedLlmGenerator {
     } catch (err) {
       this.parity.recordPrompt(
         'skipped',
-        err instanceof Error ? err.message.slice(0, 200) : String(err).slice(0, 200),
+        err instanceof Error
+          ? err.message.slice(0, 200)
+          : String(err).slice(0, 200),
       );
     }
   }
@@ -195,7 +208,10 @@ export class FeedLlmGenerator {
     }
     try {
       const bytes = readFileSync(imagePath);
-      return { base64: bytes.toString('base64'), mimeType: inferMimeType(imagePath) };
+      return {
+        base64: bytes.toString('base64'),
+        mimeType: inferMimeType(imagePath),
+      };
     } catch (err) {
       this.logger.warn(
         `failed to read image at ${imagePath}: ${(err as Error).message}`,

@@ -33,7 +33,8 @@ export const CHAIN_LOGO_COINGECKO_IDS: Readonly<Record<string, string>> = {
 const TRUSTWALLET_LOGO_BASE =
   'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains';
 
-const COINGECKO_PLATFORM_BASE = 'https://api.coingecko.com/api/v3/asset_platforms';
+const COINGECKO_PLATFORM_BASE =
+  'https://api.coingecko.com/api/v3/asset_platforms';
 
 export function normalizeChainLogoId(id: string): string {
   return (id ?? '').trim().toLowerCase();

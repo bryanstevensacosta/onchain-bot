@@ -59,7 +59,7 @@ describe('GatewayHmacSigner (gateway todo 4, failing-first)', () => {
     );
     expect(headers['x-api-key']).toBe('kol-system');
     expect(headers['x-timestamp']).toMatch(/^\d+$/);
-    expect(headers['x-nonce']!.length).toBeGreaterThanOrEqual(8);
+    expect(headers['x-nonce'].length).toBeGreaterThanOrEqual(8);
     expect(headers['x-signature']).toMatch(/^[0-9a-f]{64}$/);
   });
 

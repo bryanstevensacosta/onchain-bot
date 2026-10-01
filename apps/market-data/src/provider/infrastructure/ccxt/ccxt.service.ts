@@ -2,11 +2,7 @@ import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { DataProviderPort } from '../../domain/data-provider.port';
 import type { ProviderRateLimitConfig } from '../../domain/provider-limiter-config';
 import { CCXT_CONFIG, type CcxtConfig } from './ccxt.config';
-import type {
-  CcxtLibLoader,
-  CcxtOhlcvCandle,
-  CcxtTicker,
-} from './ccxt.types';
+import type { CcxtLibLoader, CcxtOhlcvCandle, CcxtTicker } from './ccxt.types';
 
 const CEX_SYMBOL = /^[A-Z0-9]{2,20}\/[A-Z0-9]{2,20}$/i;
 
@@ -105,9 +101,12 @@ export class CcxtService extends DataProviderPort {
       return null;
     }
     try {
-      const raw = (await client.fetchOHLCV(symbol, timeframe, undefined, limit)) as Array<
-        Array<unknown>
-      >;
+      const raw = (await client.fetchOHLCV(
+        symbol,
+        timeframe,
+        undefined,
+        limit,
+      )) as Array<Array<unknown>>;
       if (!Array.isArray(raw)) {
         return null;
       }
@@ -133,9 +132,7 @@ export class CcxtService extends DataProviderPort {
     return dynamicRequire('ccxt');
   }
 
-  private clientFor(
-    exchangeId: string,
-  ): {
+  private clientFor(exchangeId: string): {
     fetchTicker(symbol: string): Promise<unknown>;
     fetchOHLCV(
       symbol: string,
@@ -164,9 +161,7 @@ export class CcxtService extends DataProviderPort {
       return null;
     }
     try {
-      return new (ExchangeClass as new (
-        opts: unknown,
-      ) => {
+      return new (ExchangeClass as new (opts: unknown) => {
         fetchTicker(symbol: string): Promise<unknown>;
         fetchOHLCV(
           symbol: string,

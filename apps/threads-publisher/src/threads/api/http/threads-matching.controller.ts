@@ -14,9 +14,9 @@ export class ThreadsMatchingController {
   }
 
   @Patch('config')
-  public patchConfig(
-    @Body() body: { enabled?: boolean },
-  ): { enabled: boolean } {
+  public patchConfig(@Body() body: { enabled?: boolean }): {
+    enabled: boolean;
+  } {
     if (typeof body.enabled === 'boolean') {
       this.config.enabled = body.enabled;
     }

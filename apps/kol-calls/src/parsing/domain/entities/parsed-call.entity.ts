@@ -31,13 +31,14 @@ export interface ParsedCallProps {
  * bus — the use case returns parsed calls directly (fix-1, direct call).
  */
 export class ParsedCall extends AggregateRoot<string> {
-  private constructor(id: string, private readonly props: ParsedCallProps) {
+  private constructor(
+    id: string,
+    private readonly props: ParsedCallProps,
+  ) {
     super(id);
   }
 
-  public static create(
-    input: ParsedCallProps & { id?: string },
-  ): ParsedCall {
+  public static create(input: ParsedCallProps & { id?: string }): ParsedCall {
     if (!input.kolId) {
       throw new DomainError(ErrorCode.VALIDATION, 'kolId must not be empty');
     }

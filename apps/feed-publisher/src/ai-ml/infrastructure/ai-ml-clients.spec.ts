@@ -31,7 +31,7 @@ describe('AiMlLlmClientAdapter', () => {
       const headers = (init as { headers: Record<string, string> }).headers;
       seen.push({ url: String(url), headers });
       return jsonResponse(200, { text: 'rewritten' });
-    }) as unknown as typeof fetch;
+    });
     const client = new AiMlLlmClientAdapter(
       configWith({ AI_ML_URL: 'http://127.0.0.1:4090/', AI_ML_API_KEY: 'k' }),
     );
@@ -43,9 +43,7 @@ describe('AiMlLlmClientAdapter', () => {
   });
 
   it('throws AiMlHttpError with status on provider failure (loud, never null)', async () => {
-    global.fetch = jest.fn(async () =>
-      jsonResponse(500, { error: 'boom' }),
-    ) as unknown as typeof fetch;
+    global.fetch = jest.fn(async () => jsonResponse(500, { error: 'boom' }));
     const client = new AiMlLlmClientAdapter(configWith({}));
     await expect(client.generateText({ prompt: 'hello' })).rejects.toThrow(
       AiMlHttpError,
@@ -58,7 +56,7 @@ describe('AiMlLlmClientAdapter', () => {
   it('throws on network failure and reports unavailable', async () => {
     global.fetch = jest.fn(async () => {
       throw new Error('ECONNREFUSED');
-    }) as unknown as typeof fetch;
+    });
     const client = new AiMlLlmClientAdapter(configWith({}));
     await expect(client.isAvailable()).resolves.toBe(false);
     await expect(client.generateText({ prompt: 'hello' })).rejects.toThrow(
@@ -78,7 +76,7 @@ describe('AiMlEmbeddingClientAdapter', () => {
   it('posts embed and returns the vector', async () => {
     global.fetch = jest.fn(async () =>
       jsonResponse(200, { vector: [0.5, 0.5], model: 'mock' }),
-    ) as unknown as typeof fetch;
+    );
     const client = new AiMlEmbeddingClientAdapter(configWith({}));
     await expect(client.embed('hello')).resolves.toEqual([0.5, 0.5]);
     expect(client.isAvailable()).toBe(true);
@@ -87,7 +85,7 @@ describe('AiMlEmbeddingClientAdapter', () => {
   it('is unavailable only when explicitly blanked, throws loud on 503', async () => {
     global.fetch = jest.fn(async () =>
       jsonResponse(503, { error: 'no provider' }),
-    ) as unknown as typeof fetch;
+    );
     const client = new AiMlEmbeddingClientAdapter(configWith({}));
     await expect(client.embed('hello')).rejects.toThrow(AiMlHttpError);
     const blanked = new AiMlEmbeddingClientAdapter(
@@ -117,7 +115,7 @@ describe('AiMlPromptClient', () => {
         },
         source: 'ai-ml',
       }),
-    ) as unknown as typeof fetch;
+    );
     const client = new AiMlPromptClient(configWith({}));
     const resolved = await client.resolve('default-feed');
     expect(resolved?.template.content).toBe('Rewrite {{original}}');
@@ -127,12 +125,10 @@ describe('AiMlPromptClient', () => {
   it('returns null on 404 (unknown name) but throws on 500', async () => {
     global.fetch = jest.fn(async () =>
       jsonResponse(404, { error: 'not found' }),
-    ) as unknown as typeof fetch;
+    );
     const client = new AiMlPromptClient(configWith({}));
     await expect(client.resolve('nope')).resolves.toBeNull();
-    global.fetch = jest.fn(async () =>
-      jsonResponse(500, { error: 'boom' }),
-    ) as unknown as typeof fetch;
+    global.fetch = jest.fn(async () => jsonResponse(500, { error: 'boom' }));
     await expect(client.resolve('nope')).rejects.toThrow(AiMlHttpError);
   });
 });

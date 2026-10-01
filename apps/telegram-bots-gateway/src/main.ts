@@ -16,7 +16,6 @@ async function bootstrap() {
   try {
     config = buildAppConfig();
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error(`[bots-gateway] ${(err as Error).message}`);
     process.exit(1);
   }
@@ -35,10 +34,10 @@ async function bootstrap() {
   app.useGlobalFilters(new DomainExceptionFilter());
 
   await app.listen(config.port);
-  // eslint-disable-next-line no-console
+
   console.log(
     `telegram-bots-gateway listening on :${config.port} (health: /api/health)`,
   );
 }
 
-bootstrap();
+void bootstrap();

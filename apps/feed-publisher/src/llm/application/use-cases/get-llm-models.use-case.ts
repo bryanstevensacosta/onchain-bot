@@ -22,7 +22,10 @@ export class GetLlmModelsUseCase {
 
   public async execute(): Promise<ReadonlyArray<LlmModelView>> {
     const baseUrl = this.configService.get<string>('LLM_GATEWAY_BASE_URL', '');
-    const gatewayKey = this.configService.get<string>('LLM_GATEWAY_API_KEY', '');
+    const gatewayKey = this.configService.get<string>(
+      'LLM_GATEWAY_API_KEY',
+      '',
+    );
     const openaiKey = this.configService.get<string>('OPENAI_API_KEY', '');
     const apiKey = gatewayKey || openaiKey;
     if (!baseUrl) {
@@ -30,7 +33,10 @@ export class GetLlmModelsUseCase {
     }
     const url = `${baseUrl.replace(/\/$/, '')}/v1/models`;
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), GetLlmModelsUseCase.REQUEST_TIMEOUT_MS);
+    const timer = setTimeout(
+      () => controller.abort(),
+      GetLlmModelsUseCase.REQUEST_TIMEOUT_MS,
+    );
     let response: Response;
     try {
       response = await fetch(url, {
@@ -59,7 +65,8 @@ export class GetLlmModelsUseCase {
       )
       .map((entry) => {
         const id = typeof entry.id === 'string' ? entry.id : String(entry.id);
-        const ownedBy = typeof entry.owned_by === 'string' ? entry.owned_by : undefined;
+        const ownedBy =
+          typeof entry.owned_by === 'string' ? entry.owned_by : undefined;
         return ownedBy ? { id, ownedBy } : { id };
       });
   }

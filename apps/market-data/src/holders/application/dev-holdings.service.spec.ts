@@ -25,8 +25,20 @@ describe('DevHoldingsService (holders + dev-wallet)', () => {
       getHolderProfile: async () => ({ address: MINT, tags: [{ tag: 'dev' }] }),
       getDevPositions: async () => ({
         items: [
-          { wallet: 'Dev111', holdAmount: 1000, percentOfSupply: 8.5, pnlUsd: 120, tag: 'dev' },
-          { wallet: 'Dev222', holdAmount: 500, percentOfSupply: 4.2, pnlUsd: -10, tag: 'dev' },
+          {
+            wallet: 'Dev111',
+            holdAmount: 1000,
+            percentOfSupply: 8.5,
+            pnlUsd: 120,
+            tag: 'dev',
+          },
+          {
+            wallet: 'Dev222',
+            holdAmount: 500,
+            percentOfSupply: 4.2,
+            pnlUsd: -10,
+            tag: 'dev',
+          },
         ],
       }),
     });
@@ -42,7 +54,10 @@ describe('DevHoldingsService (holders + dev-wallet)', () => {
   it('birdeye empty -> helius first-tx feePayer as probable dev', async () => {
     const birdeye = birdeyeStub();
     const helius = heliusStub({
-      getFirstTxFeePayer: async () => ({ wallet: 'Payer999', signature: 'sig1' }),
+      getFirstTxFeePayer: async () => ({
+        wallet: 'Payer999',
+        signature: 'sig1',
+      }),
     });
     const svc = new DevHoldingsService(birdeye as never, helius as never);
     const res = await svc.resolve('solana', MINT);
@@ -53,7 +68,10 @@ describe('DevHoldingsService (holders + dev-wallet)', () => {
   });
 
   it('adversarial: no keys -> explicit nulls, never crash', async () => {
-    const svc = new DevHoldingsService(birdeyeStub() as never, heliusStub() as never);
+    const svc = new DevHoldingsService(
+      birdeyeStub() as never,
+      heliusStub() as never,
+    );
     const res = await svc.resolve('solana', MINT);
     expect(res.devWallets).toBeNull();
     expect(res.devPctSupply).toBeNull();
@@ -83,7 +101,10 @@ describe('DevHoldingsService (holders + dev-wallet)', () => {
   });
 
   it('non-solana chain -> explicit nulls', async () => {
-    const svc = new DevHoldingsService(birdeyeStub() as never, heliusStub() as never);
+    const svc = new DevHoldingsService(
+      birdeyeStub() as never,
+      heliusStub() as never,
+    );
     const res = await svc.resolve('ethereum', '0xabc');
     expect(res.devWallets).toBeNull();
     expect(res.source).toBe('null');

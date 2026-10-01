@@ -1,5 +1,9 @@
 import { ExchangeWsPort } from 'stream/domain/exchange-ws.port';
-import type { StreamErrorInfo, StreamEvent, StreamSubscription } from 'stream/domain/stream-types';
+import type {
+  StreamErrorInfo,
+  StreamEvent,
+  StreamSubscription,
+} from 'stream/domain/stream-types';
 
 /**
  * In-memory exchange adapter (Tramo 3, todo 11, P49 — stream infrastructure).

@@ -1,5 +1,8 @@
 import { ConfigService } from '@nestjs/config';
-import { ApiKeyService, MISSING_ENCRYPTION_KEY_MESSAGE } from './api-key.service';
+import {
+  ApiKeyService,
+  MISSING_ENCRYPTION_KEY_MESSAGE,
+} from './api-key.service';
 
 const withPepper = (): ApiKeyService =>
   new ApiKeyService(new ConfigService({ ENCRYPTION_KEY: 'test-pepper' }));
@@ -7,9 +10,9 @@ const withPepper = (): ApiKeyService =>
 describe('ApiKeyService', () => {
   it('fails LOUD without ENCRYPTION_KEY (adversarial: no silent keyless store)', async () => {
     const broken = new ApiKeyService(new ConfigService({}));
-    await expect(broken.create({ name: 'k', scopes: ['read'] })).rejects.toThrow(
-      MISSING_ENCRYPTION_KEY_MESSAGE,
-    );
+    await expect(
+      broken.create({ name: 'k', scopes: ['read'] }),
+    ).rejects.toThrow(MISSING_ENCRYPTION_KEY_MESSAGE);
     await expect(broken.verify('aiml_anything')).rejects.toThrow(
       MISSING_ENCRYPTION_KEY_MESSAGE,
     );

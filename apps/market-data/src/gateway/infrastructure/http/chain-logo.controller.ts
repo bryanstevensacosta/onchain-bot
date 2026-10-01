@@ -37,7 +37,9 @@ export class ChainLogoController {
 
   @RequireScope('admin')
   @Post(':id/logo/refresh')
-  public async refreshLogo(@Param('id') id: string): Promise<{ id: string; source: string }> {
+  public async refreshLogo(
+    @Param('id') id: string,
+  ): Promise<{ id: string; source: string }> {
     const result = await this.logos.refreshLogo(id);
     return { id: id.trim().toLowerCase(), source: result.source };
   }

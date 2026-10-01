@@ -66,7 +66,9 @@ export class AssetsController {
       if (symbol !== undefined && symbol !== '') {
         return await this.resolver.resolveBySymbol(chain, symbol);
       }
-      throw new BadRequestException('One of contract, symbol, cmcId or geckoId is required');
+      throw new BadRequestException(
+        'One of contract, symbol, cmcId or geckoId is required',
+      );
     } catch (error: unknown) {
       AssetsController.toHttp(error);
     }
@@ -74,7 +76,9 @@ export class AssetsController {
 
   @RequireScope('read')
   @Get('cmc/:cmcId')
-  public async resolveByCmc(@Param('cmcId') cmcId: string): Promise<AssetRecord> {
+  public async resolveByCmc(
+    @Param('cmcId') cmcId: string,
+  ): Promise<AssetRecord> {
     try {
       return await this.resolver.resolveByCmcId(Number(cmcId));
     } catch (error: unknown) {
@@ -84,7 +88,9 @@ export class AssetsController {
 
   @RequireScope('read')
   @Get('gecko/:geckoId')
-  public async resolveByGecko(@Param('geckoId') geckoId: string): Promise<AssetRecord> {
+  public async resolveByGecko(
+    @Param('geckoId') geckoId: string,
+  ): Promise<AssetRecord> {
     try {
       return await this.resolver.resolveByGeckoId(geckoId);
     } catch (error: unknown) {
@@ -94,7 +100,9 @@ export class AssetsController {
 
   @RequireScope('snapshot')
   @Post('upsert')
-  public async upsert(@Body() body: Record<string, unknown>): Promise<AssetRecord> {
+  public async upsert(
+    @Body() body: Record<string, unknown>,
+  ): Promise<AssetRecord> {
     const chain = String(body.chain ?? '');
     const contract = String(body.contract ?? '');
     if (chain.trim() === '' || contract.trim() === '') {
@@ -106,14 +114,19 @@ export class AssetsController {
       contract,
       symbol: body.symbol === undefined ? null : String(body.symbol),
       name: body.name === undefined ? null : String(body.name),
-      cmcId: cmcRaw === undefined || cmcRaw === null || cmcRaw === '' ? null : Number(cmcRaw),
+      cmcId:
+        cmcRaw === undefined || cmcRaw === null || cmcRaw === ''
+          ? null
+          : Number(cmcRaw),
       geckoId: body.geckoId === undefined ? null : String(body.geckoId),
       providerIds:
         body.providerIds === undefined
           ? {}
           : (body.providerIds as Record<string, string>),
       logoUrl: body.logoUrl === undefined ? null : String(body.logoUrl),
-      categories: Array.isArray(body.categories) ? (body.categories as Array<string>) : [],
+      categories: Array.isArray(body.categories)
+        ? (body.categories as Array<string>)
+        : [],
     });
   }
 }

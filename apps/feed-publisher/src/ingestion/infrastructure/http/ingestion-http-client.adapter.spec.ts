@@ -30,10 +30,9 @@ function mockFetchCaptureHeaders(): {
 describe('IngestionHttpClientAdapter', () => {
   it('lists sources through ?type=crypto-news', async () => {
     const seen = mockFetchOnce({ sources: [] });
-    const adapter = new IngestionHttpClientAdapter(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { get: () => undefined } as any,
-    );
+    const adapter = new IngestionHttpClientAdapter({
+      get: () => undefined,
+    } as any);
     await adapter.listFeedSources();
     expect(seen).toHaveLength(1);
     expect(seen[0]).toContain('/api/feed/sources?type=crypto-news');
@@ -41,10 +40,9 @@ describe('IngestionHttpClientAdapter', () => {
 
   it('fetches recent messages through ?type=crypto-news', async () => {
     const seen = mockFetchOnce({ messages: [] });
-    const adapter = new IngestionHttpClientAdapter(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { get: () => 'http://localhost:3031/' } as any,
-    );
+    const adapter = new IngestionHttpClientAdapter({
+      get: () => 'http://localhost:3031/',
+    } as any);
     await adapter.fetchRecentFeedMessages(10);
     expect(seen).toHaveLength(1);
     expect(seen[0]).toContain('/api/feed/messages');
@@ -53,10 +51,10 @@ describe('IngestionHttpClientAdapter', () => {
 
   it('sends x-api-key from day one (P30)', async () => {
     const { headers } = mockFetchCaptureHeaders();
-    const adapter = new IngestionHttpClientAdapter(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { get: (key: string) => (key === 'INGESTION_TELEGRAM_API_KEY' ? 's3cret' : undefined) } as any,
-    );
+    const adapter = new IngestionHttpClientAdapter({
+      get: (key: string) =>
+        key === 'INGESTION_TELEGRAM_API_KEY' ? 's3cret' : undefined,
+    } as any);
     await adapter.listFeedSources();
     expect(headers).toHaveLength(1);
     expect(headers[0]['x-api-key']).toBe('s3cret');
@@ -64,23 +62,19 @@ describe('IngestionHttpClientAdapter', () => {
 
   it('degrades to [] on transport errors', async () => {
     const seen = mockFetchOnce(null, false);
-    const adapter = new IngestionHttpClientAdapter(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { get: () => undefined } as any,
-    );
+    const adapter = new IngestionHttpClientAdapter({
+      get: () => undefined,
+    } as any);
     await expect(adapter.listFeedSources()).resolves.toEqual([]);
-    await expect(
-      adapter.fetchRecentFeedMessages(10),
-    ).resolves.toEqual([]);
+    await expect(adapter.fetchRecentFeedMessages(10)).resolves.toEqual([]);
     expect(seen).toHaveLength(2);
   });
 
   it('trims a trailing slash from the base URL', async () => {
     const seen = mockFetchOnce({ sources: [] });
-    const adapter = new IngestionHttpClientAdapter(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { get: () => 'http://localhost:3031/' } as any,
-    );
+    const adapter = new IngestionHttpClientAdapter({
+      get: () => 'http://localhost:3031/',
+    } as any);
     await adapter.listFeedSources();
     expect(seen[0]).not.toContain(':3031//api');
   });

@@ -23,13 +23,13 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
-  const port = Number(process.env.KOL_CALLS_PORT ?? process.env.KOL_SYSTEM_PORT ?? 3050);
+  const port = Number(
+    process.env.KOL_CALLS_PORT ?? process.env.KOL_SYSTEM_PORT ?? 3050,
+  );
   await app.listen(port);
 }
 
-// eslint-disable-next-line no-console
 bootstrap().catch((err) => {
-  // eslint-disable-next-line no-console
   console.error('kol-calls bootstrap failed', err);
   process.exit(1);
 });

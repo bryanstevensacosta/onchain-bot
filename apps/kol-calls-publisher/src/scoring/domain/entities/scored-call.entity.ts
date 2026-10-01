@@ -56,7 +56,10 @@ export class ScoredCall extends AggregateRoot<string> {
 
   public static create(input: ScoredCallProps): ScoredCall {
     if (!input.mentionId) {
-      throw new DomainError(ErrorCode.VALIDATION, 'mentionId must not be empty');
+      throw new DomainError(
+        ErrorCode.VALIDATION,
+        'mentionId must not be empty',
+      );
     }
     if (!input.address) {
       throw new DomainError(ErrorCode.VALIDATION, 'address cannot be empty', {

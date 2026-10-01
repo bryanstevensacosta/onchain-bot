@@ -1,4 +1,11 @@
-import { Controller, Get, NotFoundException, Param, UseGuards, UseInterceptors } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
 import { CacheInterceptor } from 'cache/infrastructure/cache.interceptor';
 import { CacheTTL } from 'cache/infrastructure/cache-ttl.decorator';
 import { ProviderRegistryService } from 'provider/application/provider-registry.service';
@@ -19,7 +26,7 @@ export class ProvidersController {
   @Get()
   @CacheTTL(15)
   public list(): unknown {
-    return this.registry.listStatus() as unknown;
+    return this.registry.listStatus();
   }
 
   @Get(':name')
@@ -28,6 +35,6 @@ export class ProvidersController {
     if (status === null) {
       throw new NotFoundException(`Unknown provider: ${name}`);
     }
-    return status as unknown;
+    return status;
   }
 }

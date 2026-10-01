@@ -156,9 +156,7 @@ export class GatewaySendClient extends BotsGatewaySenderPort {
       kind: 'media_group',
       chat_id: input.chatId,
       media: [...media],
-      ...(input.clientMsgId
-        ? { client_msg_id: input.clientMsgId }
-        : {}),
+      ...(input.clientMsgId ? { client_msg_id: input.clientMsgId } : {}),
     });
   }
 

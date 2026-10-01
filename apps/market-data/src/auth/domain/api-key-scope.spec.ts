@@ -1,4 +1,9 @@
-import { hashApiKey, generateApiKey, keyPrefix, satisfiesScope } from './api-key-scope';
+import {
+  hashApiKey,
+  generateApiKey,
+  keyPrefix,
+  satisfiesScope,
+} from './api-key-scope';
 
 describe('api-key-scope (P46)', () => {
   it('hashes without ever embedding the plaintext', () => {

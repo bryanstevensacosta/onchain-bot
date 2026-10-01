@@ -42,7 +42,9 @@ describe('gateway chain logo', () => {
   });
 
   it('serves PNG logo bytes with a long public cache header', async () => {
-    const res = await request(app.getHttpServer()).get('/api/v1/chains/solana/logo');
+    const res = await request(app.getHttpServer()).get(
+      '/api/v1/chains/solana/logo',
+    );
     expect(res.status).toBe(200);
     expect(res.headers['content-type']).toContain('image/png');
     expect(res.headers['cache-control']).toContain('max-age=86400');
@@ -50,14 +52,18 @@ describe('gateway chain logo', () => {
   });
 
   it('serves the placeholder for an unknown chain (200, never 404)', async () => {
-    const res = await request(app.getHttpServer()).get('/api/v1/chains/nope/logo');
+    const res = await request(app.getHttpServer()).get(
+      '/api/v1/chains/nope/logo',
+    );
     expect(res.status).toBe(200);
     expect(res.headers['content-type']).toContain('image/png');
     expect(res.body.length).toBeGreaterThan(0);
   });
 
   it('exposes the explicit refresh endpoint', async () => {
-    const res = await request(app.getHttpServer()).post('/api/v1/chains/solana/logo/refresh');
+    const res = await request(app.getHttpServer()).post(
+      '/api/v1/chains/solana/logo/refresh',
+    );
     expect(res.status).toBe(201);
     expect(res.body.id).toBe('solana');
     expect(typeof res.body.source).toBe('string');

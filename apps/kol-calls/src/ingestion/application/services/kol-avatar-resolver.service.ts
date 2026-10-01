@@ -23,7 +23,7 @@ export class KolAvatarResolverService {
   ) {}
 
   public async resolveOne(caller: string): Promise<string> {
-    return (await this.resolveMany([caller]))[caller] as string;
+    return (await this.resolveMany([caller]))[caller];
   }
 
   public async resolveMany(

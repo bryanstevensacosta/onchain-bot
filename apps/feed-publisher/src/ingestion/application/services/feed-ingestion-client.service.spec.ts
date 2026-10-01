@@ -1,14 +1,10 @@
 import { FeedIngestionClient } from './feed-ingestion-client.service';
 
 function makeService(): FeedIngestionClient {
-  return new FeedIngestionClient(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { get: () => undefined } as any,
-    {
-      listFeedSources: async () => [],
-      fetchRecentFeedMessages: async () => [],
-    },
-  );
+  return new FeedIngestionClient({ get: () => undefined } as any, {
+    listFeedSources: async () => [],
+    fetchRecentFeedMessages: async () => [],
+  });
 }
 
 describe('FeedIngestionClient', () => {
@@ -59,14 +55,12 @@ describe('FeedIngestionClient', () => {
     ];
     const handled: unknown[] = [];
     const service = new FeedIngestionClient(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       { get: () => undefined } as any,
       {
         listFeedSources: async () => [],
         fetchRecentFeedMessages: async () => rows,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      },
+
       { handle: (frame: unknown) => (handled.push(frame), true) } as any,
     );
     // Seed the cursor past message 5, then catch up: only 6 is forwarded.
@@ -96,15 +90,10 @@ describe('FeedIngestionClient', () => {
       .mockRejectedValue(new Error('no net'));
     try {
       const fetchRecentFeedMessages = jest.fn(async () => []);
-      const service = new FeedIngestionClient(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        { get: () => undefined } as any,
-        {
-          listFeedSources: async () => [],
-          fetchRecentFeedMessages,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any,
-      );
+      const service = new FeedIngestionClient({ get: () => undefined } as any, {
+        listFeedSources: async () => [],
+        fetchRecentFeedMessages,
+      });
       expect(
         'pollTimer' in (service as unknown as Record<string, unknown>),
       ).toBe(false);
@@ -116,9 +105,7 @@ describe('FeedIngestionClient', () => {
       expect(callsAfterStart).toBeLessThanOrEqual(1);
       jest.advanceTimersByTime(120_000);
       await Promise.resolve();
-      expect(fetchRecentFeedMessages.mock.calls.length).toBe(
-        callsAfterStart,
-      );
+      expect(fetchRecentFeedMessages.mock.calls.length).toBe(callsAfterStart);
       service.stop();
     } finally {
       (global as { fetch?: unknown }).fetch = realFetch;

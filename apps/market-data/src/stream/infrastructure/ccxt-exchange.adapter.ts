@@ -1,5 +1,9 @@
 import { ExchangeWsPort } from 'stream/domain/exchange-ws.port';
-import type { StreamErrorInfo, StreamEvent, StreamSubscription } from 'stream/domain/stream-types';
+import type {
+  StreamErrorInfo,
+  StreamEvent,
+  StreamSubscription,
+} from 'stream/domain/stream-types';
 
 /**
  * ccxt.pro exchange adapter (Tramo 3, todo 11, P49 — stream infrastructure).
@@ -47,7 +51,9 @@ export class CcxtExchangeAdapter extends ExchangeWsPort {
       return;
     }
     const ccxt = CcxtExchangeAdapter.loadCcxtPro();
-    const ExchangeClass = (ccxt as Record<string, new (opts: unknown) => unknown>)[this.exchange];
+    const ExchangeClass = (
+      ccxt as Record<string, new (opts: unknown) => unknown>
+    )[this.exchange];
     if (typeof ExchangeClass !== 'function') {
       throw new Error(`ccxt.pro has no exchange named '${this.exchange}'`);
     }
@@ -55,7 +61,9 @@ export class CcxtExchangeAdapter extends ExchangeWsPort {
     this.stopped = false;
     this.isConnected = true;
     this.watchLoop = this.runWatchLoop().catch((err: unknown) => {
-      this.emitError(err instanceof Error ? err.message : 'ccxt watch loop failed');
+      this.emitError(
+        err instanceof Error ? err.message : 'ccxt watch loop failed',
+      );
     });
   }
 
@@ -98,7 +106,9 @@ export class CcxtExchangeAdapter extends ExchangeWsPort {
 
   private static loadCcxtPro(): unknown {
     try {
-      const dynamicRequire = new Function('id', 'return require(id)') as (id: string) => unknown;
+      const dynamicRequire = new Function('id', 'return require(id)') as (
+        id: string,
+      ) => unknown;
       return dynamicRequire('ccxt/pro');
     } catch {
       throw new Error(
@@ -110,15 +120,21 @@ export class CcxtExchangeAdapter extends ExchangeWsPort {
 
   private async runWatchLoop(): Promise<void> {
     while (!this.stopped) {
-      const tickers = [...this.watched.values()].filter((sub) => sub.kind === 'ticker');
+      const tickers = [...this.watched.values()].filter(
+        (sub) => sub.kind === 'ticker',
+      );
       if (tickers.length === 0 || this.client === null) {
         await new Promise((resolve) => setTimeout(resolve, 250));
         continue;
       }
       const client = this.client as {
-        watchTickers(symbols: Array<string>): Promise<Record<string, { last?: number }>>;
+        watchTickers(
+          symbols: Array<string>,
+        ): Promise<Record<string, { last?: number }>>;
       };
-      const symbols = [...new Set(tickers.map((sub) => sub.symbol.toUpperCase()))];
+      const symbols = [
+        ...new Set(tickers.map((sub) => sub.symbol.toUpperCase())),
+      ];
       // Single multiplexed call per loop: ONE connection fans out to N symbols.
       const snapshot = await client.watchTickers(symbols);
       const now = new Date().toISOString();
@@ -142,7 +158,11 @@ export class CcxtExchangeAdapter extends ExchangeWsPort {
   }
 
   private emitError(message: string): void {
-    const info: StreamErrorInfo = { code: 'EXCHANGE_DOWN', message, exchange: this.exchange };
+    const info: StreamErrorInfo = {
+      code: 'EXCHANGE_DOWN',
+      message,
+      exchange: this.exchange,
+    };
     for (const listener of this.errorListeners) {
       listener(info);
     }

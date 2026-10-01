@@ -27,9 +27,12 @@ export class ThreadsLlmConfigController {
       body.llmEnabled !== undefined &&
       process.env.NODE_ENV === 'production'
     ) {
-      throw Object.assign(new Error('llmEnabled cannot be changed in production'), {
-        status: 400,
-      });
+      throw Object.assign(
+        new Error('llmEnabled cannot be changed in production'),
+        {
+          status: 400,
+        },
+      );
     }
     this.config.patch({
       llmEnabled: body.llmEnabled ?? this.config.llmEnabled,

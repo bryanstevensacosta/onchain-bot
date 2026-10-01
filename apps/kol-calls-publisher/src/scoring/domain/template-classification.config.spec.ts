@@ -39,7 +39,10 @@ describe('TemplateClassificationConfig (P6, failing-first, todo 9)', () => {
     expect(config.matchesGem({ score: 82, enrichmentText: text })).toBe(true);
     expect(config.matchesGem({ score: 65, enrichmentText: text })).toBe(false);
     expect(
-      config.matchesGem({ score: 82, enrichmentText: 'plain update, no ticker' }),
+      config.matchesGem({
+        score: 82,
+        enrichmentText: 'plain update, no ticker',
+      }),
     ).toBe(false);
   });
 

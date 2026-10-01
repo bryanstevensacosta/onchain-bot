@@ -1,8 +1,20 @@
-import { BadRequestException, Body, Controller, Get, Patch } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Patch,
+} from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { LlmConfigRepository } from '@/llm/domain/ports/llm-config.repository';
-import { GetPipelineFlagsUseCase, type PipelineFlagsView } from '@/llm/application/use-cases/get-pipeline-flags.use-case';
-import { toConfigView, type LlmConfigView } from '@/llm/application/mappers/llm.mapper';
+import {
+  GetPipelineFlagsUseCase,
+  type PipelineFlagsView,
+} from '@/llm/application/use-cases/get-pipeline-flags.use-case';
+import {
+  toConfigView,
+  type LlmConfigView,
+} from '@/llm/application/mappers/llm.mapper';
 import { UpdateLlmConfigDto } from '../input/llm.input';
 
 /**
@@ -30,7 +42,9 @@ export class LlmConfigController {
   }
 
   @Get('flags')
-  @ApiOperation({ summary: 'Composed 3-flag view (matching + llm + publishing)' })
+  @ApiOperation({
+    summary: 'Composed 3-flag view (matching + llm + publishing)',
+  })
   @ApiResponse({ status: 200, description: 'Pipeline flags with mode' })
   public async getFlags(): Promise<PipelineFlagsView> {
     return this.pipelineFlags.execute();
@@ -38,11 +52,17 @@ export class LlmConfigController {
 
   @Patch('config')
   @ApiOperation({
-    summary: 'Partially update the LLM/publisher config (llmEnabled locked in production)',
+    summary:
+      'Partially update the LLM/publisher config (llmEnabled locked in production)',
   })
   @ApiResponse({ status: 200, description: 'LlmConfig updated' })
-  @ApiResponse({ status: 400, description: 'Validation error or guarded flag combination' })
-  public async updateConfig(@Body() dto: UpdateLlmConfigDto): Promise<LlmConfigView> {
+  @ApiResponse({
+    status: 400,
+    description: 'Validation error or guarded flag combination',
+  })
+  public async updateConfig(
+    @Body() dto: UpdateLlmConfigDto,
+  ): Promise<LlmConfigView> {
     if (dto.matchingEnabled !== undefined) {
       throw new BadRequestException({
         error:
@@ -52,17 +72,21 @@ export class LlmConfigController {
     }
     if (dto.llmEnabled !== undefined && process.env.NODE_ENV === 'production') {
       throw new BadRequestException({
-        error: 'llmEnabled cannot be changed in production (always enabled for quality)',
+        error:
+          'llmEnabled cannot be changed in production (always enabled for quality)',
         hint: 'Use publishingEnabled to control pipeline (matching is owned by PATCH feed-publisher/matching/config)',
       });
     }
     if (dto.llmEnabled === true) {
       const current = await this.llmConfigRepo.load();
       const publishing =
-        dto.publishingEnabled !== undefined ? dto.publishingEnabled : current.publishingEnabled;
+        dto.publishingEnabled !== undefined
+          ? dto.publishingEnabled
+          : current.publishingEnabled;
       if (!publishing) {
         throw new BadRequestException({
-          error: 'llmEnabled requires publishingEnabled (LLM only runs when publishing is active)',
+          error:
+            'llmEnabled requires publishingEnabled (LLM only runs when publishing is active)',
           hint: 'Enable publishing first via { publishingEnabled: true }',
         });
       }

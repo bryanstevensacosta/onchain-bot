@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { LlmPort, type LlmGenerateRequest } from '@/llm/application/ports/llm.port';
+import {
+  LlmPort,
+  type LlmGenerateRequest,
+} from '@/llm/application/ports/llm.port';
 import {
   aiMlGet,
   aiMlPost,

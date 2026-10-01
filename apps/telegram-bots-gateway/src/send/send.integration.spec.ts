@@ -68,8 +68,9 @@ describe('send gateway HTTP integration (todo 2, red)', () => {
       [ADMIN_ID]: { secret: ADMIN_SECRET, scopes: ['admin'] },
     });
     hmac = new HmacService();
-    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockImplementation(
-      async (url: unknown) => {
+    const fetchSpy = jest
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(async (url: unknown) => {
         const u = String(url);
         if (u.includes('/sendMessage')) {
           return {
@@ -93,8 +94,7 @@ describe('send gateway HTTP integration (todo 2, red)', () => {
           status: 200,
           json: async () => ({ ok: true, result: true }),
         } as unknown as Response;
-      },
-    );
+      });
     (globalThis as { __fetchSpy?: unknown }).__fetchSpy = fetchSpy;
 
     const moduleRef = await Test.createTestingModule({
@@ -182,7 +182,11 @@ describe('send gateway HTTP integration (todo 2, red)', () => {
     const old = String(Math.floor(Date.now() / 1000) - 3600);
     await request(app.getHttpServer())
       .post(path)
-      .set(authHeaders(CLIENT_SECRET, CLIENT_ID, 'POST', path, raw, { timestamp: old }))
+      .set(
+        authHeaders(CLIENT_SECRET, CLIENT_ID, 'POST', path, raw, {
+          timestamp: old,
+        }),
+      )
       .set('Content-Type', 'application/json')
       .send(raw)
       .expect(401);

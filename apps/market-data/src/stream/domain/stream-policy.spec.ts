@@ -34,7 +34,9 @@ describe('stream-policy', () => {
   });
 
   it('shares the rate-limit key with the REST guard (shared budget)', () => {
-    expect(buildStreamRateKey('1.2.3.4')).toBe(buildGatewayClientKey('1.2.3.4'));
+    expect(buildStreamRateKey('1.2.3.4')).toBe(
+      buildGatewayClientKey('1.2.3.4'),
+    );
   });
 
   it('backs off exponentially with a 30s ceiling', () => {
@@ -44,7 +46,10 @@ describe('stream-policy', () => {
   });
 
   it('parses the exchange allowlist from env (lowercased, trimmed)', () => {
-    expect(parseExchangeAllowlist('Binance, KRAKEN')).toEqual(['binance', 'kraken']);
+    expect(parseExchangeAllowlist('Binance, KRAKEN')).toEqual([
+      'binance',
+      'kraken',
+    ]);
     expect(parseExchangeAllowlist('')).toEqual(STREAM_DEFAULT_EXCHANGES);
     expect(parseExchangeAllowlist(undefined)).toEqual(STREAM_DEFAULT_EXCHANGES);
   });

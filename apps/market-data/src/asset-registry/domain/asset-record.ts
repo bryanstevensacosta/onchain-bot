@@ -53,9 +53,17 @@ export class AssetNotFoundError extends Error {
 
 export class AmbiguousAssetError extends Error {
   public readonly candidates: ReadonlyArray<string>;
-  public constructor(symbol: string, chain: string, candidates: ReadonlyArray<string>) {
+  public constructor(
+    symbol: string,
+    chain: string,
+    candidates: ReadonlyArray<string>,
+  ) {
     super(
-      'Ambiguous symbol "' + symbol + '" on chain "' + chain + '": ' +
+      'Ambiguous symbol "' +
+        symbol +
+        '" on chain "' +
+        chain +
+        '": ' +
         candidates.length +
         ' candidates — resolve by contract instead',
     );

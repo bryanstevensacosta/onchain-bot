@@ -8,7 +8,7 @@ function row(key: string): Omit<SnapshotHistoryRow, 'createdAt'> {
     key,
     chain: 'solana',
     address: 'So11111111111111111111111111111111111111112',
-    kind: 'token' as AddressKind,
+    kind: 'token',
     status: 'ready',
     quote: emptySnapshotQuote(),
     sources: ['dexscreener'],
@@ -69,9 +69,7 @@ describe('SnapshotHistoryRepository (persistent ring + janitor primitive)', () =
         }),
       }),
     };
-    const history = new SnapshotHistoryRepository(
-      store as unknown as never,
-    );
+    const history = new SnapshotHistoryRepository(store as unknown as never);
     const created = await history.save(row('solana:abc'));
     expect(created.key).toBe('solana:abc');
     expect(typeof created.createdAt).toBe('string');

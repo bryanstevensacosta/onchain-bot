@@ -48,7 +48,7 @@ const withEnv = async (
     if (vars[key] === undefined) {
       delete process.env[key];
     } else {
-      process.env[key] = vars[key] as string;
+      process.env[key] = vars[key];
     }
   }
   try {
@@ -58,7 +58,7 @@ const withEnv = async (
       if (saved[key] === undefined) {
         delete process.env[key];
       } else {
-        process.env[key] = saved[key] as string;
+        process.env[key] = saved[key];
       }
     }
   }

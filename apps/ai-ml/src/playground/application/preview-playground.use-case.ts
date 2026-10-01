@@ -82,7 +82,7 @@ export class PreviewPlaygroundUseCase {
       });
     }
     if (hasName) {
-      return this.previewFromCatalog(name as string, input);
+      return this.previewFromCatalog(name, input);
     }
     return this.previewFromDraft(input.draft as PlaygroundDraftInput, input);
   }

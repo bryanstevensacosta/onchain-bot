@@ -9,7 +9,7 @@ describe('SchedulingConfig', () => {
         SCHEDULING_TELEGRAM_DAILY_CAP: '7',
         SCHEDULING_THREADS_PUBLISH_DELAY_MS: '120000',
         SCHEDULING_THREADS_DAILY_CAP: '3',
-      } as NodeJS.ProcessEnv,
+      },
     });
     expect(config.enabled).toBe(false);
     expect(config.everyNPosts).toBe(5);
@@ -24,7 +24,7 @@ describe('SchedulingConfig', () => {
   });
 
   it('falls back to built-in defaults on empty env', () => {
-    const config = SchedulingConfig.load({ env: {} as NodeJS.ProcessEnv });
+    const config = SchedulingConfig.load({ env: {} });
     expect(config.enabled).toBe(false);
     expect(config.limitsFor('telegram').publishDelayMs).toBe(60_000);
     expect(config.limitsFor('telegram').dailyCap).toBe(20);
@@ -32,7 +32,7 @@ describe('SchedulingConfig', () => {
   });
 
   it('patches one target without touching the sibling', () => {
-    const config = SchedulingConfig.load({ env: {} as NodeJS.ProcessEnv });
+    const config = SchedulingConfig.load({ env: {} });
     const next = config.update({
       enabled: true,
       telegram: { dailyCap: 1 },
@@ -45,7 +45,7 @@ describe('SchedulingConfig', () => {
   });
 
   it('rejects negative delays and caps', () => {
-    const config = SchedulingConfig.load({ env: {} as NodeJS.ProcessEnv });
+    const config = SchedulingConfig.load({ env: {} });
     expect(() => config.update({ telegram: { publishDelayMs: -1 } })).toThrow(
       /publishDelayMs/,
     );

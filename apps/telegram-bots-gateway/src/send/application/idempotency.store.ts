@@ -16,7 +16,11 @@ export interface SendResultRecord {
 export class InMemoryIdempotencyStore {
   private readonly rows = new Map<string, SendResultRecord>();
 
-  public static key(botId: string, chatId: string, clientMsgId: string): string {
+  public static key(
+    botId: string,
+    chatId: string,
+    clientMsgId: string,
+  ): string {
     return `${botId}\n${chatId}\n${clientMsgId}`;
   }
 
@@ -25,7 +29,9 @@ export class InMemoryIdempotencyStore {
     chatId: string,
     clientMsgId: string,
   ): SendResultRecord | undefined {
-    return this.rows.get(InMemoryIdempotencyStore.key(botId, chatId, clientMsgId));
+    return this.rows.get(
+      InMemoryIdempotencyStore.key(botId, chatId, clientMsgId),
+    );
   }
 
   public set(

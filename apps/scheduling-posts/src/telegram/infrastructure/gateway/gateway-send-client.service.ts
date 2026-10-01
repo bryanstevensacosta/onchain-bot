@@ -144,9 +144,7 @@ export class GatewaySendClient extends SchedulingGatewaySenderPort {
       kind: 'media_group',
       chat_id: input.chatId,
       media: [...media],
-      ...(input.clientMsgId
-        ? { client_msg_id: input.clientMsgId }
-        : {}),
+      ...(input.clientMsgId ? { client_msg_id: input.clientMsgId } : {}),
     });
   }
 

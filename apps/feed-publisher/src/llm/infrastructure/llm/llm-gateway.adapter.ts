@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
-import { LlmPort, type LlmGenerateRequest } from '@/llm/application/ports/llm.port';
+import {
+  LlmPort,
+  type LlmGenerateRequest,
+} from '@/llm/application/ports/llm.port';
 
 /**
  * LLM gateway adapter (DEFAULT provider): OpenAI-compatible gateway
@@ -52,7 +55,10 @@ export class LlmGatewayAdapter extends LlmPort {
       { type: 'text', text: request.prompt },
     ];
     if (request.imageUrl) {
-      userContent.push({ type: 'image_url', image_url: { url: request.imageUrl } });
+      userContent.push({
+        type: 'image_url',
+        image_url: { url: request.imageUrl },
+      });
     } else if (request.imageBase64) {
       const mime = request.mimeType ?? 'image/jpeg';
       userContent.push({

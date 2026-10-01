@@ -14,7 +14,10 @@ import {
   type TemplateContentType,
 } from './prompt-template.validators';
 
-export type { ReasoningEffort, TemplateContentType } from './prompt-template.validators';
+export type {
+  ReasoningEffort,
+  TemplateContentType,
+} from './prompt-template.validators';
 
 export interface PromptTemplateProps {
   readonly id: string;
@@ -73,7 +76,9 @@ export class PromptTemplate extends AggregateRoot<string> {
     const model = validateModel(input.model);
     const maxTokens = validateMaxTokens(input.maxTokens);
     const temperature = validateTemperature(input.temperature);
-    const reasoningEffort = validateReasoningEffort(input.reasoningEffort ?? null);
+    const reasoningEffort = validateReasoningEffort(
+      input.reasoningEffort ?? null,
+    );
     const promptText = validatePromptText(input.promptText);
     const systemPromptText = (input.systemPromptText ?? '').trim();
     const now = new Date();
@@ -163,7 +168,10 @@ export class PromptTemplate extends AggregateRoot<string> {
 
   /** GLOBAL rows apply to every content type; scoped rows to their own. */
   public appliesTo(contentType: ContentType): boolean {
-    return this.state.contentType === 'global' || this.state.contentType === contentType;
+    return (
+      this.state.contentType === 'global' ||
+      this.state.contentType === contentType
+    );
   }
 
   public update(patch: {
@@ -200,7 +208,9 @@ export class PromptTemplate extends AggregateRoot<string> {
       this.state.temperature = validateTemperature(patch.temperature);
     }
     if (patch.reasoningEffort !== undefined) {
-      this.state.reasoningEffort = validateReasoningEffort(patch.reasoningEffort);
+      this.state.reasoningEffort = validateReasoningEffort(
+        patch.reasoningEffort,
+      );
     }
     if (patch.promptText !== undefined) {
       this.state.promptText = validatePromptText(patch.promptText);

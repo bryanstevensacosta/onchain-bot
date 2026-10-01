@@ -31,11 +31,11 @@ export function validateThreadsPublisherConfig(
   if (!env.DATABASE_URL) {
     warnings.push('DATABASE_URL empty, using dev default');
   }
-  if ((env.NODE_ENV === 'staging' || env.NODE_ENV === 'production') &&
-    (env.DATABASE_SYNCHRONIZE ?? 'false') !== 'false') {
-    throw new Error(
-      'DATABASE_SYNCHRONIZE must be false in staging/production',
-    );
+  if (
+    (env.NODE_ENV === 'staging' || env.NODE_ENV === 'production') &&
+    (env.DATABASE_SYNCHRONIZE ?? 'false') !== 'false'
+  ) {
+    throw new Error('DATABASE_SYNCHRONIZE must be false in staging/production');
   }
   return { warnings };
 }

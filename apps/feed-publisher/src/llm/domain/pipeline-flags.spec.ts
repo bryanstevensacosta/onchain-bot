@@ -8,14 +8,62 @@ describe('resolvePipelineFlags (3-flag truth table)', () => {
     mode: string;
     llmActive: boolean;
   }> = [
-    { matching: false, llm: false, publishing: false, mode: 'all-paused', llmActive: false },
-    { matching: false, llm: false, publishing: true, mode: 'drain-raw', llmActive: false },
-    { matching: false, llm: true, publishing: false, mode: 'all-paused', llmActive: false },
-    { matching: false, llm: true, publishing: true, mode: 'drain-llm', llmActive: true },
-    { matching: true, llm: false, publishing: false, mode: 'enqueue-only', llmActive: false },
-    { matching: true, llm: false, publishing: true, mode: 'raw-pipeline', llmActive: false },
-    { matching: true, llm: true, publishing: false, mode: 'enqueue-only', llmActive: false },
-    { matching: true, llm: true, publishing: true, mode: 'full-pipeline', llmActive: true },
+    {
+      matching: false,
+      llm: false,
+      publishing: false,
+      mode: 'all-paused',
+      llmActive: false,
+    },
+    {
+      matching: false,
+      llm: false,
+      publishing: true,
+      mode: 'drain-raw',
+      llmActive: false,
+    },
+    {
+      matching: false,
+      llm: true,
+      publishing: false,
+      mode: 'all-paused',
+      llmActive: false,
+    },
+    {
+      matching: false,
+      llm: true,
+      publishing: true,
+      mode: 'drain-llm',
+      llmActive: true,
+    },
+    {
+      matching: true,
+      llm: false,
+      publishing: false,
+      mode: 'enqueue-only',
+      llmActive: false,
+    },
+    {
+      matching: true,
+      llm: false,
+      publishing: true,
+      mode: 'raw-pipeline',
+      llmActive: false,
+    },
+    {
+      matching: true,
+      llm: true,
+      publishing: false,
+      mode: 'enqueue-only',
+      llmActive: false,
+    },
+    {
+      matching: true,
+      llm: true,
+      publishing: true,
+      mode: 'full-pipeline',
+      llmActive: true,
+    },
   ];
 
   it.each(cases)(

@@ -22,9 +22,7 @@ describe('HttpMarketDataAdapter (stub behind USE_DATA_SERVICE_API=true)', () => 
     jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
     jest.spyOn(Logger.prototype, 'debug').mockImplementation(() => undefined);
     fetchMock.mockReset();
-    jest
-      .spyOn(globalThis, 'fetch')
-      .mockImplementation(fetchMock as unknown as typeof fetch);
+    jest.spyOn(globalThis, 'fetch').mockImplementation(fetchMock);
   });
 
   afterEach(() => {
@@ -75,7 +73,7 @@ describe('HttpMarketDataAdapter (stub behind USE_DATA_SERVICE_API=true)', () => 
   });
 
   it('non-ok status -> null (no throw)', async () => {
-    fetchMock.mockResolvedValue({ ok: false, status: 503 } as Response);
+    fetchMock.mockResolvedValue({ ok: false, status: 503 });
     const adapter = new HttpMarketDataAdapter('http://market-data:3060');
 
     await expect(adapter.fetch('evm', ADDRESS)).resolves.toBeNull();

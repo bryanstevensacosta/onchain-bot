@@ -3,7 +3,10 @@ import { GenerateTextUseCase } from '@/llm/application/use-cases/generate-text.u
 import { GetLlmModelsUseCase } from '@/llm/application/use-cases/get-llm-models.use-case';
 import { GetPipelineFlagsUseCase } from '@/llm/application/use-cases/get-pipeline-flags.use-case';
 import { LlmConfigRepository } from '@/llm/domain/ports/llm-config.repository';
-import { validateLlmConfigPatch, type LlmConfig } from '@/llm/domain/llm-config';
+import {
+  validateLlmConfigPatch,
+  type LlmConfig,
+} from '@/llm/domain/llm-config';
 import { UsageAuditService } from '@/llm/application/usage-audit.service';
 import { RequireScope } from 'auth/application/require-scope.decorator';
 
@@ -69,16 +72,17 @@ export class LlmController {
 
   @Patch('config')
   @RequireScope('admin')
-  public async patchConfig(@Body() dto: {
-    llmEnabled?: unknown;
-    publishingEnabled?: unknown;
-  }): Promise<LlmConfig> {
+  public async patchConfig(
+    @Body() dto: { llmEnabled?: unknown; publishingEnabled?: unknown },
+  ): Promise<LlmConfig> {
     return this.configs.update(validateLlmConfigPatch(dto));
   }
 
   @Get('flags')
   @RequireScope('read')
-  public async getFlags(@Query('matching') matching?: string): Promise<unknown> {
+  public async getFlags(
+    @Query('matching') matching?: string,
+  ): Promise<unknown> {
     return this.flags.execute(matching === 'true');
   }
 

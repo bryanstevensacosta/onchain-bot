@@ -44,6 +44,8 @@ describe('PromptTemplate', () => {
     expect(template.temperature).toBe(0.2);
     expect(template.contentType).toBe('crypto-news');
     expect(template.model).toBe('gpt-4o-mini');
-    expect(template.updatedAt.getTime()).toBeGreaterThanOrEqual(before.getTime());
+    expect(template.updatedAt.getTime()).toBeGreaterThanOrEqual(
+      before.getTime(),
+    );
   });
 });

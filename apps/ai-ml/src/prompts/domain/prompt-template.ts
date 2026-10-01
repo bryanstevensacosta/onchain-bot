@@ -40,7 +40,9 @@ export interface PromptInput {
 const VARIABLE_RE = /\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g;
 
 /** Extract sorted unique {{variable}} names from content parts. */
-export function extractVariables(...parts: ReadonlyArray<string>): ReadonlyArray<string> {
+export function extractVariables(
+  ...parts: ReadonlyArray<string>
+): ReadonlyArray<string> {
   const found = new Set<string>();
   for (const part of parts) {
     VARIABLE_RE.lastIndex = 0;

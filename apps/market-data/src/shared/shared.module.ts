@@ -21,7 +21,11 @@ import { AuthModule } from 'auth/auth.module';
  */
 @Global()
 @Module({
-  imports: [ConfigModule.forFeature(appConfig), ConfigModule.forFeature(databaseConfig), AuthModule],
+  imports: [
+    ConfigModule.forFeature(appConfig),
+    ConfigModule.forFeature(databaseConfig),
+    AuthModule,
+  ],
   providers: [ApiKeyGuard, DomainExceptionFilter],
   exports: [ConfigModule, ApiKeyGuard, DomainExceptionFilter],
 })

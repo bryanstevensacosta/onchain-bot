@@ -57,7 +57,9 @@ describe('gateway token snapshot shell (P43)', () => {
   });
 
   it('GET /api/v1/tokens/nope/<addr> returns 404', async () => {
-    const res = await request(app.getHttpServer()).get('/api/v1/tokens/nope/abc');
+    const res = await request(app.getHttpServer()).get(
+      '/api/v1/tokens/nope/abc',
+    );
     expect(res.status).toBe(404);
   });
 });

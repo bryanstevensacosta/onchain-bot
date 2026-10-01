@@ -20,7 +20,11 @@ export const AI_ML_DEFAULT_BASE_URL = 'http://127.0.0.1:4090';
 
 export const resolveAiMlMode = (raw?: string): AiMlMode => {
   const normalized = (raw ?? '').trim().toLowerCase();
-  if (normalized === 'local' || normalized === 'dual' || normalized === 'ai-ml') {
+  if (
+    normalized === 'local' ||
+    normalized === 'dual' ||
+    normalized === 'ai-ml'
+  ) {
     return normalized;
   }
   return DEFAULT_AI_ML_MODE;

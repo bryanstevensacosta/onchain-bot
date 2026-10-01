@@ -9,7 +9,9 @@ function makeUseCase(): ScoreTokenUseCase {
   return new ScoreTokenUseCase(new InMemoryScoredCallRepository());
 }
 
-function baseInput(overrides = {}): Parameters<ScoreTokenUseCase['execute']>[0]['mentions'][number] {
+function baseInput(
+  overrides = {},
+): Parameters<ScoreTokenUseCase['execute']>[0]['mentions'][number] {
   return {
     mentionId: 'evm:0xabc:ch1:1:0',
     kolId: 'ch1',

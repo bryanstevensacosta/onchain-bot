@@ -19,9 +19,13 @@ export function signGatewayRequest(input: {
   }
   const ts = input.ts ?? String(Date.now());
   const nonce = input.nonce ?? randomUUID();
-  const bodyHash = createHash('sha256').update(input.rawBody, 'utf8').digest('hex');
+  const bodyHash = createHash('sha256')
+    .update(input.rawBody, 'utf8')
+    .digest('hex');
   const canonical = `${input.method.toUpperCase()}\n${input.path}\n${ts}\n${nonce}\n${bodyHash}`;
-  const sig = createHmac('sha256', secret).update(canonical, 'utf8').digest('hex');
+  const sig = createHmac('sha256', secret)
+    .update(canonical, 'utf8')
+    .digest('hex');
   return {
     'x-client-id': input.clientId,
     'x-ts': ts,

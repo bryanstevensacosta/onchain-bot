@@ -50,10 +50,7 @@ describe('GatewaySendClient', () => {
       BOTS_GATEWAY_CLIENT_ID: 'feed-publisher',
       BOTS_GATEWAY_CLIENT_SECRET: 'shh',
     });
-    const client = new GatewaySendClient(
-      config,
-      new GatewayHmacSigner(config),
-    );
+    const client = new GatewaySendClient(config, new GatewayHmacSigner(config));
     const out = await client.sendViaGateway({
       botId: 'vault-1',
       chatId: '@c',

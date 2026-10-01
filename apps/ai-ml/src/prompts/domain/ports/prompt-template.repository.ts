@@ -26,13 +26,23 @@ export abstract class PromptTemplateRepository {
     name: string,
     version: number,
   ): Promise<PromptTemplate | null>;
-  public abstract findActiveByName(name: string): Promise<PromptTemplate | null>;
-  public abstract listVersions(name: string): Promise<ReadonlyArray<PromptTemplate>>;
+  public abstract findActiveByName(
+    name: string,
+  ): Promise<PromptTemplate | null>;
+  public abstract listVersions(
+    name: string,
+  ): Promise<ReadonlyArray<PromptTemplate>>;
   public abstract listActive(
     contentType?: PromptContentType,
   ): Promise<ReadonlyArray<PromptTemplate>>;
-  public abstract activate(name: string, version: number): Promise<PromptTemplate>;
-  public abstract deleteVersion(name: string, version: number): Promise<boolean>;
+  public abstract activate(
+    name: string,
+    version: number,
+  ): Promise<PromptTemplate>;
+  public abstract deleteVersion(
+    name: string,
+    version: number,
+  ): Promise<boolean>;
   public abstract deleteName(name: string): Promise<boolean>;
 }
 

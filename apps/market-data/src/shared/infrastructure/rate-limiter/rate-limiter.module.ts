@@ -26,8 +26,7 @@ import { RedisTokenBucketAdapter } from './infrastructure/redis-token-bucket.ada
       useFactory: (
         memory: RateLimiterService,
         redis: RedisTokenBucketAdapter,
-      ): RateLimiterPort =>
-        process.env.REDIS_URL ? redis : memory,
+      ): RateLimiterPort => (process.env.REDIS_URL ? redis : memory),
     },
   ],
   exports: [RateLimiterService, CircuitBreakerService, RateLimiterPort],

@@ -33,9 +33,21 @@ describe('ExchangeConnectionManager', () => {
 
   it('shares ONE connection per exchange across subscribers (P49)', async () => {
     const { manager, created } = setup();
-    await manager.subscribe({ exchange: 'binance', symbol: 'BTC/USDT', kind: 'ticker' });
-    await manager.subscribe({ exchange: 'binance', symbol: 'ETH/USDT', kind: 'ticker' });
-    await manager.subscribe({ exchange: 'kraken', symbol: 'BTC/USDT', kind: 'ticker' });
+    await manager.subscribe({
+      exchange: 'binance',
+      symbol: 'BTC/USDT',
+      kind: 'ticker',
+    });
+    await manager.subscribe({
+      exchange: 'binance',
+      symbol: 'ETH/USDT',
+      kind: 'ticker',
+    });
+    await manager.subscribe({
+      exchange: 'kraken',
+      symbol: 'BTC/USDT',
+      kind: 'ticker',
+    });
     expect(created.length).toBe(2);
     expect(manager.connectionCount()).toBe(2);
     expect(manager.refCount('binance')).toBe(2);
@@ -44,7 +56,11 @@ describe('ExchangeConnectionManager', () => {
 
   it('releases symbols and closes the connection when the last ref leaves (no leaks)', async () => {
     const { manager } = setup();
-    const sub = { exchange: 'binance', symbol: 'BTC/USDT', kind: 'ticker' as const };
+    const sub = {
+      exchange: 'binance',
+      symbol: 'BTC/USDT',
+      kind: 'ticker' as const,
+    };
     await manager.subscribe(sub);
     await manager.subscribe(sub);
     expect(manager.refCount('binance')).toBe(2);
@@ -60,7 +76,11 @@ describe('ExchangeConnectionManager', () => {
     const { manager, created } = setup();
     const seen: Array<StreamEvent> = [];
     manager.onTick((event) => seen.push(event));
-    await manager.subscribe({ exchange: 'binance', symbol: 'BTC/USDT', kind: 'ticker' });
+    await manager.subscribe({
+      exchange: 'binance',
+      symbol: 'BTC/USDT',
+      kind: 'ticker',
+    });
     created[0].pump();
     expect(seen.length).toBe(1);
     expect(seen[0]).toMatchObject({ exchange: 'binance', symbol: 'BTC/USDT' });
@@ -73,8 +93,14 @@ describe('ExchangeConnectionManager', () => {
       return Promise.resolve();
     });
     const errors: Array<{ exchange: string; info: StreamErrorInfo }> = [];
-    manager.onExchangeError((exchange, info) => errors.push({ exchange, info }));
-    await manager.subscribe({ exchange: 'binance', symbol: 'BTC/USDT', kind: 'ticker' });
+    manager.onExchangeError((exchange, info) =>
+      errors.push({ exchange, info }),
+    );
+    await manager.subscribe({
+      exchange: 'binance',
+      symbol: 'BTC/USDT',
+      kind: 'ticker',
+    });
     created[0].simulateDown('exchange exploded');
     for (let i = 0; i < 10; i += 1) {
       await new Promise((resolve) => setImmediate(resolve));

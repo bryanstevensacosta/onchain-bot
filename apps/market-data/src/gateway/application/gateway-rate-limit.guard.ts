@@ -1,4 +1,10 @@
-import { CanActivate, ExecutionContext, HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  HttpException,
+  HttpStatus,
+  Injectable,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from 'shared/infrastructure/decorators/public.decorator';
 import { RateLimiterService } from 'rate-limiter/application/rate-limiter.service';
@@ -31,7 +37,9 @@ export class GatewayRateLimitGuard implements CanActivate {
     if (isPublic) {
       return true;
     }
-    const request = context.switchToHttp().getRequest<{ ip?: string; socket?: { remoteAddress?: string } }>();
+    const request = context
+      .switchToHttp()
+      .getRequest<{ ip?: string; socket?: { remoteAddress?: string } }>();
     const client = request?.ip ?? request?.socket?.remoteAddress ?? 'unknown';
     const allowed = this.limiter.tryAcquire(
       buildGatewayClientKey(client),
@@ -39,7 +47,10 @@ export class GatewayRateLimitGuard implements CanActivate {
       GATEWAY_WINDOW_MS,
     );
     if (!allowed) {
-      throw new HttpException('Rate limit exceeded', HttpStatus.TOO_MANY_REQUESTS);
+      throw new HttpException(
+        'Rate limit exceeded',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
     return true;
   }

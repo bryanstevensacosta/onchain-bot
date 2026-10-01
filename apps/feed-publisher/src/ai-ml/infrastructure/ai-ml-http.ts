@@ -16,7 +16,14 @@ export class AiMlHttpError extends Error {
     public readonly path: string,
     message: string,
   ) {
-    super('ai-ml request failed (status=' + status + ', path=' + path + '): ' + message);
+    super(
+      'ai-ml request failed (status=' +
+        status +
+        ', path=' +
+        path +
+        '): ' +
+        message,
+    );
     this.name = 'AiMlHttpError';
   }
 }
@@ -27,18 +34,24 @@ export interface AiMlHttpOptions {
   readonly timeoutMs: number;
 }
 
-export const resolveAiMlHttpOptions = (get: (key: string, fallback?: unknown) => unknown): AiMlHttpOptions => {
+export const resolveAiMlHttpOptions = (
+  get: (key: string, fallback?: unknown) => unknown,
+): AiMlHttpOptions => {
   const baseRaw = get('AI_ML_URL');
   const keyRaw = get('AI_ML_API_KEY');
   const timeoutRaw = get('AI_ML_TIMEOUT_MS');
   const parsedTimeout = Number(
-    (typeof timeoutRaw === 'string' && timeoutRaw.trim().length > 0 ? timeoutRaw : '8000') as string,
+    typeof timeoutRaw === 'string' && timeoutRaw.trim().length > 0
+      ? timeoutRaw
+      : '8000',
   );
   return {
     baseUrl: resolveAiMlBaseUrl(typeof baseRaw === 'string' ? baseRaw : ''),
     apiKey: typeof keyRaw === 'string' ? keyRaw.trim() : '',
     timeoutMs:
-      Number.isFinite(parsedTimeout) && parsedTimeout > 0 ? parsedTimeout : 8000,
+      Number.isFinite(parsedTimeout) && parsedTimeout > 0
+        ? parsedTimeout
+        : 8000,
   };
 };
 
@@ -84,11 +97,18 @@ export const aiMlGet = async <T>(
     });
   } catch (err) {
     throw new Error(
-      'ai-ml request failed (path=' + path + '): ' + (err instanceof Error ? err.message : String(err)),
+      'ai-ml request failed (path=' +
+        path +
+        '): ' +
+        (err instanceof Error ? err.message : String(err)),
     );
   }
   if (!response.ok) {
-    throw new AiMlHttpError(response.status, path, await readErrorBody(response));
+    throw new AiMlHttpError(
+      response.status,
+      path,
+      await readErrorBody(response),
+    );
   }
   return (await response.json()) as T;
 };
@@ -108,11 +128,18 @@ export const aiMlPost = async <T>(
     });
   } catch (err) {
     throw new Error(
-      'ai-ml request failed (path=' + path + '): ' + (err instanceof Error ? err.message : String(err)),
+      'ai-ml request failed (path=' +
+        path +
+        '): ' +
+        (err instanceof Error ? err.message : String(err)),
     );
   }
   if (!response.ok) {
-    throw new AiMlHttpError(response.status, path, await readErrorBody(response));
+    throw new AiMlHttpError(
+      response.status,
+      path,
+      await readErrorBody(response),
+    );
   }
   return (await response.json()) as T;
 };

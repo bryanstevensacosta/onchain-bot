@@ -7,7 +7,7 @@ function mockFetchOnce(payload: unknown, ok = true, status = 200): jest.Mock {
     status,
     json: async () => payload,
   });
-  global.fetch = fn as unknown as typeof fetch;
+  global.fetch = fn;
   return fn;
 }
 
@@ -18,7 +18,7 @@ function makeClient() {
     }),
   };
   const signer = new GatewayHmacSigner();
-  return new GatewaySendClient(botConfig as never, signer as never);
+  return new GatewaySendClient(botConfig as never, signer);
 }
 
 describe('GatewaySendClient (dexter gateway todo 6)', () => {

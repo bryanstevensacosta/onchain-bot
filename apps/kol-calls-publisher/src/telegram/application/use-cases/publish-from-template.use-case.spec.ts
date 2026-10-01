@@ -17,7 +17,7 @@ function publisherStub() {
       sent.push({ chatId: input.chatId, text: input.text });
       return { ok: true, messageId: 7, error: null };
     },
-  } as TelegramPublisherPort;
+  };
   return { port, sent };
 }
 

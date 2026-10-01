@@ -32,12 +32,17 @@ import type {
  * - socket disconnect releases every broker subscription (no leaks).
  */
 @WebSocketGateway({ namespace: '/market-data', cors: false })
-export class MarketDataWsGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class MarketDataWsGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   public constructor(private readonly broker: StreamBrokerService) {}
 
   public async handleConnection(client: Socket): Promise<void> {
     const token = MarketDataWsGateway.readToken(client);
-    const ip = typeof client.handshake?.address === 'string' ? client.handshake.address : undefined;
+    const ip =
+      typeof client.handshake?.address === 'string'
+        ? client.handshake.address
+        : undefined;
     try {
       await this.broker.connect(client.id, token, ip);
     } catch {
@@ -83,7 +88,8 @@ export class MarketDataWsGateway implements OnGatewayConnection, OnGatewayDiscon
   }
 
   private static readToken(client: Socket): string | undefined {
-    const viaAuth = (client.handshake?.auth as { token?: unknown } | undefined)?.token;
+    const viaAuth = (client.handshake?.auth as { token?: unknown } | undefined)
+      ?.token;
     if (typeof viaAuth === 'string' && viaAuth !== '') {
       return viaAuth;
     }
@@ -101,7 +107,8 @@ export class MarketDataWsGateway implements OnGatewayConnection, OnGatewayDiscon
   } {
     if (err instanceof HttpException) {
       const status = err.getStatus();
-      const message = typeof err.message === 'string' ? err.message : 'Stream request failed';
+      const message =
+        typeof err.message === 'string' ? err.message : 'Stream request failed';
       if (status === HttpStatus.UNAUTHORIZED) {
         return { kind: 'error', code: 'UNAUTHORIZED', message };
       }
@@ -116,6 +123,10 @@ export class MarketDataWsGateway implements OnGatewayConnection, OnGatewayDiscon
       }
       return { kind: 'error', code: 'BAD_REQUEST', message };
     }
-    return { kind: 'error', code: 'BAD_REQUEST', message: 'Invalid stream request' };
+    return {
+      kind: 'error',
+      code: 'BAD_REQUEST',
+      message: 'Invalid stream request',
+    };
   }
 }

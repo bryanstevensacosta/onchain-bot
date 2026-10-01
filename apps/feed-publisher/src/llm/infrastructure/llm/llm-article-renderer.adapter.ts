@@ -36,7 +36,10 @@ export class LlmArticleRendererAdapter extends QueuedArticleRendererPort {
       return { content: entry.rawContent };
     }
     const generated = await this.generator.generateForEntry(entry);
-    if (typeof generated.content !== 'string' || generated.content.trim().length === 0) {
+    if (
+      typeof generated.content !== 'string' ||
+      generated.content.trim().length === 0
+    ) {
       throw new LlmFailedError(
         `LLM returned empty content (model=${generated.model})`,
       );

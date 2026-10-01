@@ -1,5 +1,8 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { LlmPort, type LlmGenerateRequest } from '@/llm/application/ports/llm.port';
+import {
+  LlmPort,
+  type LlmGenerateRequest,
+} from '@/llm/application/ports/llm.port';
 import { resolveAiMlMode } from '@/ai-ml/ai-ml-mode';
 import { AiMlLlmClientAdapter } from '@/ai-ml/infrastructure/ai-ml-llm-client.adapter';
 import { AiMlParityService } from './ai-ml-parity.service';
@@ -40,7 +43,9 @@ export class DualLlmAdapter extends LlmPort {
     const mode = resolveAiMlMode(process.env['FEED_AI_ML_MODE']);
     if (mode === 'ai-ml') {
       if (!this.remote) {
-        throw new Error('FEED_AI_ML_MODE=ai-ml but the ai-ml client is unwired');
+        throw new Error(
+          'FEED_AI_ML_MODE=ai-ml but the ai-ml client is unwired',
+        );
       }
       return this.remote.generateText(request);
     }

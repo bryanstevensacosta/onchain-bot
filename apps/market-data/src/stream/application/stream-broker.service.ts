@@ -79,9 +79,13 @@ export class StreamBrokerService {
     private readonly manager: ExchangeConnectionManager,
     @Optional() @Inject(STREAM_EXCHANGES) allowlist?: Array<string>,
   ) {
-    this.allowlist = allowlist ?? parseExchangeAllowlist(process.env.MARKET_DATA_STREAM_EXCHANGES);
+    this.allowlist =
+      allowlist ??
+      parseExchangeAllowlist(process.env.MARKET_DATA_STREAM_EXCHANGES);
     this.manager.onTick((event) => this.routeTick(event));
-    this.manager.onExchangeError((exchange, info) => this.routeError(exchange, info));
+    this.manager.onExchangeError((exchange, info) =>
+      this.routeError(exchange, info),
+    );
   }
 
   public async connect(
@@ -100,7 +104,11 @@ export class StreamBrokerService {
       });
     }
     const expected = (process.env.MARKET_DATA_API_KEY ?? '').trim();
-    if (presentedKey && expected !== '' && isAuthorized(presentedKey, expected)) {
+    if (
+      presentedKey &&
+      expected !== '' &&
+      isAuthorized(presentedKey, expected)
+    ) {
       return this.register(clientId, {
         keyId: 'env',
         keyName: 'MARKET_DATA_API_KEY',
@@ -140,14 +148,20 @@ export class StreamBrokerService {
       GATEWAY_WINDOW_MS,
     );
     if (!allowed) {
-      throw new HttpException('Rate limit exceeded for stream subscribes', HttpStatus.TOO_MANY_REQUESTS);
+      throw new HttpException(
+        'Rate limit exceeded for stream subscribes',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
     const key = streamKey(sub);
     if (client.subs.has(key)) {
       return { subscribed: key };
     }
     if (client.subs.size >= STREAM_MAX_SUBS_PER_CLIENT) {
-      throw new HttpException('Too many subscriptions for this client', HttpStatus.TOO_MANY_REQUESTS);
+      throw new HttpException(
+        'Too many subscriptions for this client',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
     await this.manager.subscribe(sub);
     client.subs.add(key);
@@ -242,13 +256,20 @@ export class StreamBrokerService {
     const symbol = (raw.symbol ?? '').trim().toUpperCase();
     const kind: StreamKind = raw.kind;
     if (exchange === '' || symbol === '') {
-      throw new BadRequestException('Stream subscription needs exchange + symbol');
+      throw new BadRequestException(
+        'Stream subscription needs exchange + symbol',
+      );
     }
     if (kind !== 'ticker' && kind !== 'ohlcv') {
       throw new BadRequestException('Stream kind must be ticker|ohlcv');
     }
     if (kind === 'ohlcv') {
-      return { exchange, symbol, kind, timeframe: (raw.timeframe ?? '1m').trim().toLowerCase() };
+      return {
+        exchange,
+        symbol,
+        kind,
+        timeframe: (raw.timeframe ?? '1m').trim().toLowerCase(),
+      };
     }
     return { exchange, symbol, kind };
   }
@@ -297,7 +318,10 @@ export class StreamBrokerService {
         continue;
       }
       for (const clientId of holders) {
-        this.enqueue(clientId, toErrorMessage({ ...info, exchange: exchange.toLowerCase() }));
+        this.enqueue(
+          clientId,
+          toErrorMessage({ ...info, exchange: exchange.toLowerCase() }),
+        );
       }
     }
   }

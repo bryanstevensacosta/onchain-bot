@@ -14,9 +14,15 @@ describe('InMemoryAssetRegistryRepository (failing-first)', () => {
       logoUrl: null,
       categories: [],
     });
-    await expect(repo.findByContract('solana', 'aaa')).resolves.toMatchObject({ symbol: 'JUP' });
-    await expect(repo.findByCmcId(29210)).resolves.toMatchObject({ symbol: 'JUP' });
-    await expect(repo.findByGeckoId('jupiter')).resolves.toMatchObject({ symbol: 'JUP' });
+    await expect(repo.findByContract('solana', 'aaa')).resolves.toMatchObject({
+      symbol: 'JUP',
+    });
+    await expect(repo.findByCmcId(29210)).resolves.toMatchObject({
+      symbol: 'JUP',
+    });
+    await expect(repo.findByGeckoId('jupiter')).resolves.toMatchObject({
+      symbol: 'JUP',
+    });
     await expect(repo.findBySymbol('solana', 'JUP')).resolves.toHaveLength(1);
   });
 

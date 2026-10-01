@@ -12,9 +12,11 @@ function makeConfig(env: Record<string, string> = {}): ConfigService {
   } as unknown as ConfigService;
 }
 
-function makeSender(
-  result: { ok: boolean; messageId: number | null; error?: string },
-): { sender: jest.Mocked<SchedulingGatewaySenderPort> } {
+function makeSender(result: {
+  ok: boolean;
+  messageId: number | null;
+  error?: string;
+}): { sender: jest.Mocked<SchedulingGatewaySenderPort> } {
   const sender = {
     sendViaGateway: jest.fn().mockImplementation(() =>
       Promise.resolve({

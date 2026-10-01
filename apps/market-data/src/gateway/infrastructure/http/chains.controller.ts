@@ -1,4 +1,13 @@
-import { Controller, Get, NotFoundException, Param, Query, UseGuards, UseInterceptors, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  Query,
+  UseGuards,
+  UseInterceptors,
+  BadRequestException,
+} from '@nestjs/common';
 import { CacheInterceptor } from 'cache/infrastructure/cache.interceptor';
 import { CacheTTL } from 'cache/infrastructure/cache-ttl.decorator';
 import { ChainCatalogPort } from 'chain/application/ports/chain-catalog.port';
@@ -24,7 +33,7 @@ export class ChainsController {
   @Get()
   @CacheTTL(60)
   public list(): Promise<unknown> {
-    return this.catalog.listAll() as Promise<unknown>;
+    return this.catalog.listAll();
   }
 
   @Get('detect')
@@ -32,7 +41,7 @@ export class ChainsController {
     if (address === undefined || address.trim() === '') {
       throw new BadRequestException('Query param "address" is required');
     }
-    return (await this.detectChain.detect(address)) as unknown;
+    return await this.detectChain.detect(address);
   }
 
   @Get(':id')
@@ -41,6 +50,6 @@ export class ChainsController {
     if (chain === null) {
       throw new NotFoundException(`Unknown chain: ${id}`);
     }
-    return chain as unknown;
+    return chain;
   }
 }

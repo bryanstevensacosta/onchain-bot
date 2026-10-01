@@ -5,8 +5,7 @@ import { TelegramRateLimiter } from '@/telegram/application/services/telegram-ra
 
 function makeConfig(env: Record<string, string> = {}): ConfigService {
   return {
-    get: (key: string, fallback = ''): string =>
-      env[key] ?? (fallback as string),
+    get: (key: string, fallback = ''): string => env[key] ?? fallback,
   } as unknown as ConfigService;
 }
 
@@ -50,10 +49,7 @@ describe('CryptoNewsBotApiAdapter', () => {
     const result = await adapter.sendMessage('@crypto-news', 'hello');
     expect(result).toEqual({ ok: true, messageId: 11, error: null });
     expect(http.postJson).toHaveBeenCalledTimes(1);
-    const [url, payload] = http.postJson.mock.calls[0] as [
-      string,
-      Record<string, unknown>,
-    ];
+    const [url, payload] = http.postJson.mock.calls[0];
     expect(url).toContain('crypto-token');
     expect(url).toContain('sendMessage');
     expect(payload).toMatchObject({
@@ -65,10 +61,7 @@ describe('CryptoNewsBotApiAdapter', () => {
   it('falls back to CRYPTO_NEWS_OUTPUT_CHANNEL when chatId is empty', async () => {
     const { adapter, http } = makeAdapter();
     await adapter.sendMessage('', 'hello');
-    const [, payload] = http.postJson.mock.calls[0] as [
-      string,
-      Record<string, unknown>,
-    ];
+    const [, payload] = http.postJson.mock.calls[0];
     expect(payload['chat_id']).toBe('@crypto-news');
   });
 
@@ -124,11 +117,7 @@ describe('CryptoNewsBotApiAdapter', () => {
     );
     expect(result).toEqual({ ok: true, messageId: 12, error: null });
     expect(http.postMultipart).toHaveBeenCalledTimes(1);
-    const [url, boundary, body] = http.postMultipart.mock.calls[0] as [
-      string,
-      string,
-      Buffer,
-    ];
+    const [url, boundary, body] = http.postMultipart.mock.calls[0];
     expect(url).toContain('sendPhoto');
     expect(typeof boundary).toBe('string');
     expect(Buffer.isBuffer(body)).toBe(true);

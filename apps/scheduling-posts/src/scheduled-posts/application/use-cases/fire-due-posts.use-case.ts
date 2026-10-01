@@ -64,10 +64,16 @@ export class FireDuePostsUseCase {
   }
 
   /** Manual fire: bypasses the delay/cap decider, enforces auth, same callback. */
-  public async publishNow(postId: string, sessionId: string): Promise<ScheduledPost> {
+  public async publishNow(
+    postId: string,
+    sessionId: string,
+  ): Promise<ScheduledPost> {
     const post = await this.posts.findById(postId);
     if (!post) {
-      throw new DomainError(ErrorCode.NOT_FOUND, `unknown scheduled post ${postId}`);
+      throw new DomainError(
+        ErrorCode.NOT_FOUND,
+        `unknown scheduled post ${postId}`,
+      );
     }
     if (post.state !== 'scheduled') {
       throw new DomainError(
@@ -140,7 +146,9 @@ export class FireDuePostsUseCase {
     }
     const firedAt = now.toISOString();
     const state = await this.states.load();
-    await this.states.save(state.markPublished(post.binding.target, post.id, now));
+    await this.states.save(
+      state.markPublished(post.binding.target, post.id, now),
+    );
     if (post.scheduleKind.kind === 'once') {
       return this.terminal(post, post.markFired(sent.messageId, firedAt));
     }
@@ -203,7 +211,8 @@ export class FireDuePostsUseCase {
     }
     const cursor = state.cursorFor(target);
     if (cursor.lastPublishedAt) {
-      const elapsed = now.getTime() - new Date(cursor.lastPublishedAt).getTime();
+      const elapsed =
+        now.getTime() - new Date(cursor.lastPublishedAt).getTime();
       if (elapsed < delayMs) {
         return 'HELD_DELAY';
       }
@@ -211,10 +220,13 @@ export class FireDuePostsUseCase {
     return null;
   }
 
-  private async resolveContent(
-    post: ScheduledPost,
-  ): Promise<
-    | { ok: true; text: string; photoUrl?: string; media?: ReadonlyArray<Record<string, unknown>> }
+  private async resolveContent(post: ScheduledPost): Promise<
+    | {
+        ok: true;
+        text: string;
+        photoUrl?: string;
+        media?: ReadonlyArray<Record<string, unknown>>;
+      }
     | { ok: false; reason: 'MEDIA_MISSING' | 'CONTENT_REF_GONE' }
   > {
     const content = post.content;
@@ -232,7 +244,12 @@ export class FireDuePostsUseCase {
     text: string,
     mediaIds: ReadonlyArray<string>,
   ): Promise<
-    | { ok: true; text: string; photoUrl?: string; media?: ReadonlyArray<Record<string, unknown>> }
+    | {
+        ok: true;
+        text: string;
+        photoUrl?: string;
+        media?: ReadonlyArray<Record<string, unknown>>;
+      }
     | { ok: false; reason: 'MEDIA_MISSING' }
   > {
     if (mediaIds.length === 0) {

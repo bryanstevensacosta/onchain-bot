@@ -16,8 +16,8 @@ export function cosineSimilarity(
   let normA = 0;
   let normB = 0;
   for (let i = 0; i < a.length; i++) {
-    const x = a[i] as number;
-    const y = b[i] as number;
+    const x = a[i];
+    const y = b[i];
     dot += x * y;
     normA += x * x;
     normB += y * y;

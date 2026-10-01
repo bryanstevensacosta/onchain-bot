@@ -78,25 +78,56 @@ export class ApiKeyGuard implements CanActivate {
       request?.path ?? request?.originalUrl ?? request?.url ?? '/';
     const path = rawPath.split('?')[0] ?? '/';
 
-    const stored = presented ? this.keys?.verify(presented) ?? null : null;
+    const stored = presented ? (this.keys?.verify(presented) ?? null) : null;
     if (stored) {
       if (!satisfiesScope(stored.scopes, required)) {
-        this.audit?.record({ keyId: stored.id, keyName: stored.name, method, path, status: 403 });
+        this.audit?.record({
+          keyId: stored.id,
+          keyName: stored.name,
+          method,
+          path,
+          status: 403,
+        });
         throw new ForbiddenException('Insufficient scope for this endpoint');
       }
       const limiter = this.limiter;
       if (!limiter.tryAcquire(stored.id, stored.rateLimitPerMin)) {
-        this.audit?.record({ keyId: stored.id, keyName: stored.name, method, path, status: 429 });
-        throw new HttpException('Rate limit exceeded for this key', HttpStatus.TOO_MANY_REQUESTS);
+        this.audit?.record({
+          keyId: stored.id,
+          keyName: stored.name,
+          method,
+          path,
+          status: 429,
+        });
+        throw new HttpException(
+          'Rate limit exceeded for this key',
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
       }
-      request.authKey = { id: stored.id, name: stored.name, scopes: stored.scopes };
-      this.audit?.record({ keyId: stored.id, keyName: stored.name, method, path, status: 200 });
+      request.authKey = {
+        id: stored.id,
+        name: stored.name,
+        scopes: stored.scopes,
+      };
+      this.audit?.record({
+        keyId: stored.id,
+        keyName: stored.name,
+        method,
+        path,
+        status: 200,
+      });
       return true;
     }
 
     const expected = (process.env.MARKET_DATA_API_KEY ?? '').trim();
     if (expected !== '' && isAuthorized(provided, expected)) {
-      this.audit?.record({ keyId: 'env', keyName: 'MARKET_DATA_API_KEY', method, path, status: 200 });
+      this.audit?.record({
+        keyId: 'env',
+        keyName: 'MARKET_DATA_API_KEY',
+        method,
+        path,
+        status: 200,
+      });
       return true;
     }
 
@@ -104,7 +135,13 @@ export class ApiKeyGuard implements CanActivate {
     if (expected === '' && storeEmpty) {
       return true;
     }
-    this.audit?.record({ keyId: 'anonymous', keyName: 'anonymous', method, path, status: 401 });
+    this.audit?.record({
+      keyId: 'anonymous',
+      keyName: 'anonymous',
+      method,
+      path,
+      status: 401,
+    });
     throw new UnauthorizedException('Invalid or missing API key');
   }
 }

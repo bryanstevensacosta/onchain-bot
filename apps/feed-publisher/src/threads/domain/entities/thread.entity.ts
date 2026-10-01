@@ -1,6 +1,10 @@
 import { AggregateRoot } from 'shared/kernel/aggregate-root';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
-import { ThreadMessage, type ThreadMessageInput, type ThreadMessageSnapshot } from './thread-message.entity';
+import {
+  ThreadMessage,
+  type ThreadMessageInput,
+  type ThreadMessageSnapshot,
+} from './thread-message.entity';
 import {
   isThreadTerminal,
   type ThreadPublishState,

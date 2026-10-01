@@ -21,9 +21,7 @@ export class InMemoryTrackedMentionRepository extends TrackedMentionRepository {
     chain: string,
     address: string,
   ): Promise<TrackedMention | null> {
-    return (
-      this.rows.get(TrackedMention.buildId(kolId, chain, address)) ?? null
-    );
+    return this.rows.get(TrackedMention.buildId(kolId, chain, address)) ?? null;
   }
 
   public async findAll(): Promise<TrackedMention[]> {

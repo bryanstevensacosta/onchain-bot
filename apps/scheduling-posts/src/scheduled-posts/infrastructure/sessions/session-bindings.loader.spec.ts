@@ -22,7 +22,10 @@ describe('parseSessionBindings', () => {
       ]),
     );
     expect(rows).toHaveLength(1);
-    expect(rows[0].bindings[0]).toMatchObject({ bindingId: 'b-1', dailyCap: 10 });
+    expect(rows[0].bindings[0]).toMatchObject({
+      bindingId: 'b-1',
+      dailyCap: 10,
+    });
   });
 
   it('fails safe to zero bindings on empty or malformed input (P38-ter 409 downstream)', () => {

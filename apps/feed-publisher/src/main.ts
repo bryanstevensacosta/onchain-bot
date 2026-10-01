@@ -28,9 +28,7 @@ async function bootstrap(): Promise<void> {
   await app.listen(port);
 }
 
-// eslint-disable-next-line no-console
 bootstrap().catch((err) => {
-  // eslint-disable-next-line no-console
   console.error('feed-publisher bootstrap failed', err);
   process.exit(1);
 });

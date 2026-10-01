@@ -24,7 +24,9 @@ export function buildDatabaseConfig(
  * unreachable Postgres and the snapshot history keeps the v1
  * in-memory ring. `.env.example` documents the flag.
  */
-export function isDatabaseEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+export function isDatabaseEnabled(
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
   return env.DATABASE_ENABLED === 'true';
 }
 

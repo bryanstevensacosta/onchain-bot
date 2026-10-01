@@ -36,7 +36,9 @@ export class HmacService {
     body?: Buffer | string,
   ): string {
     return createHmac('sha256', secret)
-      .update(this.canonical(method, path, timestamp, nonce, this.bodyHash(body)))
+      .update(
+        this.canonical(method, path, timestamp, nonce, this.bodyHash(body)),
+      )
       .digest('hex');
   }
 

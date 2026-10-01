@@ -11,10 +11,7 @@ describe('GatewayMigrationController (dexter gateway todo 6)', () => {
       }),
     };
     const controller = new GatewayMigrationController(migrate as never);
-    const out = (await controller.migrateToGateway()) as Record<
-      string,
-      unknown
-    >;
+    const out = await controller.migrateToGateway();
     expect(out).toEqual({
       migrated: [{ localId: 'dexter', gatewayId: 'vault-9', label: 'dexter' }],
       failed: [],

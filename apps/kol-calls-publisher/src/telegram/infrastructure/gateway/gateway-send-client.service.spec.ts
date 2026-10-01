@@ -31,7 +31,7 @@ describe('GatewaySendClient (gateway todo 4, failing-first)', () => {
       url: string,
       init: { body?: string },
     ) => {
-      calls.push({ url, init: init as never });
+      calls.push({ url, init: init });
       return {
         ok: true,
         status: 200,

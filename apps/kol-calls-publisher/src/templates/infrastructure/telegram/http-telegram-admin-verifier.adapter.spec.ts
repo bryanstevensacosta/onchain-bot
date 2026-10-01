@@ -47,9 +47,9 @@ describe('HttpTelegramAdminVerifierAdapter getChatMember (P23-bis, failing-first
   });
 
   it('returns false on transport errors (fail-closed, no throw)', async () => {
-    globalThis.fetch = (async () => {
+    globalThis.fetch = async () => {
       throw new Error('network down');
-    }) as never;
+    };
     await expect(
       adapter.verifyAdmin({ botToken: 't', channelTarget: '@c' }),
     ).resolves.toBe(false);

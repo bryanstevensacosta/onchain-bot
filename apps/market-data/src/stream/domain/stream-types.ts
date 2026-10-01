@@ -65,8 +65,12 @@ export function toErrorMessage(info: StreamErrorInfo): StreamErrorMessage {
 
 /** Canonical key: lowercased `exchange:symbol:kind[:timeframe]`. */
 export function streamKey(
-  sub: Pick<StreamSubscription, 'exchange' | 'symbol' | 'kind'> & { timeframe?: string },
+  sub: Pick<StreamSubscription, 'exchange' | 'symbol' | 'kind'> & {
+    timeframe?: string;
+  },
 ): string {
   const base = `${sub.exchange.toLowerCase()}:${sub.symbol.toLowerCase()}:${sub.kind}`;
-  return sub.kind === 'ohlcv' ? `${base}:${(sub.timeframe ?? '1m').toLowerCase()}` : base;
+  return sub.kind === 'ohlcv'
+    ? `${base}:${(sub.timeframe ?? '1m').toLowerCase()}`
+    : base;
 }

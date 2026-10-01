@@ -59,7 +59,9 @@ export class SnapshotHistoryEntity {
   public createdAt!: Date;
 }
 
-export function toHistoryRow(entity: SnapshotHistoryEntity): SnapshotHistoryRow {
+export function toHistoryRow(
+  entity: SnapshotHistoryEntity,
+): SnapshotHistoryRow {
   return {
     key: entity.key,
     chain: entity.chain,

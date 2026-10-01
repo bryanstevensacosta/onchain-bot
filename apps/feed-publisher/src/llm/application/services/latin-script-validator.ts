@@ -18,7 +18,8 @@
  * been either a hallucinated ticker/copy or a leaked language the prompt
  * did not authorize.
  */
-const NON_LATIN_RE = /[^\p{Script=Latin}\p{Script=Common}\p{Script=Inherited}]/gu;
+const NON_LATIN_RE =
+  /[^\p{Script=Latin}\p{Script=Common}\p{Script=Inherited}]/gu;
 
 export interface NonLatinMatch {
   readonly char: string;

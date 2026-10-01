@@ -23,9 +23,9 @@ describe('HttpSourceValidatorAdapter (P16, failing-first)', () => {
   });
 
   it('fails open when the feed is unreachable (accept all, pipeline continues)', async () => {
-    globalThis.fetch = (async () => {
+    globalThis.fetch = async () => {
       throw new Error('ECONNREFUSED');
-    }) as never;
+    };
     const result = await adapter.validateSources(['ch1']);
     expect(result.valid).toEqual(['ch1']);
     expect(result.unknownIds).toEqual([]);

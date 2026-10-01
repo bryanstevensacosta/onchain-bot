@@ -7,9 +7,7 @@ describe('AddressIdVo', () => {
       'So11111111111111111111111111111111111111112',
       'token',
     );
-    expect(id.key).toBe(
-      'solana:so11111111111111111111111111111111111111112',
-    );
+    expect(id.key).toBe('solana:so11111111111111111111111111111111111111112');
     expect(id.kind).toBe('token');
   });
 

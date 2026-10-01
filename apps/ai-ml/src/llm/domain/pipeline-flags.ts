@@ -43,7 +43,11 @@ export const resolvePipelineFlags = (
     mode = llmActive ? 'full-pipeline' : 'raw-pipeline';
   }
   return {
-    flags: { matching: input.matching, llm: input.llm, publishing: input.publishing },
+    flags: {
+      matching: input.matching,
+      llm: input.llm,
+      publishing: input.publishing,
+    },
     llmActive,
     mode,
   };

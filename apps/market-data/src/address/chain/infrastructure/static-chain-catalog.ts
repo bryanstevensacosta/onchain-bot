@@ -19,7 +19,9 @@ export class StaticChainCatalog extends ChainCatalogPort {
     return [...STATIC_CHAINS];
   }
 
-  public async listByFamily(family: ChainFamily): Promise<ReadonlyArray<ChainInfo>> {
+  public async listByFamily(
+    family: ChainFamily,
+  ): Promise<ReadonlyArray<ChainInfo>> {
     return STATIC_CHAINS.filter((chain) => chain.family === family);
   }
 }

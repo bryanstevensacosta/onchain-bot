@@ -42,7 +42,7 @@ function makeAdapter(): jest.Mocked<TelegramPublisherPort> {
     sendMediaGroup: jest.fn(),
     sendVideo: jest.fn(),
     getChat: jest.fn(),
-  } as unknown as jest.Mocked<TelegramPublisherPort>;
+  };
 }
 
 function makeGateway(result: { ok: boolean; messageId: number | null }): {
@@ -51,14 +51,16 @@ function makeGateway(result: { ok: boolean; messageId: number | null }): {
 } {
   const calls: GatewayFeedSendInput[] = [];
   const sender = {
-    sendViaGateway: jest.fn().mockImplementation((input: GatewayFeedSendInput) => {
-      calls.push(input);
-      return Promise.resolve({
-        ok: result.ok,
-        messageId: result.messageId,
-        error: result.ok ? null : 'gateway boom',
-      });
-    }),
+    sendViaGateway: jest
+      .fn()
+      .mockImplementation((input: GatewayFeedSendInput) => {
+        calls.push(input);
+        return Promise.resolve({
+          ok: result.ok,
+          messageId: result.messageId,
+          error: result.ok ? null : 'gateway boom',
+        });
+      }),
   } as unknown as BotsGatewaySenderPort;
   return { sender, calls };
 }

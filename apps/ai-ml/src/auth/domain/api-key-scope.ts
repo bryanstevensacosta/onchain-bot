@@ -8,7 +8,11 @@ import { createHash, createHmac, randomBytes } from 'node:crypto';
  */
 export type ApiKeyScope = 'read' | 'generate' | 'admin';
 
-export const API_KEY_SCOPES: ReadonlyArray<ApiKeyScope> = ['read', 'generate', 'admin'];
+export const API_KEY_SCOPES: ReadonlyArray<ApiKeyScope> = [
+  'read',
+  'generate',
+  'admin',
+];
 
 const SCOPE_RANK: Record<ApiKeyScope, number> = {
   read: 1,
@@ -16,7 +20,10 @@ const SCOPE_RANK: Record<ApiKeyScope, number> = {
   admin: 3,
 };
 
-export function satisfiesScope(granted: ReadonlyArray<ApiKeyScope>, required: ApiKeyScope): boolean {
+export function satisfiesScope(
+  granted: ReadonlyArray<ApiKeyScope>,
+  required: ApiKeyScope,
+): boolean {
   const best = Math.max(0, ...granted.map((s) => SCOPE_RANK[s] ?? 0));
   return best >= (SCOPE_RANK[required] ?? Infinity);
 }

@@ -98,10 +98,7 @@ export class EmbeddingsController {
         ? (dto.model as string).trim()
         : models.defaultModel;
     return {
-      similarity: cosineSimilarity(
-        a as ReadonlyArray<number>,
-        b as ReadonlyArray<number>,
-      ),
+      similarity: cosineSimilarity(a, b),
       model: used,
     };
   }

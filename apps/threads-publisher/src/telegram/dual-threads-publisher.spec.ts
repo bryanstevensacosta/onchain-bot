@@ -15,7 +15,7 @@ describe('dual-run + oauth', () => {
     process.env.THREADS_PUBLISH_MODE = 'direct';
     process.env.THREADS_ACCESS_TOKEN = '';
     const dual = new DualThreadsPublisher(
-      new ThreadsApiPublisherAdapter({} as never),
+      new ThreadsApiPublisherAdapter({}),
       new GatewaySendClient(),
     );
     const res = await dual.publish({ text: 'hi' });
@@ -26,7 +26,7 @@ describe('dual-run + oauth', () => {
     process.env.THREADS_PUBLISH_MODE = 'gateway';
     delete process.env.THREADS_GATEWAY_BOT_ID;
     const dual = new DualThreadsPublisher(
-      new ThreadsApiPublisherAdapter({} as never),
+      new ThreadsApiPublisherAdapter({}),
       new GatewaySendClient(),
     );
     const res = await dual.publish({ text: 'hi' });
@@ -41,7 +41,7 @@ describe('dual-run + oauth', () => {
     process.env.THREADS_ACCESS_TOKEN = '';
     delete process.env.THREADS_GATEWAY_BOT_ID;
     const dual = new DualThreadsPublisher(
-      new ThreadsApiPublisherAdapter({} as never),
+      new ThreadsApiPublisherAdapter({}),
       new GatewaySendClient(),
     );
     const res = await dual.publish({ text: 'hi' });

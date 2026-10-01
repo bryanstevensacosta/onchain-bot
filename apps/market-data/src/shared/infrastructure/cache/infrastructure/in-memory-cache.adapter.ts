@@ -25,7 +25,11 @@ export class InMemoryCacheAdapter extends CachePort {
     return row.value as T;
   }
 
-  public async set<T>(key: string, value: T, ttlSeconds: number): Promise<void> {
+  public async set<T>(
+    key: string,
+    value: T,
+    ttlSeconds: number,
+  ): Promise<void> {
     this.rows.set(key, {
       value,
       expiresAt: Date.now() + ttlSeconds * 1000,

@@ -13,7 +13,7 @@ import {
  *
  * 1. Fetch typed rows from the feed port (upstream already scoped with
  *    `?type=crypto-news`).
-  * 2. Drop non-feed rows client-side (second P10 barrier: the unified
+ * 2. Drop non-feed rows client-side (second P10 barrier: the unified
  *    feed also carries the sibling feed type, which must never enter this
  *    pipeline; rows without a marker pass through for pre-unified fixtures).
  * 3. Per message: load channel rules, transform title+content on-read,

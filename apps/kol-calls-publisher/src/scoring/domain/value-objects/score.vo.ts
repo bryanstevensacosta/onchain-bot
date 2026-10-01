@@ -19,9 +19,13 @@ export class Score extends ValueObject<ScoreProps> {
 
   public static fromNumber(raw: number): Score {
     if (!Number.isFinite(raw) || raw < 0 || raw > 100) {
-      throw new DomainError(ErrorCode.VALIDATION, `Score must be 0..100, got ${raw}`, {
-        raw,
-      });
+      throw new DomainError(
+        ErrorCode.VALIDATION,
+        `Score must be 0..100, got ${raw}`,
+        {
+          raw,
+        },
+      );
     }
     return new Score({ value: Math.round(raw) });
   }

@@ -21,10 +21,18 @@ import { SolanaChainProber } from './infrastructure/probers/solana-chain.prober'
     { provide: ChainCatalogPort, useExisting: StaticChainCatalog },
     {
       provide: CHAIN_PROBERS,
-      useFactory: (evm: EvmChainProber, solana: SolanaChainProber) => [evm, solana],
+      useFactory: (evm: EvmChainProber, solana: SolanaChainProber) => [
+        evm,
+        solana,
+      ],
       inject: [EvmChainProber, SolanaChainProber],
     },
   ],
-  exports: [ChainCatalogPort, StaticChainCatalog, DetectChainService, CHAIN_PROBERS],
+  exports: [
+    ChainCatalogPort,
+    StaticChainCatalog,
+    DetectChainService,
+    CHAIN_PROBERS,
+  ],
 })
 export class ChainModule {}

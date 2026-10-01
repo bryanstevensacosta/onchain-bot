@@ -16,7 +16,12 @@ const TICK = new Date(new Date(FIRE_AT).getTime() + 30_000);
 function dto(overrides: Partial<SchedulePostDto> = {}): SchedulePostDto {
   return {
     sessionId: 'morning-desk',
-    binding: { target: 'telegram', bindingId: 'b-1', botId: 'bot_X', chatId: '-100123' },
+    binding: {
+      target: 'telegram',
+      bindingId: 'b-1',
+      botId: 'bot_X',
+      chatId: '-100123',
+    },
     contentKind: 'pre-written',
     text: 'GM',
     mediaIds: [],
@@ -25,7 +30,7 @@ function dto(overrides: Partial<SchedulePostDto> = {}): SchedulePostDto {
     fireAt: FIRE_AT,
     idempotencyKey: KEY,
     ...overrides,
-  } as SchedulePostDto;
+  };
 }
 
 function mockRes(): { status: jest.Mock; code: number } {
@@ -36,7 +41,7 @@ function mockRes(): { status: jest.Mock; code: number } {
       holder.code = code;
       return {};
     }),
-  } as unknown as { status: jest.Mock; code: number };
+  };
 }
 
 describe('ScheduledPostsController', () => {
@@ -47,7 +52,7 @@ describe('ScheduledPostsController', () => {
       ok: true,
       status: 200,
       json: () => Promise.resolve({ ok: true, message_id: 777 }),
-    }) as unknown as typeof fetch;
+    });
   });
 
   afterEach(() => {
@@ -63,9 +68,7 @@ describe('ScheduledPostsController', () => {
         ScheduledPostsModule,
       ],
     }).compile();
-    const authorizer = module.get(SessionBindingAuthorizer) as unknown as {
-      seed: (session: unknown) => Promise<void>;
-    };
+    const authorizer = module.get(SessionBindingAuthorizer);
     await authorizer.seed({
       sessionId: 'morning-desk',
       active: true,
@@ -87,10 +90,14 @@ describe('ScheduledPostsController', () => {
   it('creates (201) then replays the original (200) on duplicate keys', async () => {
     const { module, controller } = await booted();
     const firstRes = mockRes();
-    const first = (await controller.create(dto(), firstRes as never)) as { id: string };
+    const first = (await controller.create(dto(), firstRes as never)) as {
+      id: string;
+    };
     expect(firstRes.status).toHaveBeenCalledWith(201);
     const replayRes = mockRes();
-    const replay = (await controller.create(dto(), replayRes as never)) as { id: string };
+    const replay = (await controller.create(dto(), replayRes as never)) as {
+      id: string;
+    };
     expect(replayRes.status).toHaveBeenCalledWith(200);
     expect(replay.id).toBe(first.id);
     await module.close();
@@ -99,18 +106,24 @@ describe('ScheduledPostsController', () => {
   it('lists, reads, cancels by owner and fires publish-now end to end', async () => {
     const { module, controller } = await booted();
     const res = mockRes();
-    const created = (await controller.create(dto(), res as never)) as { id: string };
+    const created = (await controller.create(dto(), res as never)) as {
+      id: string;
+    };
     const listed = await controller.list('morning-desk');
     expect(listed).toHaveLength(1);
     const read = (await controller.byId(created.id)) as { id: string };
     expect(read.id).toBe(created.id);
-    await expect(controller.byId('sp_ghost')).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    await expect(controller.byId('sp_ghost')).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
 
     const fire = module.get(FireDuePostsUseCase);
     const fired = await fire.fireDue(TICK);
     expect(fired).toHaveLength(1);
 
-    await expect(controller.remove(created.id, 'morning-desk')).rejects.toMatchObject({
+    await expect(
+      controller.remove(created.id, 'morning-desk'),
+    ).rejects.toMatchObject({
       code: 'CONFLICT',
     });
     await module.close();
@@ -118,8 +131,12 @@ describe('ScheduledPostsController', () => {
 
   it('rejects cross-session cancel with 403-class ownership', async () => {
     const { module, controller } = await booted();
-    const created = (await controller.create(dto(), mockRes() as never)) as { id: string };
-    await expect(controller.remove(created.id, 'intruder')).rejects.toBeInstanceOf(DomainError);
+    const created = (await controller.create(dto(), mockRes() as never)) as {
+      id: string;
+    };
+    await expect(
+      controller.remove(created.id, 'intruder'),
+    ).rejects.toBeInstanceOf(DomainError);
     await module.close();
   });
 });

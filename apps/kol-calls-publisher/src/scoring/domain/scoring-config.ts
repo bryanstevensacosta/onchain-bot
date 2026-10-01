@@ -345,7 +345,7 @@ export function validateScoringConfig(candidate: unknown): void {
   }
   for (const key of ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] as const) {
     checkNumber(
-      (candidate.signalPenalties as Record<string, unknown>)[key],
+      candidate.signalPenalties[key],
       `signalPenalties.${key}`,
       0,
       100,
@@ -358,12 +358,7 @@ export function validateScoringConfig(candidate: unknown): void {
     );
   }
   for (const key of ['SCAM', 'SUSPICIOUS', 'UNKNOWN', 'LEGITIMATE'] as const) {
-    checkNumber(
-      (candidate.securityCaps as Record<string, unknown>)[key],
-      `securityCaps.${key}`,
-      0,
-      100,
-    );
+    checkNumber(candidate.securityCaps[key], `securityCaps.${key}`, 0, 100);
   }
   checkNumber(candidate.multiplierPivot, 'multiplierPivot', 0, 1);
   checkNumber(candidate.multiplierSlope, 'multiplierSlope', 0, 2);
@@ -373,7 +368,7 @@ export function validateScoringConfig(candidate: unknown): void {
       'scoring_config.tiers must be an object',
     );
   }
-  const tiers = candidate.tiers as Record<string, unknown>;
+  const tiers = candidate.tiers;
   for (const key of ['strong', 'decent', 'neutral', 'risky'] as const) {
     checkNumber(tiers[key], `tiers.${key}`, 0, 100);
   }
@@ -393,7 +388,7 @@ export function validateScoringConfig(candidate: unknown): void {
       'scoring_config.gates must be an object',
     );
   }
-  const gates = candidate.gates as Record<string, unknown>;
+  const gates = candidate.gates;
   checkNumber(gates.minScore, 'gates.minScore', 0, 100);
   checkNumber(gates.maxRiskWeight, 'gates.maxRiskWeight', 0, 100);
   checkNumber(gates.minCompleteness, 'gates.minCompleteness', 0, 1);

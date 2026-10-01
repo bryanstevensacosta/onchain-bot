@@ -11,8 +11,14 @@ export class ContentId extends ValueObject<{ raw: string }> {
     super({ raw });
   }
 
-  public static from(contentType: string, source: string, externalId: string): ContentId {
-    const parts = [contentType, source, externalId].map((p) => p.trim().toLowerCase());
+  public static from(
+    contentType: string,
+    source: string,
+    externalId: string,
+  ): ContentId {
+    const parts = [contentType, source, externalId].map((p) =>
+      p.trim().toLowerCase(),
+    );
     if (parts.some((p) => p === '')) {
       throw new Error('ContentId segments must be non-empty');
     }

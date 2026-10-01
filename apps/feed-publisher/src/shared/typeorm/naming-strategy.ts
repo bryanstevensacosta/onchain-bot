@@ -11,7 +11,10 @@ export class SnakeCaseNamingStrategy
   extends DefaultNamingStrategy
   implements NamingStrategyInterface
 {
-  public tableName(targetName: string, userSpecifiedName: string | undefined): string {
+  public tableName(
+    targetName: string,
+    userSpecifiedName: string | undefined,
+  ): string {
     return userSpecifiedName ?? snakeCase(targetName);
   }
 
@@ -20,8 +23,7 @@ export class SnakeCaseNamingStrategy
     customName: string | undefined,
     embeddedPrefixes: string[],
   ): string {
-    const base =
-      customName ?? [...embeddedPrefixes, propertyName].join('_');
+    const base = customName ?? [...embeddedPrefixes, propertyName].join('_');
     return snakeCase(base);
   }
 }

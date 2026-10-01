@@ -54,7 +54,7 @@ export class ScheduledPost {
       sessionId: input.sessionId,
       binding: { ...input.binding },
       content: ScheduledPost.copyContent(input.content),
-      scheduleKind: { ...input.scheduleKind } as ScheduleKind,
+      scheduleKind: { ...input.scheduleKind },
       idempotencyKey: input.idempotencyKey,
       state: 'scheduled',
       messageId: null,
@@ -73,7 +73,7 @@ export class ScheduledPost {
       ...props,
       binding: { ...props.binding },
       content: ScheduledPost.copyContent(props.content),
-      scheduleKind: { ...props.scheduleKind } as ScheduleKind,
+      scheduleKind: { ...props.scheduleKind },
     });
   }
 
@@ -82,7 +82,7 @@ export class ScheduledPost {
       ...this.props,
       binding: { ...this.props.binding },
       content: ScheduledPost.copyContent(this.props.content),
-      scheduleKind: { ...this.props.scheduleKind } as ScheduleKind,
+      scheduleKind: { ...this.props.scheduleKind },
     };
   }
 
@@ -145,7 +145,10 @@ export class ScheduledPost {
   }
 
   /** Recurring fire bookkeeping: stays `scheduled`, records the last fire. */
-  public recordRecurringFire(firedAt: string, messageId: number): ScheduledPost {
+  public recordRecurringFire(
+    firedAt: string,
+    messageId: number,
+  ): ScheduledPost {
     this.assertMutable('recordRecurringFire');
     return new ScheduledPost({
       ...this.props,
@@ -243,7 +246,9 @@ export class ScheduledPost {
         kind: 'pre-written',
         text: content.text,
         mediaIds: [...content.mediaIds],
-        buttons: content.buttons ? content.buttons.map((b) => ({ ...b })) : null,
+        buttons: content.buttons
+          ? content.buttons.map((b) => ({ ...b }))
+          : null,
       };
     }
     return { kind: 'content-ref', queueEntryId: content.queueEntryId };

@@ -1,8 +1,5 @@
 import { Reflector } from '@nestjs/core';
-import {
-  ForbiddenException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { RequireScope } from './require-scope.decorator';
 import { ServiceAuthGuard } from './service-auth.guard';
 import { ClientRegistryService } from '@/auth/application/client-registry.service';
@@ -35,8 +32,7 @@ function signedHeaders(
 ) {
   const method = opts.method ?? 'POST';
   const path = opts.path ?? '/api/bots/bot1/send';
-  const timestamp =
-    opts.timestamp ?? String(Math.floor(Date.now() / 1000));
+  const timestamp = opts.timestamp ?? String(Math.floor(Date.now() / 1000));
   const nonce = opts.nonce ?? `nonce-${Math.random().toString(36).slice(2)}`;
   const body = opts.body ?? '';
   const signature = hmac.sign(secret, method, path, timestamp, nonce, body);
@@ -122,19 +118,18 @@ describe('ServiceAuthGuard (todo 2, red)', () => {
     const { req } = signedHeaders(hmac, SECRET, {
       body: '{"text":"hi"}',
     });
-    (req.headers as Record<string, string>)['x-signature'] =
-      '0'.repeat(64);
-    expect(() => guard.canActivate(contextFor(req, new SendEndpoint().send))).toThrow(
-      UnauthorizedException,
-    );
+    (req.headers as Record<string, string>)['x-signature'] = '0'.repeat(64);
+    expect(() =>
+      guard.canActivate(contextFor(req, new SendEndpoint().send)),
+    ).toThrow(UnauthorizedException);
   });
 
   it('rejects an expired timestamp with 401', () => {
     const old = String(Math.floor(Date.now() / 1000) - 3600);
     const { req } = signedHeaders(hmac, SECRET, { timestamp: old });
-    expect(() => guard.canActivate(contextFor(req, new SendEndpoint().send))).toThrow(
-      UnauthorizedException,
-    );
+    expect(() =>
+      guard.canActivate(contextFor(req, new SendEndpoint().send)),
+    ).toThrow(UnauthorizedException);
   });
 
   it('rejects a reused nonce (replay attack) with 401', () => {
@@ -164,9 +159,9 @@ describe('ServiceAuthGuard (todo 2, red)', () => {
       path: '/api/vault/bots',
       method: 'POST',
     });
-    expect(
-      guard.canActivate(contextFor(req, new AdminEndpoint().admin)),
-    ).toBe(true);
+    expect(guard.canActivate(contextFor(req, new AdminEndpoint().admin))).toBe(
+      true,
+    );
     const { req: sendReq } = signedHeaders(hmac, ADMIN_SECRET, {
       clientId: 'ops-admin',
       nonce: 'admin-send-1',
@@ -178,9 +173,9 @@ describe('ServiceAuthGuard (todo 2, red)', () => {
 
   it('rejects an unknown client with 401', () => {
     const { req } = signedHeaders(hmac, SECRET, { clientId: 'ghost' });
-    expect(() => guard.canActivate(contextFor(req, new SendEndpoint().send))).toThrow(
-      UnauthorizedException,
-    );
+    expect(() =>
+      guard.canActivate(contextFor(req, new SendEndpoint().send)),
+    ).toThrow(UnauthorizedException);
   });
 
   it('never logs keys, secrets or signatures', () => {
@@ -190,8 +185,12 @@ describe('ServiceAuthGuard (todo 2, red)', () => {
       .mockImplementation((...args: unknown[]) => {
         seen.push(args.map(String).join(' '));
       });
-    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const err = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const warn = jest
+      .spyOn(console, 'warn')
+      .mockImplementation(() => undefined);
+    const err = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
     try {
       const { req, signature } = signedHeaders(hmac, SECRET);
       guard.canActivate(contextFor(req, new SendEndpoint().send));

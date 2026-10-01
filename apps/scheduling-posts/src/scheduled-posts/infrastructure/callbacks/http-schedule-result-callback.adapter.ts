@@ -20,14 +20,18 @@ export class HttpScheduleResultCallback extends ScheduleResultCallbackPort {
   }
 
   public async emit(callback: ScheduleResultCallback): Promise<void> {
-    const url = (this.config.get<string>('SESSION_CALLBACK_URL', '') ?? '').trim();
+    const url = (
+      this.config.get<string>('SESSION_CALLBACK_URL', '') ?? ''
+    ).trim();
     if (!url) {
       this.logger.log(
         `callback log-only (no SESSION_CALLBACK_URL): ${callback.scheduledPostId} ${callback.state}`,
       );
       return;
     }
-    const apiKey = (this.config.get<string>('SESSION_CALLBACK_API_KEY', '') ?? '').trim();
+    const apiKey = (
+      this.config.get<string>('SESSION_CALLBACK_API_KEY', '') ?? ''
+    ).trim();
     const rawBody = JSON.stringify(callback);
     let lastError = 'unknown error';
     for (let attempt = 1; attempt <= 3; attempt += 1) {

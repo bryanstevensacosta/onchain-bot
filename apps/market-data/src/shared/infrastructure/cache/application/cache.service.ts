@@ -23,7 +23,11 @@ export class CacheService {
     return this.port.del(key);
   }
 
-  public async getOrSet<T>(key: string, ttlSeconds: number, loader: () => Promise<T>): Promise<T> {
+  public async getOrSet<T>(
+    key: string,
+    ttlSeconds: number,
+    loader: () => Promise<T>,
+  ): Promise<T> {
     const cached = await this.port.get<T>(key);
     if (cached !== null) {
       return cached;

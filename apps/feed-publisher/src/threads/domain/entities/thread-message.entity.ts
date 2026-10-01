@@ -48,7 +48,10 @@ export class ThreadMessage extends Entity<string> {
     index: number,
     input: ThreadMessageInput,
   ): ThreadMessage {
-    if (typeof input.content !== 'string' || input.content.trim().length === 0) {
+    if (
+      typeof input.content !== 'string' ||
+      input.content.trim().length === 0
+    ) {
       throw new DomainError(
         ErrorCode.VALIDATION,
         'ThreadMessage requires non-blank content',

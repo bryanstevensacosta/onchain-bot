@@ -1,5 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ParsedFields, ParserInput, ParserPort } from '@/parsing/domain/ports/parser.port';
+import {
+  ParsedFields,
+  ParserInput,
+  ParserPort,
+} from '@/parsing/domain/ports/parser.port';
 
 /**
  * Heuristic parser adapter (v1).
@@ -38,7 +42,11 @@ export class HeuristicParserAdapter extends ParserPort {
       name: this.extractName(text),
       chart: this.extractChart(text),
     };
-    if (fields.ticker === null && fields.name === null && fields.chart === null) {
+    if (
+      fields.ticker === null &&
+      fields.name === null &&
+      fields.chart === null
+    ) {
       this.logger.debug('No parsed fields extracted from message');
     }
     return Promise.resolve(fields);

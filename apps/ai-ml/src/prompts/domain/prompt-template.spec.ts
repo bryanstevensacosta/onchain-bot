@@ -12,7 +12,10 @@ describe('prompt-template domain (todo 1)', () => {
   });
 
   it('dedupes and ignores empty placeholders', () => {
-    expect(extractVariables('{{a}} {{a}} {{}} {{ b }}', '')).toEqual(['a', 'b']);
+    expect(extractVariables('{{a}} {{a}} {{}} {{ b }}', '')).toEqual([
+      'a',
+      'b',
+    ]);
   });
 
   it('rejects empty names and empty content', () => {

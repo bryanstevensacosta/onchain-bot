@@ -25,7 +25,9 @@ export class AiMlStatusController {
   ) {}
 
   @Get('status')
-  @ApiOperation({ summary: 'ai-ml dual-run status: mode, remote probe, parity ledger' })
+  @ApiOperation({
+    summary: 'ai-ml dual-run status: mode, remote probe, parity ledger',
+  })
   @ApiResponse({ status: 200, description: 'Migration status' })
   public async status(): Promise<AiMlStatusView> {
     return buildAiMlStatusView(this.remote, this.parity);

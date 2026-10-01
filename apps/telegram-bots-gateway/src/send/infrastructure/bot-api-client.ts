@@ -92,9 +92,11 @@ export class BotApiClient {
     return Math.min(Math.max(0, sec) * 1000, 60_000);
   }
 
-  private async fetchWithTimeout(url: string, payload: Record<string, unknown>) {
-    const fetchFn: BotFetchFn =
-      this.fetchFn ?? (globalThis.fetch as unknown as BotFetchFn);
+  private async fetchWithTimeout(
+    url: string,
+    payload: Record<string, unknown>,
+  ) {
+    const fetchFn: BotFetchFn = this.fetchFn ?? globalThis.fetch;
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 15_000);
     try {

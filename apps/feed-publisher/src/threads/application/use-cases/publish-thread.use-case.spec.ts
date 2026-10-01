@@ -80,9 +80,7 @@ describe('PublishThreadUseCase partial-publish matrix', () => {
     // Retry after the backoff hold re-attempts ONLY message 2.
     const retry = new ScriptedPublisher({});
     const stored = await repo.findById(id);
-    const afterBackoff = new Date(
-      (stored?.nextAttemptAt ?? AT).getTime() + 1,
-    );
+    const afterBackoff = new Date((stored?.nextAttemptAt ?? AT).getTime() + 1);
     const second = await makePublish(repo, retry).execute(id, afterBackoff);
     expect(second.status).toBe('COMPLETED');
     expect(second.publishedIndexes).toEqual([1]);

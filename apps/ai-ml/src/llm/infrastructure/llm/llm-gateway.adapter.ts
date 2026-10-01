@@ -55,7 +55,10 @@ export class LlmGatewayAdapter extends LlmPort {
       { type: 'text', text: request.prompt },
     ];
     if (request.imageUrl) {
-      userContent.push({ type: 'image_url', image_url: { url: request.imageUrl } });
+      userContent.push({
+        type: 'image_url',
+        image_url: { url: request.imageUrl },
+      });
     } else if (request.imageBase64) {
       const mime = request.mimeType ?? 'image/jpeg';
       userContent.push({

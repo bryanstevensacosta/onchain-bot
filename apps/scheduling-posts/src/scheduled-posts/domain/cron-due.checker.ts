@@ -11,7 +11,11 @@ const FIELDS: CronField[] = [
   { min: 0, max: 23 },
   { min: 1, max: 31 },
   { min: 1, max: 12 },
-  { min: 0, max: 6, names: { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 } },
+  {
+    min: 0,
+    max: 6,
+    names: { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 },
+  },
 ];
 
 /**
@@ -46,7 +50,9 @@ export class CronDueChecker {
         `cronExpr must be a 5-field UTC cron (got ${parts.length} fields): ${cronExpr}`,
       );
     }
-    return parts.map((part, index) => CronDueChecker.parseField(part, FIELDS[index], cronExpr));
+    return parts.map((part, index) =>
+      CronDueChecker.parseField(part, FIELDS[index], cronExpr),
+    );
   }
 
   private static parseField(

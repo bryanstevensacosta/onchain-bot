@@ -10,9 +10,7 @@ import {
   KolIngestionClientPort,
 } from '@/ingestion/domain/ports/ingestion-client.port';
 import { ProcessKolMessageHandler } from '../handlers/process-kol-message.handler';
-import {
-  isKolFrame,
-} from '@/ingestion/infrastructure/http/dto/raw-kol-message.dto';
+import { isKolFrame } from '@/ingestion/infrastructure/http/dto/raw-kol-message.dto';
 import { DEFAULT_INGESTION_BASE_URL } from '@/ingestion/infrastructure/http/ingestion-http-client.adapter';
 
 const STREAM_PATH = '/api/ingestion/stream';

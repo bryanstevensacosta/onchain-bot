@@ -4,7 +4,9 @@ import type { MarketDataSnapshot } from '@/scan/infrastructure/market-data/marke
 
 const SOL = 'So11111111111111111111111111111111111111112';
 
-function snapshot(overrides: Partial<MarketDataSnapshot> = {}): MarketDataSnapshot {
+function snapshot(
+  overrides: Partial<MarketDataSnapshot> = {},
+): MarketDataSnapshot {
   return {
     chain: 'solana',
     address: SOL,
@@ -37,7 +39,13 @@ describe('TokenScanPipeline + formatter (dev holdings)', () => {
       getSnapshot: async () =>
         snapshot({
           devWallets: [
-            { wallet: 'Dev111', holdAmount: 1000, percentOfSupply: 8.5, pnlUsd: 10, tag: 'dev' },
+            {
+              wallet: 'Dev111',
+              holdAmount: 1000,
+              percentOfSupply: 8.5,
+              pnlUsd: 10,
+              tag: 'dev',
+            },
           ],
           devPctSupply: 8.5,
         }),
@@ -54,7 +62,13 @@ describe('TokenScanPipeline + formatter (dev holdings)', () => {
       getSnapshot: async () =>
         snapshot({
           devWallets: [
-            { wallet: 'Dev111AAAAABBBBCCCC', holdAmount: 1000, percentOfSupply: 8.5, pnlUsd: 10, tag: 'dev' },
+            {
+              wallet: 'Dev111AAAAABBBBCCCC',
+              holdAmount: 1000,
+              percentOfSupply: 8.5,
+              pnlUsd: 10,
+              tag: 'dev',
+            },
           ],
           devPctSupply: 8.5,
         }),

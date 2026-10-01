@@ -22,11 +22,13 @@ const preview = {
 
 describe('LlmPlaygroundController', () => {
   it('previews prompts without side effects (delegates to the use case)', async () => {
-    const models = { execute: async (): Promise<never[]> => [] } as unknown as GetLlmModelsUseCase;
+    const models = {
+      execute: async (): Promise<never[]> => [],
+    } as unknown as GetLlmModelsUseCase;
     const controller = new LlmPlaygroundController(preview, models);
-    await expect(
-      controller.preview({ rawContent: 'Hola' }),
-    ).resolves.toEqual(rendered);
+    await expect(controller.preview({ rawContent: 'Hola' })).resolves.toEqual(
+      rendered,
+    );
     await expect(controller.listModels()).resolves.toEqual([]);
   });
 

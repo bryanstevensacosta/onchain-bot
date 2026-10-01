@@ -2,7 +2,9 @@ import { validateLlmConfigPatch } from './llm-config';
 
 describe('validateLlmConfigPatch', () => {
   it('accepts boolean switches', () => {
-    expect(validateLlmConfigPatch({ llmEnabled: true })).toEqual({ llmEnabled: true });
+    expect(validateLlmConfigPatch({ llmEnabled: true })).toEqual({
+      llmEnabled: true,
+    });
     expect(validateLlmConfigPatch({ publishingEnabled: false })).toEqual({
       publishingEnabled: false,
     });

@@ -29,7 +29,9 @@ export class TypeOrmAssetRegistryRepository extends AssetRegistryPort {
 
   private mustStore(): Repository<AssetRegistryEntity> {
     if (this.store === undefined || this.store === null) {
-      throw new Error('TypeOrmAssetRegistryRepository: no store wired (DATABASE_ENABLED=true?)');
+      throw new Error(
+        'TypeOrmAssetRegistryRepository: no store wired (DATABASE_ENABLED=true?)',
+      );
     }
     return this.store;
   }
@@ -50,16 +52,28 @@ export class TypeOrmAssetRegistryRepository extends AssetRegistryPort {
         (input.geckoId ?? prev?.geckoId ?? null) === null
           ? null
           : String(input.geckoId ?? prev?.geckoId ?? '').toLowerCase(),
-      providerIds: { ...(prev?.providerIds ?? {}), ...(input.providerIds ?? {}) },
+      providerIds: {
+        ...(prev?.providerIds ?? {}),
+        ...(input.providerIds ?? {}),
+      },
       logoUrl: input.logoUrl ?? prev?.logoUrl ?? null,
-      categories: input.categories !== undefined ? [...input.categories] : (prev?.categories ?? []),
+      categories:
+        input.categories !== undefined
+          ? [...input.categories]
+          : (prev?.categories ?? []),
     });
     return toAssetRecord(await store.save(merged));
   }
 
-  public async findByContract(chain: string, contract: string): Promise<AssetRecord | null> {
+  public async findByContract(
+    chain: string,
+    contract: string,
+  ): Promise<AssetRecord | null> {
     const found = await this.mustStore().findOne({
-      where: { chain: normalizeChain(chain), contract: normalizeContract(contract) },
+      where: {
+        chain: normalizeChain(chain),
+        contract: normalizeContract(contract),
+      },
     });
     return found === null ? null : toAssetRecord(found);
   }
@@ -76,7 +90,10 @@ export class TypeOrmAssetRegistryRepository extends AssetRegistryPort {
     return found === null ? null : toAssetRecord(found);
   }
 
-  public async findBySymbol(chain: string, symbol: string): Promise<ReadonlyArray<AssetRecord>> {
+  public async findBySymbol(
+    chain: string,
+    symbol: string,
+  ): Promise<ReadonlyArray<AssetRecord>> {
     const rows = await this.mustStore().find({
       where: { chain: normalizeChain(chain), symbol: (symbol ?? '').trim() },
     });

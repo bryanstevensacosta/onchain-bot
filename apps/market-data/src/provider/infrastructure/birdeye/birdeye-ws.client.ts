@@ -20,7 +20,10 @@ export interface BirdeyeSocket {
   send(data: string): void;
   ping(): void;
   close(): void;
-  on(event: 'open' | 'message' | 'close' | 'error' | 'pong', listener: (...args: Array<unknown>) => void): void;
+  on(
+    event: 'open' | 'message' | 'close' | 'error' | 'pong',
+    listener: (...args: Array<unknown>) => void,
+  ): void;
   removeAllListeners(): void;
 }
 
@@ -108,17 +111,25 @@ export class BirdeyeWsAdapter {
 
   private isConnected = false;
 
-  private readonly watched = new Map<string, { ticker: boolean; ohlcv: boolean }>();
+  private readonly watched = new Map<
+    string,
+    { ticker: boolean; ohlcv: boolean }
+  >();
 
-  private readonly eventListeners = new Set<(event: BirdeyeStreamEvent) => void>();
+  private readonly eventListeners = new Set<
+    (event: BirdeyeStreamEvent) => void
+  >();
 
-  private readonly errorListeners = new Set<(info: BirdeyeStreamError) => void>();
+  private readonly errorListeners = new Set<
+    (info: BirdeyeStreamError) => void
+  >();
 
   private pingTimer: ReturnType<typeof setInterval> | null = null;
 
   public constructor(apiKey: string, opts?: BirdeyeWsAdapterOptions) {
     this.apiKey = (apiKey ?? '').trim();
-    this.socketFactory = opts?.socketFactory ?? BirdeyeWsAdapter.defaultSocketFactory;
+    this.socketFactory =
+      opts?.socketFactory ?? BirdeyeWsAdapter.defaultSocketFactory;
     this.pingIntervalMs = opts?.pingIntervalMs ?? BIRDEYE_WS_PING_INTERVAL_MS;
   }
 
@@ -131,7 +142,9 @@ export class BirdeyeWsAdapter {
       return;
     }
     if (this.apiKey === '') {
-      throw new Error('BIRDEYE_API_KEY missing — Birdeye WS stays disconnected (never a silent dark feed)');
+      throw new Error(
+        'BIRDEYE_API_KEY missing — Birdeye WS stays disconnected (never a silent dark feed)',
+      );
     }
     const url = `${BIRDEYE_WS_URL}?x-api-key=${this.apiKey}`;
     const socket = this.socketFactory(url, BIRDEYE_WS_PROTOCOL, {
@@ -140,7 +153,10 @@ export class BirdeyeWsAdapter {
     });
     this.socket = socket;
     await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error('Birdeye WS connection timeout')), 15_000);
+      const timeout = setTimeout(
+        () => reject(new Error('Birdeye WS connection timeout')),
+        15_000,
+      );
       socket.on('open', () => {
         clearTimeout(timeout);
         this.isConnected = true;
@@ -153,7 +169,11 @@ export class BirdeyeWsAdapter {
         clearTimeout(timeout);
         if (!this.isConnected) {
           const err = args[0];
-          reject(err instanceof Error ? err : new Error('Birdeye WS connection failed'));
+          reject(
+            err instanceof Error
+              ? err
+              : new Error('Birdeye WS connection failed'),
+          );
         }
       });
     });
@@ -162,7 +182,9 @@ export class BirdeyeWsAdapter {
     socket.on('error', (...args: Array<unknown>) => {
       if (this.isConnected) {
         const err = args[0];
-        this.handleDown(err instanceof Error ? err.message : 'Birdeye WS error');
+        this.handleDown(
+          err instanceof Error ? err.message : 'Birdeye WS error',
+        );
       }
     });
   }
@@ -185,10 +207,16 @@ export class BirdeyeWsAdapter {
 
   public async watch(subs: ReadonlyArray<BirdeyeWatchRequest>): Promise<void> {
     for (const sub of subs) {
-      if (sub.exchange.toLowerCase() !== 'birdeye' || sub.symbol.trim() === '') {
+      if (
+        sub.exchange.toLowerCase() !== 'birdeye' ||
+        sub.symbol.trim() === ''
+      ) {
         continue;
       }
-      const held = this.watched.get(sub.symbol) ?? { ticker: false, ohlcv: false };
+      const held = this.watched.get(sub.symbol) ?? {
+        ticker: false,
+        ohlcv: false,
+      };
       if (sub.kind === 'ohlcv') {
         held.ohlcv = true;
       } else {
@@ -199,7 +227,9 @@ export class BirdeyeWsAdapter {
     this.resubscribeAll();
   }
 
-  public async unwatch(subs: ReadonlyArray<BirdeyeWatchRequest>): Promise<void> {
+  public async unwatch(
+    subs: ReadonlyArray<BirdeyeWatchRequest>,
+  ): Promise<void> {
     for (const sub of subs) {
       const held = this.watched.get(sub.symbol);
       if (!held) {
@@ -249,14 +279,19 @@ export class BirdeyeWsAdapter {
       const dynamicRequire: NodeRequire = require;
       WsCtor = dynamicRequire('ws') as typeof WsCtor;
     } catch {
-      throw new Error('ws is not installed: Birdeye WS needs the hoisted ws package (no new deps declared)');
+      throw new Error(
+        'ws is not installed: Birdeye WS needs the hoisted ws package (no new deps declared)',
+      );
     }
     const raw = new WsCtor(url, protocols, { headers });
     return {
       send: (data: string): void => raw.send(data),
       ping: (): void => raw.ping(),
       close: (): void => raw.close(),
-      on: (event: string, listener: (...args: Array<unknown>) => void): void => {
+      on: (
+        event: string,
+        listener: (...args: Array<unknown>) => void,
+      ): void => {
         if (event === 'message') {
           raw.on(event, (data: unknown) => listener(String(data)));
         } else {
@@ -279,7 +314,10 @@ export class BirdeyeWsAdapter {
     this.send({ ...buildTxsSubscribe(addresses) });
   }
 
-  private send(payload: { readonly type: string; readonly data?: unknown }): void {
+  private send(payload: {
+    readonly type: string;
+    readonly data?: unknown;
+  }): void {
     try {
       this.socket?.send(JSON.stringify(payload));
     } catch {
@@ -308,7 +346,8 @@ export class BirdeyeWsAdapter {
 
   private routePrice(data: unknown): void {
     const candle = data as Record<string, unknown>;
-    const address = typeof candle['address'] === 'string' ? (candle['address'] as string) : '';
+    const address =
+      typeof candle['address'] === 'string' ? candle['address'] : '';
     const held = this.watched.get(address);
     if (!held) {
       return;
@@ -342,7 +381,13 @@ export class BirdeyeWsAdapter {
       });
     }
     if (held.ticker) {
-      this.emit({ kind: 'ticker', exchange: 'birdeye', symbol: address, price: close, timestamp });
+      this.emit({
+        kind: 'ticker',
+        exchange: 'birdeye',
+        symbol: address,
+        price: close,
+        timestamp,
+      });
     }
   }
 
@@ -350,15 +395,19 @@ export class BirdeyeWsAdapter {
     const tx = data as Record<string, unknown>;
     const address =
       typeof tx['address'] === 'string'
-        ? (tx['address'] as string)
+        ? tx['address']
         : typeof tx['mint'] === 'string'
-          ? (tx['mint'] as string)
+          ? tx['mint']
           : '';
     const held = this.watched.get(address);
     if (!held?.ticker) {
       return;
     }
-    const price = BirdeyeWsAdapter.firstNumber(tx, ['price', 'tokenPrice', 'priceUsd']);
+    const price = BirdeyeWsAdapter.firstNumber(tx, [
+      'price',
+      'tokenPrice',
+      'priceUsd',
+    ]);
     if (price === null) {
       return;
     }
@@ -367,21 +416,28 @@ export class BirdeyeWsAdapter {
       exchange: 'birdeye',
       symbol: address,
       price,
-      timestamp: BirdeyeWsAdapter.unixToIso(tx['blockUnixTime'] ?? tx['unixTime']),
+      timestamp: BirdeyeWsAdapter.unixToIso(
+        tx['blockUnixTime'] ?? tx['unixTime'],
+      ),
     });
   }
 
-  private static firstNumber(source: Record<string, unknown>, keys: ReadonlyArray<string>): number | null {
+  private static firstNumber(
+    source: Record<string, unknown>,
+    keys: ReadonlyArray<string>,
+  ): number | null {
     for (const key of keys) {
       if (typeof source[key] === 'number') {
-        return source[key] as number;
+        return source[key];
       }
     }
     return null;
   }
 
   private static unixToIso(value: unknown): string {
-    return typeof value === 'number' ? new Date(value * 1000).toISOString() : new Date().toISOString();
+    return typeof value === 'number'
+      ? new Date(value * 1000).toISOString()
+      : new Date().toISOString();
   }
 
   private emit(event: BirdeyeStreamEvent): void {
@@ -396,7 +452,11 @@ export class BirdeyeWsAdapter {
     }
     this.stopKeepalive();
     this.isConnected = false;
-    const info: BirdeyeStreamError = { code: 'EXCHANGE_DOWN', message, exchange: 'birdeye' };
+    const info: BirdeyeStreamError = {
+      code: 'EXCHANGE_DOWN',
+      message,
+      exchange: 'birdeye',
+    };
     for (const listener of this.errorListeners) {
       listener(info);
     }

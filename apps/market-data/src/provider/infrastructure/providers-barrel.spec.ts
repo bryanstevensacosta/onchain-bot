@@ -67,15 +67,15 @@ describe('providers barrel (14 adapters, todos 4+16)', () => {
       new CcxtService({ defaultExchange: 'binance', exchanges: ['binance'] }),
       new CoinGeckoService({} as unknown as never),
       new CoinMarketCapService({} as unknown as never),
-      new DexScreenerService({} as unknown as never),
+      new DexScreenerService({}),
       new FluxRpcService({} as unknown as never),
-      new GeckoTerminalService({} as unknown as never),
+      new GeckoTerminalService({}),
       new HeliusService({} as unknown as never),
       new MobulaService({} as unknown as never),
       new MoralisService({} as unknown as never),
       new PumpDevService({} as unknown as never),
-      new RugCheckService({} as unknown as never),
-      new SolanaRpcService({} as unknown as never),
+      new RugCheckService({}),
+      new SolanaRpcService({}),
     ];
     expect(services).toHaveLength(14);
     for (const service of services) {

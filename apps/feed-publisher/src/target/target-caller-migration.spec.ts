@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 
 const SRC = join(__dirname, '..');
 
@@ -40,15 +40,9 @@ describe('feed-publisher target caller migration', () => {
   it('no caller outside target/ imports the legacy telegram/threads trees', () => {
     const files = readTree(SRC).filter(
       (row) =>
-        !row.file.includes(
-          `${join(SRC, 'target')}${require('node:path').sep}`,
-        ) &&
-        !row.file.includes(
-          `${join(SRC, 'telegram')}${require('node:path').sep}`,
-        ) &&
-        !row.file.includes(
-          `${join(SRC, 'threads')}${require('node:path').sep}`,
-        ) &&
+        !row.file.includes(`${join(SRC, 'target')}${sep}`) &&
+        !row.file.includes(`${join(SRC, 'telegram')}${sep}`) &&
+        !row.file.includes(`${join(SRC, 'threads')}${sep}`) &&
         !row.file.endsWith('.module.ts'),
     );
     expect(files.length).toBeGreaterThan(0);

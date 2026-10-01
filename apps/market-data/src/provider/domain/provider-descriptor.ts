@@ -26,7 +26,14 @@ export const DEFAULT_PROVIDERS: ReadonlyArray<ProviderDescriptor> = [
     // Eligibility only: effective coverage is CEX-pair symbols (covers()).
     name: 'ccxt',
     kind: 'market',
-    supportsChains: ['ethereum', 'solana', 'bsc', 'base', 'arbitrum', 'polygon'],
+    supportsChains: [
+      'ethereum',
+      'solana',
+      'bsc',
+      'base',
+      'arbitrum',
+      'polygon',
+    ],
     rateLimitPerMin: 600,
     endpointCosts: { ticker: 1, ohlcv: 5, quote: 1 },
     backoffInitialMs: 1_000,

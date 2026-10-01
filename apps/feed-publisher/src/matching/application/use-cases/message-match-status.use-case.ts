@@ -137,10 +137,7 @@ export class MessageMatchStatusUseCase {
         filteredTitle = stored.filteredTitle;
         filteredContent = stored.filteredContent;
       } else if (entry && entry.matchedKeywordIds.length > 0) {
-        const enriched = await this.enrich(
-          [...entry.matchedKeywordIds],
-          [],
-        );
+        const enriched = await this.enrich([...entry.matchedKeywordIds], []);
         matched = true;
         evaluated = true;
         hits = enriched.hits;
@@ -228,9 +225,7 @@ export class MessageMatchStatusUseCase {
       return 'Pending to publish';
     }
     if (input.blocked) {
-      const phrases = input.blocks
-        .map((b) => `"${b.phrase}"`)
-        .join(', ');
+      const phrases = input.blocks.map((b) => `"${b.phrase}"`).join(', ');
       return `Blocked by ${phrases || 'blacklist'}`;
     }
     if (input.matched) {

@@ -92,6 +92,6 @@ describe('GatewayHmacSigner', () => {
     expect(headers['x-timestamp']).toBe('1700000000');
     expect(headers['x-nonce']).toBe('fixed-nonce-1');
     expect(typeof headers['x-signature']).toBe('string');
-    expect((headers['x-signature'] as string).length).toBe(64);
+    expect(headers['x-signature'].length).toBe(64);
   });
 });

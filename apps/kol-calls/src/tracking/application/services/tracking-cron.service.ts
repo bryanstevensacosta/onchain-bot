@@ -49,9 +49,7 @@ export class TrackingCronService {
     const out: KolWindowStat[] = [];
     for (const window of RANKING_WINDOWS) {
       const cutoff = now.getTime() - RANKING_WINDOW_MS[window];
-      const inWindow = all.filter(
-        (row) => row.lastSeenAt.getTime() >= cutoff,
-      );
+      const inWindow = all.filter((row) => row.lastSeenAt.getTime() >= cutoff);
       const byCaller = new Map<string, typeof inWindow>();
       for (const row of inWindow) {
         const group = byCaller.get(row.kolId) ?? [];
@@ -62,10 +60,7 @@ export class TrackingCronService {
         const stat = KolWindowStat.create({
           caller,
           window,
-          totalX: rows.reduce(
-            (sum, row) => sum + (row.multiple ?? 0),
-            0,
-          ),
+          totalX: rows.reduce((sum, row) => sum + (row.multiple ?? 0), 0),
           callsCount: rows.reduce((sum, row) => sum + row.timesCalled, 0),
           strongCalls: rows.filter(
             (row) => row.multiple !== null && row.multiple >= STRONG_THRESHOLD,

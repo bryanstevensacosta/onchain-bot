@@ -56,7 +56,9 @@ export class PreviewPromptUseCase {
     private readonly configService: ConfigService,
   ) {}
 
-  public async execute(input: PreviewPromptInput): Promise<PreviewPromptResult> {
+  public async execute(
+    input: PreviewPromptInput,
+  ): Promise<PreviewPromptResult> {
     const templateId =
       input.templateId !== undefined && input.templateId.trim().length > 0
         ? input.templateId.trim()
@@ -70,8 +72,13 @@ export class PreviewPromptUseCase {
           : 'provide exactly one of templateId or draft',
       });
     }
-    if (typeof input.rawContent !== 'string' || input.rawContent.trim().length === 0) {
-      throw new BadRequestException({ error: 'rawContent must be a non-empty string' });
+    if (
+      typeof input.rawContent !== 'string' ||
+      input.rawContent.trim().length === 0
+    ) {
+      throw new BadRequestException({
+        error: 'rawContent must be a non-empty string',
+      });
     }
     const entry = PublisherQueueEntry.create({
       contentType: 'crypto-news',
@@ -99,7 +106,10 @@ export class PreviewPromptUseCase {
         throw new NotFoundException(`PromptTemplate ${templateId} not found`);
       }
       return {
-        renderedUserPrompt: this.generator.renderPromptFor(template.promptText, entry),
+        renderedUserPrompt: this.generator.renderPromptFor(
+          template.promptText,
+          entry,
+        ),
         systemPrompt: toNullableText(template.systemPromptText),
         model: template.model,
         maxTokens: template.maxTokens,
@@ -114,7 +124,9 @@ export class PreviewPromptUseCase {
         (draft as PreviewPromptDraftInput).promptText,
         entry,
       ),
-      systemPrompt: toNullableText((draft as PreviewPromptDraftInput).systemPromptText),
+      systemPrompt: toNullableText(
+        (draft as PreviewPromptDraftInput).systemPromptText,
+      ),
       model: knobs.model,
       maxTokens: knobs.maxTokens,
       temperature: knobs.temperature,
@@ -146,7 +158,10 @@ export class PreviewPromptUseCase {
     }
     const draft = input.draft as PreviewPromptDraftInput;
     const knobs = this.resolveDraftKnobs(draft);
-    const renderedUserPrompt = this.generator.renderPromptFor(draft.promptText, entry);
+    const renderedUserPrompt = this.generator.renderPromptFor(
+      draft.promptText,
+      entry,
+    );
     const systemPrompt = toNullableText(draft.systemPromptText);
     const content = await this.llmPort.generateText({
       prompt: renderedUserPrompt,
@@ -179,11 +194,13 @@ export class PreviewPromptUseCase {
     reasoningEffort: ReasoningEffort | null;
   } {
     const configured =
-      this.configService.get<string>('LLM_MODEL', 'gpt-4o-mini') || 'gpt-4o-mini';
+      this.configService.get<string>('LLM_MODEL', 'gpt-4o-mini') ||
+      'gpt-4o-mini';
     return {
       model: draft.model || configured,
       maxTokens: draft.maxTokens ?? PreviewPromptUseCase.FALLBACK_MAX_TOKENS,
-      temperature: draft.temperature ?? PreviewPromptUseCase.FALLBACK_TEMPERATURE,
+      temperature:
+        draft.temperature ?? PreviewPromptUseCase.FALLBACK_TEMPERATURE,
       reasoningEffort: draft.reasoningEffort ?? null,
     };
   }

@@ -3,7 +3,10 @@ import type { StreamBrokerService } from 'stream/application/stream-broker.servi
 
 interface FakeSocket {
   id: string;
-  handshake: { auth?: { token?: string }; headers: Record<string, string | undefined> };
+  handshake: {
+    auth?: { token?: string };
+    headers: Record<string, string | undefined>;
+  };
   emitted: Array<{ event: string; payload: unknown }>;
   disconnected: boolean;
   emit(event: string, payload: unknown): void;
@@ -36,7 +39,10 @@ function socket(id: string, token?: string): FakeSocket {
  * second protocol for dashboard clients.
  */
 describe('MarketDataWsGateway', () => {
-  function setup(): { gateway: MarketDataWsGateway; broker: jest.Mocked<StreamBrokerService> } {
+  function setup(): {
+    gateway: MarketDataWsGateway;
+    broker: jest.Mocked<StreamBrokerService>;
+  } {
     const broker = {
       connect: jest.fn(),
       subscribe: jest.fn(),
@@ -50,23 +56,38 @@ describe('MarketDataWsGateway', () => {
 
   it('rejects keyless handshakes with UNAUTHORIZED and disconnects', async () => {
     const { gateway, broker } = setup();
-    broker.connect.mockRejectedValueOnce(Object.assign(new Error('nope'), { status: 401 }));
+    broker.connect.mockRejectedValueOnce(
+      Object.assign(new Error('nope'), { status: 401 }),
+    );
     const client = socket('c1');
     await gateway.handleConnection(client as never);
     expect(broker.connect).toHaveBeenCalledWith('c1', undefined, undefined);
     expect(client.emitted[0]).toMatchObject({ event: 'stream-error' });
-    expect((client.emitted[0].payload as { code: string }).code).toBe('UNAUTHORIZED');
+    expect((client.emitted[0].payload as { code: string }).code).toBe(
+      'UNAUTHORIZED',
+    );
     expect(client.disconnected).toBe(true);
   });
 
   it('routes subscribe/unsubscribe and forwards broker payloads', async () => {
     const { gateway, broker } = setup();
-    broker.connect.mockResolvedValueOnce({ keyId: 'k', keyName: 'n', scopes: ['read'] } as never);
-    broker.subscribe.mockResolvedValueOnce({ subscribed: 'binance:btc/usdt:ticker' } as never);
-    broker.unsubscribe.mockResolvedValueOnce({ unsubscribed: 'binance:btc/usdt:ticker' } as never);
+    broker.connect.mockResolvedValueOnce({
+      keyId: 'k',
+      keyName: 'n',
+      scopes: ['read'],
+    } as never);
+    broker.subscribe.mockResolvedValueOnce({
+      subscribed: 'binance:btc/usdt:ticker',
+    });
+    broker.unsubscribe.mockResolvedValueOnce({
+      unsubscribed: 'binance:btc/usdt:ticker',
+    });
     const client = socket('c1', 'md_key');
     await gateway.handleConnection(client as never);
-    expect(broker.registerEmitter).toHaveBeenCalledWith('c1', expect.any(Function));
+    expect(broker.registerEmitter).toHaveBeenCalledWith(
+      'c1',
+      expect.any(Function),
+    );
     const ack = await gateway.onSubscribe(client as never, {
       exchange: 'binance',
       symbol: 'BTC/USDT',

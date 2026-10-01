@@ -10,7 +10,10 @@ import { PromptCatalogService } from './prompt-catalog.service';
 describe('PromptCatalogService (todo 1)', () => {
   const build = async (): Promise<PromptCatalogService> => {
     const module = await Test.createTestingModule({
-      imports: [ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }), PromptsModule],
+      imports: [
+        ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }),
+        PromptsModule,
+      ],
     }).compile();
     return module.get(PromptCatalogService);
   };
@@ -42,9 +45,10 @@ describe('PromptCatalogService (todo 1)', () => {
     expect(rolled.isActive).toBe(true);
     const active = await svc.getActive('feed-rewrite');
     expect(active.version).toBe(1);
-    expect((await svc.listVersions('feed-rewrite')).find((t) => t.version === 2)?.isActive).toBe(
-      false,
-    );
+    expect(
+      (await svc.listVersions('feed-rewrite')).find((t) => t.version === 2)
+        ?.isActive,
+    ).toBe(false);
   });
 
   it('GET by name+version returns the pinned version', async () => {

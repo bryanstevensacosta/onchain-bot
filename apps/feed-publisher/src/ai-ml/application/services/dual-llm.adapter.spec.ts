@@ -48,7 +48,7 @@ const withEnv = async (
     if (vars[key] === undefined) {
       delete process.env[key];
     } else {
-      process.env[key] = vars[key] as string;
+      process.env[key] = vars[key];
     }
   }
   try {
@@ -58,7 +58,7 @@ const withEnv = async (
       if (saved[key] === undefined) {
         delete process.env[key];
       } else {
-        process.env[key] = saved[key] as string;
+        process.env[key] = saved[key];
       }
     }
   }
@@ -71,9 +71,9 @@ describe('DualLlmAdapter', () => {
       const remote = new StubRemote('remote-text');
       const parity = new AiMlParityService();
       const dual = new DualLlmAdapter(local, remote, parity);
-      await expect(
-        dual.generateText({ prompt: 'hello' }),
-      ).resolves.toBe('local-text');
+      await expect(dual.generateText({ prompt: 'hello' })).resolves.toBe(
+        'local-text',
+      );
       expect(remote.calls).toBe(0);
       expect(parity.summary().compared).toBe(0);
     });
@@ -102,9 +102,9 @@ describe('DualLlmAdapter', () => {
       const remote = new StubRemote(null);
       const parity = new AiMlParityService();
       const dual = new DualLlmAdapter(local, remote, parity);
-      await expect(
-        dual.generateText({ prompt: 'hello' }),
-      ).resolves.toBe('local-text');
+      await expect(dual.generateText({ prompt: 'hello' })).resolves.toBe(
+        'local-text',
+      );
       expect(parity.summary().llm.skipped).toBe(1);
       expect(() => parity.assertNoDivergence()).not.toThrow();
     });
@@ -118,9 +118,9 @@ describe('DualLlmAdapter', () => {
         new StubRemote(''),
         parity,
       );
-      await expect(
-        dual.generateText({ prompt: 'hello' }),
-      ).resolves.toBe('local-text');
+      await expect(dual.generateText({ prompt: 'hello' })).resolves.toBe(
+        'local-text',
+      );
       expect(parity.summary().diverged).toBe(1);
       expect(() => parity.assertNoDivergence()).toThrow(
         'ai-ml dual-run diverged',

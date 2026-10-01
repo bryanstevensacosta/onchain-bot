@@ -28,8 +28,7 @@ export class AiMlEmbeddingClientAdapter extends EmbeddingPort {
       config?.get(key, fallback),
     );
     const raw = config?.get<string>('AI_ML_URL');
-    this.disabled =
-      typeof raw === 'string' ? raw.trim().length === 0 : false;
+    this.disabled = typeof raw === 'string' ? raw.trim().length === 0 : false;
   }
 
   public isAvailable(): boolean {

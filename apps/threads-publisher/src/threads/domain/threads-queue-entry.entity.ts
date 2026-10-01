@@ -58,9 +58,7 @@ export class ThreadsQueueEntry {
   public transitionTo(next: ThreadsQueueStatus): void {
     const allowed = VALID_THREADS_TRANSITIONS[this.status] ?? [];
     if (!allowed.includes(next)) {
-      throw new Error(
-        `invalid threads transition ${this.status} -> ${next}`,
-      );
+      throw new Error(`invalid threads transition ${this.status} -> ${next}`);
     }
     this.status = next;
   }

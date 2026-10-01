@@ -12,20 +12,18 @@ const base = {
   llmMaxAttempts: 3,
 };
 
-const configRepo = (fail = false): LlmConfigRepository =>
-  ({
-    load: async (): Promise<LlmConfig> => {
-      if (fail) throw new Error('db down');
-      return LlmConfig.load({ ...base });
-    },
-    save: async (cfg: LlmConfig): Promise<LlmConfig> => cfg,
-  }) as LlmConfigRepository;
+const configRepo = (fail = false): LlmConfigRepository => ({
+  load: async (): Promise<LlmConfig> => {
+    if (fail) throw new Error('db down');
+    return LlmConfig.load({ ...base });
+  },
+  save: async (cfg: LlmConfig): Promise<LlmConfig> => cfg,
+});
 
-const port = (available: boolean): LlmPort =>
-  ({
-    isAvailable: async (): Promise<boolean> => available,
-    generateText: async (): Promise<string> => 'x',
-  }) as LlmPort;
+const port = (available: boolean): LlmPort => ({
+  isAvailable: async (): Promise<boolean> => available,
+  generateText: async (): Promise<string> => 'x',
+});
 
 describe('LlmHealthIndicator (P21 hook, depth only)', () => {
   const OLD_ENV = process.env.USE_MOCK_AI;

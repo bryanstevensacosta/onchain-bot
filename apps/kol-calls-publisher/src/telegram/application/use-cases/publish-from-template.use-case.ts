@@ -138,8 +138,8 @@ export class PublishFromTemplateUseCase {
 
     if ((input.target ?? 'telegram') === 'threads') {
       return this.executeViaThreads(input, actor, {
-        botId: template.botId as string,
-        channelTarget: template.channelTarget as string,
+        botId: template.botId,
+        channelTarget: template.channelTarget,
       });
     }
 

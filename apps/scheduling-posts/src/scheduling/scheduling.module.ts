@@ -47,11 +47,7 @@ import { SchedulingHealthIndicator } from './health/scheduling-health.indicator'
  * adapters live (backend `DATABASE_ENABLED=false` pattern).
  */
 @Module({
-  imports: [
-    ConfigModule,
-    ScheduleModule.forRoot(),
-    TelegramModule,
-  ],
+  imports: [ConfigModule, ScheduleModule.forRoot(), TelegramModule],
   controllers: [
     SchedulingAdsController,
     SchedulingRotationConfigController,

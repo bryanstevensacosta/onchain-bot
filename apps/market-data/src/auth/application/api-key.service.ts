@@ -1,7 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
-import { toApiKeyView, type ApiKeyRecord, type ApiKeyView } from '../domain/api-key-record';
-import { generateApiKey, hashApiKey, isValidScope, keyPrefix, type ApiKeyScope } from '../domain/api-key-scope';
+import {
+  toApiKeyView,
+  type ApiKeyRecord,
+  type ApiKeyView,
+} from '../domain/api-key-record';
+import {
+  generateApiKey,
+  hashApiKey,
+  isValidScope,
+  keyPrefix,
+  type ApiKeyScope,
+} from '../domain/api-key-scope';
 
 export interface CreateKeyInput {
   readonly name: string;
@@ -43,7 +53,9 @@ export class ApiKeyService {
     }
     const scopes = [...input.scopes];
     if (scopes.length === 0 || !scopes.every(isValidScope)) {
-      throw new Error('At least one valid scope is required (read|snapshot|admin)');
+      throw new Error(
+        'At least one valid scope is required (read|snapshot|admin)',
+      );
     }
     const rateLimitPerMin = input.rateLimitPerMin ?? 60;
     if (!Number.isFinite(rateLimitPerMin) || rateLimitPerMin < 1) {
@@ -64,7 +76,10 @@ export class ApiKeyService {
       retiredAt: null,
     };
     this.entries.set(entry.id, entry);
-    return { plaintext, record: { ...entry, retiredAt: undefined } as ApiKeyRecord };
+    return {
+      plaintext,
+      record: { ...entry, retiredAt: undefined } as ApiKeyRecord,
+    };
   }
 
   public verify(plaintext: string): ApiKeyRecord | null {
@@ -80,7 +95,10 @@ export class ApiKeyService {
       if (entry.retiredAt !== null && now > entry.retiredAt) {
         continue;
       }
-      if (entry.expiresAt !== null && Date.now() > Date.parse(entry.expiresAt)) {
+      if (
+        entry.expiresAt !== null &&
+        Date.now() > Date.parse(entry.expiresAt)
+      ) {
         continue;
       }
       const a = Buffer.from(entry.keyHash, 'utf8');
@@ -93,7 +111,10 @@ export class ApiKeyService {
   }
 
   /** Rotation without redeploy: new key live immediately, old key in grace. */
-  public async rotate(id: string, graceMs = 10 * 60 * 1000): Promise<CreatedKey> {
+  public async rotate(
+    id: string,
+    graceMs = 10 * 60 * 1000,
+  ): Promise<CreatedKey> {
     const current = this.entries.get(id);
     if (!current || current.revokedAt !== null) {
       throw new Error(`Unknown key: ${id}`);

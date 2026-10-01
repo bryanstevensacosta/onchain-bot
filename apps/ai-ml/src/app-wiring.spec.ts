@@ -13,7 +13,10 @@ import { HealthController } from './health/health.controller';
 describe('AppModule (ai-ml todo 0, failing-first)', () => {
   it('wires config + health + llm gateway + auth', async () => {
     const module = await Test.createTestingModule({
-      imports: [ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }), AppModule],
+      imports: [
+        ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }),
+        AppModule,
+      ],
     }).compile();
     expect(module.get(AppModule)).toBeDefined();
     expect(module.get(LlmModule)).toBeDefined();

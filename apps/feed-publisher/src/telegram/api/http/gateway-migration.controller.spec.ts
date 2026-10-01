@@ -13,10 +13,7 @@ describe('GatewayMigrationController', () => {
     const controller = new GatewayMigrationController(
       migrate as unknown as import('./migrate-bots-to-gateway.use-case').MigrateBotsToGatewayUseCase,
     );
-    const out = (await controller.migrateToGateway()) as Record<
-      string,
-      unknown
-    >;
+    const out = await controller.migrateToGateway();
     expect(out).toEqual({
       migrated: [
         { localId: 'local-1', gatewayId: 'vault-aaa', label: 'feed-bot' },

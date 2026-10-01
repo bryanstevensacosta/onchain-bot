@@ -40,7 +40,10 @@ export function computeTokenBucket(
 ): TokenBucketOutcome {
   const previous = state ?? { tokens: limit, updatedAt: now };
   const elapsed = Math.max(0, now - previous.updatedAt);
-  const refilled = Math.min(limit, previous.tokens + elapsed / (windowMs / limit));
+  const refilled = Math.min(
+    limit,
+    previous.tokens + elapsed / (windowMs / limit),
+  );
   if (refilled < 1) {
     return { allowed: false, state: { tokens: refilled, updatedAt: now } };
   }
@@ -57,8 +60,8 @@ export const TOKEN_BUCKET_LUA = [
   'local windowMs = tonumber(ARGV[2])',
   'local now = tonumber(ARGV[3])',
   "local data = redis.call('HMGET', KEYS[1], 'tokens', 'ts')",
-  "local tokens = tonumber(data[1])",
-  "local ts = tonumber(data[2])",
+  'local tokens = tonumber(data[1])',
+  'local ts = tonumber(data[2])',
   'if tokens == nil then tokens = limit ts = now end',
   'local refilled = math.min(limit, tokens + math.max(0, now - ts) / (windowMs / limit))',
   "if refilled < 1 then redis.call('HMSET', KEYS[1], 'tokens', refilled, 'ts', now) redis.call('PEXPIRE', KEYS[1], windowMs * 2) return 0 end",
@@ -145,7 +148,7 @@ export class RedisTokenBucketAdapter extends RateLimiterPort {
       });
       const runner: BucketRedisClient = {
         eval: (script, keys, args) =>
-          client.eval(script, keys.length, ...keys, ...args.map(String)) as unknown as Promise<unknown>,
+          client.eval(script, keys.length, ...keys, ...args.map(String)),
       };
       this.runner = runner;
       return runner;

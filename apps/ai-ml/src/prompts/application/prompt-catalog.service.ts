@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import {
   validatePromptInput,
   type PromptContentType,
@@ -107,7 +111,9 @@ export class PromptCatalogService {
     return this.get(name);
   }
 
-  public async listVersions(name: string): Promise<ReadonlyArray<PromptTemplate>> {
+  public async listVersions(
+    name: string,
+  ): Promise<ReadonlyArray<PromptTemplate>> {
     const rows = await this.repo.listVersions(name);
     if (rows.length === 0) {
       throw new NotFoundException(new TemplateNotFoundError(name).message);
@@ -115,12 +121,17 @@ export class PromptCatalogService {
     return rows;
   }
 
-  public async listActive(contentType?: PromptContentType): Promise<ReadonlyArray<PromptTemplate>> {
+  public async listActive(
+    contentType?: PromptContentType,
+  ): Promise<ReadonlyArray<PromptTemplate>> {
     return this.repo.listActive(contentType);
   }
 
   /** Move the active pointer (rollback = activate an older version). */
-  public async activateVersion(name: string, version: number): Promise<PromptTemplate> {
+  public async activateVersion(
+    name: string,
+    version: number,
+  ): Promise<PromptTemplate> {
     try {
       return await this.repo.activate(name, version);
     } catch (err) {

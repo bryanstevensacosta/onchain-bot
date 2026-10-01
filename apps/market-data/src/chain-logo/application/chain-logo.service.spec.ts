@@ -18,7 +18,9 @@ class FakeFetcher extends ChainLogoFetcherPort {
   public jsonCalls: Array<string> = [];
   public constructor(
     private readonly bytesImpl: (url: string) => Promise<Buffer | null>,
-    private readonly jsonImpl: (url: string) => Promise<{ image?: unknown } | null>,
+    private readonly jsonImpl: (
+      url: string,
+    ) => Promise<{ image?: unknown } | null>,
   ) {
     super();
   }
@@ -34,7 +36,10 @@ class FakeFetcher extends ChainLogoFetcherPort {
   }
 }
 
-function makeService(fetcher: ChainLogoFetcherPort): { service: ChainLogoService; dir: string } {
+function makeService(fetcher: ChainLogoFetcherPort): {
+  service: ChainLogoService;
+  dir: string;
+} {
   const dir = mkdtempSync(join(tmpdir(), 'chain-logo-'));
   return { service: new ChainLogoService(fetcher, dir), dir };
 }
