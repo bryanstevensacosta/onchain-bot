@@ -64,6 +64,21 @@ git worktree remove ../onchain-bot-feat-feed                         # cerrar (�
 git worktree prune                                                   # podar metadata
 ```
 
+## Sincronización entre worktrees
+
+- **Quién escribe qué**: archivos compartidos (`WORKTREE.md`, registry) se editan
+  SOLO en el principal (`dev`) + commit + push; código feature en su rama `feat/*`.
+  Si un edit compartido cae por accidente en un worktree, llevarlo a `dev`
+  con stash/cherry-pick, nunca commitear ahí.
+- **Propagar `dev` a los worktrees**: por worktree `git fetch origin` +
+  `git merge origin/dev` (merge, no rebase, a mitad de feature); un fetch en
+  cualquier sitio basta (`.git` compartido) pero el merge es por worktree;
+  nunca la misma rama en dos worktrees.
+- **Mirar sin mezclar**: `git show dev:WORKTREE.md`,
+  `git show origin/dev:WORKTREE.md`, `git log --all --oneline --graph`.
+- **Ciclo completo**: principal edita registry → commit+push `dev` →
+  cada worktree fetch+merge; features vía PR `feat/*` → `dev` → resto sincroniza.
+
 ## Invariantes
 
 - La misma rama nunca está en dos worktrees a la vez.
