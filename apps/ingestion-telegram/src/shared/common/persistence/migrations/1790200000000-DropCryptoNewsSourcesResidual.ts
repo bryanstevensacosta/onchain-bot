@@ -20,9 +20,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * dropped here — they vanished with the item 3/4 RENAMEs (assert with
  * `SELECT to_regclass('public.crypto_news_messages')`, never DROP).
  */
-export class DropCryptoNewsSourcesResidual1790200000000
-  implements MigrationInterface
-{
+export class DropCryptoNewsSourcesResidual1790200000000 implements MigrationInterface {
   name = 'DropCryptoNewsSourcesResidual1790200000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

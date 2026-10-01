@@ -4,9 +4,12 @@ const NAV = [
   { to: '/', label: 'Dashboard' },
   { to: '/tokens', label: 'Tokens' },
   { to: '/kols', label: 'KOLs' },
-  { to: '/crypto-news', label: 'News' },
+  { to: '/feed', label: 'Feed' },
   { to: '/playground', label: 'Playground' },
   { to: '/threads', label: 'Threads' },
+  { to: '/templates', label: 'Templates' },
+  { to: '/market-data', label: 'Data' },
+  { to: '/dexter', label: 'Dexter' },
   { to: '/ops', label: 'Ops' },
 ];
 
@@ -16,7 +19,7 @@ export function RootLayout() {
       <header className="border-b border-slate-800 bg-slate-950">
         <div className="px-6 py-3 flex items-center gap-6">
           <Link to="/" className="text-lg font-bold text-blue-400">
-            Alpha Meta Token Scanner
+            Onchain Bot
           </Link>
           <nav className="flex gap-1">
             {NAV.map((item) => (

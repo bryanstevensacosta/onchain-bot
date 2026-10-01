@@ -7,7 +7,7 @@ import {
 import { PublishedCallRepository } from 'telegram/shared/application/ports/published-call.repository';
 import { PublishedCall } from 'telegram/shared/domain/entities/published-call.entity';
 import { NormalizedAddress } from 'token/identity/normalized-address.vo';
-import { TrackedPublishedCall } from '../../domain/entities/tracked-published-call.entity';
+import { TrackedPublishedCall } from '@/token/call-tracking/domain/entities/tracked-published-call.entity';
 
 /**
  * Preservation Property Tests

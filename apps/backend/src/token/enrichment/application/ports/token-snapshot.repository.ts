@@ -1,4 +1,4 @@
-import { TokenSnapshot } from '../../domain/entities/token-snapshot.entity';
+import { TokenSnapshot } from '@/token/enrichment/domain/entities/token-snapshot.entity';
 import { ChainId } from 'chain/identity/chain-id.vo';
 
 export abstract class TokenSnapshotRepository {

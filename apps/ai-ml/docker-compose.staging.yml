@@ -1,0 +1,113 @@
+name: onchain-bot-ai-ml-staging
+
+# Staging environment - ai-ml (todo 0, per-env model)
+#
+# Project name EXPLÍCITO: sin `name:`, compose usa el basename del
+# directorio (`ai-ml`), que COLISIONA con el proyecto del dev compose
+# (mismo basename, mismos services postgres/redis) y cada `up` de un lado
+# recrea/destruye los contenedores del otro.
+#
+# PORTS (verified free repo-wide 2026-09-26 — grep 5445:/6392:/4091:
+# zero source/config hits; OPERATOR-CONFIRM both host ports on Oracle
+# with lsof):
+# - ai-ml HTTP host :4091 → container :4090. Triplet ai-ml
+#   4090/4091/4092 (dev/staging/prod) per .env.example.
+#   Container port is AI_ML_PORT (default 4090, src/main.ts).
+# - postgres host :5445 → container :5432. Dev ai-ml uses :5444.
+# - redis host :6392 → container :6379. Dev ai-ml uses :6391.
+#
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: onchain-bot-ai-ml-postgres-staging
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-onchain_bot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-onchain_bot}
+      POSTGRES_DB: ${POSTGRES_DB:-onchain_bot_ai_ml_staging}
+    ports:
+      - '5445:5432'
+    volumes:
+      - onchain-bot-ai-ml-staging-pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-onchain_bot} -d ${POSTGRES_DB:-onchain_bot_ai_ml_staging}',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: onchain-bot-ai-ml-redis-staging
+    restart: unless-stopped
+    ports:
+      - '6392:6379'
+    volumes:
+      - onchain-bot-ai-ml-staging-redis-data:/data
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'sh',
+          '-c',
+          'if [ -n "$REDIS_PASSWORD" ]; then redis-cli -a "$REDIS_PASSWORD" ping | grep -q PONG; else redis-cli ping | grep -q PONG; fi',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    command: redis-server --appendonly yes ${REDIS_PASSWORD:+--requirepass "$REDIS_PASSWORD"}
+
+  ai-ml:
+    build:
+      context: ../..
+      dockerfile: apps/ai-ml/Dockerfile
+    image: ghcr.io/bryanstevensacosta/onchain-bot-ai-ml:staging-latest
+    container_name: onchain-bot-ai-ml-staging
+    restart: unless-stopped
+    env_file:
+      - .env.staging
+    environment:
+      NODE_ENV: staging
+      # Container port (src/main.ts reads AI_ML_PORT ?? 4090).
+      # Host mapping 4091:4090 below.
+      AI_ML_PORT: 4090
+      # DB name onchain_bot_ai_ml_staging (staging `<base>_<app>_staging`).
+      DATABASE_URL: postgres://${POSTGRES_USER:-onchain_bot}:${POSTGRES_PASSWORD:-onchain_bot}@postgres:5432/${POSTGRES_DB:-onchain_bot_ai_ml_staging}
+      # Migrations off on staging (never synchronize; persistence wiring
+      # lands with the prompts catalog in todo 1).
+      DATABASE_SYNCHRONIZE: false
+      REDIS_URL: ${AI_ML_REDIS_URL:-redis://redis:6379/1}
+    ports:
+      - '4091:4090'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # NOTE: ai-ml image has NO wget/curl (Dockerfile installs only
+      # dumb-init) — probe via node like the Dockerfile HEALTHCHECK does.
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://127.0.0.1:4090/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  default:
+    name: onchain-bot-staging-net
+
+volumes:
+  onchain-bot-ai-ml-staging-pg-data:
+    name: onchain-bot-ai-ml-staging-pg-data
+  onchain-bot-ai-ml-staging-redis-data:
+    name: onchain-bot-ai-ml-staging-redis-data

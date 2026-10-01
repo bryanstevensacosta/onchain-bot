@@ -5,7 +5,7 @@ import { ChainDexterBotAdapter } from './chain-dexter-bot.adapter';
 import {
   TokenScanService,
   TokenScanResult,
-} from '../../application/token-scan.service';
+} from '@/telegram/chain-dexter-bot/application/token-scan.service';
 import { MessageFormatterAdapter } from './message-formatter.adapter';
 import type { TelegramUpdate, TelegramMessage } from './bot-client';
 

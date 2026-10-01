@@ -28,7 +28,7 @@
 ## 1. Seed 2–3 test channels (KOL type, explicit)
 
 Pick 2–3 low-noise test channels. `type:"kol"` MUST be explicit (omitted type
-defaults to `crypto-news`, which starts media downloads):
+defaults to `feed`, which starts media downloads):
 
 ```bash
 TWIN=http://localhost:3033
@@ -65,7 +65,7 @@ curl -sf "$TWIN/api/feed/sources/active/ids?type=kol"
 4. **FAIL rule: 0 messages after seeding + one full poll window = FAIL.**
    Do not declare green on config inspection alone. Suspects in order:
    twin not listening (channel refresh needs restart — 5-min refresh cannot
-   hot-add listeners), wrong `type` (crypto-news vs kol), backend still on
+   hot-add listeners), wrong `type` (feed vs kol), backend still on
    singleton URL (recreate without the operator-updated real `.env.staging`).
 
 ## 3. Baked-image check (no inspection-only pass)

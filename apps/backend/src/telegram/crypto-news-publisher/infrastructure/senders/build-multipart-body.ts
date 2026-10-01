@@ -2,6 +2,11 @@
  * Build a multipart/form-data body that contains the supplied text
  * fields followed by one binary file part. Pure function — exported
  * for testing.
+ *
+ * @deprecated Send helpers move to feed-publisher
+ * (`telegram/infrastructure/bot-api/build-multipart-body.ts`) via the
+ * telegram-bots-gateway (todo 5); removed at the global cutover
+ * (gateway todo 7). Do not extend.
  */
 export function buildMultipartBody(
   boundary: string,

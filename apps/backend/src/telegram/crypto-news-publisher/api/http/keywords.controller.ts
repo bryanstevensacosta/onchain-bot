@@ -1,3 +1,8 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/queue/ + apps/feed-publisher/src/llm/ + apps/feed-publisher/src/keywords/ (Tramo 2, todos 3+4+5 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add queue/llm/keywords logic in apps/feed-publisher/src/{queue,llm,keywords}/ instead.
+ */
 import {
   Body,
   Controller,
@@ -13,12 +18,7 @@ import {
 import { KeywordRepository } from 'telegram/crypto-news-publisher/application/ports/keyword.repository';
 import { Keyword } from 'telegram/crypto-news-publisher/domain/entities/keyword.entity';
 import { PhraseRegistryService } from 'telegram/crypto-news-publisher/application/services/phrase-registry.service';
-import {
-  ApiOperation,
-  ApiParam,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 export interface KeywordView {
   readonly id: string;
@@ -118,7 +118,7 @@ interface CreateKeywordBatchDto {
  * default) cannot be deleted.
  */
 @ApiTags('crypto-news-publisher')
-@Controller('crypto-news-publisher/keywords')
+@Controller(['crypto-news-publisher/keywords', 'feed-publisher/keywords'])
 export class KeywordsController {
   public constructor(
     private readonly keywordRepo: KeywordRepository,

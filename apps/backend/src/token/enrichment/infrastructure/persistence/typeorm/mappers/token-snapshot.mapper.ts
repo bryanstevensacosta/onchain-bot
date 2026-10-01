@@ -1,6 +1,6 @@
-import { TokenSnapshot } from '../../../../domain/entities/token-snapshot.entity';
+import { TokenSnapshot } from '@/token/enrichment/domain/entities/token-snapshot.entity';
 import { ChainId } from 'chain/identity/chain-id.vo';
-import { Pair } from '../../../../domain/value-objects/pair.vo';
+import { Pair } from '@/token/enrichment/domain/value-objects/pair.vo';
 import { TokenSnapshotEntity } from '../entities/token-snapshot.entity';
 
 export class TokenSnapshotMapper {

@@ -17,39 +17,39 @@ Acceso RPC a Solana mainnet para consultas de blockchain. FluxRPC separa la capa
 
 FluxRPC usa **facturación por ancho de banda** (flat per-byte) en lugar del sistema de créditos por request que usan otros providers. Esto hace que los costos sean predecibles para cargas de trabajo estables.
 
-| Aspecto | FluxRPC | Otros providers (Helius, QuickNode) |
-|---------|---------|-------------------------------------|
-| Pricing | Por byte transferido | Por créditos/CUs por request |
-| Transporte | HTTP/3 + QUIC | HTTP/1.1 + WebSocket |
-| Arquitectura | RPC decoupled del validator | RPC + validator acoplados |
-| Transparencia | Costo predecible | Costo variable por tipo de request |
+| Aspecto       | FluxRPC                     | Otros providers (Helius, QuickNode) |
+| ------------- | --------------------------- | ----------------------------------- |
+| Pricing       | Por byte transferido        | Por créditos/CUs por request        |
+| Transporte    | HTTP/3 + QUIC               | HTTP/1.1 + WebSocket                |
+| Arquitectura  | RPC decoupled del validator | RPC + validator acoplados           |
+| Transparencia | Costo predecible            | Costo variable por tipo de request  |
 
 ## Plan actual
 
 FluxRPC usa un modelo de **pago por ancho de banda** sin planes fijos mensuales tradicionales.
 
-| Concepto | Valor |
-|----------|-------|
-| Modelo de pricing | **Por byte transferido** (flat rate) |
-| Costo típico | ~$38/mes por 250 GB |
-| Rate limit | Depende del plan contratado |
-| Chains | Solana mainnet (Fogo disponible on request) |
-| Transporte | HTTP/3 + QUIC (baja latencia) |
-| WebSocket | Sí |
+| Concepto          | Valor                                       |
+| ----------------- | ------------------------------------------- |
+| Modelo de pricing | **Por byte transferido** (flat rate)        |
+| Costo típico      | ~$38/mes por 250 GB                         |
+| Rate limit        | Depende del plan contratado                 |
+| Chains            | Solana mainnet (Fogo disponible on request) |
+| Transporte        | HTTP/3 + QUIC (baja latencia)               |
+| WebSocket         | Sí                                          |
 
 > No hay un plan "Free" tradicional — el costo escala linealmente con el ancho de banda consumido.
 
 ## Endpoints implementados en el servicio
 
-| Método service | Método RPC | Descripción |
-|----------------|------------|-------------|
-| `rpcCall(method, params)` | — | JSON-RPC genérico (any method) |
-| `getBalance(address)` | `getBalance` | Balance SOL en lamports |
-| `getTokenAccountsByOwner(owner)` | `getTokenAccountsByOwner` | Token accounts SPL de un owner |
-| `getTransaction(signature)` | `getTransaction` | Detalles de transacción |
-| `getSlot()` | `getSlot` | Slot actual |
-| `getLatestBlockhash()` | `getLatestBlockhash` | Blockhash + lastValidBlockHeight |
-| `getMultipleAccounts(addresses)` | `getMultipleAccounts` | Múltiples cuentas batch |
+| Método service                   | Método RPC                | Descripción                      |
+| -------------------------------- | ------------------------- | -------------------------------- |
+| `rpcCall(method, params)`        | —                         | JSON-RPC genérico (any method)   |
+| `getBalance(address)`            | `getBalance`              | Balance SOL en lamports          |
+| `getTokenAccountsByOwner(owner)` | `getTokenAccountsByOwner` | Token accounts SPL de un owner   |
+| `getTransaction(signature)`      | `getTransaction`          | Detalles de transacción          |
+| `getSlot()`                      | `getSlot`                 | Slot actual                      |
+| `getLatestBlockhash()`           | `getLatestBlockhash`      | Blockhash + lastValidBlockHeight |
+| `getMultipleAccounts(addresses)` | `getMultipleAccounts`     | Múltiples cuentas batch          |
 
 ### Response types
 
@@ -78,18 +78,18 @@ const blockhash = await flux.getLatestBlockhash();
 
 ### Métodos sugeridos para agregar
 
-| Método service sugerido | Método RPC | Para qué sirve |
-|-------------------------|------------|----------------|
-| `getProgramAccounts(programId, filters?)` | `getProgramAccounts` | Cuentas de un programa (ej: Token Program) |
-| `getSignaturesForAddress(address, limit?)` | `getSignaturesForAddress` | Signatures de una address |
-| `getBlock(slot)` | `getBlock` | Bloque completo |
-| `getTokenSupply(mint)` | `getTokenSupply` | Supply de un SPL token |
-| `getTokenAccountBalance(tokenAccount)` | `getTokenAccountBalance` | Balance de un token account |
-| `simulateTransaction(tx)` | `simulateTransaction` | Simular transacción |
-| `getPriorityFeeEstimate(params)` | `getPriorityFeeEstimate` | Estimación de priority fee (+ Jito tip) |
-| `getFeeForMessage(message)` | `getFeeForMessage` | Fee estimado para un mensaje |
-| `getEpochInfo()` | `getEpochInfo` | Info del epoch actual |
-| `getRecentPerformanceSamples(limit?)` | `getRecentPerformanceSamples` | Muestras de rendimiento recientes |
+| Método service sugerido                    | Método RPC                    | Para qué sirve                             |
+| ------------------------------------------ | ----------------------------- | ------------------------------------------ |
+| `getProgramAccounts(programId, filters?)`  | `getProgramAccounts`          | Cuentas de un programa (ej: Token Program) |
+| `getSignaturesForAddress(address, limit?)` | `getSignaturesForAddress`     | Signatures de una address                  |
+| `getBlock(slot)`                           | `getBlock`                    | Bloque completo                            |
+| `getTokenSupply(mint)`                     | `getTokenSupply`              | Supply de un SPL token                     |
+| `getTokenAccountBalance(tokenAccount)`     | `getTokenAccountBalance`      | Balance de un token account                |
+| `simulateTransaction(tx)`                  | `simulateTransaction`         | Simular transacción                        |
+| `getPriorityFeeEstimate(params)`           | `getPriorityFeeEstimate`      | Estimación de priority fee (+ Jito tip)    |
+| `getFeeForMessage(message)`                | `getFeeForMessage`            | Fee estimado para un mensaje               |
+| `getEpochInfo()`                           | `getEpochInfo`                | Info del epoch actual                      |
+| `getRecentPerformanceSamples(limit?)`      | `getRecentPerformanceSamples` | Muestras de rendimiento recientes          |
 
 ## Solana JSON-RPC — métodos disponibles
 
@@ -97,56 +97,56 @@ FluxRPC soporta todos los métodos JSON-RPC estándar de Solana:
 
 ### Account
 
-| Método | Descripción |
-|--------|-------------|
-| `getBalance` | Balance en lamports |
-| `getAccountInfo` | Info de cuenta (owner, data, lamports, executable) |
-| `getMultipleAccounts` | Múltiples cuentas |
-| `getProgramAccounts` | Cuentas owned by un programa |
-| `getMinimumBalanceForRentExemption` | Exención de renta |
+| Método                              | Descripción                                        |
+| ----------------------------------- | -------------------------------------------------- |
+| `getBalance`                        | Balance en lamports                                |
+| `getAccountInfo`                    | Info de cuenta (owner, data, lamports, executable) |
+| `getMultipleAccounts`               | Múltiples cuentas                                  |
+| `getProgramAccounts`                | Cuentas owned by un programa                       |
+| `getMinimumBalanceForRentExemption` | Exención de renta                                  |
 
 ### Token
 
-| Método | Descripción |
-|--------|-------------|
-| `getTokenAccountsByOwner` | Token accounts de un owner |
-| `getTokenAccountBalance` | Balance de un token account |
-| `getTokenSupply` | Supply de un mint |
-| `getTokenLargestAccounts` | Top holders |
+| Método                    | Descripción                 |
+| ------------------------- | --------------------------- |
+| `getTokenAccountsByOwner` | Token accounts de un owner  |
+| `getTokenAccountBalance`  | Balance de un token account |
+| `getTokenSupply`          | Supply de un mint           |
+| `getTokenLargestAccounts` | Top holders                 |
 
 ### Transaction
 
-| Método | Descripción |
-|--------|-------------|
-| `getTransaction` | Tx por signature |
+| Método                    | Descripción               |
+| ------------------------- | ------------------------- |
+| `getTransaction`          | Tx por signature          |
 | `getSignaturesForAddress` | Signatures de una address |
-| `simulateTransaction` | Simular tx |
-| `getFeeForMessage` | Fee estimado |
-| `getPriorityFeeEstimate` | Priority fee + Jito tip |
+| `simulateTransaction`     | Simular tx                |
+| `getFeeForMessage`        | Fee estimado              |
+| `getPriorityFeeEstimate`  | Priority fee + Jito tip   |
 
 ### Block / Slot
 
-| Método | Descripción |
-|--------|-------------|
-| `getSlot` | Slot actual |
-| `getBlock` | Bloque completo |
-| `getBlockHeight` | Altura confirmada |
-| `getBlockTime` | Timestamp de un slot |
-| `getEpochInfo` | Info del epoch |
-| `getEpochSchedule` | Schedule de epochs |
+| Método             | Descripción          |
+| ------------------ | -------------------- |
+| `getSlot`          | Slot actual          |
+| `getBlock`         | Bloque completo      |
+| `getBlockHeight`   | Altura confirmada    |
+| `getBlockTime`     | Timestamp de un slot |
+| `getEpochInfo`     | Info del epoch       |
+| `getEpochSchedule` | Schedule de epochs   |
 
 ### Cluster
 
-| Método | Descripción |
-|--------|-------------|
-| `getLatestBlockhash` | Blockhash + lastValidBlockHeight |
-| `getGenesisHash` | Genesis hash |
-| `getIdentity` | Identity del nodo |
-| `getInflationRate` | Tasa de inflación |
-| `getInflationReward` | Rewards de inflación |
-| `getRecentPerformanceSamples` | Samples de rendimiento |
-| `getVoteAccounts` | Validadores actuales |
-| `requestAirdrop` | Airdrop en devnet |
+| Método                        | Descripción                      |
+| ----------------------------- | -------------------------------- |
+| `getLatestBlockhash`          | Blockhash + lastValidBlockHeight |
+| `getGenesisHash`              | Genesis hash                     |
+| `getIdentity`                 | Identity del nodo                |
+| `getInflationRate`            | Tasa de inflación                |
+| `getInflationReward`          | Rewards de inflación             |
+| `getRecentPerformanceSamples` | Samples de rendimiento           |
+| `getVoteAccounts`             | Validadores actuales             |
+| `requestAirdrop`              | Airdrop en devnet                |
 
 ## Autenticación
 
@@ -176,26 +176,26 @@ FluxRPC usa HTTP/3 sobre QUIC (en lugar de HTTP/1.1 o HTTP/2) para:
 
 ## Error handling
 
-| Código | Significado |
-|--------|-------------|
-| `-32000` | Rate limit / servidor ocupado |
-| `-32001` | Resource not found (ej: slot no disponible) |
-| `-32002` | Transaction simulation failure |
-| `-32004` | Block not available |
+| Código   | Significado                                     |
+| -------- | ----------------------------------------------- |
+| `-32000` | Rate limit / servidor ocupado                   |
+| `-32001` | Resource not found (ej: slot no disponible)     |
+| `-32002` | Transaction simulation failure                  |
+| `-32004` | Block not available                             |
 | `-32005` | Node behind (validador no ha alcanzado el slot) |
-| `-32600` | Request inválido |
-| `-32601` | Method not found |
-| `-32602` | Parámetros inválidos |
-| `-32603` | Internal error |
+| `-32600` | Request inválido                                |
+| `-32601` | Method not found                                |
+| `-32602` | Parámetros inválidos                            |
+| `-32603` | Internal error                                  |
 
 El service actual maneja errores retornando `null` y logeando en debug.
 
 ## Chains soportadas
 
-| Chain | Tipo | Estado |
-|-------|------|--------|
-| **Solana** | L1 | ✅ Mainnet (producción) |
-| **Fogo** | L1 | 🔜 Disponible on request |
+| Chain      | Tipo | Estado                   |
+| ---------- | ---- | ------------------------ |
+| **Solana** | L1   | ✅ Mainnet (producción)  |
+| **Fogo**   | L1   | 🔜 Disponible on request |
 
 ## Rate limits
 
@@ -206,7 +206,7 @@ FluxRPC no publica rate limits fijos públicos — el throughput depende del pla
 ### Uso básico del service
 
 ```typescript
-import { FluxRpcService } from 'data-provider/fluxrpc';
+import { FluxRpcService } from 'apps/market-data/src/provider/infrastructure/fluxrpc';
 
 // El servicio se inyecta automáticamente (DataProviderModule es @Global)
 
@@ -243,10 +243,7 @@ if (blockhash) {
 }
 
 // 6. Obtener múltiples cuentas
-const accounts = await flux.getMultipleAccounts([
-  '9x...',
-  '8x...',
-]);
+const accounts = await flux.getMultipleAccounts(['9x...', '8x...']);
 ```
 
 ### Uso combinado con otros providers
@@ -282,12 +279,12 @@ console.log(`Epoch: ${epochInfo?.epoch}`);
 
 ## Comparativa con otros RPC providers
 
-| Aspecto | FluxRPC | Helius | QuickNode | Chainstack |
-|---------|---------|--------|-----------|------------|
-| Pricing | Por byte (~$38/250GB) | Créditos ($49/10M) | Créditos ($49/20M) | RU ($49/20M) |
-| Transporte | HTTP/3 + QUIC | HTTP/1.1 | HTTP/1.1 | HTTP/1.1 |
-| Solana-native | ✅ | ✅ | Multi-chain | Multi-chain |
-| Enhanced APIs | ❌ | ✅ | ❌ | ❌ |
-| WebSocket | ✅ | ✅ | ✅ | ✅ |
-| Yellowstone gRPC | ❌ | ✅ | ✅ | ✅ |
-| Free tier | No tradicional | 1M créditos/mes | 20M créditos/mes | 3M RU/mes |
+| Aspecto          | FluxRPC               | Helius             | QuickNode          | Chainstack   |
+| ---------------- | --------------------- | ------------------ | ------------------ | ------------ |
+| Pricing          | Por byte (~$38/250GB) | Créditos ($49/10M) | Créditos ($49/20M) | RU ($49/20M) |
+| Transporte       | HTTP/3 + QUIC         | HTTP/1.1           | HTTP/1.1           | HTTP/1.1     |
+| Solana-native    | ✅                    | ✅                 | Multi-chain        | Multi-chain  |
+| Enhanced APIs    | ❌                    | ✅                 | ❌                 | ❌           |
+| WebSocket        | ✅                    | ✅                 | ✅                 | ✅           |
+| Yellowstone gRPC | ❌                    | ✅                 | ✅                 | ✅           |
+| Free tier        | No tradicional        | 1M créditos/mes    | 20M créditos/mes   | 3M RU/mes    |

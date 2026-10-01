@@ -14,6 +14,17 @@ import { ClassificationController } from 'token/classification/api/http/classifi
 import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-process-domain-event.publisher';
 
 /**
+ * @deprecated Superseded by apps/kol-system/src/scoring/ per-template classification-config
+ * (Tramo 1, todo 9 P6 + P18 companion). NO standalone classification BC in kol-system, NO
+ * `classified_calls` table — classification is config per-template (visible channels, score
+ * display, gem filters). This module stays wired for dual-run; it will be removed in
+ * todo 16 (cutover + cleanup). Do not extend it.
+ *
+ * New location: apps/kol-system/src/scoring/ (classification as config, NOT a module)
+ * Reason: extracting KOL pipeline from backend monolith to dedicated app (P6)
+ * Breaking change: Yes (removal in todo 16)
+ * Rollback: re-enable backend path (KOL_PIPELINE_ENABLED=true)
+ *
  * Classification BC module.
  *
  * Consumes: `enrichment.token.enriched` events

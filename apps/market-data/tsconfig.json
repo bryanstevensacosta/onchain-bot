@@ -1,0 +1,35 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "resolvePackageJsonExports": true,
+    "allowSyntheticDefaultImports": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "removeComments": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "incremental": true,
+    "paths": {
+      "@/*": ["src/*"],
+      "shared/*": ["src/shared/*"],
+      "token/*": ["src/token/*"],
+      "address/*": ["src/address/*"],
+      "chain/*": ["src/address/chain/*"],
+      "provider/*": ["src/provider/*"],
+      "cache/*": ["src/shared/infrastructure/cache/*"],
+      "rate-limiter/*": ["src/shared/infrastructure/rate-limiter/*"],
+      "gateway/*": ["src/gateway/*"],
+      "snapshot/*": ["src/snapshot/*"],
+      "aggregators/*": ["src/aggregators/*"],
+      "asset-registry/*": ["src/asset-registry/*"],
+      "stream/*": ["src/stream/*"],
+      "auth/*": ["src/auth/*"],
+      "chain-logo/*": ["src/chain-logo/*"],
+      "holders/*": ["src/holders/*"],
+      "src/*": ["src/*"]
+    }
+  },
+  "exclude": ["src/**/*.spec.ts", "src/**/*.spec.ts.bak"]
+}

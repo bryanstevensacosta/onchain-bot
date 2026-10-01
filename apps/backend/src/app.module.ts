@@ -39,7 +39,7 @@ import { TelegramIngestionModule } from 'telegram/ingestion/telegram-ingestion.m
 import { StatsModule } from 'kol/stats/stats.module';
 import { WsModule } from 'shared/ws/ws.module';
 import { SettingsModule } from 'settings/settings.module';
-import { DataProviderModule } from 'data-provider/core/data-provider.module';
+import { DataProviderModule } from './data-provider/core/data-provider.module';
 import { HealthModule } from 'health/health.module';
 import { LlmModule } from 'shared/llm';
 import { DeduplicationModule } from 'shared/deduplication/deduplication.module';

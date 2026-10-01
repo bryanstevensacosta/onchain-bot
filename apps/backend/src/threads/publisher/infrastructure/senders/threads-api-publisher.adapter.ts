@@ -1,3 +1,8 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/threads/ (Tramo 2, todo 8 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add threads logic in apps/feed-publisher/src/threads/ instead.
+ */
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -163,8 +168,10 @@ export class ThreadsApiPublisherAdapter extends ThreadsApiPublisherPort {
       const json = (await res.json().catch(() => ({}))) as { id?: unknown };
       if (!res.ok) {
         const raw = JSON.stringify(json);
-        const classified =
-          ThreadsApiPublisherAdapter.classifyHttpFailure(res.status, raw);
+        const classified = ThreadsApiPublisherAdapter.classifyHttpFailure(
+          res.status,
+          raw,
+        );
         return { ok: false, status: 'FAILED', ...classified };
       }
       if (typeof json.id !== 'string' || json.id.length === 0) {
@@ -244,8 +251,10 @@ export class ThreadsApiPublisherAdapter extends ThreadsApiPublisherPort {
       const json = (await res.json().catch(() => ({}))) as { id?: unknown };
       if (!res.ok) {
         const raw = JSON.stringify(json);
-        const classified =
-          ThreadsApiPublisherAdapter.classifyHttpFailure(res.status, raw);
+        const classified = ThreadsApiPublisherAdapter.classifyHttpFailure(
+          res.status,
+          raw,
+        );
         return { ok: false, status: 'FAILED', ...classified };
       }
       const remoteId = typeof json.id === 'string' ? json.id : containerId;

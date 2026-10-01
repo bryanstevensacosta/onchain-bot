@@ -1,3 +1,8 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/queue/ + apps/feed-publisher/src/llm/ + apps/feed-publisher/src/keywords/ (Tramo 2, todos 3+4+5 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add queue/llm/keywords logic in apps/feed-publisher/src/{queue,llm,keywords}/ instead.
+ */
 import {
   BadRequestException,
   Body,
@@ -37,12 +42,7 @@ import {
   type LlmConfigView,
   type PromptTemplateView,
 } from 'telegram/crypto-news-publisher/application/mappers/llm-config.mapper';
-import {
-  ApiOperation,
-  ApiParam,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 export type {
   LlmConfigView,
@@ -80,7 +80,7 @@ export type {
  * and `Keyword.templateId` — easier to express at the controller
  * boundary than inside the persistence layer.
  */
-@Controller('crypto-news-publisher/llm')
+@Controller(['crypto-news-publisher/llm', 'feed-publisher/llm'])
 export class LlmConfigController {
   private readonly logger = new Logger(LlmConfigController.name);
 
@@ -232,7 +232,10 @@ export class LlmConfigController {
       'Partially update the LLM/publisher config (controller-direct pattern; llmEnabled locked in production)',
   })
   @ApiResponse({ status: 200, description: 'LlmConfig updated' })
-  @ApiResponse({ status: 400, description: 'Validation error or guarded flag combination' })
+  @ApiResponse({
+    status: 400,
+    description: 'Validation error or guarded flag combination',
+  })
   public async updateConfig(
     @Body() dto: UpdateLlmConfigDto & { matchingEnabled?: unknown },
   ): Promise<LlmConfigView> {
@@ -290,6 +293,8 @@ export class LlmConfigController {
       dto.targetChannel !== undefined &&
       dto.targetChannel.trim().length > 0
     ) {
+      // @deprecated Channel verify (`getChat`) moves to the telegram-bots-gateway
+      // per-bot health (todo 7); this direct publisher call retires at cutover.
       const result = await this.publisher.getChat(dto.targetChannel);
       const enforce = process.env.NODE_ENV === 'production';
       if (!result.ok && (result.error === 'unreachable' || !enforce)) {

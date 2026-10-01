@@ -23,10 +23,10 @@ const repoRoot = path.resolve(baseUrl, '..', '..', '..', '..', '..');
 register({
   baseUrl,
   paths: {
+    '@/*': ['*'],
     'shared/kernel/*': ['shared/kernel/*'],
     'shared/common/*': ['shared/common/*'],
     'shared/*': ['shared/*'],
-    'discovery/*': ['discovery/*'],
     'chain/*': ['chain/*'],
     'token/*': ['token/*'],
     // Exact mapping wins over baseUrl fallback: gramJS Logger, not a local file.
@@ -41,13 +41,6 @@ register({
     'data-provider/*': ['data-provider/*'],
     'health/*': ['health/*'],
     'src/*': ['*'],
-    // Cross-app imports from ingestion-telegram (BUILT output, not src).
-    '@ingestion-telegram/media/*': [
-      path.join(repoRoot, 'apps/ingestion-telegram/dist/src/shared/media/*'),
-    ],
-    '@ingestion-telegram/telegram/*': [
-      path.join(repoRoot, 'apps/ingestion-telegram/dist/src/shared/telegram/*'),
-    ],
   },
 });
 
@@ -207,7 +200,9 @@ async function bootstrap(): Promise<void> {
   bootLogger.debug('[DEBUG] 8.6. Setting up global filters');
   app.useGlobalFilters(new DomainErrorFilter());
 
-  bootLogger.debug('[DEBUG] 8.6b. Setting up Swagger/OpenAPI docs at /api/docs');
+  bootLogger.debug(
+    '[DEBUG] 8.6b. Setting up Swagger/OpenAPI docs at /api/docs',
+  );
   // Crypto-news scope only: publisher (keywords/blacklist/queue/llm/phrases),
   // matching, filters, dead-letter. No global prefix is set in this app, so
   // 'api/docs' cannot collide with '/api/health' or any controller route.

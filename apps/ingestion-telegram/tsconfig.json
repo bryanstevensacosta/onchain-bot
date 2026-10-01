@@ -12,6 +12,7 @@
     "baseUrl": "./",
     "incremental": true,
     "paths": {
+      "@/*": ["src/*"],
       "shared/kernel/*": ["src/shared/kernel/*"],
       "shared/common/*": ["src/shared/common/*"],
       "shared/*": ["src/shared/*"],
@@ -19,9 +20,10 @@
       "feed/*": ["src/feed/*"],
       "retention/*": ["src/retention/*"],
       "core/*": ["src/core/*"],
+      "metadata/*": ["src/metadata/*"],
       "debug/*": ["src/debug/*"],
       "stream/*": ["src/stream/*"],
-      "media/*": ["src/media/*"],
+      "feed-media/*": ["src/feed-media/*"],
       "health/*": ["src/health/*"],
       "src/*": ["src/*"]
     }

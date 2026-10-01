@@ -1,3 +1,8 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/queue/ + apps/feed-publisher/src/llm/ + apps/feed-publisher/src/keywords/ (Tramo 2, todos 3+4+5 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add queue/llm/keywords logic in apps/feed-publisher/src/{queue,llm,keywords}/ instead.
+ */
 import {
   Controller,
   Get,
@@ -32,7 +37,7 @@ import {
  *  - GET /:id/media  Serve the downloaded image attached to a queue entry
  */
 @ApiTags('crypto-news-publisher')
-@Controller('crypto-news-publisher/queue')
+@Controller(['crypto-news-publisher/queue', 'feed-publisher/queue'])
 export class QueueMediaController {
   private readonly logger = new Logger(QueueMediaController.name);
   private readonly ingestionBaseUrl: string;

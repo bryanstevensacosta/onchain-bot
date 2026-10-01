@@ -4,8 +4,8 @@ import { MoreThanOrEqual, Repository } from 'typeorm';
 import {
   MonitoredCallRepository,
   MonitoredCallRecord,
-} from '../../../../application/ports/monitored-call.repository';
-import { MonitoredCallEntity } from '../../../../domain/entities/monitored-call.entity';
+} from '@/token/achievement/application/ports/monitored-call.repository';
+import { MonitoredCallEntity } from '@/token/achievement/domain/entities/monitored-call.entity';
 
 @Injectable()
 export class TypeormMonitoredCallRepository extends MonitoredCallRepository {

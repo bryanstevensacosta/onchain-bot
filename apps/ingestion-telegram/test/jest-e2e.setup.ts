@@ -4,19 +4,19 @@
  * Runs BEFORE any *.e2e-spec.ts (wired via test/jest-e2e.json `setupFiles`).
  * All 7 e2e specs boot the full AppModule, whose TypeORM config reads
  * INGESTION_DATABASE_NAME — without this file the suites connect to the dev
- * DB from `.env` (alpha_meta_token_scanner_ingestion).
+ * DB from `.env` (ingestion_telegram_db).
  *
  * Behavior:
  * - If INGESTION_DATABASE_NAME is explicitly set to a NON-test database
  *   (does not end in _test / _entity / _e2e), REFUSE to start with a loud
  *   error instead of risking dev data. This is the QA-failure guard.
- * - Otherwise force INGESTION_DATABASE_NAME=onchain_bot_test (empty DB;
+ * - Otherwise force INGESTION_DATABASE_NAME=ingestion_telegram_db_test (empty DB;
  *   synchronize:true from .env creates the 5 entities on boot).
  *
  * Do NOT change business asserts here — DB pinning only.
  */
 
-const TEST_DATABASE = 'onchain_bot_test';
+const TEST_DATABASE = 'ingestion_telegram_db_test';
 
 const isTestDatabase = (name: string | undefined): boolean =>
   !!name && /(_test|_entity|_e2e)$/.test(name);

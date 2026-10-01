@@ -1,0 +1,143 @@
+# Staging environment - kol-calls (Tramo 1, per-env model)
+#
+# MIRROR of apps/backend/docker-compose.staging.yml (backend staging verified refs
+# cited inline as `backend-staging:<line>`; twin refs as `staging-ingestion:<line>`).
+# DRY-RUN ONLY — no kol-calls deploy workflow exists yet; nothing here has ever
+# been applied to Oracle. See .omo/evidence/task-staging-prep.log for validation.
+#
+# Project name EXPLÍCITO: sin `name:`, compose usa el basename del
+# directorio (`kol-calls`), que COLISIONA con el proyecto del dev compose
+# (mismo basename, mismos services postgres/redis) y cada `up` de un lado
+# recrea/destruye los contenedores del otro. Misma doctrina que
+# backend-staging:7 (`name: onchain-bot-staging`).
+name: onchain-bot-kol-calls-staging
+#
+# ARCHITECTURE (per-env model — same as backend staging):
+# - kol-calls staging consumes the STAGING TWIN
+#   (apps/backend/docker-compose.staging-ingestion.yml, project
+#   onchain-bot-staging-ingestion [staging-ingestion:10],
+#   host 127.0.0.1:3033 → container :3031 [staging-ingestion:31],
+#   DNS onchain-bot-ingestion-telegram-staging [staging-ingestion:18]).
+# - Twin MUST join onchain-bot-staging-net (this file's default net, same
+#   name as backend-staging:153) or this service cannot resolve the twin DNS.
+# - Backend staging pins the same DNS via compose `environment:`
+#   (backend-staging:98); kol-calls does the same below. Compose
+#   `environment:` wins over `.env.staging` (backend-staging:18-20).
+# BOOT ORDER: start docker-compose.staging-ingestion.yml FIRST — the twin
+# compose owns the staging twin on onchain-bot-staging-net.
+#
+# PORTS (verified, no clashes on Oracle):
+# - kol-calls HTTP host :3051 → container :3050. Triplet kol 3050/3051/3052
+#   (dev/staging/prod) per .omo/plans/mega-refactor-central.md (port table).
+#   Container port is KOL_CALLS_PORT (default 3050, src/main.ts:26).
+# - postgres host :5436 → container :5432. Backend staging uses :5433
+#   (backend-staging:34), dev kol-calls uses :5435 (docker-compose.yml:13),
+#   Oracle dev infra uses :5434 — :5436 is free repo-wide (grep 5436: no hits).
+# - redis host :6383 → container :6379. Backend staging uses :6380
+#   (backend-staging:53), dev kol-calls uses :6382 (docker-compose.yml:31),
+#   Oracle dev infra uses :6381 — :6383 is free repo-wide (grep 6383: no hits).
+#   OPERATOR-CONFIRM both host ports on first deploy (lsof on Oracle).
+#
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: onchain-bot-kol-calls-postgres-staging
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-onchain_bot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-onchain_bot}
+      POSTGRES_DB: ${POSTGRES_DB:-onchain_bot_kol_system_staging}
+    ports:
+      - '5436:5432'
+    volumes:
+      - onchain-bot-kol-calls-staging-pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-onchain_bot} -d ${POSTGRES_DB:-onchain_bot_kol_system_staging}',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: onchain-bot-kol-calls-redis-staging
+    restart: unless-stopped
+    ports:
+      - '6383:6379'
+    volumes:
+      - onchain-bot-kol-calls-staging-redis-data:/data
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'sh',
+          '-c',
+          'if [ -n "$REDIS_PASSWORD" ]; then redis-cli -a "$REDIS_PASSWORD" ping | grep -q PONG; else redis-cli ping | grep -q PONG; fi',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    command: redis-server --appendonly yes ${REDIS_PASSWORD:+--requirepass "$REDIS_PASSWORD"}
+
+  kol-calls:
+    build:
+      context: ../..
+      dockerfile: apps/kol-calls/Dockerfile
+    image: ghcr.io/bryanstevensacosta/onchain-bot-kol-calls:staging-latest
+    container_name: onchain-bot-kol-calls-staging
+    restart: unless-stopped
+    env_file:
+      - .env.staging
+    environment:
+      NODE_ENV: staging
+      # Container port (src/main.ts:26 reads KOL_CALLS_PORT ?? 3050).
+      KOL_CALLS_PORT: 3050
+      # DB name onchain_bot_kol_system_staging per central plan
+      # C-DB-01 (twin staging `<base>_<app>_staging`, base onchain_bot_*
+      # for NEW apps — pre-existing backend/ingestion DBs rename via runbook
+      # .omo/runbooks/rename-onchain-bot-db.md, untouched until then);
+      # because kol-calls reads DATABASE_URL (src/shared/config/database.config.ts).
+      DATABASE_URL: postgres://${POSTGRES_USER:-onchain_bot}:${POSTGRES_PASSWORD:-onchain_bot}@postgres:5432/${POSTGRES_DB:-onchain_bot_kol_system_staging}
+      # Single-string form because kol-calls reads REDIS_URL
+      # (src/shared/config/redis.config.ts). Override with KOL_CALLS_REDIS_URL
+      # when the staging redis carries a password.
+      REDIS_URL: ${KOL_CALLS_REDIS_URL:-redis://redis:6379/0}
+      # Ingestion mode - compose `environment:` wins over .env.staging.
+      # STAGING TWIN: staging reads the twin, NOT the singleton (prod keeps
+      # http://onchain-bot-ingestion-telegram:3031 — see .env.production.template:21).
+      # Same DNS backend staging pins at backend-staging:98.
+      INGESTION_TELEGRAM_URL: http://onchain-bot-ingestion-telegram-staging:3031
+    ports:
+      - '3051:3050'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # NOTE: kol-calls image has NO wget/curl (Dockerfile installs only
+      # dumb-init) — probe via node like the Dockerfile HEALTHCHECK does.
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://127.0.0.1:3050/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  default:
+    name: onchain-bot-staging-net
+
+volumes:
+  onchain-bot-kol-calls-staging-pg-data:
+    name: onchain-bot-kol-calls-staging-pg-data
+  onchain-bot-kol-calls-staging-redis-data:
+    name: onchain-bot-kol-calls-staging-redis-data

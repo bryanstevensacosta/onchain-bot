@@ -1,3 +1,8 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/ingestion/ + apps/feed-publisher/src/matching/ (Tramo 2, todos 2+3 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add feed ingestion/matching logic in apps/feed-publisher/src/ingestion/ or apps/feed-publisher/src/matching/ instead.
+ */
 import { Body, Controller, Get, Patch } from '@nestjs/common';
 import { MatchingConfigRepository } from 'telegram/crypto-news-integration/application/ports/matching-config.repository';
 import { MatchingHealthState } from 'telegram/crypto-news-integration/application/state/matching-health.state';
@@ -7,11 +12,7 @@ import {
   toMatchingConfigView,
   type MatchingConfigView,
 } from 'telegram/crypto-news-integration/application/mappers/matching-config.mapper';
-import {
-  ApiOperation,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 export type { MatchingConfigView } from 'telegram/crypto-news-integration/application/mappers/matching-config.mapper';
 
@@ -55,7 +56,7 @@ export interface MatchingHealthView {
  * CRYPTO_NEWS_POLLING_INTERVAL_MINUTES) is unrelated and unchanged.
  */
 @ApiTags('crypto-news-matching')
-@Controller('crypto-news/matching')
+@Controller(['crypto-news/matching', 'feed-matching'])
 export class MatchingConfigController {
   public constructor(
     private readonly matchingConfigRepo: MatchingConfigRepository,
@@ -72,7 +73,9 @@ export class MatchingConfigController {
   }
 
   @Get('health')
-  @ApiOperation({ summary: 'Live matching pipeline health (flag, ticks, queue depth)' })
+  @ApiOperation({
+    summary: 'Live matching pipeline health (flag, ticks, queue depth)',
+  })
   @ApiResponse({ status: 200, description: 'Matching pipeline health' })
   public async getHealth(): Promise<MatchingHealthView> {
     const [cfg, queuePending] = await Promise.all([
@@ -90,7 +93,9 @@ export class MatchingConfigController {
   }
 
   @Patch('config')
-  @ApiOperation({ summary: 'Toggle keyword-matching (sole writer of the matching flag)' })
+  @ApiOperation({
+    summary: 'Toggle keyword-matching (sole writer of the matching flag)',
+  })
   @ApiResponse({ status: 200, description: 'MatchingConfig updated' })
   @ApiResponse({ status: 400, description: 'Validation error' })
   public async updateConfig(

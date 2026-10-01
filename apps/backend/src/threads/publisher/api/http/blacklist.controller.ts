@@ -1,3 +1,8 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/threads/ (Tramo 2, todo 8 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add threads logic in apps/feed-publisher/src/threads/ instead.
+ */
 import {
   Body,
   Controller,
@@ -72,7 +77,7 @@ interface CreateThreadsBlacklistBatchDto {
  *  - PATCH  /:id       Update a blacklist phrase (partial)
  *  - DELETE /:id       Remove a blacklist phrase
  */
-@Controller('threads-publisher/blacklist')
+@Controller(['threads-publisher/blacklist', 'feed-threads-publisher/blacklist'])
 export class ThreadsBlacklistController {
   public constructor(
     private readonly blacklistRepo: ThreadsBlacklistPhraseRepository,

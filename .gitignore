@@ -77,3 +77,7 @@ infra/terraform/.terraform/
 .omo/boulder.json
 apps/ingestion-telegram/.env.backup-before-regen
 test-telegram-message.mjs
+
+# Playwright local artifacts
+apps/frontend/playwright-report/
+apps/frontend/test-results/

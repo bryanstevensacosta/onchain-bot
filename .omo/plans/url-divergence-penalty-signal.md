@@ -28,7 +28,7 @@
 
 - NO cambios a `ScoreInput` o `DedupResult` interfaces
 - NO cambios a `checkUrl`, `checkSemantic`, o `checkExact` en `DedupService`
-- NO cambios al handler de crypto-news publisher
+- NO cambios al handler de feed publisher
 - NO tocar `dedup_fingerprints` DB schema
 - NO añadir nuevas dependencias npm
 

@@ -1,3 +1,19 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/queue/ + apps/feed-publisher/src/llm/ + apps/feed-publisher/src/keywords/ (Tramo 2, todos 3+4+5 + P18 companion).
+ * NOTE: task brief believed this file already carried the header; verified missing
+ * via grep, so it is added here.
+ * Publisher queue + LLM + keywords now live in feed-publisher: PublisherQueueEntry +
+ * EnqueueMatchingMessage + ProcessNextQueuedArticle + schedulers (queue/), LlmConfig +
+ * PromptTemplate + LlmGenerator + Playground (llm/), Keyword/BlacklistPhrase +
+ * evaluators (keywords/). This module stays wired for dual-run; it will be removed
+ * at cutover (todo 11). Do not extend it — add queue/llm/keywords logic in
+ * apps/feed-publisher/src/{queue,llm,keywords}/ instead.
+ *
+ * New location: apps/feed-publisher/src/queue/ + apps/feed-publisher/src/llm/ + apps/feed-publisher/src/keywords/
+ * Reason: extracting feed pipeline from backend monolith to dedicated app
+ * Breaking change: Yes (removal at cutover)
+ * Rollback: re-enable backend path (USE_FEED_PUBLISHER=false)
+ */
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { LlmPort } from 'shared/llm';

@@ -1,24 +1,24 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Api } from 'telegram';
 import type { TelegramClient } from 'telegram';
-import type { TelegramMediaAttachment } from '../../ports/telegram-listener.port';
-import { MediaDownloaderService } from 'media/application/services/media-downloader.service';
+import type { TelegramMediaAttachment } from '@/core/ports/telegram-listener.port';
+import { MediaDownloaderService } from 'feed-media/application/services/media-downloader.service';
 
 /**
  * TelegramMediaExtractorService
- * 
+ *
  * Encapsulates Telegram media extraction + download logic.
- * 
+ *
  * Phase 5.2 Refactor: Extracted from TelegramMtprotoListenerAdapter to:
  * - Separate media handling concerns from message transformation
  * - Make media download logic testable and reusable
  * - Follow Single Responsibility Principle
- * 
+ *
  * Responsibilities:
  * - Extract media metadata from Telegram message objects
  * - Download media files to disk (photos, videos)
  * - Return TelegramMediaAttachment[] with filePath + metadata
- * 
+ *
  * Used by: TelegramMtprotoListenerAdapter
  */
 @Injectable()
@@ -29,11 +29,11 @@ export class TelegramMediaExtractorService {
 
   /**
    * Extract and download media attachments from Telegram message
-   * 
+   *
    * Handles:
    * - MessageMediaPhoto → photo download
    * - MessageMediaDocument with video/ MIME → video download
-   * 
+   *
    * @param client - TelegramClient instance for downloading
    * @param peerId - Channel/chat peer ID
    * @param messageId - Message ID

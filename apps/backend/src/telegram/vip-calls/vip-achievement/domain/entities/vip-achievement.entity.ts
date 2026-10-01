@@ -1,7 +1,13 @@
+/**
+ * @deprecated Moved to apps/kol-calls-publisher/src/telegram/ (+ templates orchestration in
+ * apps/kol-calls-publisher/src/templates/, seed `vip-calls`) (Tramo 1, todo 11 + P18 companion).
+ * P14: `vip-calls` is a template SEED name, never a module. This backend legacy copy stays
+ * wired for dual-run; removed at central FINAL REVIEW. Do not extend.
+ */
 import { Entity } from 'shared/kernel/entity';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
 import { Uuid } from 'shared/common/utils';
-import type { VipAchievementRecord } from '../../application/ports/vip-achievement.repository';
+import type { VipAchievementRecord } from '@/telegram/vip-calls/vip-achievement/application/ports/vip-achievement.repository';
 
 /**
  * Input contract for {@link VipAchievement.create}. Mirrors {@link VipAchievementRecord}

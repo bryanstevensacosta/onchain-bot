@@ -190,19 +190,21 @@ const filtersFixture: ContentFilter[] = [
 ];
 
 const server = setupServer(
-  http.get('*/threads-publisher/keywords', () =>
+  http.get('*/feed-threads-publisher/keywords', () =>
     HttpResponse.json(keywordsFixture),
   ),
-  http.get('*/threads-publisher/blacklist', () =>
+  http.get('*/feed-threads-publisher/blacklist', () =>
     HttpResponse.json(blacklistFixture),
   ),
-  http.get('*/threads-publisher/phrases', () =>
+  http.get('*/feed-threads-publisher/phrases', () =>
     HttpResponse.json(phrasesFixture),
   ),
-  http.get('*/threads-publisher/queue/counts', () =>
+  http.get('*/feed-threads-publisher/queue/counts', () =>
     HttpResponse.json(countsFixture),
   ),
-  http.get('*/threads-publisher/queue', () => HttpResponse.json(queueFixture)),
+  http.get('*/feed-threads-publisher/queue', () =>
+    HttpResponse.json(queueFixture),
+  ),
   http.get('*/threads/matching/config', () =>
     HttpResponse.json(matchingConfigFixture),
   ),
@@ -213,23 +215,26 @@ const server = setupServer(
   http.get('*/threads/matching/health', () =>
     HttpResponse.json(matchingHealthFixture),
   ),
-  http.get('*/threads-publisher/llm/config', () =>
+  http.get('*/feed-threads-publisher/llm/config', () =>
     HttpResponse.json(llmConfigFixture),
   ),
-  http.patch('*/threads-publisher/llm/config', async ({ request }) => {
+  http.patch('*/feed-threads-publisher/llm/config', async ({ request }) => {
     const body = (await request.json()) as Partial<ThreadsLlmConfigView>;
     return HttpResponse.json({ ...llmConfigFixture, ...body });
   }),
-  http.get('*/threads-publisher/llm/templates', () =>
+  http.get('*/feed-threads-publisher/llm/templates', () =>
     HttpResponse.json(templatesFixture),
   ),
-  http.get('*/threads-publisher/llm/models', () =>
+  http.get('*/feed-threads-publisher/llm/models', () =>
     HttpResponse.json(modelsFixture),
   ),
   // Shared filter routes are intentionally reused (same backend for both
   // products) — they are NOT threads endpoints.
-  http.get('*/crypto-news/sources/:channelId/filters', () =>
-    HttpResponse.json(filtersFixture),
+  // @deprecated Tramo 2 todo 15: legacy '*/crypto-news/sources/:channelId/filters' mock
+  // below. New path: '/feed-filters/:id*' + '/feed-publisher/sources/:channelId/filters*'; removed at cutover T2-11.
+  http.get(
+    '*/crypto-news/sources/:channelId/filters', // @deprecated T2-15: legacy mock -> '/feed-filters/:id*'; remove at cutover T2-11.
+    () => HttpResponse.json(filtersFixture),
   ),
 );
 

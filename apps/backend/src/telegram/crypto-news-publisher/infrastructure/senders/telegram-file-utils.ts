@@ -1,3 +1,8 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/queue/ + apps/feed-publisher/src/llm/ + apps/feed-publisher/src/keywords/ (Tramo 2, todos 3+4+5 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add queue/llm/keywords logic in apps/feed-publisher/src/{queue,llm,keywords}/ instead.
+ */
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import type { Logger } from '@nestjs/common';
 
@@ -11,6 +16,11 @@ export interface FileReadResult {
  * statSync → isFile → readFileSync pattern used by sendPhoto/sendVideo.
  *
  * Returns { bytes, error? } — callers check `error` and propagate.
+ *
+ * @deprecated Send helpers move to feed-publisher
+ * (`telegram/infrastructure/bot-api/read-file.ts`) via the
+ * telegram-bots-gateway (todo 5); removed at the global cutover
+ * (gateway todo 7). Do not extend.
  */
 export function readFileWithValidation(
   filePath: string,

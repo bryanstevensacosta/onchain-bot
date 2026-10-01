@@ -1,29 +1,12 @@
-import { DynamicModule, Module } from '@nestjs/common';
-import type { SolanaRpcConfig } from './solana-rpc.config';
-import { SOLANA_RPC_CONFIG } from './solana-rpc.config';
-import { SolanaRpcService } from './solana-rpc.service';
-
-const DEFAULT_CONFIG: SolanaRpcConfig = {
-  primaryRpcUrl: undefined,
-  fallbackRpcUrl: 'https://api.mainnet.solana.com',
-};
-
-@Module({
-  providers: [
-    { provide: SOLANA_RPC_CONFIG, useValue: DEFAULT_CONFIG },
-    SolanaRpcService,
-  ],
-  exports: [SolanaRpcService],
-})
-export class SolanaRpcModule {
-  public static forRoot(config: SolanaRpcConfig): DynamicModule {
-    return {
-      module: SolanaRpcModule,
-      providers: [
-        { provide: SOLANA_RPC_CONFIG, useValue: config },
-        SolanaRpcService,
-      ],
-      exports: [SolanaRpcService],
-    };
-  }
-}
+/**
+ * @deprecated Moved to apps/market-data/src/provider/infrastructure/solana-rpc/ (Tramo 3, todo 4, C-DATA-01).
+ * Canonical owner is now market-data (ProvidersModule); this file is a
+ * dual-run re-export shim so legacy backend consumers stay green.
+ * Removed at cutover (todo 8). Do not extend it.
+ *
+ * New location: apps/market-data/src/provider/infrastructure/solana-rpc/
+ * Reason: extracting market-data providers from backend monolith to dedicated app
+ * Breaking change: Yes (removal at cutover)
+ * Rollback: restore backend implementation from git history
+ */
+export * from '../../../../market-data/src/provider/infrastructure/solana-rpc/solana-rpc.module';

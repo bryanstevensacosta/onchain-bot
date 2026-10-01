@@ -1,3 +1,15 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/filters/ (Tramo 2, todo 3 + P18 companion).
+ * Content filters now live in feed-publisher: ContentFilterService (ReDoS-safe) +
+ * ChannelFilterRepository + filter CRUD use-cases (FK-less per spec). This module
+ * stays wired for dual-run; it will be removed at cutover (todo 11). Do not extend
+ * it — add filter logic in apps/feed-publisher/src/filters/ instead.
+ *
+ * New location: apps/feed-publisher/src/filters/
+ * Reason: extracting feed pipeline from backend monolith to dedicated app
+ * Breaking change: Yes (removal at cutover)
+ * Rollback: re-enable backend path (USE_FEED_PUBLISHER=false)
+ */
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { CryptoNewsPersistenceModule } from 'telegram/ingestion/crypto-news/crypto-news-persistence.module';
@@ -7,6 +19,7 @@ import { ChannelFilterRepository } from 'telegram/ingestion/crypto-news/applicat
 import { TypeOrmChannelFilterRepository } from 'telegram/ingestion/crypto-news/infrastructure/persistence/typeorm/repositories/typeorm-channel-filter.repository';
 import { ContentFilterService } from 'telegram/ingestion/crypto-news/application/services/content-filter.service';
 import { CryptoNewsController } from 'telegram/ingestion/crypto-news/api/http/crypto-news.controller';
+import { FeedFiltersController } from 'telegram/ingestion/crypto-news/api/http/feed-filters.controller';
 import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-process-domain-event.publisher';
 import {
   CreateFilterUseCase,
@@ -45,7 +58,7 @@ import {
     // Now: SharedIngestionModule → CryptoNewsIngestionModule (one-way, no forwardRef needed)
     SharedIngestionModule,
   ],
-  controllers: [CryptoNewsController],
+  controllers: [CryptoNewsController, FeedFiltersController],
   providers: [
     TypeOrmChannelFilterRepository,
     {

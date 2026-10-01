@@ -1,9 +1,14 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/ingestion/ + apps/feed-publisher/src/matching/ (Tramo 2, todos 2+3 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add feed ingestion/matching logic in apps/feed-publisher/src/ingestion/ or apps/feed-publisher/src/matching/ instead.
+ */
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { TelegramRawMessage } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
 import { FilteredCryptoNewsService } from '../services/filtered-crypto-news.service';
-import { EnqueueMatchingMessageUseCase } from '../../../crypto-news-publisher/application/handlers/enqueue-matching-message.use-case';
+import { EnqueueMatchingMessageUseCase } from '@/telegram/crypto-news-publisher/application/handlers/enqueue-matching-message.use-case';
 import { MatchingConfigRepository } from '../ports/matching-config.repository';
-import { PublisherQueueRepository } from '../../../crypto-news-publisher/application/ports/publisher-queue.repository';
+import { PublisherQueueRepository } from '@/telegram/crypto-news-publisher/application/ports/publisher-queue.repository';
 import { DeadLetterService } from '../services/dead-letter.service';
 import { isBlockingFailureReason } from 'shared/deduplication/domain/constants/blocking-failure-reasons';
 
@@ -75,6 +80,16 @@ export class ProcessCryptoNewsMessageHandler {
    */
   async handle(raw: TelegramRawMessage): Promise<void> {
     try {
+      // P10: the queue accepts ONLY crypto-news (KOL goes to kol-system).
+      // The router gates by messageType, but a mis-routed KOL event must
+      // never trigger a fetch+enqueue here — skip defensively.
+      if (raw.messageType !== undefined && raw.messageType !== 'crypto-news') {
+        this.logger.debug(
+          `Skipping non-crypto-news event ${raw.peerId}:${raw.messageId} (messageType=${raw.messageType})`,
+        );
+        return;
+      }
+
       // Step 1: Check matchingEnabled flag
       const config = await this.matchingConfigRepo.load();
       if (!config?.enabled) {

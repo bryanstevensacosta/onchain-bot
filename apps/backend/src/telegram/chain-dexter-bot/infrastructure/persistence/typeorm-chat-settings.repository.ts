@@ -1,11 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ChatSettingsEntity } from '../../domain/chat-settings.entity';
+import { ChatSettingsEntity } from '@/telegram/chain-dexter-bot/domain/chat-settings.entity';
 import {
   ChatSettingsPatch,
   ChatSettingsRepository,
-} from '../../application/ports/chat-settings.repository';
+} from '@/telegram/chain-dexter-bot/application/ports/chat-settings.repository';
 
 const DEFAULTS = {
   enabledTradeButtons: ['DEX', 'PHO', 'TRO'],

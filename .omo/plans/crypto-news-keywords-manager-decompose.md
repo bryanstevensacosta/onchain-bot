@@ -1,4 +1,4 @@
-# crypto-news-keywords-manager-decompose - Work Plan
+# feed-keywords-manager-decompose - Work Plan
 
 ## TL;DR (For humans)
 
@@ -6,11 +6,11 @@
 
 **Why this approach:** Extracción gradual — cada paso es atómico y reversible. Reutilizamos el `BlacklistManager` ya existente (426 líneas, patrón Modal) que estaba desconectado, y extraemos el `SourceMultiSelect` que estaba duplicado conceptualmente. Usamos exactamente el mismo patrón FSD existente (`features/*/ui/`).
 
-**What it will NOT do:** No cambia la API pública de `KeywordsManager` (sigue exportándose desde `index.ts`), no cambia la página (`crypto-news/index.tsx`), no altera comportamiento, no introduce tests nuevos.
+**What it will NOT do:** No cambia la API pública de `KeywordsManager` (sigue exportándose desde `index.ts`), no cambia la página (`feed/index.tsx`), no altera comportamiento, no introduce tests nuevos.
 
 **Effort:** Low-Medium
 **Risk:** Low — las extracciones son puramente mecánicas (cortar y pegar + import); el riesgo está en atar los imports de los tipos compartidos correctamente.
-**Decisions to sanity-check:** 1) `BlacklistManager` se renderiza dentro del mismo contenedor que `KeywordsSection` (elegido por el usuario). 2) `SourceMultiSelect` se queda en `ui/` de la feature (no sube a `shared/ui/` porque usa tipos de `crypto-news-publisher`).
+**Decisions to sanity-check:** 1) `BlacklistManager` se renderiza dentro del mismo contenedor que `KeywordsSection` (elegido por el usuario). 2) `SourceMultiSelect` se queda en `ui/` de la feature (no sube a `shared/ui/` porque usa tipos de `feed-publisher`).
 
 Your next move: **approve** the plan to proceed, or request a high-accuracy review (Momus).
 
@@ -30,7 +30,7 @@ Your next move: **approve** the plan to proceed, or request a high-accuracy revi
 
 ### Must NOT have (guardrails, anti-slop, scope boundaries)
 
-- No changes to `crypto-news/index.tsx` page layout (the page imports `KeywordsManager` — it stays the same)
+- No changes to `feed/index.tsx` page layout (the page imports `KeywordsManager` — it stays the same)
 - No changes to `index.ts` barrel exports
 - No changes to `BlacklistManager` itself (already clean, Modal-based, 426 lines)
 - No changes to model hooks (`use-keywords.ts`, `use-blacklist.ts`)
@@ -42,7 +42,7 @@ Your next move: **approve** the plan to proceed, or request a high-accuracy revi
 > Zero human intervention — all verification is agent-executed.
 
 - Test decision: tests-after — existing test suite + ESLint + tsc --noEmit
-- Evidence: `.omo/evidence/crypto-news-keywords-manager-decompose/`
+- Evidence: `.omo/evidence/feed-keywords-manager-decompose/`
 
 ## Execution strategy
 
@@ -65,7 +65,7 @@ Your next move: **approve** the plan to proceed, or request a high-accuracy revi
 
 - [x] 1. **Extract `SourceMultiSelect` to `source-multi-select.tsx`**
      What to do / Must NOT do:
-     Create `apps/frontend/src/features/crypto-news-publisher/ui/source-multi-select.tsx` and MOVE:
+     Create `apps/frontend/src/features/feed-publisher/ui/source-multi-select.tsx` and MOVE:
 
   ```
   Lines 41-49:  SourceOption interface + sourceLabel() helper
@@ -137,7 +137,7 @@ Your next move: **approve** the plan to proceed, or request a high-accuracy revi
 
 - [x] 2. **Extract keywords section to `keywords-section.tsx`**
      What to do / Must NOT do:
-     Create `apps/frontend/src/features/crypto-news-publisher/ui/keywords-section.tsx` and MOVE:
+     Create `apps/frontend/src/features/feed-publisher/ui/keywords-section.tsx` and MOVE:
 
   **State/handlers (keywords-specific only):**
   - All keyword-specific `useState` calls (newPhrase, newTemplateId, newCaseSensitive, newSourceChannelIds, newEnabled, editing, searchQuery, kwPage, KW_PAGE_SIZE)
@@ -150,7 +150,7 @@ Your next move: **approve** the plan to proceed, or request a high-accuracy revi
   - From `@/shared/ui/button`: `Button`
   - From feature model: `useKeywords`, `useCreateKeyword`, `useUpdateKeyword`, `useDeleteKeyword`
   - From feature api types: `KeywordView`, `CreateKeywordBody`, `UpdateKeywordBody`
-  - From entity: `useCryptoNewsSources`, `type CryptoNewsSource`
+  - From entity: `useFeedSources`, `type FeedSource`
   - From `use-llm-config` model: template hooks
   - From local: `SourceMultiSelect`, `sourceLabel`, `templateLabel`, `type SourceOption`
 
@@ -219,7 +219,7 @@ Your next move: **approve** the plan to proceed, or request a high-accuracy revi
      ```
 
   1. **Clean up remaining imports**:
-     - Remove: `Card`, `Button`, `useKeywords`, `useCreateKeyword`, `useUpdateKeyword`, `useDeleteKeyword`, `useBlacklist`, `useCreateBlacklist`, `useUpdateBlacklist`, `useDeleteBlacklist`, `useCryptoNewsSources`, template hooks, all API types
+     - Remove: `Card`, `Button`, `useKeywords`, `useCreateKeyword`, `useUpdateKeyword`, `useDeleteKeyword`, `useBlacklist`, `useCreateBlacklist`, `useUpdateBlacklist`, `useDeleteBlacklist`, `useFeedSources`, template hooks, all API types
      - Keep only: `React` (implicit from JSX), `KeywordsSection`, `BlacklistManager`
 
   1. Run `npx eslint --fix` on the file
@@ -240,8 +240,8 @@ Your next move: **approve** the plan to proceed, or request a high-accuracy revi
   }
   ```
 
-  Must NOT: Change `crypto-news/index.tsx` or `index.ts` barrel exports.
-  Must NOT: Change `src/pages/crypto-news/index.tsx` — it still imports `KeywordsManager` and renders it the same way.
+  Must NOT: Change `feed/index.tsx` or `index.ts` barrel exports.
+  Must NOT: Change `src/pages/feed/index.tsx` — it still imports `KeywordsManager` and renders it the same way.
 
   Parallelization: Wave 2 | Blocked by: T1, T2 | Blocks: T4
   References: entire `keywords-manager.tsx` file
@@ -251,8 +251,8 @@ Your next move: **approve** the plan to proceed, or request a high-accuracy revi
 
 - [x] 4. **Final verification**
      What to do:
-  1. `wc -l apps/frontend/src/features/crypto-news-publisher/ui/keywords-manager.tsx` → target ~15 lines (was 1,194)
-  1. `npx eslint apps/frontend/src/features/crypto-news-publisher/ui/` → 0 errors, 0 warnings
+  1. `wc -l apps/frontend/src/features/feed-publisher/ui/keywords-manager.tsx` → target ~15 lines (was 1,194)
+  1. `npx eslint apps/frontend/src/features/feed-publisher/ui/` → 0 errors, 0 warnings
   1. `npx tsc --noEmit` (from apps/frontend) → 0 errors
   1. `npx vitest run` (from apps/frontend) → all 154 tests pass
   1. Verify each new file exists and has correct exports:

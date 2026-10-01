@@ -1,3 +1,8 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/queue/ + apps/feed-publisher/src/llm/ + apps/feed-publisher/src/keywords/ (Tramo 2, todos 3+4+5 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add queue/llm/keywords logic in apps/feed-publisher/src/{queue,llm,keywords}/ instead.
+ */
 import {
   Body,
   Controller,
@@ -14,12 +19,7 @@ import { BlacklistPhraseRepository } from 'telegram/crypto-news-publisher/applic
 import { BlacklistPhrase } from 'telegram/crypto-news-publisher/domain/entities/blacklist-phrase.entity';
 import type { MatchMode } from 'telegram/crypto-news-publisher/domain/entities/keyword.entity';
 import { PhraseRegistryService } from 'telegram/crypto-news-publisher/application/services/phrase-registry.service';
-import {
-  ApiOperation,
-  ApiParam,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 export interface BlacklistPhraseView {
   readonly id: string;
@@ -75,7 +75,7 @@ interface CreateBlacklistBatchDto {
  *  - DELETE /:id       Remove a blacklist phrase
  */
 @ApiTags('crypto-news-publisher')
-@Controller('crypto-news-publisher/blacklist')
+@Controller(['crypto-news-publisher/blacklist', 'feed-publisher/blacklist'])
 export class BlacklistController {
   public constructor(
     private readonly blacklistRepo: BlacklistPhraseRepository,
@@ -135,7 +135,9 @@ export class BlacklistController {
 
   @Post('batch')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Create an AND-group of blacklist phrases in one call' })
+  @ApiOperation({
+    summary: 'Create an AND-group of blacklist phrases in one call',
+  })
   @ApiResponse({ status: 201, description: 'Blacklist phrases created' })
   @ApiResponse({ status: 400, description: 'Validation error' })
   public async createBatch(

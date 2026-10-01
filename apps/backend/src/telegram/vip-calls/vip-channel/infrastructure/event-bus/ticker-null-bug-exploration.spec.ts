@@ -1,10 +1,16 @@
+/**
+ * @deprecated Moved to apps/kol-calls-publisher/src/telegram/ (+ templates orchestration in
+ * apps/kol-calls-publisher/src/templates/, seed `vip-calls`) (Tramo 1, todo 11 + P18 companion).
+ * P14: `vip-calls` is a template SEED name, never a module. This backend legacy copy stays
+ * wired for dual-run; removed at central FINAL REVIEW. Do not extend.
+ */
 import { VipCallApprovedEvent } from 'token/vip-call-approval/domain/events/vip-call-approved.event';
 import { CanonicalTokenCallRepository } from 'token/normalization/application/ports/canonical-token-call.repository';
 import { TokenSnapshotRepository } from 'token/enrichment/application/ports/token-snapshot.repository';
 import { TokenApprovedPublishHandler } from './token-approved-publish.handler';
-import { VipCallsPublishUseCase } from '../../application/handlers/vip-calls-publish.use-case';
+import { VipCallsPublishUseCase } from '@/telegram/vip-calls/vip-channel/application/handlers/vip-calls-publish.use-case';
 import { PublishedCallRepository } from 'telegram/shared';
-import { TickerResolverService } from '../../application/services/ticker-resolver.service';
+import { TickerResolverService } from '@/telegram/vip-calls/vip-channel/application/services/ticker-resolver.service';
 
 /**
  * Bug Condition Exploration Test - Ticker Null After DB Lookups

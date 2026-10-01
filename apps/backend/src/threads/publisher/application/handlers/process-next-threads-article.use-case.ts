@@ -1,3 +1,8 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/threads/ (Tramo 2, todo 8 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add threads logic in apps/feed-publisher/src/threads/ instead.
+ */
 import { Injectable, Logger } from '@nestjs/common';
 import { LlmPort } from 'shared/llm';
 import { isBlockingFailureReason } from 'shared/deduplication/domain/constants/blocking-failure-reasons';
@@ -128,11 +133,7 @@ export class ProcessNextThreadsArticleUseCase {
         return;
       }
 
-      await this.queueRepo.markPublished(
-        entry.id,
-        result.remoteId,
-        generated,
-      );
+      await this.queueRepo.markPublished(entry.id, result.remoteId, generated);
       await this.throttleScheduler.setLastPublishAt(now);
 
       this.logger.log(
@@ -175,9 +176,7 @@ export class ProcessNextThreadsArticleUseCase {
     reason: string,
     opts: { reintentable: boolean; llmMaxAttempts: number },
   ): Promise<void> {
-    this.logger.error(
-      `failed to publish queue entry ${entry.id}: ${reason}`,
-    );
+    this.logger.error(`failed to publish queue entry ${entry.id}: ${reason}`);
     if (!opts.reintentable || isBlockingFailureReason(reason)) {
       await this.queueRepo.markFailed(entry.id, reason);
       this.logger.log(

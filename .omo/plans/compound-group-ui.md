@@ -56,8 +56,8 @@
      Must NOT do: No cambiar la estructura de datos del backend
      Parallelization: Wave 1 | Blocked by: - | Blocks: 2
      References:
-  - apps/frontend/src/features/crypto-news-publisher/ui/blacklist-manager.tsx:55-97 (form state y handleSubmit)
-  - apps/frontend/src/features/crypto-news-publisher/ui/blacklist-manager.tsx:169-188 (donde esta el checkbox compound)
+  - apps/frontend/src/features/feed-publisher/ui/blacklist-manager.tsx:55-97 (form state y handleSubmit)
+  - apps/frontend/src/features/feed-publisher/ui/blacklist-manager.tsx:169-188 (donde esta el checkbox compound)
     Acceptance criteria:
   - npm run lint:frontend pasa
   - Dropdown muestra todos los grupos compound existentes
@@ -70,7 +70,7 @@
      Must NOT do: No duplicar código - si es muy similar, extraer a componente compartido
      Parallelization: Wave 2 | Blocked by: 1 | Blocks: -
      References:
-  - apps/frontend/src/features/crypto-news-publisher/ui/keywords-section.tsx
+  - apps/frontend/src/features/feed-publisher/ui/keywords-section.tsx
     Acceptance criteria:
   - keywords compound groups también funcionan
     QA: verificar keywords compound en UI

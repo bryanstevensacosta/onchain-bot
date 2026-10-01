@@ -1,16 +1,15 @@
 /**
  * Repository roundtrip specs for `TelegramFeedMessageRepository`.
  *
- * Runs against an ISOLATED test database (`onchain_bot_test_entity`) on the
- * DEV postgres (localhost:5434) — never the dev-ingestion data DB and never
- * staging/prod. Port default is 5434 (NOT 5432: that is the prod server on
- * this host). Entities are synchronized (create-if-missing, no drops) and
+ * Runs against an ISOLATED test database (`ingestion_telegram_db_test`) on the
+ * single DEV postgres (localhost:5432) — never the dev-ingestion data DB and never
+ * staging/prod. Port default is 5432 (the consolidated dev server). Entities are synchronized (create-if-missing, no drops) and
  * rows are cleaned per test, so parallel items' suites sharing this DB are
  * unaffected.
  *
  * Covers (item 3 acceptance):
  * - repo roundtrip on the NEW table (`telegram_feed_messages`)
- * - `type` discriminator persistence (`crypto-news` + `kol` union)
+ * - `type` discriminator persistence (`feed` + `kol` union)
  * - media cascade save on the new (message ↔ media) pair
  * - all 6 mirrored methods: findRecent / findByChannelId /
  *   findByChannelAndMessageId / save / count / countByChannelId
@@ -21,16 +20,15 @@ import { TelegramFeedMessageEntity } from '../entities/telegram-feed-message.ent
 import { TelegramFeedMessageMediaEntity } from '../entities/telegram-feed-message-media.entity';
 import { TelegramFeedMessageRepository } from './telegram-feed-message.repository';
 
-const TEST_DB = 'onchain_bot_test_entity';
+const TEST_DB = 'ingestion_telegram_db_test';
 
 function testDataSource(): DataSource {
   return new DataSource({
     type: 'postgres',
     host: process.env.INGESTION_DATABASE_HOST ?? 'localhost',
-    port: parseInt(process.env.INGESTION_DATABASE_PORT ?? '5434', 10),
-    username: process.env.INGESTION_DATABASE_USER ?? 'alpha_meta_token_scanner',
-    password:
-      process.env.INGESTION_DATABASE_PASSWORD ?? 'alpha_meta_token_scanner',
+    port: parseInt(process.env.INGESTION_DATABASE_PORT ?? '5432', 10),
+    username: process.env.INGESTION_DATABASE_USER ?? 'onchain_bot',
+    password: process.env.INGESTION_DATABASE_PASSWORD ?? 'onchain_bot',
     database: TEST_DB,
     entities: [TelegramFeedMessageEntity, TelegramFeedMessageMediaEntity],
     synchronize: true,
@@ -42,10 +40,9 @@ async function ensureTestDatabase(): Promise<void> {
   const admin = new DataSource({
     type: 'postgres',
     host: process.env.INGESTION_DATABASE_HOST ?? 'localhost',
-    port: parseInt(process.env.INGESTION_DATABASE_PORT ?? '5434', 10),
-    username: process.env.INGESTION_DATABASE_USER ?? 'alpha_meta_token_scanner',
-    password:
-      process.env.INGESTION_DATABASE_PASSWORD ?? 'alpha_meta_token_scanner',
+    port: parseInt(process.env.INGESTION_DATABASE_PORT ?? '5432', 10),
+    username: process.env.INGESTION_DATABASE_USER ?? 'onchain_bot',
+    password: process.env.INGESTION_DATABASE_PASSWORD ?? 'onchain_bot',
     database: 'postgres',
     logging: false,
   });
@@ -227,7 +224,7 @@ describe('TelegramFeedMessageRepository (telegram_feed_messages roundtrip)', () 
     child.messageId = parent.id;
     child.index = 0;
     child.type = 'photo';
-    child.filePath = 'uploads/feed/media/-1001/42_0.jpg';
+    child.filePath = 'uploads/feed-media/-1001/42_0.jpg';
     child.mimeType = 'image/jpeg';
     child.fileSize = 1234;
     child.createdAt = new Date();
@@ -237,6 +234,6 @@ describe('TelegramFeedMessageRepository (telegram_feed_messages roundtrip)', () 
 
     const found = await repo.findByChannelAndMessageId('-1001', 42);
     expect(found?.media).toHaveLength(1);
-    expect(found?.media[0]?.filePath).toBe('uploads/feed/media/-1001/42_0.jpg');
+    expect(found?.media[0]?.filePath).toBe('uploads/feed-media/-1001/42_0.jpg');
   });
 });

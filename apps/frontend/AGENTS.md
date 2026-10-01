@@ -7,66 +7,107 @@
 React 18.3 + Vite 5 + TanStack Query v5 + socket.io-client 4.8 + Tailwind CSS 3.4 + React Router v6.
 Strict FSD. Dev `:5173` (strictPort); prod is nginx static + per-prefix proxy to `backend:3030`.
 
+> Plain-language companion: `FRONTEND.md` (same folder) describes what each
+> dashboard screen is for in non-technical words — point non-coders there
+> instead of this file.
+> Per-screen plain-language docs live in `docs/frontend/` (one file per screen, `README.md` index).
+
 ## STRUCTURE
 
 ```
 src/
-├── app/ {entry.tsx (createRoot), index.tsx (providers), router/routes.tsx (6 routes),
+├── app/ {entry.tsx (createRoot), index.tsx (providers), router/routes.tsx (13 entries: 11 pages + `/profiles` + `/crypto-news` bookmark redirects),
 │         layouts/root-layout.tsx, providers/{query,socket}-provider.tsx, styles/}
-├── pages/ {dashboard (KpiCards + IngestionHealth + LiveFeed + TopTokens + TrackedCalls), tokens-explorer, token-detail (displayName fallback canonical→snapshot→ticker; ContractAddress + copy; gauge + breakdown + snapshot + canonical), kols (rows + lifecycle/backfill/recompute/formula controls), crypto-news (550-line hub: messages + queue + keywords + ads + filters + llm-config + lightbox + album grouping), ops (replay/filters/presets tabs)}
-├── widgets/ {kpi-cards, live-feed, top-tokens-table, kol-leaderboard, tracked-calls, ingestion-health}
-├── features/ (11) {add-kol, add-crypto-news-source, set-kol-lifecycle,
+├── pages/ {dashboard (KpiCards + IngestionHealth + LiveFeed + TopTokens + TrackedCalls), tokens-explorer, token-detail (displayName fallback canonical→snapshot→ticker; ContractAddress + copy; gauge + breakdown + snapshot + canonical), kols (rows + lifecycle/backfill/recompute/formula controls), feed (hub: sessions section on top + messages + queue + scheduling + filters + llm-config + lightbox + album grouping; standalone keywords panel REMOVED — keywords live in the Session window Keywords tab, the /feed sidebar keeps a moved-notice with an Open-Session link), playground, threads, template-dashboard (thin wrapper → widgets/template-dashboard), market-data (Tramo 3 todo 7: chains + detect + providers + address lookup + compat snapshot + batch), dexter (Tramo 3 todo 7: /x full-scan + /c chart via market-data HTTP), ops (replay/filters/presets tabs)}
+├── widgets/ {kpi-cards, live-feed, top-tokens-table, kol-leaderboard, tracked-calls, ingestion-health,
+│           feed-sessions (P34-ter `FeedSessionsSection` (`id="publishing-sessions"`, listens for `open-session-keywords` → jumps to the Keywords tab): header Session dropdown (●/○) + template name + ONE `SessionWindow` (Overview|Sources|Keywords|Filters|LLM|Target; staged draft + Save/Delete/Activate-Deactivate + template save/load/delete with confirms + per-tab toggles + sources CRUD/toggles; session management lives inline in Overview via `SessionManagementPanel` — create + list + activate/deactivate + delete, no modal, no Manage button) + recent with status badges, embedded at the top of `/feed`; Keywords tab = scoped preview tables (allowed filtered by session `keywordIds`, blocked by session sources, compound AND-groups) + full CRUD (`KeywordsSection` with `filterIds` + `session-keywords-scope`/`session-keywords-empty`, `BlacklistManager` with `filterSourceIds` + `session-blacklist-scope`); UI moved from `pages/profiles/ui/`),
+│           template-dashboard (TemplateDashboard: template picker + SourceMultiSelect + CallsTable + PerformanceRanking + TopCallersStrip + TemplateConfigSection + KolAvatar)}
+│           scan-search-modal (ScanSearchModal: dark blurred backdrop + centered panel + focus trap + Esc/backdrop close + recent searches + scan views reuse; `use-recent-scans` localStorage max-10 dedup hook; `scan-views` holds parseDexterInput + FullScanCard + ChartCard + ScanResultView shared by page + modal)
+├── features/ (11) {add-kol-telegram, add-feed-source, set-kol-lifecycle,
 │              replay-message, reprocess-rejected, kol-score-formula, recompute-kol-reputation,
 │              settings (filters/presets tabs, presets = named settings snapshots),
-│              crypto-news-publisher (queue 10 s polling, backend cap 500; keywords/phrases/blacklist/llm-config),
-│              crypto-news-ads (1 473-line manager: staged media protocol create→upload→PATCH format; `expiresAt: null` = explicit clear),
-│              crypto-news-filters (regex pattern/replacement/flags default `gi`/priority + live preview)}
+│              feed-publisher (queue 10 s polling, backend cap 500; keywords/phrases/blacklist/llm-config),
+│              feed-scheduling (1 473-line manager: staged media protocol create→upload→PATCH format; `expiresAt: null` = explicit clear),
+│              feed-filters (regex pattern/replacement/flags default `gi`/priority + live preview)}
 - Keywords support compound AND-groups, per-template binding, exact/substring modes (`KW_PAGE_SIZE` 5); phrases poll 10 s + guarded search + conflict-check mutation; presets create with empty snapshot; lightbox has arrow-key nav with wraparound.
-- Publisher ops: `MatchingToggleButton` (start/stop with spinner + pulse dot), `BlockedPostsList` (BLOCKED filter + shared details modal), `PromptTemplates` (643 lines: model/vision/maxTokens/temperature/reasoning-effort forms).
-- Blacklist mirrors keywords (910 lines: batch create, compound groups, per-source scope); ads poll 10 s; `KolReputationView` carries full outcome metrics (x2/x5/x10/x50, rug50/rug80, neutral) + `isTrusted/isSuspicious`; copy buttons with Spanish aria-labels (`Copiar contrato`).
+- Publisher ops: `MatchingToggleButton` (start/stop with spinner + pulse dot + `pipeline-mode` badge from `GET /feed-api/api/llm/flags`), `FeedQueueStatsStrip` (per-status depth from `GET /feed-api/api/queue/stats`, hides on error), `FeedThreadsStubSection` (v1 skeleton: 501 `THREADS_NOT_IMPLEMENTED` → deferred-to-v2 notice, API down → empty-state), `BlockedPostsList` (BLOCKED filter + shared details modal), `PromptTemplates` (643 lines: model/vision/maxTokens/temperature/reasoning-effort forms).
+- Blacklist mirrors keywords (910 lines: batch create, compound groups, per-source scope); scheduling poll 10 s; `KolReputationView` carries full outcome metrics (x2/x5/x10/x50, rug50/rug80, neutral) + `isTrusted/isSuspicious`; copy buttons with Spanish aria-labels (`Copiar contrato`).
 - `CanonicalTokenCallView` keeps per-source `messageIds` + metrics + confidence; `TokenScoreView` keeps legacy `classifiedAt?` + `avgKolReputation`.
-- Compound modal: client-generated row IDs (`generateId()`), AND-grouped phrase rows with per-row case/mode/media/template binding; source invalidation is broad (`cryptoNewsKeys.all`).
-├── entities/ (11) {kol, kol-reputation, canonical-call, token-score, token-classification,
-│              token-snapshot, filter-decision, published-call, tracked-call, crypto-news, dashboard}
+- Compound modal: client-generated row IDs (`generateId()`), AND-grouped phrase rows with per-row case/mode/media/template binding; source invalidation is broad (`feedKeys.all`).
+├── entities/ (13) {kol, kol-reputation, canonical-call, token-score, token-classification,
+│              token-snapshot, filter-decision, published-call, tracked-call, feed, dashboard,
+│              market-data (Tramo 3 todo 7: ChainInfo/ProviderStatus/AddressSnapshot/compat-snapshot/batch views + kind/health tones + chart urls + 5 hooks), template (TemplateView/TemplateCallRow/KolRankingRow/KolSourceOption + templateKeys + 6 hooks + pure helpers),
+│              feed-session (P34-quater rename of `profile`: feed sessions CRUD + feed templates save/load/delete + message status + publisher keywords/blacklist + channel filters + preview + queue + llm/flags fetchers, `feedSessionKeys` (`profileKeys` kept as `@deprecated` alias), pure helpers `normalizeFeedSessionName`/`isValidFeedSessionName`/`badgeTone`/`paginate`/`splitKeywordGroups`/`snapshotSessionToTemplate`, hooks still named `useProfiles`/`useProfile*` (hook rename pending; types + keys already dual-named)}
 ├── shared/ {api/{http-client, endpoints, settings-endpoints}, config/env.ts, lib/{format, signalLabels, render-telegram-entities, use-pagination, uuid}, realtime/{events, socket, use-event-stream}, ui/{button, badge, card, modal, token-image, gauges, lightbox, chain-icon, bonding-curve-progress}}
 └── test/setup.ts (single `jest-dom/vitest` import)
 ```
 
 Routes (`createBrowserRouter` — data-router API but NO loaders; Query owns server state):
-`/`, `/tokens`, `/tokens/:chain/:address`, `/kols`, `/crypto-news`, `/ops`.
-Nav has 5 links (Dashboard · Tokens · KOLs · News · Ops — README says 4, stale).
-Kols rows show lifecycle/listening state + rep score with 0.7/0.3 tone bands; `SetKolLifecycleButton` per row. Page paginates 15/page with `lastIngestedAt` relative times; Activate/Deactivate buttons by status, Recompute per row (backfill removed 2026-09-24: `POST telegram-kol/identity/kols/:kolId/backfill` answers 501, no feed equivalent — trigger-backfill feature deleted). `AddKolModal` takes a bare Telegram ID/`@handle` (title/handle auto-resolved server-side), guards submit while pending, surfaces `mutation.error` inline. Score formula preset lives in `localStorage` (`useKolScoreFormula`) and is sent as `?formula=` on recompute.
+`/`, `/tokens`, `/tokens/:chain/:address`, `/kols`, `/feed` (sessions section on top: session picker + `template: <name>|Ad-hoc` + tabs sources|keywords|queue|target|filters|llm + session management inline in Overview (`session-management`, no modal, no Manage button) + recent with status badges, ex-`/profiles`), `/playground`, `/threads`, `/templates`, `/market-data`, `/dexter`, `/ops` (+ legacy `/crypto-news` and `/profiles` → `<Navigate to="/feed" replace />` bookmark redirects).
+Nav has 10 links (Dashboard · Tokens · KOLs · Feed · Playground · Threads · Templates · Data · Dexter · Ops — README says 4, stale).
+`/templates` (Tramo 1, kol-system): `TemplateDashboardPage` (`pages/template-dashboard/index.tsx`, thin wrapper) renders `TemplateDashboard` (`widgets/template-dashboard/ui/template-dashboard.tsx`): template picker (defaults to first template) → `SourceMultiSelect` (checkbox chips per KOL source, `Clear (all)` = empty = all sources; change PATCHes `kolSourceIds` via `useUpdateTemplateSources`, invalidates detail/calls/templates) → `CallsTable` + `PerformanceRanking` + `TopCallersStrip` + `TemplateConfigSection`. Calls are enriched client-side (rankings row joined with feed-source handle/title/url/avatarUrl, call row wins) then filtered by `filterCallsBySources`. Every widget degrades to an empty-state div on API error (never crashes; e2e pins `template-dashboard-empty`).
+Kols rows show lifecycle/listening state + rep score with 0.7/0.3 tone bands; `SetKolLifecycleButton` per row. Page paginates 15/page with `lastIngestedAt` relative times; Activate/Deactivate buttons by status, Recompute per row (backfill removed 2026-09-24: `POST telegram-kol/identity/kols/:kolId/backfill` answers 501, no feed equivalent — trigger-backfill feature deleted). `AddKolTelegramModal` takes a bare Telegram ID/`@handle` (title/handle auto-resolved server-side), guards submit while pending, surfaces `mutation.error` inline. Score formula preset lives in `localStorage` (`useKolScoreFormula`) and is sent as `?formula=` on recompute.
 Pagination is client-side only (`usePagination`: slices fetched arrays, clamps on shrink) — large lists transfer fully.
-Modal convention (`AddKolModal`, `AddCryptoNewsSourceModal`): uncontrolled-close guard while pending, `mutation.reset()` on close, inline `mutation.error` alert; source modal validates `/^-100\d+$/` client-side. Settings tabs edit inline with staged `edits` map, grouped by filter `type`, invalidate `settingsFilterKeys.all` on success. Empty states in Spanish (`Cargando…`, `Sin snapshot de mercado`); null glyph is `—` (format lib).
+Modal convention (`AddKolTelegramModal`, `AddFeedSourceModal`): uncontrolled-close guard while pending, `mutation.reset()` on close, inline `mutation.error` alert; source modal validates `/^-100\d+$/` client-side. Settings tabs edit inline with staged `edits` map, grouped by filter `type`, invalidate `settingsFilterKeys.all` on success. Empty states in Spanish (`Cargando…`, `Sin snapshot de mercado`); null glyph is `—` (format lib).
 
 ## BACKEND CONTRACT (`shared/api/endpoints.ts` — source of truth)
 
 **PRIMARY BACKEND** (`localhost:3030` in dev, `backend:3030` in prod):
 Correctly scoped prefixes: `telegram-kol/identity`, `telegram-kol/reputation`, `token/intake/*`,
-`token/normalization`, `token/market-data`, `token/classification`, `token/scoring`,
+`token/normalization`, `token/enrichment` (renamed Tramo 3 todo 6 from `token/market-data`; backend keeps a temporary 307 redirect, removed at cutover todo 8), `token/classification`, `token/scoring`,
 `token/vip-call-approval`, `token/honeypot`, `token/call-tracking`, `call-tracking`,
-`vip-calls`, `crypto-news-publisher/*`, `crypto-news-ads/*`, `settings/*`,
+`vip-calls`, `feed-publisher/*`, `crypto-news-scheduling/*`, `settings/*`,
 `dashboard/kpis`, `ingestion/{config,health}`, `token/image/:chain/:address` (CDN fallback in `format.ts`).
 
 **INGESTION-TELEGRAM — una instancia por env (per-env 2026-09-22)** (`/ingestion-api` same-origin → upstream por env):
-**Cada frontend consulta SU ingestion (nunca el de otro env).** Rutas feed-unification (las viejas `/api/crypto-news/*` dan 404):
+**Cada frontend consulta SU ingestion (nunca el de otro env).** Rutas feed-unification (las viejas `/api/feed/*` dan 404):
 
 - `GET /ingestion-api/feed/messages?limit=50&type=kol|crypto-news` — recent feed messages with media (SQL-level `type` filter; 400 invalid; omitted = mixed legacy default)
-- Newsroom (`/crypto-news`) + prompt-playground pin `type=crypto-news`; threads wrapper untouched/mixed.
+- Newsroom (`/feed`) + prompt-playground pin `type=crypto-news`; threads wrapper untouched/mixed.
 - `GET /ingestion-api/feed/messages/channel/:channelId?limit=50` — messages by channel
-- `GET /ingestion-api/feed/sources` — all active feed sources
+- `GET /ingestion-api/feed/sources?type=crypto-news` — crypto-news sources only (type-pinned; bare = mixed kol + news legacy default)
 - `GET /ingestion-api/feed/sources/active/ids?type=kol` — channel IDs only (kols page)
 - `GET /ingestion-api/feed/stats` — statistics (totalMessages, totalSources, activeSources)
 - `GET /ingestion-api/media/:channelId/:messageId/:index` — serve feed media files
 
-| Env     | Frontend | Ingestion upstream (nginx/vite)                                                           |
-| ------- | -------- | ----------------------------------------------------------------------------------------- |
-| dev     | `:5173`  | vite `INGESTION_PROXY_TARGET` → `http://localhost:3031`                                   |
-| staging | `:4173`  | `nginx.staging.conf` → `onchain-bot-ingestion-telegram-staging:3031` (twin, host `:3033`) |
-| prod    | `:80`    | `nginx.conf` → `onchain-bot-ingestion-telegram:3031` (host `:3032`)                       |
+| Env     | Frontend | Ingestion upstream (nginx/vite)                                                              |
+| ------- | -------- | -------------------------------------------------------------------------------------------- |
+| dev     | `:5173`  | vite `INGESTION_PROXY_TARGET` → `http://localhost:3031`                                      |
+| staging | `:4173`  | `nginx.staging.conf` → `onchain-bot-ingestion-telegram-staging:3031` (staging, host `:3033`) |
+| prod    | `:80`    | `nginx.conf` → `onchain-bot-ingestion-telegram:3031` (host `:3032`)                          |
 
 **IMPORTANT:** Frontend queries its OWN env's ingestion-telegram DIRECTLY for feed data (no backend proxy).
 Each backend also queries ITS ingestion via HTTP API — NO database replication, NO shared data.
+
+**FEED-PUBLISHER — Tramo 2 todo 9 (feed-publisher `:3040` dev / `:3041` staging / `:3042` prod)** (`/feed-api` same-origin → upstream feed-publisher; ver §PROXY):
+Migrated control-plane (shape-compatible, read+write): matching config+health (`/feed-api/feed-publisher/matching/*`, `MatchingConfig{id,enabled,updatedAt}` verbatim), llm config+models+templates+preview+flags (`/feed-api/api/llm/*`; `LlmConfig.id` now optional — new service is id-less single-row; `PromptTemplate.contentType?` additive; `PipelineFlagsView{flags,llmActive,mode}` truth-table), scheduling/ads full catalog (`/feed-api/api/scheduling/*`: `scheduling`→`ads`, `media-library`→`media/library`, `reuse-image`→`reuse-library-media{libraryMediaIds[]}`, `publish-now{target?}`, `RotationConfigView.minMinutesBetweenScheduling`→`minMinutesBetweenAds` + optional `telegram/threads` limits). Queue: stats ONLY (`/feed-api/api/queue/stats` → `FeedQueueStatsView` 11 fields); rich list/cancel + keywords/phrases/blacklist stay on backend legacy (`/crypto-news-publisher/*`, slim feed-publisher views carry no rawContent/media) until cutover (todo 11). Threads: v1 skeleton (`/feed-api/api/threads` → 501 `THREADS_NOT_IMPLEMENTED`, resolved-not-thrown → stub section). Path builder `shared/api/feed-publisher-base.ts` (`feedPublisherPath`, `FEED_PUBLISHER_PREFIX='/feed-api'`); all migrated paths centralized in `ENDPOINTS.feedPublisher` (queue/matching/llm/scheduling/threads).
+Sessions (ex-`/profiles`, Tramo 2 todo 16 + P34-ter window + P34-quater rename, merged into `/feed`): `widgets/feed-sessions/` (`FeedSessionsSection` header dropdown + `SessionWindow` + `SESSION_TABS` Overview|Sources|Keywords|Filters|LLM|Target + `SessionTabPanels` + `SessionManagementPanel` (create + list + activate/deactivate + delete inline in Overview, no modal, no Manage button) + `RecentWithBadges`, moved from `pages/profiles/ui/`; entity layer renamed `entities/profile` → `entities/feed-session`, old `Profile*` names kept as `@deprecated` aliases, API contract untouched) wire the sessions/templates APIs read-first (all exist, all wired): sessions CRUD + activate/deactivate + STAGED per-source toggles (toggles flip the window draft, one Save PATCHes `/feed-api/api/sessions/:id`; switching sessions or tabs with unsaved changes asks first) (`/feed-api/api/sessions*` → `FeedSessionView`), templates save/load/delete (`/feed-api/api/content-templates` → `FeedTemplateView`; save snapshots everything except session name, load asks when dirty, both deletes behind confirms), publisher keywords/blacklist lists (`/feed-api/feed-publisher/{keywords,blacklist}`), per-channel filters list/toggle + server-side preview (`/feed-api/feed-publisher/sources/:channelId/filters*`), queue summary inside Overview (`/feed-api/api/queue` + stats strip), per-message status + evaluate dry-run (`/feed-api/feed-publisher/matching/messages/:channelId/:messageId/status`, `…/matching/evaluate`), llm config + flags (existing `ENDPOINTS.feedPublisher.llm`). Names lowercase live (`isValidFeedSessionName`, digits ok, spaces never, only `-`). Target rows click through Overview → Target tab. Template bots (`/api/content-template-bots`) exist but are NOT wired (no UI needs them yet — do not call until a bot-binding UI lands).
+
+**KOL-SYSTEM — Tramo 1 (kol-system `:3050` en dev)** (`/kol-api` same-origin → upstream kol-system; ver §PROXY):
+Rutas per-template (`shared/api/endpoints.ts` `kolSystem`, consumidas por `entities/template/api/template-queries.ts`):
+
+- `GET /kol-api/templates` — template list for the picker (`useTemplates`, 30 s polling)
+- `GET /kol-api/templates/:id` — template detail/config (`useTemplateDetail`, 30 s, `enabled: !!id`)
+- `GET /kol-api/templates/:id/rankings` — ranked mentions mapped to `TemplateCallRow` (`useTemplateCalls`, 10 s)
+- `PATCH /kol-api/templates/:id/sources` — persist `kolSourceIds` array (`useUpdateTemplateSources` mutation)
+- `GET /kol-api/kol-rankings?window=30d|7d|1d&sort=perf_desc|perf_asc|calls_desc` — KOL rankings (`useKolRankings`, 15 s; window selector + perf halves + top-callers strip share it)
+- `GET /ingestion-api/kol-avatar/:channelId` — KOL avatar file-or-placeholder (contrato P19/P4 con ingestion-telegram; `avatarSrcFor()` en `entities/template/model/helpers.ts` resuelve `avatarUrl → /ingestion-api/kol-avatar/:channelId → TEMPLATE_AVATAR_PLACEHOLDER`; `KolAvatar` muestra inicial del handle si falla/404)
+- `ENDPOINTS.kolSystem.templatePending` definido pero SIN fetcher (pending-approvals sin UI — no llamar hasta cablearlo).
+
+**MARKET-DATA — Tramo 3 todo 7 (market-data `:4000` dev / `:4001` staging / `:4002` prod)** (`/market-data-api` same-origin → upstream market-data; ver §PROXY):
+Rutas gateway P43 (`shared/api/endpoints.ts` `marketData` + `shared/api/market-data-base.ts` path builder, consumidas por `entities/market-data/api/market-data-queries.ts`):
+
+- `GET /market-data-api/api/v1/chains` — static chain catalog (`useMarketChains`, 30 s polling)
+- `GET /market-data-api/api/v1/chains/detect?address=` — detect-chain probe (`useDetectChain`, `enabled: !!address`)
+- `GET /market-data-api/api/v1/providers` — provider health/latency registry (`useMarketProviders`, 15 s polling)
+- `GET /market-data-api/api/v1/addresses/:chain/:address[?kind=]` — universal address snapshot with kind display (`wallet|token|program|exchange|unknown`, `useAddressSnapshot`, `enabled` guard)
+- `GET /market-data-api/api/v1/tokens/:chain/:address` — deprecated token alias (kind=token pinned, defined, no fetcher yet)
+- `GET /market-data-api/api/market-data/snapshot?chain=&address=` — 12-field compat snapshot (`useCompatSnapshot`, `enabled` guard)
+- `POST /market-data-api/api/v1/addresses/batch` — `{ items: [{ chain, address, kind? }] }` 1..50 → `{ snapshots: [...] }`, per-item `{ error }` on failure (manual fetch, no hook)
+
+`/market-data` page: chains (+ detect form) + providers table + address lookup (kind badge) + compat snapshot grid + batch textarea (one `<chain> <address> [kind]` per line). `/dexter` page: Dexter lookup over market-data HTTP (no bot token) — `/x <chain> <address>` full-scan card (kind badge + compat fields + providers) + `/c <chain> <address>` chart card (DexScreener/GeckoTerminal links + price context); bare `<chain> <address>` defaults to `/x`. Bare contract pastes need no chain: a lone address (or `/x <address>` / `/c <address>`) auto-fills it by format (`detectChainForAddress` in `entities/market-data/model/helpers.ts`: 0x + 40 hex → ethereum, base58 32-44 → solana) and renders a `dexter-detected-chain` notice; EVM bare adds a `dexter-ambiguous-hint` naming every EVM alternative (ethereum default, explicit retry for base/bsc/arbitrum/polygon — never a silent guess). Garbage single tokens stay a parse error with bare-aware usage guidance. Every section degrades to an empty-state div on API error (never crashes; e2e pins `market-*-empty` + `dexter-*-empty`).
+
+Bot binding lives at the top of the same `/dexter` page: `DexterBotBindingSection` (`pages/dexter/index.tsx`, above the scan card) lists the gateway inventory (`ENDPOINTS.dexter`: inventory/bind/unbind/migrate-to-gateway) with Link-as-target / Unlink actions plus Create-from-env-token. Binding is gateway-exclusive 1:1 — one bot serves one app, a bot locked by another app cannot bind here.
 
 ⚠️ Frontend README §3 is stale (`/kols`, `/token/token-gating/*` — neither exists). Trust `endpoints.ts`.
 
@@ -76,14 +117,14 @@ Each backend also queries ITS ingestion via HTTP API — NO database replication
 2. `publishing.byToken` → `/vip-calls/calls/:chain/:address` — backend has no such route. Currently ZERO usages (dead definition, not dead page) — remove it or wire the per-token published lookup.
 3. `dashboard.kpis` → `/dashboard/kpis` — backend module commented out (backend gap: dashboard unwired). KpiCards degrades without crashing: KOLs card falls back to ingestion-health (`activeChannels`/`maxSafeChannels`), the rest render `0`/`0.0%`. Fix the backend wiring, not the widget.
 4. `filters.reprocessOne|reprocessBatch|decisionsRejectedVerify` — backend vip-call-approval controller has only 5 routes (apply + decisions ×4). The reprocess-rejected feature is client-complete (diagnostics table + per-row/btach mutations invalidating `rejected-diagnostics` + decisions) but server-missing. Its `useRejectedDiagnostics` key is a raw array, not a shared factory (style deviation).
-5. `llm-config-api.ts` uses `/api/crypto-news-publisher/*` prefix — vite dev proxies `/api`, but **nginx prod has no `/api` location** → LLM config broken in prod only.
+5. `llm-config-api.ts` uses `/api/feed-publisher/*` prefix — vite dev proxies `/api`, but **nginx prod has no `/api` location** → LLM config broken in prod only.
 6. ~~`/crypto-news/filters/*` unproxied — RESOLVED: filters moved to backend, messages/sources/media moved to ingestion-telegram `/ingestion-api` prefix.~~
 
-**RESOLVED (feed-unification + per-env):** ~~7. Frontend crypto-news queries still point to backend~~ — now `GET /ingestion-api/feed/*` same-origin (vite dev → `:3031`, prod nginx → singleton, staging nginx → twin). ~~8. Content filters API stays in backend~~ — confirmed: filter CRUD (`/crypto-news/sources/:channelId/filters`, `/crypto-news/filters/:id/*`) stays in backend; ingestion stores RAW, backend matches on-read (Opción A).
+**RESOLVED (feed-unification + per-env):** ~~7. Frontend crypto-news queries still point to backend~~ — now `GET /ingestion-api/feed/*` same-origin (vite dev → `:3031`, prod nginx → singleton, staging nginx → staging ingestion). ~~8. Content filters API stays in backend~~ — confirmed: filter CRUD (`/crypto-news/sources/:channelId/filters`, `/crypto-news/filters/:id/*`) stays in backend; ingestion stores RAW, backend matches on-read (Opción A).
 
 ## POLLING (verified `refetchInterval`)
 
-scores/decisions/published 5 s · failed 15 s · canonical 10 s · kols/reputation/tracked/dashboard 30 s (reputation `refetchIntervalInBackground: false`) · crypto-news 15/30 s. Token-detail composes canonical + score + snapshot byToken (all alive).
+scores/decisions/published 5 s · failed 15 s · canonical 10 s · kols/reputation/tracked/dashboard 30 s (reputation `refetchIntervalInBackground: false`) · feed 15/30 s · market-data chains 30 s · market-data providers 15 s (address/compat/detect lookups are on-demand with `enabled` guards, no polling). Token-detail composes canonical + score + snapshot byToken (all alive).
 
 ## REALTIME (`shared/realtime/`)
 
@@ -104,6 +145,8 @@ Tokens-explorer is decision-driven (all/approved/rejected tabs over `useDecision
 - `VITE_API_BASE_URL` (backend) — default `''` (same-origin in Docker; unset locally)
 - `VITE_WS_URL` (websocket) — default `http://localhost:3030`
 - `VITE_APP_ENV` (environment) — default `development`, values: `development|staging|production`
+- `VITE_FEED_PUBLISHER_URL` (feed-publisher direct base, Tramo 2 todo 9) — default `''` (= same-origin `/feed-api` proxy; FEED naming per P35, never CONTENT)
+- `VITE_MARKET_DATA_URL` (market-data direct base, Tramo 3 todo 7) — default `''` (= same-origin `/market-data-api` proxy; triplet `:4000` dev / `:4001` staging / `:4002` prod via `MARKET_DATA_PROXY_TARGET`)
 
 No `VITE_INGESTION_BASE_URL` exists anywhere in `src` (verified by grep): feed reads go same-origin via `/ingestion-api/*` (vite dev proxies to `:3031`, prod/staging nginx rewrites `/ingestion-api/*` → `/api/*` on the per-env upstream).
 
@@ -111,7 +154,7 @@ Docker build sets all to `""` → same-origin in prod (nginx routes by prefix).
 
 **Environment-Specific Behavior:**
 
-- **Production (`VITE_APP_ENV=production`):** LLM toggle button HIDDEN in crypto-news publisher UI (LLM generation always enabled, enforced by backend safety guard)
+- **Production (`VITE_APP_ENV=production`):** LLM toggle button HIDDEN in feed publisher UI (LLM generation always enabled, enforced by backend safety guard)
 - **Staging/Dev (`VITE_APP_ENV=staging|development`):** All 3 toggle buttons visible (matching, LLM, publishing)
 - Backend safety guard: Rejects `PATCH /crypto-news-publisher/llm` with `llmEnabled` changes in production (400 error)
 
@@ -119,20 +162,35 @@ Docker build sets all to `""` → same-origin in prod (nginx routes by prefix).
 
 **Dev (`vite.config.ts`):**
 
-- Backend proxy (`localhost:3030`): `/api`, `/crypto-news-publisher`, `/crypto-news-ads`, `/crypto-news/matching`, `/socket.io` (ws:true)
+- Backend proxy (`localhost:3030`): `/api`, `/crypto-news-publisher`, `/crypto-news-scheduling`, `/crypto-news/matching`, `/socket.io` (ws:true)
 - **Ingestion-telegram proxy (`INGESTION_PROXY_TARGET`, default `http://localhost:3031`):** `/ingestion-api/*` → rewrite `^/ingestion-api` → `/api`
+- **Kol-system proxy (`KOL_SYSTEM_PROXY_TARGET`, default `http://localhost:3050`):** `/kol-api/*` → rewrite `^/kol-api` → `/api` (Tramo 1; `vite.config.ts:98-102`)
+- **Feed-publisher proxy (`FEED_PUBLISHER_PROXY_TARGET`, default `http://localhost:3040`):** `/feed-api/*` → rewrite strips `^/feed-api` to root (Tramo 2 todo 9: `/feed-api/api/queue/stats` → `/api/queue/stats`, `/feed-api/feed-publisher/matching/config` → `/feed-publisher/matching/config`; triplet `:3040` dev / `:3041` staging / `:3042` prod via env override; scheduling/ads left `/feed-api` 2026-09-28 — now on `/scheduling-api`, next bullet)
+- **Scheduling-posts proxy (`SCHEDULING_POSTS_PROXY_TARGET`, default `http://localhost:4080`):** `/scheduling-api/*` → rewrite strips `^/scheduling-api` to root (live-errors-fix 2026-09-28: `/scheduling-api/api/scheduling/ads` → `/api/scheduling/ads`, same for `rotation-config` + `media/library`; triplet `:4080` dev / `:4081` staging / `:4082` prod via env override)
+- **Market-data proxy (`MARKET_DATA_PROXY_TARGET`, default `http://localhost:4000`):** `/market-data-api/*` → rewrite strips `^/market-data-api` to root (Tramo 3 todo 7: `/market-data-api/api/v1/chains` → `/api/v1/chains`, compat `/market-data-api/api/market-data/snapshot` → `/api/market-data/snapshot`; triplet `:4000` dev / `:4001` staging / `:4002` prod via env override)
 - **REMOVED:** `/crypto-news/(messages|sources|backfill|media)` regex — feed reads go via `/ingestion-api/feed/*`
 
-**Prod (`nginx.conf`, twin: `nginx.staging.conf`):**
+**Prod (`nginx.conf`, staging: `nginx.staging.conf`):**
 
-- Backend locations (`backend:3030`): dashboard, telegram-kol, vip-calls, token, ingestion, call-tracking, telegram, settings, kols, crypto-news-publisher, crypto-news-ads, socket.io
-- **Ingestion-telegram location:** `/ingestion-api/` → rewrite → `/api/` on the per-env upstream: prod `onchain-bot-ingestion-telegram:3031` (`nginx.conf:252-258`), staging twin `onchain-bot-ingestion-telegram-staging:3031` (`nginx.staging.conf:256-260`, host `:3033`)
+- Backend locations (`backend:3030`): dashboard, telegram-kol, vip-calls, token, ingestion, call-tracking, telegram, settings, kols, feed-publisher, crypto-news-scheduling, socket.io
+- **Ingestion-telegram location:** `/ingestion-api/` → rewrite → `/api/` on the per-env upstream: prod `onchain-bot-ingestion-telegram:3031` (`nginx.conf:252-258`), staging `onchain-bot-ingestion-telegram-staging:3031` (`nginx.staging.conf:256-260`, host `:3033`)
+- ⚠️ **Kol-system location MISSING:** `nginx.conf`/`nginx.staging.conf` have NO `/kol-api/` block (verified by grep — solo existe en `vite.config.ts`). `/templates` works in dev only until prod deploy mirrors it (`/kol-api/` → rewrite → `/api/` on the kol-system upstream, dual-applied to both confs like `/ingestion-api/`).
+- ⚠️ **Feed-publisher location MISSING (deploy follow-up, Tramo 2 todos 10/11):** `nginx.conf`/`nginx.staging.conf` have NO `/feed-api/` block by design (todo 9 = dev config only). `/feed` control-plane (matching toggles, llm config, scheduling, queue stats, threads stub) works in dev only until deploy mirrors it (`/feed-api/` → strip prefix on the feed-publisher upstream `:3041` staging / `:3042` prod, dual-applied to both confs like `/ingestion-api/`).
+- ⚠️ **Scheduling location DEPLOY FOLLOW-UP (live-errors-fix 2026-09-28):** `nginx.conf`/`nginx.staging.conf` have NO `/scheduling-api/` block yet (scheduling/ads + rotation-config + media library work in dev only until deploy mirrors it: `/scheduling-api/` → strip prefix on the scheduling-posts upstream `:4081` staging / `:4082` prod, dual-applied to both confs like `/ingestion-api/`).\*\* `nginx.conf`/`nginx.staging.conf` carry a `/market-data-api/` block (prefix stripped, lazy-DNS like `/ingestion-api/`), but the upstream service is NOT deployed yet — prod `onchain-bot-market-data:4000` / staging `onchain-bot-market-data-staging:4000` must resolve at deploy (staging container MUST join `onchain-bot-staging-net`), else the location 502s. `/market-data` + `/dexter` work in dev only until then.
 - **REMOVED:** `/crypto-news/{messages,sources,media}` — now `/ingestion-api/feed/*`
+
+**P41 dual-serve (T2 todo 13 Fase 2, live):** fetchers on new prefixes (`/feed-publisher/*`,
+`/feed-threads-publisher/*`, `/feed-filters/:id*`); per-channel `/crypto-news/sources/:channelId/filters`
+stays (P41 exclusion, no backend `feed-sources`). Proxies carry old+new side by side with coherence
+(vite prefix set == nginx location set × env, `nginx.conf` ≡ `nginx.staging.conf`): `/feed-publisher/`,
+`/feed-scheduling/`, `/feed-threads-publisher/`, `/feed-matching/`, `/feed-filters/` added next to old.
+`ops/backups` untouched. Old retires at cutover todo 11.
+
 - SPA fallback + gzip + security headers (`nosniff`, `DENY`, strict referrer) + 502 `@maintenance` JSON + `client_max_body_size 12m`
 
-**Architecture note:** Feed data flows per env: Telegram → OWN ingestion-telegram DB → HTTP API → frontend (direct query, no backend middleman). Staging image bakes the twin upstream via `VITE_APP_ENV=staging` (`Dockerfile:27-35` re-declared ARG + `RUN if` copy; prod default path unchanged). Twin precondition: twin container MUST join `onchain-bot-staging-net` or the staging DNS name doesn't resolve. Drift guard: whoever edits the `/ingestion-api/` block dual-applies to both confs (see `nginx.staging.conf:244-255` owner note).
+**Architecture note:** Feed data flows per env: Telegram → OWN ingestion-telegram DB → HTTP API → frontend (direct query, no backend middleman). Staging image bakes the staging upstream via `VITE_APP_ENV=staging` (`Dockerfile:27-35` re-declared ARG + `RUN if` copy; prod default path unchanged). Staging precondition: staging container MUST join `onchain-bot-staging-net` or the staging DNS name doesn't resolve. Drift guard: whoever edits the `/ingestion-api/` block dual-applies to both confs (see `nginx.staging.conf:244-255` owner note).
 
-**Feed-reading pages:** `/crypto-news` (messages + queue + sources via `/ingestion-api/feed/*`), `/kols` (sources `?type=kol` for the AddKol flow).
+**Feed-reading pages:** `/feed` (messages + queue + sources via `/ingestion-api/feed/*`), `/kols` (sources `?type=kol` for the AddKolTelegram flow).
 
 ## WIDGETS & LIB
 
@@ -150,16 +208,21 @@ Docker build sets all to `""` → same-origin in prod (nginx routes by prefix).
 - `HolderConcentrationGauge`: Mobula segments (Top10>80, insiders>50, bundlers>30 warn) with hover tooltip, `—` without data; `LiquidityGauge` (locked/burned + RugCheck flag); `BondingCurveProgress`: pumpfun-aware (🎓 Graduated ≥99, bands 75+, null → `—`).
 - Detail hooks (`useKol(id)`, `useKolReputation(id)`) use `enabled: !!id` guards; list hooks poll.
 - Views mirror backend DTOs (`TokenSnapshotView` with RugCheck `locked/burnedPercent`, `primaryPair`, `completeness`; `PublishedCallView` importa `ScoreTier` de `@/shared/realtime/events` (duplicado eliminado, Carril 1); `GateAllowView{allowed, reasons[]}`).
-- Config forms (`AdsRotationConfigForm`, LLM config) edit string drafts re-seeded from server only when upstream values actually change (no mid-edit clobber).
+- Config forms (`SchedulingRotationConfigForm`, LLM config) edit string drafts re-seeded from server only when upstream values actually change (no mid-edit clobber).
 - Kols footer: `rangeStart–rangeEnd de total` + page counter (Spanish UI); empty state `No hay KOLs registrados`.
 - `token-classification` is a chipless-fetch entity: types + `ClassificationChip` only (classifications arrive inside score/canonical payloads, never fetched directly).
-- `AdHtmlPreview` (224 lines): sanitizing mini-renderer mirroring backend `telegram-html-sanitizer.ts` — Telegram HTML allowlist, tokenized rebuild as React elements, no `dangerouslySetInnerHTML`.
+- `SchedulingHtmlPreview` (224 lines): sanitizing mini-renderer mirroring backend `telegram-html-sanitizer.ts` — Telegram HTML allowlist, tokenized rebuild as React elements, no `dangerouslySetInnerHTML`.
 - `SourceMultiSelect`: empty ids = global scope (`All sources (global)` label).
+- Template-dashboard widgets (`widgets/template-dashboard/ui/`, barrel `widgets/template-dashboard/index.ts`): `CallsTable` (ticker/`$` o address `aaaa…zzzz`, score, `formatMc` `$2.50M`, `timeAgo`, `trackingLabelFor` First-time/`Nx from last call`, expandable breakdown rows, testids `kol-calls-table`/`call-row-*`/`db-id-*`/`more-details-*`/`details-*`) + `PerformanceRanking` (top-10 en mitades 5+5 vía `splitRankingHalves`, toggle `perf_desc/asc` vía `togglePerfSort`, orden vía `sortRankings`, testids `kol-rankings-table`/`perf-half-left|right`/`perf-card-*`/`perf-sort-toggle`) + `TopCallersStrip` (top-10 por calls con selector `30d/7d/1d`, testids `top-callers-strip`/`window-selector`/`window-*`/`top-caller-*`) + `TemplateConfigSection` (read-only: sources `All sources|N selected`, score floor, gems `≥score · N pattern(s)` + lista, bot `botId ?? dashboard-only → channelTarget`, testids `template-config`/`config-*`) + `KolAvatar` (img 32px redonda u placeholder con iniciales, testids `avatar-img-*`/`avatar-placeholder-*`). Helpers puros en `entities/template/model/helpers.ts` (`filterCallsBySources` empty=all, `splitRankingHalves`, `sortRankings`, `togglePerfSort`, `trackingLabelFor`, `timeAgo`, `formatMc`, `avatarSrcFor`); tipos en `model/types.ts` (`TemplateView` con kolSourceIds/score-floor/gems/bot/target/canPublish, `TemplateCallRow` con campos anulables y arreglo breakdown, `KolRankingRow` caller/window/totalX/counts/display, `KolSourceOption` channelId/handle/title/avatarUrl/url).
 - `uuid.generateId()`: `crypto.randomUUID()` with Math.random fallback for non-secure HTTP contexts.
 
-## TESTS (29 files, 331 tests, vitest)
+## TESTS (37 files, vitest + Playwright e2e)
 
-Co-located `*.test.{ts,tsx}` + `__tests__/` dirs, heaviest in crypto-news features (ads-manager 1900+ lines, crypto-news-page). `src/test/setup.ts` only. jsdom + testing-library/react in deps.
+Co-located `*.test.{ts,tsx}` + `__tests__/` dirs, heaviest in feed features (scheduling-manager 1900+ lines, feed-page). `src/test/setup.ts` only. jsdom + testing-library/react in deps.
+Feed-publisher (Tramo 2, todo 9): `shared/api/feed-publisher-base.test.ts` (path builder: proxy default + absolute override), `features/feed-publisher/api/{llm-config-api,threads-stub-api}.test.ts` (migrated-path pinning + 501-resolved-not-thrown), `features/feed-publisher/ui/{feed-queue-stats-strip,feed-threads-stub-section}.test.tsx` (stats render + API-down empty states). E2E Playwright (`e2e/feed-publisher.spec.ts`, 4 tests con `/feed-api/**` mockeados: queue-stats strip, 3-flag toggles PATCH matching + `pipeline-mode` badge, scheduling rotation-config, threads 501 stub + API-down empty states; `npx playwright test -g "feed-publisher"` 4/4).
+Sessions (ex-`/profiles`, Tramo 2 todo 16 + P34-ter + P34-quater, merged into `/feed`): `entities/feed-session/model/feed-session-helpers.test.ts` (normalize/validate/badge tones/pagination/compound split/template snapshot) + `widgets/feed-sessions/__tests__/feed-sessions.test.tsx` (jsdom, 32 tests, hooks mocked incl. `features/feed-publisher` CRUD hooks: header dropdown/picker/template name/Ad-hoc/template-bound/six tabs/no-queue-tab/sticky/no-manage-button/no-create-entry/staged sources + Save/XSS-as-text/status badges/line-clamp/recent details modal fixed+scroll/scoped keyword preview + scoped CRUD + session empty state/llm/target rows/template save-load-delete + confirms + Overview-inline management incl. duplicate guard + create + list delete confirm + select-guard + tab-guard) + `pages/feed/__tests__/feed-page.test.tsx` sessions section (header + template + six tabs render, no Manage button, Overview management renders, empty state; moved-notice + `open-session-keywords` dispatch; `@/entities/feed-session` mocked to empty) + `pages/feed/__tests__/llm-config.test.tsx` keyword-template binding (renders the moved `KeywordsSection` directly, not `FeedPage`). E2E Playwright (`e2e/feed-sessions.spec.ts`, 8 tests con `/feed-api/**` + `/ingestion-api/**` + legacy `/feed-publisher/**` mockeados: legacy `/profiles` → `/feed` redirect, header dropdown + template name + six tabs + badges + `feed-sessions.png`, sources stage + Save (stateful PATCH mock) + `session-window-sources.png`, name live-lowercase + template load with confirm, keywords moved-notice → `open-session-keywords` → scoped preview + CRUD, overview→target rows + `session-window-target.png`, details modal open+Esc, Overview-inline management (no Manage button, validation + id preview + `session-management-overview.png`) + inline create selects it in the header (stateful POST mock); `npx playwright test feed-sessions` 8/8). `pages/profiles/index.tsx` is a deprecated `<Navigate to="/feed">` stub. `KeywordsManager` barrel export kept as `@deprecated` (no page renders it).
+Template-dashboard: `entities/template/model/helpers.test.ts` (pure helpers: tracking/mc/timeAgo/filter/sort/halves/avatar) + `widgets/template-dashboard/ui/template-dashboard.test.tsx` (jsdom: calls First-time/Nx + db-ids, perf 5+5 halves + sort toggle, window selector + caller counts, config extended). E2E Playwright (`e2e/template-dashboard.spec.ts`, 6 tests con `/kol-api/**` + `/ingestion-api/**` mockeados: calls table, rankings por window, source-filter narrow/clear, halves 5+5 + sort + window + config, API-down empty states, avatar-404 placeholder) + `e2e/qa-screenshots.spec.ts` (legacy dashboard intact, mockea `/kol-api/templates*`). `playwright.config.ts` (`testDir e2e`, baseURL `:5174`, webServer `vite --port 5174`, `reuseExistingServer` fuera de CI); `vitest.config.ts` excluye `e2e/**`; `npm run test:e2e` (`@playwright/test` devDep).
+Market-data (Tramo 3, todo 7): `shared/api/market-data-base.test.ts` (path builder: proxy default + absolute override), `entities/market-data/model/helpers.test.ts` (kind normalise/tone, health tone, chart urls, `detectChainForAddress` bare solana/EVM/invalid), `pages/market-data/market-data.test.tsx` (jsdom: chains+providers render + API-down empty states), `pages/dexter/dexter.test.tsx` (jsdom: idle + parse-error + /x + /c mounts + bare solana + bare EVM with ambiguous hint + garbage invalid), `pages/dexter/scan-search-modal.test.tsx` (jsdom: open/close Esc/backdrop/button + recent persist/dedup-cap-10/clear + XSS no-injection + helper garbage tolerance). E2E Playwright (`e2e/market-data.spec.ts`, 7 tests con `/market-data-api/**` mockeados: chains+providers, detect + address kind display, compat + batch incl. per-item error, /x full-scan, /c chart links, API-down empty states ×2; `npx playwright test -g "market-data|dexter"` 7/7; `e2e/scan-modal.spec.ts`, 1 test: open → search → Escape → reopen shows recent).
 
 ## REMOVED DEPS (Carril 1 — cero imports verificado)
 
@@ -175,25 +238,50 @@ FSD downward-only (`app → pages → widgets → features → entities → shar
 
 ## DEPLOY
 
-Multi-stage Dockerfile (node:22-bookworm build with `tsc -b && vite build` via root `build:frontend` → nginx:1.27-alpine static, `EXPOSE 80`, wget healthcheck). `.dockerignore` present. `CHANGELOG.md` at app root (hand-written, v1.2.0 latest — matches `package.json`, the version source of truth). **Per-env bake (T3):** `ARG VITE_APP_ENV` re-declared after the second FROM + `RUN if [ "$VITE_APP_ENV" = "staging" ]` copies `nginx.staging.conf` over `default.conf` (COPY can't expand ARG in source); prod tag builds without arg (singleton upstream intact), staging tag with `--build-arg VITE_APP_ENV=staging` (twin upstream). Verify baked images by `grep 'set $ingestion_api' /etc/nginx/conf.d/default.conf` (see `docs/deployment/staging-twin-channels.md` §3).
+Multi-stage Dockerfile (node:22-bookworm build with `tsc -b && vite build` via root `build:frontend` → nginx:1.27-alpine static, `EXPOSE 80`, wget healthcheck). `.dockerignore` present. `CHANGELOG.md` at app root (hand-written, v1.2.0 latest — matches `package.json`, the version source of truth). **Per-env bake (T3):** `ARG VITE_APP_ENV` re-declared after the second FROM + `RUN if [ "$VITE_APP_ENV" = "staging" ]` copies `nginx.staging.conf` over `default.conf` (COPY can't expand ARG in source); prod tag builds without arg (singleton upstream intact), staging tag with `--build-arg VITE_APP_ENV=staging` (staging upstream). Verify baked images by `grep 'set $ingestion_api' /etc/nginx/conf.d/default.conf` (see `docs/deployment/staging-twin-channels.md` §3).
 
 ## COMMANDS
 
 ```bash
-cd apps/frontend            # or root -w @alpha-meta-token-scanner/frontend
+cd apps/frontend            # or root -w @onchain-bot/frontend
 npm run dev                 # :5173 strict (root runs port-cleanup first)
 npm run build               # tsc -b && vite build
 npm run test | :watch       # vitest run | vitest
+npm run test:e2e             # playwright e2e/ (vite :5174 webServer, reuseExistingServer fuera de CI)
 npm run lint                # eslint src --fix (react+hooks+prettier)
 npm run format              # prettier --write "src/**/*.{ts,tsx}"
 ```
 
 ## GAPS (verified)
 
-1–6. **Dead URLs above** — 1 backfill RESOLVED (feature deleted); 2 byToken already removed (zero usages; per-token lookup lives at `call-tracking/tracked/:chain/:address`); 3 dashboard kpis already removed (KpiCards degrades + documented); 4 reprocess already removed (zero references); 5 `/api/*` prefix already gone (zero `/api/`-prefixed fetches; both prefixes proxied); 6 filters hole CLOSED 2026-09-24 (`PUT /crypto-news/filters/:id` fix + `/crypto-news/filters/` location in both nginx confs + vite). 7. ~~**ScoreTier mismatch**~~ **RESOLVED (Carril 1)**: union alineada a backend + legacy compat, `tierTone()`/`classificationTone()` con fallback `gray`. 8. **Frontend README §3 stale** (`/kols`, `/token/token-gating/*`, 4 links vs 6 routes, missing crypto-news/settings/ads/tracking groups). 9. **Fix-1 smell**: `TelegramMessageIngestedEvent.text` typed on the socket — confirm backend never emits it. 10. **From README, still true**: no error boundaries; no skeletons (plain `Cargando...`); ~~`Chain` duplicated between entities and `realtime/events.ts` (`ScoreTier` duplicate fixed, Carril 1)~~ **`Chain` unified**: no second export existed — 2 holdouts on bare `string` now import canonical `Chain` from `realtime/events.ts` (display keeps `Chain | string`). (README's "`hace 0s` hardcoded" is stale — timestamps come from payload since the LiveFeed rewrite.) 11. **`/kols` nginx location** with no frontend caller using bare `/kols/*` — legacy leftover (README-era routes); remove or document.
+1–6. **Dead URLs above** — 1 backfill RESOLVED (feature deleted); 2 byToken already removed (zero usages; per-token lookup lives at `call-tracking/tracked/:chain/:address`); 3 dashboard kpis already removed (KpiCards degrades + documented); 4 reprocess already removed (zero references); 5 `/api/*` prefix already gone (zero `/api/`-prefixed fetches; both prefixes proxied); 6 filters hole CLOSED 2026-09-24 (`PUT /crypto-news/filters/:id` fix + `/crypto-news/filters/` location in both nginx confs + vite). 7. ~~**ScoreTier mismatch**~~ **RESOLVED (Carril 1)**: union alineada a backend + legacy compat, `tierTone()`/`classificationTone()` con fallback `gray`. 8. **Frontend README §3 stale** (`/kols`, `/token/token-gating/*`, 4 links vs 6 routes, missing crypto-news/settings/scheduling/tracking groups). 9. **Fix-1 smell**: `TelegramMessageIngestedEvent.text` typed on the socket — confirm backend never emits it. 10. **From README, still true**: no error boundaries; no skeletons (plain `Cargando...`); ~~`Chain` duplicated between entities and `realtime/events.ts` (`ScoreTier` duplicate fixed, Carril 1)~~ **`Chain` unified**: no second export existed — 2 holdouts on bare `string` now import canonical `Chain` from `realtime/events.ts` (display keeps `Chain | string`). (README's "`hace 0s` hardcoded" is stale — timestamps come from payload since the LiveFeed rewrite.) 11. **`/kols` nginx location** with no frontend caller using bare `/kols/*` — legacy leftover (README-era routes); remove or document.
 
 ## NOTES
 
+- Type rename (feat/mega-refactor-tramos): `FeedMessageType` →
+  `TelegramFeedMessageType` in `entities/feed/api/feed-queries.ts` (type name
+  only; literals `'kol' | 'crypto-news'` stay until the feed-tables
+  migration). Barrel + hooks + `feed-queries.test.ts` updated.
+
+- Scanner search modal (2026-09-28, feat/mega-refactor-tramos):
+  `ScanSearchModal` on `/dexter` (dark blurred backdrop, centered panel,
+  focus trap, Esc/backdrop close) + `useRecentScans` (localStorage
+  `dexter:recent-scans:v1`, max 10, normalized-dedup, clear-all, click
+  re-runs) + results reuse `ScanResultView` from `scan-views.tsx`
+  (parseDexterInput + FullScanCard + ChartCard moved there from `index.tsx`
+  to avoid a modal/page import cycle; `index.tsx` re-exports both for
+  compat). Recent items are React-text-rendered (XSS-safe). Tests:
+  `scan-search-modal.test.tsx` + `e2e/scan-modal.spec.ts`.
+- Holders + dev-wallet (2026-09-27, feat/mega-refactor-tramos):
+  `DevRiskBadge` (dev % supply, green/yellow/red/gray) +
+  `useDevDumpAlert` (15% wiring point) on token-detail + `/dexter`
+  (`dexter-dev-pct`, `dexter-dev-alert`). Null-safe N/A. Test:
+  `dev-risk-badge.test.tsx`.
+- Supply fields (2026-09-27, feat/mega-refactor-tramos): `/dexter`
+  full-scan card renders FDV (was fetched but never displayed) +
+  Total/Circulating/Max supply cards from `MarketDataSnapshotView`
+  (null → `—` glyph, never crashes). Pinned by `dexter.test.tsx`
+  (real-values + null-safe cases).
 - Strict port: run from root (`predev` port-cleanup) or Vite exits.
 - `@/` is frontend-only (tsconfig paths, not backend).
 - `dist/` + `tsconfig.tsbuildinfo` existen en disco (build local) pero **no trackeados** (root `.gitignore` `**/dist/`) — nada que des-trackear.

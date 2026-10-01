@@ -16,30 +16,30 @@ Interacción programática con Pump.fun (Solana) sin manejar RPC, transacciones 
 
 ## Modos de trading
 
-| Modo | Descripción | Llaves | Velocidad |
-|------|-------------|--------|-----------|
-| **trade-local** | API construye la tx, tú la firmas localmente y la envías | Tus keys nunca salen | Media |
-| **trade-lightning** | API firma y envía la tx por ti — un HTTP call | Custodia del server | Máxima |
+| Modo                | Descripción                                              | Llaves               | Velocidad |
+| ------------------- | -------------------------------------------------------- | -------------------- | --------- |
+| **trade-local**     | API construye la tx, tú la firmas localmente y la envías | Tus keys nunca salen | Media     |
+| **trade-lightning** | API firma y envía la tx por ti — un HTTP call            | Custodia del server  | Máxima    |
 
 ## Pricing
 
-| Concepto | Valor |
-|----------|-------|
-| Comisión por trade | **0.25%** |
-| WebSocket data | **Gratis** (sin auth) |
-| Token creation | Sin costo adicional |
-| API key | Sin costo mensual — pago por uso (comisión en trades) |
+| Concepto           | Valor                                                 |
+| ------------------ | ----------------------------------------------------- |
+| Comisión por trade | **0.25%**                                             |
+| WebSocket data     | **Gratis** (sin auth)                                 |
+| Token creation     | Sin costo adicional                                   |
+| API key            | Sin costo mensual — pago por uso (comisión en trades) |
 
 ## Endpoints implementados en el servicio
 
-| Método service | Endpoint | Descripción |
-|----------------|----------|-------------|
-| `tradeLocal(params)` | `POST /api/trade-local` | Construir tx de buy/sell para firmar localmente |
-| `tradeLightning(params)` | `POST /api/trade-lightning` | Trade server-side (un HTTP call) |
-| `createToken(params)` | `POST /api/create` | Crear nuevo token en pump.fun |
-| `createBundle(params)` | `POST /api/create-bundle` | Jito bundle — launch atómico multi-buyer |
-| `claimAccount()` | `POST /api/claim-account` | Reclamar fees de creador |
-| `transfer(params)` | `POST /api/transfer` | Transferir SOL entre wallets |
+| Método service           | Endpoint                    | Descripción                                     |
+| ------------------------ | --------------------------- | ----------------------------------------------- |
+| `tradeLocal(params)`     | `POST /api/trade-local`     | Construir tx de buy/sell para firmar localmente |
+| `tradeLightning(params)` | `POST /api/trade-lightning` | Trade server-side (un HTTP call)                |
+| `createToken(params)`    | `POST /api/create`          | Crear nuevo token en pump.fun                   |
+| `createBundle(params)`   | `POST /api/create-bundle`   | Jito bundle — launch atómico multi-buyer        |
+| `claimAccount()`         | `POST /api/claim-account`   | Reclamar fees de creador                        |
+| `transfer(params)`       | `POST /api/transfer`        | Transferir SOL entre wallets                    |
 
 ### Parámetros
 
@@ -102,16 +102,16 @@ Interacción programática con Pump.fun (Solana) sin manejar RPC, transacciones 
 
 ## Todos los endpoints de la API
 
-| # | Endpoint | Método | Descripción |
-|---|----------|--------|-------------|
-| 1 | `POST /api/trade-local` | POST | Build tx de buy/sell (client-side signing) |
-| 2 | `POST /api/trade-lightning` | POST | Trade server-side (custodial) |
-| 3 | `POST /api/create` | POST | Crear token con metadata IPFS |
-| 4 | `POST /api/create-bundle` | POST | Jito bundle — launch + hasta 4 buyers |
-| 5 | `POST /api/claim-account` | POST | Reclamar fees de creador |
-| 6 | `POST /api/transfer` | POST | Transferir SOL |
-| 7 | `POST /api/wallet/create` | POST | Crear lightning wallet |
-| 8 | `WSS /ws` | WebSocket | Streaming de datos real-time |
+| #   | Endpoint                    | Método    | Descripción                                |
+| --- | --------------------------- | --------- | ------------------------------------------ |
+| 1   | `POST /api/trade-local`     | POST      | Build tx de buy/sell (client-side signing) |
+| 2   | `POST /api/trade-lightning` | POST      | Trade server-side (custodial)              |
+| 3   | `POST /api/create`          | POST      | Crear token con metadata IPFS              |
+| 4   | `POST /api/create-bundle`   | POST      | Jito bundle — launch + hasta 4 buyers      |
+| 5   | `POST /api/claim-account`   | POST      | Reclamar fees de creador                   |
+| 6   | `POST /api/transfer`        | POST      | Transferir SOL                             |
+| 7   | `POST /api/wallet/create`   | POST      | Crear lightning wallet                     |
+| 8   | `WSS /ws`                   | WebSocket | Streaming de datos real-time               |
 
 ## WebSocket (gratis, sin auth)
 
@@ -119,14 +119,14 @@ El WebSocket de PumpDev (`wss://pumpdev.io/ws`) es **gratuito y no requiere API 
 
 ### Eventos disponibles
 
-| Método WebSocket | Descripción | Datos incluidos |
-|-----------------|-------------|-----------------|
-| `subscribeNewToken` | Nuevos tokens lanzados | mint, name, symbol, creator, dev buy |
-| `subscribeTokenTrade` | Trades de un token específico | txType (buy/sell), solAmount, tokenAmount, trader, marketCapSol |
-| `subscribeAccountTrade` | Trades de una wallet específica | mismo formato que token trade |
-| `unsubscribeNewToken` | Dejar de recibir nuevos tokens | — |
-| `unsubscribeTokenTrade` | Dejar de recibir trades de un token | — |
-| `unsubscribeAccountTrade` | Dejar de recibir trades de una wallet | — |
+| Método WebSocket          | Descripción                           | Datos incluidos                                                 |
+| ------------------------- | ------------------------------------- | --------------------------------------------------------------- |
+| `subscribeNewToken`       | Nuevos tokens lanzados                | mint, name, symbol, creator, dev buy                            |
+| `subscribeTokenTrade`     | Trades de un token específico         | txType (buy/sell), solAmount, tokenAmount, trader, marketCapSol |
+| `subscribeAccountTrade`   | Trades de una wallet específica       | mismo formato que token trade                                   |
+| `unsubscribeNewToken`     | Dejar de recibir nuevos tokens        | —                                                               |
+| `unsubscribeTokenTrade`   | Dejar de recibir trades de un token   | —                                                               |
+| `unsubscribeAccountTrade` | Dejar de recibir trades de una wallet | —                                                               |
 
 ### Formato de evento de trade
 
@@ -153,9 +153,9 @@ El precio se calcula como: `price = vSolInBondingCurve / vTokensInBondingCurve`
 
 ## Chains soportadas
 
-| Chain | Tipo | Estado |
-|-------|------|--------|
-| **Solana** | L1 | ✅ Mainnet (pump.fun) |
+| Chain      | Tipo | Estado                |
+| ---------- | ---- | --------------------- |
+| **Solana** | L1   | ✅ Mainnet (pump.fun) |
 
 ## Rate limits
 
@@ -163,13 +163,13 @@ PumpDev no publica rate limits fijos. La comisión del 0.25% por trade desincent
 
 ## Error handling
 
-| HTTP | Significado |
-|------|-------------|
-| 400 | Invalid request parameters |
-| 401 | API key inválida/faltante |
-| 404 | Token no encontrado |
-| 429 | Rate limit |
-| 500 | Internal server error |
+| HTTP | Significado                |
+| ---- | -------------------------- |
+| 400  | Invalid request parameters |
+| 401  | API key inválida/faltante  |
+| 404  | Token no encontrado        |
+| 429  | Rate limit                 |
+| 500  | Internal server error      |
 
 El service actual retorna `null` silenciosamente en errores 4xx/5xx y logea en debug.
 
@@ -178,7 +178,7 @@ El service actual retorna `null` silenciosamente en errores 4xx/5xx y logea en d
 ### Uso básico — Lightning trade (recomendado)
 
 ```typescript
-import { PumpDevService } from 'data-provider/pumpdev';
+import { PumpDevService } from 'apps/market-data/src/provider/infrastructure/pumpdev';
 
 // El servicio se inyecta automáticamente (DataProviderModule es @Global)
 
@@ -186,7 +186,7 @@ import { PumpDevService } from 'data-provider/pumpdev';
 const buy = await pump.tradeLightning({
   action: 'buy',
   mint: 'TokenMintAddress',
-  amount: 0.1,        // 0.1 SOL
+  amount: 0.1, // 0.1 SOL
   denominatedInSol: true,
 });
 if (buy?.success) {
@@ -197,7 +197,7 @@ if (buy?.success) {
 const sell = await pump.tradeLightning({
   action: 'sell',
   mint: 'TokenMintAddress',
-  amount: 1000000,     // 1,000,000 tokens
+  amount: 1000000, // 1,000,000 tokens
   denominatedInSol: false,
 });
 ```
@@ -229,7 +229,7 @@ const create = await pump.createToken({
   symbol: 'MYTKN',
   description: 'The best token ever',
   image: 'https://example.com/logo.png',
-  amount: 0.5,  // 0.5 SOL de dev buy
+  amount: 0.5, // 0.5 SOL de dev buy
 });
 
 if (create?.success) {
@@ -267,7 +267,7 @@ if (claim?.success) {
 ```typescript
 const transfer = await pump.transfer({
   to: 'walletDestino...',
-  amount: 0.1,  // 0.1 SOL
+  amount: 0.1, // 0.1 SOL
 });
 ```
 
@@ -299,10 +299,12 @@ ws.on('message', async (data) => {
 
 ```typescript
 // Seguir a un whale específico
-ws.send(JSON.stringify({
-  method: 'subscribeAccountTrade',
-  keys: ['WhaleWalletPublicKey'],
-}));
+ws.send(
+  JSON.stringify({
+    method: 'subscribeAccountTrade',
+    keys: ['WhaleWalletPublicKey'],
+  }),
+);
 ws.on('message', async (data) => {
   const trade = JSON.parse(data.toString());
   if (trade.txType === 'buy') {
@@ -319,11 +321,11 @@ ws.on('message', async (data) => {
 
 ## Consideraciones de seguridad
 
-| Aspecto | trade-local | trade-lightning |
-|---------|-------------|-----------------|
-| Custodia de keys | Tus keys nunca salen | El servidor firma |
-| Riesgo | Bajo (firmas locales) | Medio (confianza en el server) |
-| Velocidad | Media (2 HTTP calls) | Máxima (1 HTTP call) |
-| Recomendado para | Bots pequeños, aprendizaje | Producción, sniper bots |
+| Aspecto          | trade-local                | trade-lightning                |
+| ---------------- | -------------------------- | ------------------------------ |
+| Custodia de keys | Tus keys nunca salen       | El servidor firma              |
+| Riesgo           | Bajo (firmas locales)      | Medio (confianza en el server) |
+| Velocidad        | Media (2 HTTP calls)       | Máxima (1 HTTP call)           |
+| Recomendado para | Bots pequeños, aprendizaje | Producción, sniper bots        |
 
 > ⚠️ `trade-lightning` requiere depositar SOL en la wallet del server. Usar solo con la cantidad necesaria para operar, no como bóveda.

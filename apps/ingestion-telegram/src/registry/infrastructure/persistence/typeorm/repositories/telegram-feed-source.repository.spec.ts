@@ -39,7 +39,7 @@ describe('TelegramFeedSourceRepository', () => {
   });
 
   describe('create()', () => {
-    it('should build a crypto-news source by default', () => {
+    it('should build a feed source by default', () => {
       const built = {
         channelId: '-1001',
         title: 'News',
@@ -61,6 +61,8 @@ describe('TelegramFeedSourceRepository', () => {
         isActive: true,
         lifecycleStatus: 'ACTIVE',
         lastIngestedAt: null,
+        entityKind: null,
+        isBot: null,
       });
       expect(result.type).toBe('crypto-news');
       expect(result.isActive).toBe(true);
@@ -116,7 +118,7 @@ describe('TelegramFeedSourceRepository', () => {
       });
     });
 
-    it('should filter by crypto-news type when provided', async () => {
+    it('should filter by feed type when provided', async () => {
       mockTypeOrmRepo.find.mockResolvedValue([activeNews]);
 
       const result = await repo.findAllActive('crypto-news');

@@ -1,3 +1,10 @@
+/**
+ * @deprecated Queue-drain dispatch moves to feed-publisher via the
+ * telegram-bots-gateway (todo 5): `TelegramQueuedArticleDispatcher` →
+ * `GatewaySendClient` → `POST /api/bots/:id/send`. This backend legacy
+ * `sendVideo`/`sendMediaGroup`/`sendPhoto`/`sendMessage` dispatch copy stays
+ * live until the global cutover (gateway todo 7) deletes it. Do not extend.
+ */
 import { Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { AppConfig } from 'shared/common/config/app.config';

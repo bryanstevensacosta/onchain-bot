@@ -1,4 +1,4 @@
-import type { ChainId } from '../../infrastructure/telegram/trade-button-registry';
+import type { ChainId } from '@/telegram/chain-dexter-bot/infrastructure/telegram/trade-button-registry';
 
 export type ChainIdentifier = ChainId | 'unknown';
 

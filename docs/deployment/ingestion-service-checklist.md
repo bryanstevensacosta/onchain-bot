@@ -2,7 +2,7 @@
 
 **Version:** 1.0  
 **Last Updated:** 2025-01-03  
-**Requirements:** 12.5, GAP 6  
+**Requirements:** 12.5, GAP 6
 
 ---
 
@@ -29,6 +29,7 @@ This checklist ensures safe deployment of the centralized ingestion service by v
 ```
 
 **Expected Output:**
+
 ```
 ✓ SUCCESS: VALIDATION PASSED
 ✓ SUCCESS: MTProto session correctly migrated to ingestion-telegram
@@ -37,6 +38,7 @@ This checklist ensures safe deployment of the centralized ingestion service by v
 ```
 
 **If validation fails:**
+
 - [ ] Remove ALL MTProto variables from `apps/backend/.env` or `apps/backend/.env.dev`
   - `TELEGRAM_MTPROTO_SESSION`
   - `TELEGRAM_MTPROTO_API_ID`
@@ -96,7 +98,8 @@ CRYPTO_NEWS_MEDIA_RETENTION_HOURS=72
 ```
 
 **Validation Checklist:**
-- [ ] All INGESTION_TELEGRAM_MTPROTO_* variables are set and non-empty
+
+- [ ] All INGESTION*TELEGRAM_MTPROTO*\* variables are set and non-empty
 - [ ] Session string is valid (generated via `npm run telegram:gen-session`)
 - [ ] Database credentials match production Postgres instance
 - [ ] Redis credentials match production Redis instance
@@ -108,6 +111,7 @@ CRYPTO_NEWS_MEDIA_RETENTION_HOURS=72
 **File:** `apps/backend/.env` or `apps/backend/.env.dev`
 
 **Critical Checks:**
+
 - [ ] NO `TELEGRAM_MTPROTO_SESSION` variable present
 - [ ] NO `TELEGRAM_MTPROTO_API_ID` variable present
 - [ ] NO `TELEGRAM_MTPROTO_API_HASH` variable present
@@ -140,6 +144,7 @@ TELEGRAM_VIP_CHANNEL_ID=<channel_id>
 ```
 
 **Validation Checklist:**
+
 - [ ] `INGESTION_MODE=remote` is set
 - [ ] `INGESTION_REMOTE_URL` points to the ingestion service (use Docker service name `ingestion-telegram` for production)
 - [ ] All backend MTProto variables are removed or commented out
@@ -167,7 +172,7 @@ services:
     networks:
       - onchain-net
     ports:
-      - "3031:3031"
+      - '3031:3031'
     volumes:
       - ./uploads:/app/uploads
       - ./config:/app/config
@@ -177,7 +182,7 @@ services:
       - postgres
       - redis
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3031/api/health"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:3031/api/health']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -188,14 +193,15 @@ services:
     depends_on:
       - postgres
       - redis
-      - ingestion-telegram  # ADDED: backend depends on ingestion-telegram
+      - ingestion-telegram # ADDED: backend depends on ingestion-telegram
     env_file:
-      - .env.dev  # or .env
+      - .env.dev # or .env
     networks:
       - onchain-net
 ```
 
 **Validation Checklist:**
+
 - [ ] `ingestion-telegram` service is defined
 - [ ] `ingestion-telegram` uses shared network `onchain-net`
 - [ ] `ingestion-telegram` port 3031 is mapped
@@ -208,11 +214,13 @@ services:
 #### 2.2 Verify Shared Volumes
 
 **uploads Volume:**
+
 - [ ] `./uploads` directory exists relative to docker-compose.prod.yml
 - [ ] `./uploads` has correct permissions (writable by Docker user)
 - [ ] `./uploads/crypto-news/media/` directory structure exists
 
 **config Volume:**
+
 - [ ] `./config` directory exists relative to docker-compose.prod.yml
 - [ ] `./config/ingestion.config.json` exists with valid JSON
 
@@ -230,6 +238,7 @@ chmod -R 775 uploads
 **Network Name:** `onchain-net`
 
 **Validation:**
+
 - [ ] Network is defined in docker-compose.prod.yml (should already exist)
 - [ ] All services (ingestion-telegram, backend, postgres, redis) use the same network
 - [ ] Service DNS resolution works: backend can reach `http://ingestion-telegram:3031`
@@ -279,6 +288,7 @@ docker exec -it onchain-bot-backend-production curl http://onchain-bot-ingestion
 ```
 
 **Validation Checklist:**
+
 - [ ] `maxChannels` is ≤50 (Telegram ToS compliance)
 - [ ] `pollIntervalBaseMs` is ≥60000 (60s minimum to avoid flood)
 - [ ] `jitterPercent` is between 10-50 (30% recommended)
@@ -330,15 +340,18 @@ docker compose build ingestion-telegram
 ```
 
 **Expected Output:**
+
 - No build errors
 - Image tagged as `onchain-bot-ingestion-telegram:latest`
 
 **Validation:**
+
 - [ ] Build completed successfully
 - [ ] No TypeScript compilation errors
 - [ ] No missing dependencies errors
 
 **If build fails:**
+
 - Check Dockerfile exists at `apps/ingestion-telegram/Dockerfile`
 - Check package.json has all required dependencies
 - Check tsconfig.json paths are correct
@@ -346,6 +359,7 @@ docker compose build ingestion-telegram
 #### 4.2 Start Ingestion Service Standalone
 
 **Before starting:**
+
 - [ ] Postgres is running and accessible
 - [ ] Redis is running and accessible
 - [ ] Environment variables are set in `apps/ingestion-telegram/.env`
@@ -364,6 +378,7 @@ docker logs -f onchain-bot-ingestion-telegram
 ```
 
 **Expected log output:**
+
 ```
 [Nest] INFO [IngestionService] Starting Ingestion Service v1.0.0
 [Nest] INFO [ConfigService] Loaded configuration from ingestion.config.json
@@ -372,14 +387,15 @@ docker logs -f onchain-bot-ingestion-telegram
 [Nest] INFO [TelegramClientManager] MTProto client connected and authorized
 [Nest] INFO [KolSeeder] Seeding KOL channels...
 [Nest] INFO [KolSeeder] Joined 23 KOL channels
-[Nest] INFO [CryptoNewsSeeder] Seeding crypto news channels...
-[Nest] INFO [CryptoNewsSeeder] Joined 5 crypto news channels
+[Nest] INFO [FeedSeeder] Seeding crypto news channels...
+[Nest] INFO [FeedSeeder] Joined 5 crypto news channels
 [Nest] INFO [StreamService] SSE service initialized (0 clients)
 [Nest] INFO [NestApplication] Nest application successfully started
 [Nest] INFO [IngestionService] Listening on http://0.0.0.0:3031
 ```
 
 **Validation Checklist:**
+
 - [ ] No error logs during startup
 - [ ] "MTProto client connected and authorized" log present
 - [ ] "Joined X channels" logs present for KOL and news seeders
@@ -387,6 +403,7 @@ docker logs -f onchain-bot-ingestion-telegram
 - [ ] Service listening on port 3031
 
 **If startup fails:**
+
 - Check session string is valid (regenerate if expired)
 - Check database connection (host, port, credentials)
 - Check Redis connection (host, port, credentials)
@@ -428,6 +445,7 @@ curl -s http://localhost:3031/api/health | jq
 ```
 
 **Validation Checklist:**
+
 - [ ] HTTP status is 200 (not 503)
 - [ ] `mtproto.connected` is `true`
 - [ ] `mtproto.authorized` is `true`
@@ -435,6 +453,7 @@ curl -s http://localhost:3031/api/health | jq
 - [ ] `floodWait.count24h` is 0 (no flood errors on startup)
 
 **If health check fails (503):**
+
 - Check MTProto connection logs
 - Verify session is not expired
 - Check network connectivity to Telegram servers
@@ -468,6 +487,7 @@ curl -s http://localhost:3031/api/channels | jq
 ```
 
 **Validation Checklist:**
+
 - [ ] Response is an array of channel objects
 - [ ] Channel count matches `channels.total` from health endpoint
 - [ ] Each channel has `id`, `title`, `type`, `participantCount`, `joinedAt`
@@ -494,6 +514,7 @@ data: {"timestamp":"2025-01-03T10:01:00.000Z"}
 ```
 
 **Validation:**
+
 - [ ] `connection:ready` event received immediately
 - [ ] `health:ping` events received every 30 seconds
 - [ ] No connection drops or errors
@@ -526,12 +547,14 @@ Cache-Control: public, max-age=31536000
 ```
 
 **Validation:**
+
 - [ ] HTTP status is 200
 - [ ] `Content-Type` matches file MIME type
 - [ ] `Cache-Control` header is present
 - [ ] `ETag` header is present
 
 **If 404 (expected if no media downloaded yet):**
+
 - This is normal for a fresh deployment
 - Media will be downloaded when messages with media arrive
 
@@ -565,9 +588,9 @@ Table "public.telegram_raw_messages"
  id          | uuid                        | not null
  channel_id  | character varying           | not null
  message_id  | integer                     | not null
- text        | text                        | 
+ text        | text                        |
  ingested_at | timestamp without time zone | not null
- 
+
 Indexes:
     "telegram_raw_messages_pkey" PRIMARY KEY, btree (id)
     "telegram_raw_messages_channel_id_message_id_key" UNIQUE CONSTRAINT, btree (channel_id, message_id)
@@ -575,11 +598,13 @@ Indexes:
 ```
 
 **Validation:**
+
 - [ ] Table exists
 - [ ] Unique constraint on (channel_id, message_id)
 - [ ] Index on ingested_at (for TTL cleanup)
 
 **If table missing:**
+
 - Run migrations: `cd apps/ingestion-telegram && npm run migration:run`
 
 #### 5.2 Verify Redis Cursor Tracking
@@ -597,6 +622,7 @@ KEYS ingestion:lastSeen:*
 ```
 
 **Expected:**
+
 - Empty list on fresh deployment (no cursors yet)
 - List of keys after messages ingested: `ingestion:lastSeen:-1001234567890`
 
@@ -607,10 +633,12 @@ GET ingestion:lastSeen:-1001234567890
 ```
 
 **Expected:**
+
 - Integer value representing last seen message ID
 - Increases as new messages are ingested
 
 **Validation:**
+
 - [ ] Redis connection succeeds
 - [ ] KEYS command works
 - [ ] GET command returns integer or nil (if no messages yet)
@@ -645,6 +673,7 @@ grep INGESTION_MODE .env || echo "INGESTION_MODE not set (defaults to 'local')"
 ```
 
 **Validation:**
+
 - [ ] Backup .env file created
 - [ ] Backup contains MTProto variables (if rolling back from fresh migration)
 
@@ -698,6 +727,7 @@ chmod +x scripts/rollback-ingestion-telegram.sh
 ```
 
 **Validation:**
+
 - [ ] Rollback script created
 - [ ] Script is executable
 - [ ] Script restores INGESTION_MODE=local
@@ -716,11 +746,13 @@ chmod +x scripts/rollback-ingestion-telegram.sh
 7. [ ] Measure rollback time (should be <5 minutes)
 
 **Document rollback time:**
-- Rollback executed at: __________
-- Backend health restored at: __________
-- Total downtime: __________ minutes
+
+- Rollback executed at: ****\_\_****
+- Backend health restored at: ****\_\_****
+- Total downtime: ****\_\_**** minutes
 
 **Validation:**
+
 - [ ] Rollback script works without errors
 - [ ] Backend successfully reverts to MTProto mode
 - [ ] Total rollback time is <5 minutes
@@ -762,6 +794,7 @@ ingestion_flood_wait_count_24h 0
 ```
 
 **Validation:**
+
 - [ ] `/metrics` endpoint returns Prometheus format
 - [ ] `ingestion_mtproto_connected` is 1
 - [ ] `ingestion_flood_wait_count_24h` is 0 or low
@@ -790,6 +823,7 @@ docker logs onchain-bot-ingestion-telegram | grep -E "(message:received|sse:clie
 ```
 
 **Validation:**
+
 - [ ] Logs are in JSON format
 - [ ] `message:received` events logged with channelId, messageId
 - [ ] `sse:client:connected` events logged with clientId
@@ -800,6 +834,7 @@ docker logs onchain-bot-ingestion-telegram | grep -E "(message:received|sse:clie
 **Reference Document:** `docs/monitoring/ingestion-service-playbook.md` (Task 7.4)
 
 **Pre-deploy review:**
+
 - [ ] Read monitoring playbook
 - [ ] Understand alert conditions
 - [ ] Know where to find logs (Docker logs, Prometheus metrics)
@@ -811,22 +846,26 @@ docker logs onchain-bot-ingestion-telegram | grep -E "(message:received|sse:clie
 ## Pre-Deploy Checklist Summary
 
 ### ✅ Phase 1: Session Migration Validation
+
 - [ ] Session validation script passes
 - [ ] Ingestion service .env has MTProto variables
 - [ ] Backend .env has NO MTProto variables
 - [ ] INGESTION_MODE=remote set in backend .env
 
 ### ✅ Phase 2: Docker Compose Verification
+
 - [ ] Ingestion service defined in docker-compose.prod.yml
 - [ ] Shared network (onchain-net) configured
 - [ ] Volumes (uploads, config) mounted
 - [ ] Health check configured
 
 ### ✅ Phase 3: Configuration File Verification
+
 - [ ] ingestion.config.json exists with safe defaults
 - [ ] Safety config within Telegram ToS limits
 
 ### ✅ Phase 4: Build and Health Check Verification
+
 - [ ] Ingestion service builds successfully
 - [ ] Ingestion service starts without errors
 - [ ] Health endpoint returns 200
@@ -835,15 +874,18 @@ docker logs onchain-bot-ingestion-telegram | grep -E "(message:received|sse:clie
 - [ ] SSE stream endpoint works
 
 ### ✅ Phase 5: Database and Redis Verification
+
 - [ ] telegram_raw_messages table exists
 - [ ] Redis cursor tracking works
 
 ### ✅ Phase 6: Rollback Preparation
+
 - [ ] Backend .env backup created
 - [ ] Rollback script created and tested
 - [ ] Rollback time measured (<5 minutes)
 
 ### ✅ Phase 7: Monitoring and Observability Verification
+
 - [ ] Prometheus metrics endpoint works
 - [ ] Structured logging configured
 - [ ] Monitoring playbook reviewed
@@ -852,11 +894,12 @@ docker logs onchain-bot-ingestion-telegram | grep -E "(message:received|sse:clie
 
 ## Production Deployment Authorization
 
-**Deployment Lead:** _______________________  
-**Date:** _______________________  
-**Deployment Window:** _______________________
+**Deployment Lead:** **********\_\_\_**********  
+**Date:** **********\_\_\_**********  
+**Deployment Window:** **********\_\_\_**********
 
 **Checklist Review:**
+
 - [ ] All phases completed successfully
 - [ ] No critical issues identified
 - [ ] Rollback plan tested and validated
@@ -865,11 +908,11 @@ docker logs onchain-bot-ingestion-telegram | grep -E "(message:received|sse:clie
 
 **Approval:**
 
-- [ ] **Technical Lead:** Reviewed and approved - _______________________
-- [ ] **DevOps Lead:** Reviewed and approved - _______________________
-- [ ] **On-Call Engineer:** Available during deployment - _______________________
+- [ ] **Technical Lead:** Reviewed and approved - **********\_\_\_**********
+- [ ] **DevOps Lead:** Reviewed and approved - **********\_\_\_**********
+- [ ] **On-Call Engineer:** Available during deployment - **********\_\_\_**********
 
-**Authorization to proceed:** ☐ YES  ☐ NO
+**Authorization to proceed:** ☐ YES ☐ NO
 
 ---
 
@@ -907,11 +950,13 @@ docker logs onchain-bot-ingestion-telegram | grep -E "(message:received|sse:clie
 ## Emergency Contacts
 
 **Critical Issues:**
-- Telegram account banned: _______________________
-- Service completely down: _______________________
-- Data loss detected: _______________________
+
+- Telegram account banned: **********\_\_\_**********
+- Service completely down: **********\_\_\_**********
+- Data loss detected: **********\_\_\_**********
 
 **Escalation Path:**
+
 1. Execute rollback script immediately
 2. Notify on-call engineer
 3. Investigate root cause

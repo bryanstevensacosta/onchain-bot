@@ -17,6 +17,16 @@ import { VipCallApprovalController } from 'token/vip-call-approval/api/http/vip-
 import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-process-domain-event.publisher';
 
 /**
+ * @deprecated Moved to apps/kol-system/src/approval/ (Tramo 1, todo 11 + P18 companion).
+ * Approval now lives in kol-system: CallApproval + EvaluateApproval + GetPendingApprovals.
+ * This module stays wired for dual-run; it will be removed in todo 16 (cutover + cleanup).
+ * Do not extend it — add approval logic in apps/kol-system/src/approval/ instead.
+ *
+ * New location: apps/kol-system/src/approval/
+ * Reason: extracting KOL pipeline from backend monolith to dedicated app
+ * Breaking change: Yes (removal in todo 16)
+ * Rollback: re-enable backend path (KOL_PIPELINE_ENABLED=true)
+ *
  * Filters BC module — final gate before publishing.
  *
  * Consumes: `scoring.token.scored` events

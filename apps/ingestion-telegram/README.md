@@ -8,11 +8,13 @@ Per-env Telegram ingestion service: each environment runs its OWN instance (same
 
 Each instance holds ONE MTProto client connection to Telegram channels and distributes messages to ITS backend only (dev, staging twin, or prod) via Server-Sent Events (SSE). One triple per env, never shared (sharing causes `AUTH_KEY_DUPLICATED`).
 
-| Env          | Host port → container `:3031` | DB                                                          | Backend                 |
-| ------------ | ----------------------------- | ----------------------------------------------------------- | ----------------------- |
-| dev local    | `:3031`                       | `alpha_meta_token_scanner_ingestion`                        | `http://localhost:3030` |
-| staging twin | `:3033`                       | `alpha_meta_token_scanner_staging_ingestion` (starts EMPTY) | twin backend            |
-| prod         | `:3032`                       | `alpha_meta_token_scanner_ingestion`                        | prod backend            |
+| Env          | Host port → container `:3031` | DB                                             | Backend                 |
+| ------------ | ----------------------------- | ---------------------------------------------- | ----------------------- |
+| dev local    | `:3031`                       | `onchain_bot_ingestion`                        | `http://localhost:3030` |
+| staging twin | `:3033`                       | `onchain_bot_staging_ingestion` (starts EMPTY) | twin backend            |
+| prod         | `:3032`                       | `onchain_bot_ingestion`                        | prod backend            |
+
+DB names are TARGET state post-rename; live Oracle DBs keep pre-rename names until `.omo/runbooks/rename-onchain-bot-db.md` (phase 3) executes.
 
 ## Architecture (per-env, since 2026-09-22 — the old singleton serving all envs is retired)
 
@@ -21,7 +23,7 @@ Telegram API (MTProto)
          ↓
    Ingestion instance of THIS env (container :3031)
    • MTProto Client (own triple from its own .env)
-   • Media Downloader → own uploads/crypto-news/media/
+   • Media Downloader → own uploads/feed-media/
    • SSE Broadcaster (open stream, no gate)
    • Own <base>_ingestion DB (crypto_news_sources/messages/media)
          ↓
@@ -105,7 +107,7 @@ GET /api/health
 
 Returns service health status, MTProto connection state, and metrics.
 
-### Feed reads (feed-unification; the old `/api/crypto-news/*` paths return 404)
+### Feed reads (feed-unification; the old `/api/feed/*` paths return 404)
 
 ```
 GET /api/feed/sources

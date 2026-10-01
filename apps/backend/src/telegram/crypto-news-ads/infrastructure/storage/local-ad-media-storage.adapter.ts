@@ -1,11 +1,16 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/scheduling/ (Tramo 2, todo 6 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add scheduling/ads logic in apps/feed-publisher/src/scheduling/ instead.
+ */
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as path from 'path';
 import type { AppConfig } from 'shared/common/config/app.config';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
 import { AdMediaStoragePort } from 'telegram/crypto-news-ads/application/ports/ad-media-storage.port';
-import { BaseFileSystemAdapter } from '@ingestion-telegram/media/core/base-file-system-adapter';
-import { MimeTypeResolver } from '@ingestion-telegram/media/utils/mime-type-resolver';
+import { BaseFileSystemAdapter } from 'shared/media/core/base-file-system-adapter';
+import { MimeTypeResolver } from 'shared/media/utils/mime-type-resolver';
 import { AdMediaPathBuilder } from '../ad-media-path-builder';
 
 /**

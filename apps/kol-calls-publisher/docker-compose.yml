@@ -1,0 +1,45 @@
+# Dev environment - kol-calls-publisher (P51 split from kol-system)
+#
+# P51 decision: publisher shares the SAME logical DB as kol-calls initially
+# (`kol_calls_db` on the kol-system dev postgres :5435) — split
+# later when volume demands it. This compose therefore defines NO own
+# postgres/redis: it reuses the kol-system dev services. Start
+# `apps/kol-system/docker-compose.yml` FIRST.
+#
+# Project name EXPLICIT: without `name:`, compose uses the directory
+# basename and can collide with sibling projects on shared hosts.
+name: onchain-bot-kol-calls-publisher
+
+services:
+  kol-calls-publisher:
+    build:
+      context: ../..
+      dockerfile: apps/kol-calls-publisher/Dockerfile
+    image: ghcr.io/bryanstevensacosta/onchain-bot-kol-calls-publisher:dev-latest
+    container_name: onchain-bot-kol-calls-publisher-dev
+    restart: unless-stopped
+    env_file:
+      - .env.development
+    environment:
+      NODE_ENV: development
+      KOL_CALLS_PUBLISHER_PORT: 3060
+      # SAME DB initially (P51): kol-system dev postgres owns
+      # `kol_calls_db`; this service joins its tables there.
+      DATABASE_URL: postgres://onchain_bot:onchain_bot@host.docker.internal:5435/kol_calls_db
+      REDIS_URL: redis://host.docker.internal:6382/0
+      # Upstream kol-calls (mentions+snapshots contract, P51)
+      KOL_CALLS_URL: http://host.docker.internal:3050
+    ports:
+      - '3060:3060'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://127.0.0.1:3060/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

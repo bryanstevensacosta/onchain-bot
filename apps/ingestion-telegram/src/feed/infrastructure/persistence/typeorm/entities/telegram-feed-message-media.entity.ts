@@ -28,7 +28,7 @@ import { TelegramFeedMessageEntity } from './telegram-feed-message.entity';
  * TypeORM-level `cascade: true` only handles INSERT/UPDATE propagation,
  * not FK-level DELETEs.
  *
- * On-disk layout (post item 4): `{UPLOADS_ROOT}/feed/media/{channelId}/`
+ * On-disk layout (unified home): `{UPLOADS_ROOT}/feed-media/{channelId}/`
  * Pattern: `{messageId}_{index}.{ext}`. Serving resolves by
  * `{messageId}_{index}.*` glob, NOT by the stored `file_path` — the
  * janitor is the only reader of `file_path` (hence the prefix rewrite

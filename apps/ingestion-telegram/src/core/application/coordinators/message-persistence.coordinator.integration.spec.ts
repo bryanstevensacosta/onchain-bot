@@ -16,10 +16,10 @@ import { ConfigService } from '@nestjs/config';
 import { MessagePersistenceCoordinator } from './message-persistence.coordinator';
 import { StreamService } from 'stream/application/services/stream.service';
 import { DeduplicationService } from '../services/deduplication.service';
-import { LastSeenManager } from '../../infrastructure/services/last-seen-manager.service';
+import { LastSeenManager } from '@/core/infrastructure/services/last-seen-manager.service';
 import { RedisService } from 'shared/common/cache/redis.service';
 import { TelegramFeedMessageRepository } from 'feed/infrastructure/persistence/typeorm/repositories/telegram-feed-message.repository';
-import type { MessagePayload } from '../../domain/types/message-payload';
+import type { MessagePayload } from '@/core/domain/types/message-payload';
 
 /**
  * TelegramRawMessage interface (from backend TelegramListenerPort)
@@ -809,14 +809,14 @@ describe('MessagePersistenceCoordinator - Broadcast Pipeline Deduplication (Inte
       expect(broadcastedMessages).toHaveLength(1);
     });
 
-    it('duplicate crypto-news realtime+polling delivery persists exactly 1 row (isDuplicate wired, item 9)', async () => {
+    it('duplicate feed realtime+polling delivery persists exactly 1 row (isDuplicate wired, item 9)', async () => {
       const feedRepo = module.get<TelegramFeedMessageRepository>(
         TelegramFeedMessageRepository,
       );
       const saveMock = feedRepo.save as jest.Mock;
       saveMock.mockClear();
 
-      // Same crypto-news message arrives twice (realtime event + 30s polling sweep)
+      // Same feed message arrives twice (realtime event + 30s polling sweep)
       const realtime = createMessage('channel_news_dup', 77, {
         text: 'Same news twice',
       });

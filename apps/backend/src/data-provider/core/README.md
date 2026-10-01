@@ -4,16 +4,16 @@ Módulo raíz de la capa `data-provider/`. Define el contrato abstracto `DataPro
 
 > **Índice general** → [`data-provider/README.md`](../README.md)
 
-| Archivo | Descripción |
-|---------|-------------|
-| `data-provider.port.ts` | Clase abstracta base con `name`, `logger`, `onModuleInit()` |
-| `data-provider.module.ts` | `@Global()` module que importa y exporta los 11 providers |
-| `index.ts` | Barrel export del port + module + servicios registrados |
+| Archivo                   | Descripción                                                 |
+| ------------------------- | ----------------------------------------------------------- |
+| `data-provider.port.ts`   | Clase abstracta base con `name`, `logger`, `onModuleInit()` |
+| `data-provider.module.ts` | `@Global()` module que importa y exporta los 11 providers   |
+| `index.ts`                | Barrel export del port + module + servicios registrados     |
 
 ## Uso
 
 ```typescript
-import { DataProviderModule } from 'data-provider/core';
+import { DataProviderModule } from 'apps/market-data/src/provider/infrastructure/core';
 
 // Importar una vez en AppModule (es @Global).
 // Luego inyectar cualquier servicio directamente:
@@ -29,21 +29,21 @@ export class SomeService {
 
 ## Proveedores registrados
 
-| Provider | Módulo | Servicio | Exportado |
-|----------|--------|----------|:---------:|
-| DexScreener | `DexScreenerModule` | `DexScreenerService` | ✅ |
-| GeckoTerminal | `GeckoTerminalModule` | `GeckoTerminalService` | ✅ |
-| CoinGecko | `CoinGeckoModule` | `CoinGeckoService` | ✅ |
-| Birdeye | `BirdeyeModule` | `BirdeyeService` | ✅ |
-| Mobula | `MobulaModule` | `MobulaService` | ✅ |
-| Moralis | `MoralisModule` | `MoralisService` | ✅ |
-| CoinMarketCap | `CoinMarketCapModule` | `CoinMarketCapService` | ✅ |
-| Alchemy | `AlchemyModule` | `AlchemyService` | ✅ |
-| RugCheck | `RugCheckModule` | `RugCheckService` | ✅ |
-| SolanaRPC | `SolanaRpcModule` | `SolanaRpcService` | ✅ |
-| Helius | `HeliusModule` | `HeliusService` | ✅ |
-| FluxRPC | `FluxRpcModule` | `FluxRpcService` | ✅ |
-| PumpDev | `PumpDevModule` | `PumpDevService` | ✅ |
+| Provider      | Módulo                | Servicio               | Exportado |
+| ------------- | --------------------- | ---------------------- | :-------: |
+| DexScreener   | `DexScreenerModule`   | `DexScreenerService`   |    ✅     |
+| GeckoTerminal | `GeckoTerminalModule` | `GeckoTerminalService` |    ✅     |
+| CoinGecko     | `CoinGeckoModule`     | `CoinGeckoService`     |    ✅     |
+| Birdeye       | `BirdeyeModule`       | `BirdeyeService`       |    ✅     |
+| Mobula        | `MobulaModule`        | `MobulaService`        |    ✅     |
+| Moralis       | `MoralisModule`       | `MoralisService`       |    ✅     |
+| CoinMarketCap | `CoinMarketCapModule` | `CoinMarketCapService` |    ✅     |
+| Alchemy       | `AlchemyModule`       | `AlchemyService`       |    ✅     |
+| RugCheck      | `RugCheckModule`      | `RugCheckService`      |    ✅     |
+| SolanaRPC     | `SolanaRpcModule`     | `SolanaRpcService`     |    ✅     |
+| Helius        | `HeliusModule`        | `HeliusService`        |    ✅     |
+| FluxRPC       | `FluxRpcModule`       | `FluxRpcService`       |    ✅     |
+| PumpDev       | `PumpDevModule`       | `PumpDevService`       |    ✅     |
 
 ## Nota
 

@@ -1,0 +1,21 @@
+import {
+  buildThreadsPublisherConfig,
+  validateThreadsPublisherConfig,
+} from './app.config';
+
+describe('threads-publisher config', () => {
+  it('defaults to port 4100 and dev DB', () => {
+    const cfg = buildThreadsPublisherConfig({});
+    expect(cfg.port).toBe(4100);
+    expect(cfg.databaseUrl).toMatch('threads_publisher_db');
+  });
+
+  it('rejects synchronize in staging', () => {
+    expect(() =>
+      validateThreadsPublisherConfig({
+        NODE_ENV: 'staging',
+        DATABASE_SYNCHRONIZE: 'true',
+      }),
+    ).toThrow('DATABASE_SYNCHRONIZE');
+  });
+});

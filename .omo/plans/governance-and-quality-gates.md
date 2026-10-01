@@ -46,7 +46,7 @@
 
 ### Hallazgo 1: Lint errors bloqueantes en CI
 
-- **Archivo:** `apps/backend/src/telegram/ingestion/crypto-news/application/services/markdown-converter.service.ts:527`
+- **Archivo:** `apps/backend/src/telegram/ingestion/feed/application/services/markdown-converter.service.ts:527`
 - **Error:** `Unsafe call of an \`any\` typed value @typescript-eslint/no-unsafe-call`
 - **Línea:** 527, callback `inner` sin tipar en `replace`
 - **Workflows afectados:** CI → Lint job (PR #69 falla)

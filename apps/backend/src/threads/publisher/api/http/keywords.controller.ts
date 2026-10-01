@@ -1,3 +1,8 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/threads/ (Tramo 2, todo 8 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add threads logic in apps/feed-publisher/src/threads/ instead.
+ */
 import {
   Body,
   Controller,
@@ -118,7 +123,7 @@ interface CreateThreadsKeywordBatchDto {
  * that `ThreadsPromptTemplate` rows referenced by any keyword (or the
  * global default) cannot be deleted.
  */
-@Controller('threads-publisher/keywords')
+@Controller(['threads-publisher/keywords', 'feed-threads-publisher/keywords'])
 export class ThreadsKeywordsController {
   public constructor(
     private readonly keywordRepo: ThreadsKeywordRepository,

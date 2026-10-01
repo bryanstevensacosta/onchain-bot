@@ -19,19 +19,19 @@ Provider de acceso directo a la blockchain de Solana vía JSON-RPC. En el pipeli
 
 ## Configuración
 
-| Variable | Descripción |
-|----------|-------------|
-| `primaryRpcUrl` | Helius mainnet RPC URL (de `HELIUS_RPC_URL_MAINNET`) |
-| `fallbackRpcUrl` | `https://api.mainnet.solana.com` (hardcoded) |
+| Variable         | Descripción                                          |
+| ---------------- | ---------------------------------------------------- |
+| `primaryRpcUrl`  | Helius mainnet RPC URL (de `HELIUS_RPC_URL_MAINNET`) |
+| `fallbackRpcUrl` | `https://api.mainnet.solana.com` (hardcoded)         |
 
 Sin `primaryRpcUrl`, todas las llamadas van directo al public RPC de Solana.
 
 ## Endpoints implementados
 
-| Método service | Método RPC | Descripción |
-|----------------|------------|-------------|
+| Método service                         | Método RPC                | Descripción                         |
+| -------------------------------------- | ------------------------- | ----------------------------------- |
 | `getTokenLargestAccounts(mintAddress)` | `getTokenLargestAccounts` | Top-20 holders de un SPL Token mint |
-| `getAccountInfo(address)` | `getAccountInfo` | Estado y metadata de una cuenta |
+| `getAccountInfo(address)`              | `getAccountInfo`          | Estado y metadata de una cuenta     |
 
 ### getTokenLargestAccounts
 
@@ -118,10 +118,10 @@ Errores 404 (protocol errors) short-circuit a `null` sin fallback.
 
 ## Rate limits
 
-| RPC | Rate limit | Uso |
-|-----|:----------:|-----|
-| Helius (primary, con API key) | 1M CU/mes (plan free) | 1 CU = 1 request |
-| Public Solana (fallback) | ~100 req/10s por IP | Sin API key, compartido |
+| RPC                           |      Rate limit       | Uso                     |
+| ----------------------------- | :-------------------: | ----------------------- |
+| Helius (primary, con API key) | 1M CU/mes (plan free) | 1 CU = 1 request        |
+| Public Solana (fallback)      |  ~100 req/10s por IP  | Sin API key, compartido |
 
 ### Estrategia
 
@@ -131,34 +131,34 @@ Errores 404 (protocol errors) short-circuit a `null` sin fallback.
 
 ## Diferencias con FluxRpcService
 
-| Aspecto | FluxRpcService | SolanaRpcService |
-|---------|:---------------|:-----------------|
-| Protocolo | HTTP/3 + QUIC | HTTP/1.1 JSON-RPC estándar |
+| Aspecto   | FluxRpcService                       | SolanaRpcService                            |
+| --------- | :----------------------------------- | :------------------------------------------ |
+| Protocolo | HTTP/3 + QUIC                        | HTTP/1.1 JSON-RPC estándar                  |
 | Endpoints | `getTokenSupply`, `getBalance`, etc. | `getTokenLargestAccounts`, `getAccountInfo` |
-| Config | `FLUXRPC_API_KEY` | `SOLANA_RPC_CONFIG` (Helius URL) |
-| Fallback | No | Sí (public Solana RPC) |
-| Uso | RPC general | Holders + chain probing |
+| Config    | `FLUXRPC_API_KEY`                    | `SOLANA_RPC_CONFIG` (Helius URL)            |
+| Fallback  | No                                   | Sí (public Solana RPC)                      |
+| Uso       | RPC general                          | Holders + chain probing                     |
 
 ## Response types
 
 ```typescript
 interface TokenAccountEntry {
-  readonly address: string;            // Token-account address (base58)
-  readonly amount: string;             // Raw balance (base-10 integer string)
-  readonly decimals: number;           // Decimal places configured on mint
-  readonly uiAmount: number | null;    // Scaled balance (deprecated)
-  readonly uiAmountString: string;     // Scaled balance as string
+  readonly address: string; // Token-account address (base58)
+  readonly amount: string; // Raw balance (base-10 integer string)
+  readonly decimals: number; // Decimal places configured on mint
+  readonly uiAmount: number | null; // Scaled balance (deprecated)
+  readonly uiAmountString: string; // Scaled balance as string
 }
 
 interface AccountInfoResult {
   readonly context?: { readonly slot: number };
   readonly value?: {
-    readonly data: readonly [string, string];  // [data, encoding]
-    readonly executable: boolean;               // Is a program?
-    readonly lamports: number;                  // SOL balance (lamports)
-    readonly owner: string;                     // Owner program pubkey
-    readonly rentEpoch: number;                 // Next rent epoch
-    readonly space?: number;                    // Data size in bytes
+    readonly data: readonly [string, string]; // [data, encoding]
+    readonly executable: boolean; // Is a program?
+    readonly lamports: number; // SOL balance (lamports)
+    readonly owner: string; // Owner program pubkey
+    readonly rentEpoch: number; // Next rent epoch
+    readonly space?: number; // Data size in bytes
   } | null;
 }
 ```
@@ -166,7 +166,7 @@ interface AccountInfoResult {
 ## Ejemplos de uso
 
 ```typescript
-import { SolanaRpcService } from 'data-provider/solana-rpc';
+import { SolanaRpcService } from 'apps/market-data/src/provider/infrastructure/solana-rpc';
 
 @Injectable()
 export class SomeService {

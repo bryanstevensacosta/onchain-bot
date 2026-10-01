@@ -1,36 +1,12 @@
-export interface JsonRpcError {
-  readonly code: number;
-  readonly message: string;
-}
-
-export interface JsonRpcResponse<T> {
-  readonly jsonrpc: string;
-  readonly id: string | number;
-  readonly result?: T;
-  readonly error?: JsonRpcError;
-}
-
-export interface TokenAccountEntry {
-  readonly address: string;
-  readonly amount: string;
-  readonly decimals: number;
-  readonly uiAmount: number | null;
-  readonly uiAmountString: string;
-}
-
-export interface GetTokenLargestAccountsResult {
-  readonly context?: { readonly slot: number };
-  readonly value?: ReadonlyArray<TokenAccountEntry>;
-}
-
-export interface AccountInfoResult {
-  readonly context?: { readonly slot: number };
-  readonly value?: {
-    readonly data: readonly [string, string];
-    readonly executable: boolean;
-    readonly lamports: number;
-    readonly owner: string;
-    readonly rentEpoch: number;
-    readonly space?: number;
-  } | null;
-}
+/**
+ * @deprecated Moved to apps/market-data/src/provider/infrastructure/solana-rpc/ (Tramo 3, todo 4, C-DATA-01).
+ * Canonical owner is now market-data (ProvidersModule); this file is a
+ * dual-run re-export shim so legacy backend consumers stay green.
+ * Removed at cutover (todo 8). Do not extend it.
+ *
+ * New location: apps/market-data/src/provider/infrastructure/solana-rpc/
+ * Reason: extracting market-data providers from backend monolith to dedicated app
+ * Breaking change: Yes (removal at cutover)
+ * Rollback: restore backend implementation from git history
+ */
+export * from '../../../../market-data/src/provider/infrastructure/solana-rpc/solana-rpc.types';

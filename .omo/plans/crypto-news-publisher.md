@@ -1,8 +1,8 @@
-# crypto-news-publisher - Work Plan
+# feed-publisher - Work Plan
 
 ## TL;DR (For humans)
 
-**What you'll get:** Un nuevo BC `crypto-news-publisher` que escucha mensajes nuevos de crypto-news, filtra por keywords (configurables desde el frontend), genera un post con un LLM multimodal (texto + imagen como contexto), y lo publica en un canal/grupo de Telegram — el texto generado + la imagen original (subida localmente vía multipart). Rate limiting de 36/día + delays aleatorios de 3-15 min + foto intacta.
+**What you'll get:** Un nuevo BC `feed-publisher` que escucha mensajes nuevos de feed, filtra por keywords (configurables desde el frontend), genera un post con un LLM multimodal (texto + imagen como contexto), y lo publica en un canal/grupo de Telegram — el texto generado + la imagen original (subida localmente vía multipart). Rate limiting de 36/día + delays aleatorios de 3-15 min + foto intacta.
 
 **Why this approach:** Sigue el mismo patrón que `vip-calls` (modular hexagonal) y crea su **propio adapter de Telegram** (no comparte token/canal con vip-calls). La cola es DB-backed para sobrevivir reinicios. El LLM se llama **solo en el momento del publish** (no en el ingress) para evitar costos innecesarios cuando se reemplazan mensajes viejos de la cola con nuevos. **El LLM recibe texto + URL de imagen** del mensaje original como contexto multimodal. La imagen al canal se envía usando el path local ya descargado (no la URL efímera de Telegram que expira en ~1h). La cola hace INSERT + overflow DELETE en transacción atómica para evitar race conditions durante bursts. **Fix-1 ToS compliance:** el handler NO usa `event.content` (no existe en el evento); hace fetch separado desde el repo.
 
@@ -29,7 +29,7 @@
 - NO inline LLM generation in event handler
 - NO hardcoded keywords (DB-driven)
 - NO exposing API keys to frontend
-- NO modifying vip-calls or crypto-news (ingestion) BCs' core logic
+- NO modifying vip-calls or feed (ingestion) BCs' core logic
 - NO breaking existing `TelegramPublisherPort` contract
 
 ## Verification strategy
@@ -43,7 +43,7 @@
 
 Wave 1 (foundation): shared LLM port + generic adapter; TelegramPublisherPort already exists.
 Wave 2 (BC scaffolding): domain entities + repos + controller skeleton
-Wave 3 (event-driven ingestion): listener for crypto-news-message-ingested → keyword match → enqueue
+Wave 3 (event-driven ingestion): listener for feed-message-ingested → keyword match → enqueue
 Wave 4 (publisher): cron job, rate limit, random delay, LLM call, publish
 Wave 5 (frontend): keyword CRUD + queue visualization
 
@@ -92,7 +92,7 @@ Wave 5 (frontend): keyword CRUD + queue visualization
   - `apps/backend/src/shared/` pattern of `data-provider/`, `common/`
   - NO new dependencies in `package.json` outside `openai`
 
-- [ ] 2. Create `crypto-news-publisher` domain + repos + migrations
+- [ ] 2. Create `feed-publisher` domain + repos + migrations
      What to do:
   - **New entity:** `Keyword` (AggregateRoot)
     - props: `{ id, phrase, caseSensitive, enabled, createdAt }`
@@ -106,8 +106,8 @@ Wave 5 (frontend): keyword CRUD + queue visualization
   - **New ports:**
     - `KeywordRepository`: `findAll()`, `findEnabled()`, `save(kw)`, `delete(id)`
     - `PublisherQueueRepository`: `findNextPending()`, `enqueue(entry)` (does INSERT + OVERFLOW DELETE in one txn), `markPublished`, `markFailed`, `markFailedRetry` (increment attempts), `findAllForDisplay(limit)`, `countPublishedToday(resetHourUtc)`, `findByIdForThrottleState()`
-  - **New crypto-news-publisher-mode repository** (shared with `crypto-news` BC): `CryptoNewsMessageRepository.findByChannelAndMessageId(channelId, messageId)` — used by event handler to fetch the full message (fix-1 invariant).
-    - The existing `crypto-news/infrastructure/persistence/typeorm/repositories/typeorm-crypto-news-message.repository.ts` needs a new public method `findByChannelAndMessageId`. This is a non-breaking additive change to the existing BC.
+  - **New feed-publisher-mode repository** (shared with `feed` BC): `FeedMessageRepository.findByChannelAndMessageId(channelId, messageId)` — used by event handler to fetch the full message (fix-1 invariant).
+    - The existing `feed/infrastructure/persistence/typeorm/repositories/typeorm-feed-message.repository.ts` needs a new public method `findByChannelAndMessageId`. This is a non-breaking additive change to the existing BC.
   - **New throttle state** persisted in a new `publisher_throttle_state` table (single-row config):
     - `lastPublishAt: Date | null`
     - **Important**: this MUST be persisted, not in-memory. Backend restart would otherwise reset the throttle and cause multiple rapid publishes.
@@ -120,10 +120,10 @@ Wave 5 (frontend): keyword CRUD + queue visualization
     - `KeywordEntity`
     - `PublisherQueueEntity`
     - `PublisherThrottleStateEntity` (single-row)
-  - **New module file** `crypto-news-publisher.module.ts` with providers
-  - **New DB migration** via TypeORM `synchronize: true` (no manual SQL). **NOTE**: this deviates from vip-calls prod path. Acceptable for v1 since crypto-news-publisher hasn't reached prod yet.
+  - **New module file** `feed-publisher.module.ts` with providers
+  - **New DB migration** via TypeORM `synchronize: true` (no manual SQL). **NOTE**: this deviates from vip-calls prod path. Acceptable for v1 since feed-publisher hasn't reached prod yet.
     References:
-  - Follow same pattern as `crypto-news/infrastructure/persistence/typeorm/` in existing BC
+  - Follow same pattern as `feed/infrastructure/persistence/typeorm/` in existing BC
 
 - [ ] 3. Create API controllers for keywords + queue
      What to do:
@@ -140,20 +140,20 @@ Wave 5 (frontend): keyword CRUD + queue visualization
     - `keywords.controller.spec.ts`
     - `queue.controller.spec.ts`
 
-- [ ] 4. Event handler: match incoming crypto-news messages against keywords + enqueue (fix-1 compliant)
+- [ ] 4. Event handler: match incoming feed messages against keywords + enqueue (fix-1 compliant)
      What to do:
-  - **NEW port method on crypto-news BC:** `CryptoNewsMessageRepository.findByChannelAndMessageId(channelId, messageId)` — fetches the full message including `content`, `media[].filePath`, `linkPreviewUrl`, `groupedId`. Needed because `CryptoNewsMessageIngestedEvent` deliberately does NOT carry content (fix-1 Bot Dev ToS §4.3 invariant — see `crypto-news-message-ingested.event.ts` for the explicit comment).
-  - **New:** `crypto-news-publisher/infrastructure/event-bus/crypto-news-message-ingested.handler.ts`:
-    - Listens to `CryptoNewsMessageIngestedEvent`. Only `channelId`, `messageId`, `title`, `occurredAt` are on the event — that's enough to look up.
+  - **NEW port method on feed BC:** `FeedMessageRepository.findByChannelAndMessageId(channelId, messageId)` — fetches the full message including `content`, `media[].filePath`, `linkPreviewUrl`, `groupedId`. Needed because `FeedMessageIngestedEvent` deliberately does NOT carry content (fix-1 Bot Dev ToS §4.3 invariant — see `feed-message-ingested.event.ts` for the explicit comment).
+  - **New:** `feed-publisher/infrastructure/event-bus/feed-message-ingested.handler.ts`:
+    - Listens to `FeedMessageIngestedEvent`. Only `channelId`, `messageId`, `title`, `occurredAt` are on the event — that's enough to look up.
     - Loads enabled keywords from `KeywordRepository` (cache for 10s to avoid hitting the DB on every message)
     - For each enabled keyword, test against the message's `content` (fetched via the lookup, NOT from the event)
-    - If any keyword matches, call `EnqueueMatchingMessageUseCase` with the full fetched `CryptoNewsMessage`
+    - If any keyword matches, call `EnqueueMatchingMessageUseCase` with the full fetched `FeedMessage`
   - **New use case:** `EnqueueMatchingMessageUseCase`:
     1. Open transaction via `DataSource.transaction()`
     2. INSERT new entry with `messageReceivedAt = NOW` from the source message's `ingestedAt`
     3. Delete oldest entries to keep queue at 36: `DELETE FROM publisher_queue WHERE id NOT IN (SELECT id FROM publisher_queue ORDER BY message_received_at DESC LIMIT 36)`
     4. Commit (atomic — no TOCTOU)
-  - **Wiring:** subscribe to `CryptoNewsMessageIngestedEvent` in `crypto-news-publisher.module.ts`
+  - **Wiring:** subscribe to `FeedMessageIngestedEvent` in `feed-publisher.module.ts`
   - Tests:
     - Insert when under cap → queue has new entry
     - Insert when at cap → oldest entries dropped, new entry in queue
@@ -179,14 +179,14 @@ Wave 5 (frontend): keyword CRUD + queue visualization
     8. Mark entry PUBLISHED with timestamp + telegramMessageId
     9. If failure: if `attempts < llmMaxAttempts`, increment attempts, leave as PENDING; otherwise mark FAILED with error, log
   - **New publisher adapter** (DO NOT reuse `VipCallsBotApiPublisherAdapter` — that's bound to VIP channel/token):
-    - `crypto-news-publisher/infrastructure/senders/bot-api-crypto-news-publisher.adapter.ts` extends `TelegramPublisherPort`
+    - `feed-publisher/infrastructure/senders/bot-api-feed-publisher.adapter.ts` extends `TelegramPublisherPort`
     - Constructor takes `app.publishing.cryptoNews.botToken` + `.outputChannel` via `ConfigModule`
     - **Send-photo path**: when `imagePath` points to a local file, **upload via `multipart/form-data`** to the channel. Telegram Bot API supports `sendPhoto` with multipart/form-data.
   - **Port extension** to `apps/backend/src/telegram/shared/domain/ports/telegram-publisher.port.ts`:
     - Add new abstract method `sendPhoto(chatId, text, imagePath: string): Promise<SendResult>`
-    - This is what the crypto-news adapter uses (local file upload).
+    - This is what the feed adapter uses (local file upload).
     - Existing `sendMessage` stays unchanged (vip-calls still uses it for URL-based images).
-    - Both methods exist on the port; adapters choose which to implement based on need. The crypto-news publisher passes `sendPhoto` since the image is local. The vip-calls adapter can either implement `sendPhoto` (likely no-op throwing for now) or just inherit the abstract — but since the port is abstract, every adapter MUST implement both. **vip-calls adapter will need a `sendPhoto` implementation (stub OK for now, throws "not implemented").**
+    - Both methods exist on the port; adapters choose which to implement based on need. The feed publisher passes `sendPhoto` since the image is local. The vip-calls adapter can either implement `sendPhoto` (likely no-op throwing for now) or just inherit the abstract — but since the port is abstract, every adapter MUST implement both. **vip-calls adapter will need a `sendPhoto` implementation (stub OK for now, throws "not implemented").**
   - **New env-var slots** in `apps/backend/src/shared/common/config/app.config.ts`:
     ```ts
     publishing: {
@@ -240,25 +240,25 @@ Wave 5 (frontend): keyword CRUD + queue visualization
 
   These are independent. The queue can fill up regardless of the published count, and vice-versa.
 
-  - **New:** `infrastructure/llm/crypto-news-llm.adapter.ts` — wraps shared `LlmPort` with crypto-news-specific prompt
+  - **New:** `infrastructure/llm/feed-llm.adapter.ts` — wraps shared `LlmPort` with feed-specific prompt
     - **Multimodal context**: passes BOTH `text` AND `imageUrl` (or downloaded image as base64) to the LLM. The LLM gets the visual context of the news image so the generated text can describe/relate to it.
     - For GPT-4o: pass image URL directly (OpenAI fetches it)
     - The shared `LlmPort` interface needs extension: add `imageUrl?: string` field to `LlmGenerateRequest`
   - **New:** `infrastructure/llm/prompt-template.ts` — default prompt loaded from config
-  - **New:** `apps/backend/config/crypto-news-publisher.config.json` — defaults: enabled=false, targetChannelId='', prompts, etc.
+  - **New:** `apps/backend/config/feed-publisher.config.json` — defaults: enabled=false, targetChannelId='', prompts, etc.
     References:
   - Existing `TrackingCronScheduler` for cron pattern
   - Existing `TelegramPublisherPort.sendMessage(chatId, text, imageUrl?)` — use image URL from queue entry's media
 
 - [ ] 6. Frontend: keyword management + queue visualization
      What to do:
-  - **New:** `apps/frontend/src/features/crypto-news-publisher/` (FSD feature slice):
+  - **New:** `apps/frontend/src/features/feed-publisher/` (FSD feature slice):
     - `api/keywords-api.ts`: list/create/delete/update methods via `httpGet/httpPost/httpDelete/httpPatch`
     - `api/queue-api.ts`: list + counts via `httpGet`
     - `ui/keywords-manager.tsx`: table to list keywords, form to add, button to delete
     - `ui/queue-view.tsx`: table to show pending/scheduled/published articles, with counts at top
     - `model/use-keywords.ts`, `model/use-queue.ts`: React Query hooks
-  - **Modify** `apps/frontend/src/pages/crypto-news/index.tsx`:
+  - **Modify** `apps/frontend/src/pages/feed/index.tsx`:
     - Add two new sections under the existing filters: "Keywords" (manager) + "Queue" (status + list)
   - **Wiring:** add to frontend route or section
   - Modify tests if needed (don't break existing 8 tests)

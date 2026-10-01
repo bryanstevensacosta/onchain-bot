@@ -1,3 +1,8 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/threads/ (Tramo 2, todo 8 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add threads logic in apps/feed-publisher/src/threads/ instead.
+ */
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { FilteredThreadsService } from '../services/filtered-threads.service';
@@ -107,7 +112,9 @@ export class EnqueueThreadsCronScheduler {
    */
   async tick(): Promise<void> {
     if (this.running) {
-      this.logger.warn('Previous threads tick still running; skipping this tick');
+      this.logger.warn(
+        'Previous threads tick still running; skipping this tick',
+      );
       return;
     }
 
@@ -198,7 +205,9 @@ export class EnqueueThreadsCronScheduler {
    * - Map media type: 'webpage' → 'document' (threads queue has no webpage)
    * - Resolve media file paths for publisher consumption
    */
-  private mapToEnqueueDto(match: FilteredThreadsMessage): EnqueueThreadsMessageDto {
+  private mapToEnqueueDto(
+    match: FilteredThreadsMessage,
+  ): EnqueueThreadsMessageDto {
     return {
       channelId: match.channelId,
       messageId: match.messageId,

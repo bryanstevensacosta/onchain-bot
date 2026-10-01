@@ -1,0 +1,23 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "resolvePackageJsonExports": true,
+    "allowSyntheticDefaultImports": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "removeComments": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "incremental": true,
+    "paths": {
+      "@/*": ["src/*"],
+      "shared/*": ["src/shared/*"],
+      "telegram/*": ["src/telegram/*"],
+      "target/*": ["src/target/*"],
+      "src/*": ["src/*"]
+    }
+  },
+  "exclude": ["src/**/*.spec.ts", "src/**/*.spec.ts.bak"]
+}

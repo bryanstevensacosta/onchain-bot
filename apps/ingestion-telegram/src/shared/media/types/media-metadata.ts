@@ -2,7 +2,7 @@
  * Shared media types across ingestion-telegram and backend.
  *
  * These interfaces define the contract for media download, storage,
- * and serving operations. Both crypto-news (ingestion) and ads (backend)
+ * and serving operations. Both feed (ingestion) and ads (backend)
  * components use these types for consistency.
  */
 
@@ -44,7 +44,7 @@ export interface MediaPayload {
 
 /**
  * Configuration for media path building strategies.
- * Different contexts (crypto-news, ads) use different path conventions.
+ * Different contexts (feed, ads) use different path conventions.
  */
 export interface PathConfig {
   /** Root directory for uploads (e.g., 'uploads/crypto-news/media') */

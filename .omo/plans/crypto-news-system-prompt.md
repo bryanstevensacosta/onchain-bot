@@ -1,4 +1,4 @@
-# crypto-news-system-prompt - Work Plan
+# feed-system-prompt - Work Plan
 
 ## TL;DR (For humans)
 
@@ -14,7 +14,7 @@
 - `PromptTemplate.systemPromptText: string` (nullable, default "")
 - `LlmPort.LlmGenerateRequest.systemPrompt?: string`
 - Both adapters send `[system, user]` when systemPrompt present, else `[user]`
-- `CryptoNewsLlmAdapter` reads `template.systemPromptText` and passes through
+- `FeedLlmAdapter` reads `template.systemPromptText` and passes through
 - `PromptTemplateEntity.system_prompt_text` column (nullable, text)
 - `PromptTemplateMapper` mapping
 - `PromptTemplateView.systemPromptText` in the view
@@ -58,7 +58,7 @@
   - `apps/backend/src/telegram/crypto-news-publisher/infrastructure/persistence/typeorm/mappers/prompt-template.mapper.ts`: include in both directions
   - Update entity spec
 
-- [ ] 3. Plumb through controller + migration + adapter (CryptoNewsLlmAdapter)
+- [ ] 3. Plumb through controller + migration + adapter (FeedLlmAdapter)
      What to do:
   - `apps/backend/src/telegram/crypto-news-publisher/api/http/llm-config.controller.ts`:
     - Add `systemPromptText: string` to `PromptTemplateView`
@@ -67,16 +67,16 @@
   - `apps/backend/src/telegram/crypto-news-publisher/infrastructure/migration/llm-config-migration.service.ts`:
     - In the migration template creation (both branches), include `systemPromptText: null` (the new column is nullable, defaulting to null)
     - For the JSON-import branch: the JSON doesn't have `systemPromptText` field — pass null
-  - `apps/backend/src/telegram/crypto-news-publisher/infrastructure/llm/crypto-news-llm.adapter.ts`:
+  - `apps/backend/src/telegram/crypto-news-publisher/infrastructure/llm/feed-llm.adapter.ts`:
     - In `generateForEntry()`, read `template.systemPromptText` and pass it as `systemPrompt` in the `generateText` call
   - Update affected specs
 
 - [ ] 4. Frontend types + UI
      What to do:
-  - `apps/frontend/src/features/crypto-news-publisher/api/llm-config-api.ts`:
+  - `apps/frontend/src/features/feed-publisher/api/llm-config-api.ts`:
     - Add `systemPromptText: string` to `PromptTemplate` interface
     - Add to `CreatePromptTemplateBody` and `UpdatePromptTemplateBody`
-  - `apps/frontend/src/features/crypto-news-publisher/ui/prompt-templates.tsx`:
+  - `apps/frontend/src/features/feed-publisher/ui/prompt-templates.tsx`:
     - In `TemplateFormModal`: add a second textarea above the user prompt textarea:
       ```tsx
       <label>System prompt (persona, role, style)</label>
@@ -106,4 +106,4 @@
 
 ## Commits
 
-1. `feat(crypto-news-publisher): add systemPrompt to PromptTemplate`
+1. `feat(feed-publisher): add systemPrompt to PromptTemplate`

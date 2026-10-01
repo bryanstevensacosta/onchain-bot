@@ -23,13 +23,13 @@ DexScreener ofrece datos en tiempo real de pares DEX en múltiples blockchains. 
 
 ## Plan (totalmente gratuito)
 
-| Límite | Valor |
-|--------|-------|
-| Costo | **$0 — sin API key** |
-| Rate limit | **60 requests/minuto** |
-| Endpoints | **12 endpoints públicos** |
-| Cobertura | 80+ DEXes, 40+ chains |
-| WebSocket | No disponible vía API REST |
+| Límite     | Valor                      |
+| ---------- | -------------------------- |
+| Costo      | **$0 — sin API key**       |
+| Rate limit | **60 requests/minuto**     |
+| Endpoints  | **12 endpoints públicos**  |
+| Cobertura  | 80+ DEXes, 40+ chains      |
+| WebSocket  | No disponible vía API REST |
 
 > ✅ **No hay costos ocultos, tiers, ni CU.** El límite de 60 req/min es compartido entre todas las IPs de un mismo origen. Para producción se recomienda cache agresivo y respetar el rate limit.
 
@@ -39,63 +39,63 @@ DexScreener ofrece datos en tiempo real de pares DEX en múltiples blockchains. 
 
 ### Pairs & Search (4 endpoints)
 
-| # | Endpoint | Descripción |
-|---|----------|-------------|
-| 1 | `GET /latest/dex/tokens/{tokenAddress}` | Pares DEX para un token (cross-chain) |
-| 2 | `GET /latest/dex/pairs/{chainId}/{pairAddress}` | Par específico por chain + pair address |
-| 3 | `GET /latest/dex/search?q={query}` | Búsqueda por symbol, name o address |
-| 4 | `GET /token-pairs/v1/{chainId}/{tokenAddress}` | Pares de un token en una chain específica |
+| #   | Endpoint                                        | Descripción                               |
+| --- | ----------------------------------------------- | ----------------------------------------- |
+| 1   | `GET /latest/dex/tokens/{tokenAddress}`         | Pares DEX para un token (cross-chain)     |
+| 2   | `GET /latest/dex/pairs/{chainId}/{pairAddress}` | Par específico por chain + pair address   |
+| 3   | `GET /latest/dex/search?q={query}`              | Búsqueda por symbol, name o address       |
+| 4   | `GET /token-pairs/v1/{chainId}/{tokenAddress}`  | Pares de un token en una chain específica |
 
 ### Token Profiles (2 endpoints)
 
-| # | Endpoint | Descripción |
-|---|----------|-------------|
-| 5 | `GET /token-profiles/latest/v1` | Últimos perfiles de tokens listados |
-| 6 | `GET /token-profiles/recent-updates/v1` | Perfiles actualizados recientemente |
+| #   | Endpoint                                | Descripción                         |
+| --- | --------------------------------------- | ----------------------------------- |
+| 5   | `GET /token-profiles/latest/v1`         | Últimos perfiles de tokens listados |
+| 6   | `GET /token-profiles/recent-updates/v1` | Perfiles actualizados recientemente |
 
 ### Boosts (2 endpoints)
 
-| # | Endpoint | Descripción |
-|---|----------|-------------|
-| 7 | `GET /token-boosts/latest/v1` | Últimos boosts (promociones pagas) |
-| 8 | `GET /token-boosts/top/v1` | Top boosts |
+| #   | Endpoint                      | Descripción                        |
+| --- | ----------------------------- | ---------------------------------- |
+| 7   | `GET /token-boosts/latest/v1` | Últimos boosts (promociones pagas) |
+| 8   | `GET /token-boosts/top/v1`    | Top boosts                         |
 
 ### Orders (1 endpoint)
 
-| # | Endpoint | Descripción |
-|---|----------|-------------|
-| 9 | `GET /orders/v1/{chainId}/{tokenAddress}` | Órdenes abiertas (buy/sell) |
+| #   | Endpoint                                  | Descripción                 |
+| --- | ----------------------------------------- | --------------------------- |
+| 9   | `GET /orders/v1/{chainId}/{tokenAddress}` | Órdenes abiertas (buy/sell) |
 
 ### Metas (1 endpoint)
 
-| # | Endpoint | Descripción |
-|---|----------|-------------|
-| 10 | `GET /metas/trending/v1` | Categorías de mercado trending |
+| #   | Endpoint                 | Descripción                    |
+| --- | ------------------------ | ------------------------------ |
+| 10  | `GET /metas/trending/v1` | Categorías de mercado trending |
 
 ### Token Info (1 endpoint)
 
-| # | Endpoint | Descripción |
-|---|----------|-------------|
-| 11 | `GET /tokens/v1/{chainId}/{tokenAddresses}` | Info de 1+ tokens en una chain (comma-separated) |
+| #   | Endpoint                                    | Descripción                                      |
+| --- | ------------------------------------------- | ------------------------------------------------ |
+| 11  | `GET /tokens/v1/{chainId}/{tokenAddresses}` | Info de 1+ tokens en una chain (comma-separated) |
 
 ---
 
 ## Endpoints implementados en el servicio
 
-| Método service | Endpoint | Descripción |
-|----------------|----------|-------------|
-| `getPairsByToken(address)` | `GET /latest/dex/tokens/{address}` | Todos los pares DEX para un token (cross-chain) |
-| `getPairByAddress(chainId, pairAddress)` | `GET /latest/dex/pairs/{chainId}/{pairAddress}` | Par específico |
-| `search(query)` | `GET /latest/dex/search?q={query}` | Buscar por symbol/name/address |
-| `getPairsByChain(chainId, tokenAddress)` | `GET /token-pairs/v1/{chainId}/{tokenAddress}` | Pares en una chain específica |
-| `getLatestProfiles()` | `GET /token-profiles/latest/v1` | Últimos perfiles listados |
-| `getRecentUpdates()` | `GET /token-profiles/recent-updates/v1` | Perfiles actualizados |
-| `getLatestBoosts()` | `GET /token-boosts/latest/v1` | Últimos boosts |
-| `getTopBoosts()` | `GET /token-boosts/top/v1` | Top boosts |
-| `getOrders(chainId, tokenAddress)` | `GET /orders/v1/{chainId}/{tokenAddress}` | Órdenes abiertas |
-| `getTrendingMetas()` | `GET /metas/trending/v1` | Metas trending |
-| `getTokensInfo(chainId, tokenAddresses)` | `GET /tokens/v1/{chainId}/{tokenAddresses}` | Info batch de tokens |
-| `getBestPairSummary(address)` | Convenience | Mejor par por liquidez (usa `getPairsByToken`) |
+| Método service                           | Endpoint                                        | Descripción                                     |
+| ---------------------------------------- | ----------------------------------------------- | ----------------------------------------------- |
+| `getPairsByToken(address)`               | `GET /latest/dex/tokens/{address}`              | Todos los pares DEX para un token (cross-chain) |
+| `getPairByAddress(chainId, pairAddress)` | `GET /latest/dex/pairs/{chainId}/{pairAddress}` | Par específico                                  |
+| `search(query)`                          | `GET /latest/dex/search?q={query}`              | Buscar por symbol/name/address                  |
+| `getPairsByChain(chainId, tokenAddress)` | `GET /token-pairs/v1/{chainId}/{tokenAddress}`  | Pares en una chain específica                   |
+| `getLatestProfiles()`                    | `GET /token-profiles/latest/v1`                 | Últimos perfiles listados                       |
+| `getRecentUpdates()`                     | `GET /token-profiles/recent-updates/v1`         | Perfiles actualizados                           |
+| `getLatestBoosts()`                      | `GET /token-boosts/latest/v1`                   | Últimos boosts                                  |
+| `getTopBoosts()`                         | `GET /token-boosts/top/v1`                      | Top boosts                                      |
+| `getOrders(chainId, tokenAddress)`       | `GET /orders/v1/{chainId}/{tokenAddress}`       | Órdenes abiertas                                |
+| `getTrendingMetas()`                     | `GET /metas/trending/v1`                        | Metas trending                                  |
+| `getTokensInfo(chainId, tokenAddresses)` | `GET /tokens/v1/{chainId}/{tokenAddresses}`     | Info batch de tokens                            |
+| `getBestPairSummary(address)`            | Convenience                                     | Mejor par por liquidez (usa `getPairsByToken`)  |
 
 ### Response types
 
@@ -205,13 +205,13 @@ DexScreener ofrece datos en tiempo real de pares DEX en múltiples blockchains. 
 
 ### Métodos sugeridos para agregar
 
-| Método service sugerido | Endpoint | Para qué sirve |
-|-------------------------|----------|----------------|
-| `getMetaBySlug(slug)` | `GET /metas/meta/v1/{slug}` | Categoría específica + sus pairs |
-| `getLatestTakeovers()` | `GET /community-takeovers/latest/v1` | Community takeovers |
-| `getLatestAds()` | `GET /ads/latest/v1` | Ads publicados |
-| `getBestPairByChain(address, chainId)` | Convenience | Mejor par en una chain específica |
-| `getTotalVolume24h(address)` | Convenience | Volumen 24h sumado cross-chain |
+| Método service sugerido                | Endpoint                             | Para qué sirve                    |
+| -------------------------------------- | ------------------------------------ | --------------------------------- |
+| `getMetaBySlug(slug)`                  | `GET /metas/meta/v1/{slug}`          | Categoría específica + sus pairs  |
+| `getLatestTakeovers()`                 | `GET /community-takeovers/latest/v1` | Community takeovers               |
+| `getLatestAds()`                       | `GET /ads/latest/v1`                 | Ads publicados                    |
+| `getBestPairByChain(address, chainId)` | Convenience                          | Mejor par en una chain específica |
+| `getTotalVolume24h(address)`           | Convenience                          | Volumen 24h sumado cross-chain    |
 
 ---
 
@@ -226,7 +226,9 @@ DexScreener ofrece datos en tiempo real de pares DEX en múltiples blockchains. 
 
 ```typescript
 // Endpoints de pairs: response.pairs
-interface PairsResponse { pairs: DexScreenerPair[] | null }
+interface PairsResponse {
+  pairs: DexScreenerPair[] | null;
+}
 
 // Endpoints de profiles/boosts/metas: arreglo directo
 type ProfilesResponse = DexScreenerTokenProfile[];
@@ -262,29 +264,29 @@ curl -s 'https://api.dexscreener.com/metas/trending/v1'
 
 DexScreener cubre la mayoría de las blockchains con actividad DEX. Algunas de las principales:
 
-| # | Chain | chainId value | DEXes principales |
-|---|-------|---------------|-------------------|
-| 1 | **Solana** | `solana` | Raydium, Orca, Jupiter, Meteora, Pump.fun |
-| 2 | **Ethereum** | `ethereum` | Uniswap V2/V3, SushiSwap, ShibaSwap |
-| 3 | **BNB Chain** | `bsc` | PancakeSwap V2/V3, Biswap |
-| 4 | **Base** | `base` | Uniswap V3, Aerodrome, BaseSwap |
-| 5 | **Arbitrum** | `arbitrum` | Uniswap V3, Camelot, SushiSwap |
-| 6 | **Polygon** | `polygon` | QuickSwap, Uniswap V3, SushiSwap |
-| 7 | **Avalanche** | `avalanche` | Trader Joe, Pangolin |
-| 8 | **Optimism** | `optimism` | Uniswap V3, Velodrome |
-| 9 | **Fantom** | `fantom` | SpookySwap, Beethoven X |
-| 10 | **Cronos** | `cronos` | VVS Finance, CronaSwap |
-| 11 | **Aurora** | `aurora` | Trisolaris, WannaSwap |
-| 12 | **zkSync** | `zksync` | SyncSwap, Mute.io |
-| 13 | **Polygon zkEVM** | `polygonzkevm` | QuickSwap, Balancer |
-| 14 | **Linea** | `linea` | Lynex, Nile |
-| 15 | **Blast** | `blast` | Blasterswap, Fenix |
-| 16 | **Manta** | `manta` | Axiom, StakeStone |
-| 17 | **Scroll** | `scroll` | SyncSwap, Skydrome |
-| 18 | **Mode** | `mode` | ModeSwap, Kim Exchange |
-| 19 | **Sui** | `sui` | Cetus, Turbos, FlowX |
-| 20 | **Aptos** | `aptos` | LiquidSwap, PancakeSwap |
-| 21+ | **Otras** | — | PulseChain, Telos, Kava, Celo, Gnosis, etc. |
+| #   | Chain             | chainId value  | DEXes principales                           |
+| --- | ----------------- | -------------- | ------------------------------------------- |
+| 1   | **Solana**        | `solana`       | Raydium, Orca, Jupiter, Meteora, Pump.fun   |
+| 2   | **Ethereum**      | `ethereum`     | Uniswap V2/V3, SushiSwap, ShibaSwap         |
+| 3   | **BNB Chain**     | `bsc`          | PancakeSwap V2/V3, Biswap                   |
+| 4   | **Base**          | `base`         | Uniswap V3, Aerodrome, BaseSwap             |
+| 5   | **Arbitrum**      | `arbitrum`     | Uniswap V3, Camelot, SushiSwap              |
+| 6   | **Polygon**       | `polygon`      | QuickSwap, Uniswap V3, SushiSwap            |
+| 7   | **Avalanche**     | `avalanche`    | Trader Joe, Pangolin                        |
+| 8   | **Optimism**      | `optimism`     | Uniswap V3, Velodrome                       |
+| 9   | **Fantom**        | `fantom`       | SpookySwap, Beethoven X                     |
+| 10  | **Cronos**        | `cronos`       | VVS Finance, CronaSwap                      |
+| 11  | **Aurora**        | `aurora`       | Trisolaris, WannaSwap                       |
+| 12  | **zkSync**        | `zksync`       | SyncSwap, Mute.io                           |
+| 13  | **Polygon zkEVM** | `polygonzkevm` | QuickSwap, Balancer                         |
+| 14  | **Linea**         | `linea`        | Lynex, Nile                                 |
+| 15  | **Blast**         | `blast`        | Blasterswap, Fenix                          |
+| 16  | **Manta**         | `manta`        | Axiom, StakeStone                           |
+| 17  | **Scroll**        | `scroll`       | SyncSwap, Skydrome                          |
+| 18  | **Mode**          | `mode`         | ModeSwap, Kim Exchange                      |
+| 19  | **Sui**           | `sui`          | Cetus, Turbos, FlowX                        |
+| 20  | **Aptos**         | `aptos`        | LiquidSwap, PancakeSwap                     |
+| 21+ | **Otras**         | —              | PulseChain, Telos, Kava, Celo, Gnosis, etc. |
 
 > El valor `chainId` en los responses usa el nombre estandarizado de la chain (ej: `solana`, `ethereum`, `bsc`). Para el endpoint `token-pairs/v1/{chainId}` se usa el mismo valor.
 
@@ -292,13 +294,14 @@ DexScreener cubre la mayoría de las blockchains con actividad DEX. Algunas de l
 
 ## Rate limits
 
-| Límite | Valor |
-|--------|-------|
-| Requests por minuto | **60** |
-| Requests por segundo | ~1 (default burst) |
-| Tipo de limit | **IP-based** (no API key) |
+| Límite               | Valor                     |
+| -------------------- | ------------------------- |
+| Requests por minuto  | **60**                    |
+| Requests por segundo | ~1 (default burst)        |
+| Tipo de limit        | **IP-based** (no API key) |
 
 > El rate limit es **por dirección IP**. Si varias instancias del backend comparten la misma IP pública, el límite de 60 req/min es compartido. Para producción con alto throughput se recomienda:
+>
 > 1. Cache agresivo con TTL corto (30-60s)
 > 2. `getBestPairSummary()` en vez de `getPairsByToken()` cuando solo se necesita el mejor par
 > 3. Múltiples IPs (si es necesario)
@@ -359,7 +362,7 @@ try {
 ### Uso básico del service
 
 ```typescript
-import { DexScreenerService } from 'data-provider/dexscreener';
+import { DexScreenerService } from 'apps/market-data/src/provider/infrastructure/dexscreener';
 
 // El servicio se inyecta automáticamente (DataProviderModule es @Global)
 
@@ -379,7 +382,9 @@ if (pairs) {
 const results = await dex.search('BONK');
 if (results) {
   for (const pair of results) {
-    console.log(`${pair.baseToken.symbol}: $${pair.priceUsd} (${pair.chainId})`);
+    console.log(
+      `${pair.baseToken.symbol}: $${pair.priceUsd} (${pair.chainId})`,
+    );
   }
 }
 
@@ -447,8 +452,8 @@ async function enrichToken(tokenAddress: string) {
     marketCap: summary?.marketCap,
     priceChange24h: summary?.priceChange24h,
     totalPairs: pairs.length,
-    chains: [...new Set(pairs.map(p => p.chainId))],
-    dexes: [...new Set(pairs.map(p => p.dexId))],
+    chains: [...new Set(pairs.map((p) => p.chainId))],
+    dexes: [...new Set(pairs.map((p) => p.dexId))],
     txns24h: { buys: totalBuys24h, sells: totalSells24h },
     bestDex: bestPair.dexId,
     bestChain: bestPair.chainId,
@@ -466,7 +471,7 @@ async function detectNewListings(): Promise<string[]> {
   const profiles = await dex.getLatestProfiles();
   if (!profiles) return [];
 
-  return profiles.map(p => ({
+  return profiles.map((p) => ({
     chainId: p.chainId,
     tokenAddress: p.tokenAddress,
     description: p.description,
@@ -480,7 +485,7 @@ async function getTrendingBoosts() {
   const top = await dex.getTopBoosts();
 
   // Combinar boosts recientes + top para tener un set completo
-  const boosted = new Map<string, typeof latest[0]>();
+  const boosted = new Map<string, (typeof latest)[0]>();
 
   for (const b of latest ?? []) {
     boosted.set(`${b.chainId}:${b.tokenAddress}`, b);
@@ -497,7 +502,7 @@ async function getTrendingCategories() {
   const metas = await dex.getTrendingMetas();
   if (!metas) return [];
 
-  return metas.map(m => ({
+  return metas.map((m) => ({
     name: m.name,
     slug: m.slug,
     marketCap: m.marketCap,
@@ -518,17 +523,22 @@ async function discoverCrossChain(address: string) {
   const pairs = await dex.getPairsByToken(address);
   if (!pairs) return { chains: [], dexes: [], totalPairs: 0 };
 
-  const chains = [...new Set(pairs.map(p => p.chainId))];
-  const dexes = [...new Set(pairs.map(p => p.dexId))];
+  const chains = [...new Set(pairs.map((p) => p.chainId))];
+  const dexes = [...new Set(pairs.map((p) => p.dexId))];
 
   console.log(`Token listado en ${chains.length} chains:`);
   for (const chain of chains) {
-    const chainPairs = pairs.filter(p => p.chainId === chain);
-    const totalLiq = chainPairs.reduce((s, p) => s + (p.liquidity?.usd ?? 0), 0);
+    const chainPairs = pairs.filter((p) => p.chainId === chain);
+    const totalLiq = chainPairs.reduce(
+      (s, p) => s + (p.liquidity?.usd ?? 0),
+      0,
+    );
     const totalVol = chainPairs.reduce((s, p) => {
       return s + Object.values(p.volume).reduce((a, b) => a + b, 0);
     }, 0);
-    console.log(`  ${chain}: ${chainPairs.length} pairs, $${totalLiq} liq, $${totalVol} vol`);
+    console.log(
+      `  ${chain}: ${chainPairs.length} pairs, $${totalLiq} liq, $${totalVol} vol`,
+    );
   }
 
   return { chains, dexes, totalPairs: pairs.length };
@@ -579,15 +589,16 @@ async function pollNewListings(
 
 ## Manejo de errores
 
-| HTTP | Significado | Acción |
-|------|-------------|--------|
-| 200 | OK | Response válido |
-| 404 | No encontrado | Token/pair sin datos o address inválido |
-| 429 | Rate limit excedido | Esperar antes de reintentar |
-| 5xx | Error interno del servidor | Reintentar con backoff |
-| Timeout (>8s) | Timeout de conexión | Reintentar |
+| HTTP          | Significado                | Acción                                  |
+| ------------- | -------------------------- | --------------------------------------- |
+| 200           | OK                         | Response válido                         |
+| 404           | No encontrado              | Token/pair sin datos o address inválido |
+| 429           | Rate limit excedido        | Esperar antes de reintentar             |
+| 5xx           | Error interno del servidor | Reintentar con backoff                  |
+| Timeout (>8s) | Timeout de conexión        | Reintentar                              |
 
 **El servicio maneja errores así:**
+
 - **404**: retorna `null` (no es error, es "no hay datos")
 - **429/5xx/timeout**: retorna `null` y loggea en debug
 - **Excepciones**: capturadas, loggeadas, retorna `null`
@@ -605,37 +616,35 @@ async function dexFetchWithRetry<T>(
     } catch (err) {
       if (attempt === retries - 1) return null;
       const delay = 1000 * Math.pow(2, attempt); // 1s, 2s, 4s
-      await new Promise(r => setTimeout(r, delay));
+      await new Promise((r) => setTimeout(r, delay));
     }
   }
   return null;
 }
 
 // Uso:
-const pairs = await dexFetchWithRetry(
-  () => dex.getPairsByToken(address),
-);
+const pairs = await dexFetchWithRetry(() => dex.getPairsByToken(address));
 ```
 
 ---
 
 ## ¿Por qué DexScreener en vez de otros providers?
 
-| Aspecto | DexScreener | Birdeye (Standard) | Helius |
-|---------|:-----------:|:------------------:|:------:|
-| Costo | **$0** | $0 (30K CU/mes) | $0 (limitado) |
-| API Key | ❌ No | ✅ Sí | ✅ Sí |
-| Rate limit | 60 req/min | 1 req/s | Variable |
-| Cobertura cross-chain | ✅ 40+ chains | ✅ 14 chains | ❌ Solana |
-| DEXes cubiertos | 80+ | ~10-20 por chain | N/A (RPC) |
-| Token profiles / nuevos listings | ✅ Sí | ⚠️ Limitado | ❌ No |
-| Boosts / promociones | ✅ Sí | ❌ No | ❌ No |
-| Órdenes abiertas | ✅ Sí | ❌ No | ❌ No |
-| Trending metas | ✅ Sí | ❌ No | ❌ No |
-| Batch por chain | ✅ Comma-separated | ❌ Solo single (Standard) | — |
-| Precio histórico | ❌ No | ✅ Sí | — |
-| Holders / wallets | ❌ No | ✅ Sí (Solana) | ✅ Sí |
-| Seguridad / honeypot | ❌ No | ✅ Sí | — |
+| Aspecto                          |    DexScreener     |    Birdeye (Standard)     |    Helius     |
+| -------------------------------- | :----------------: | :-----------------------: | :-----------: |
+| Costo                            |       **$0**       |      $0 (30K CU/mes)      | $0 (limitado) |
+| API Key                          |       ❌ No        |           ✅ Sí           |     ✅ Sí     |
+| Rate limit                       |     60 req/min     |          1 req/s          |   Variable    |
+| Cobertura cross-chain            |   ✅ 40+ chains    |       ✅ 14 chains        |   ❌ Solana   |
+| DEXes cubiertos                  |        80+         |     ~10-20 por chain      |   N/A (RPC)   |
+| Token profiles / nuevos listings |       ✅ Sí        |        ⚠️ Limitado        |     ❌ No     |
+| Boosts / promociones             |       ✅ Sí        |           ❌ No           |     ❌ No     |
+| Órdenes abiertas                 |       ✅ Sí        |           ❌ No           |     ❌ No     |
+| Trending metas                   |       ✅ Sí        |           ❌ No           |     ❌ No     |
+| Batch por chain                  | ✅ Comma-separated | ❌ Solo single (Standard) |       —       |
+| Precio histórico                 |       ❌ No        |           ✅ Sí           |       —       |
+| Holders / wallets                |       ❌ No        |      ✅ Sí (Solana)       |     ✅ Sí     |
+| Seguridad / honeypot             |       ❌ No        |           ✅ Sí           |       —       |
 
 ### Casos de uso ideales para DexScreener
 
@@ -680,7 +689,7 @@ async function enrichmentStrategy(address: string) {
     return { found: false, reason: 'No DEX pairs found' };
   }
 
-  const bestLiquidity = Math.max(...pairs.map(p => p.liquidity?.usd ?? 0));
+  const bestLiquidity = Math.max(...pairs.map((p) => p.liquidity?.usd ?? 0));
   if (bestLiquidity < 1000) {
     return { found: false, reason: 'Insufficient liquidity (< $1,000)' };
   }
@@ -690,7 +699,7 @@ async function enrichmentStrategy(address: string) {
 
   // Fase 3: Datos adicionales solo en chains prioritarias (ej: Solana)
   let birdeyeData = null;
-  const solanaPairs = pairs.filter(p => p.chainId === 'solana');
+  const solanaPairs = pairs.filter((p) => p.chainId === 'solana');
   if (solanaPairs.length > 0) {
     // birdeyeData = await birdeye.getTokenOverview(address, 'solana');
     // 25 CU — solo se gasta si el token tiene presencia en Solana
@@ -700,7 +709,7 @@ async function enrichmentStrategy(address: string) {
     found: true,
     dexScreener: summary,
     pairsCount: pairs.length,
-    chains: [...new Set(pairs.map(p => p.chainId))],
+    chains: [...new Set(pairs.map((p) => p.chainId))],
     birdeye: birdeyeData,
   };
 }

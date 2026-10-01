@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ChainId } from 'chain/identity/chain-id.vo';
 import { PublishedCallRepository } from 'telegram/shared/application/ports/published-call.repository';
-import { TrackedPublishedCall } from '../../domain/entities/tracked-published-call.entity';
+import { TrackedPublishedCall } from '@/token/call-tracking/domain/entities/tracked-published-call.entity';
 import { TrackedPublishedCallRepository } from '../ports/tracked-published-call.repository';
 
 export interface TrackPublishedCallInput {

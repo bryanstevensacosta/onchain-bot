@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { AchievementCachePort } from '../../application/ports/achievement-cache.port';
+import { AchievementCachePort } from '@/token/achievement/application/ports/achievement-cache.port';
 
 @Injectable()
 export class InMemoryAchievementCacheAdapter extends AchievementCachePort {

@@ -3,7 +3,7 @@ import {
   ChainProberPort,
   ProbeResult,
 } from 'chain/detection/domain/ports/chain-prober.port';
-import { AlchemyService } from 'data-provider/alchemy/alchemy.service';
+import { AlchemyService } from '../../../../../../market-data/src/provider/infrastructure/alchemy/alchemy.service';
 
 /**
  * EVM chain prober (Ethereum mainnet via Alchemy).

@@ -8,7 +8,7 @@ import { ChatSettingsService } from './chat-settings.service';
 import {
   TelegramMessage,
   TelegramUpdate,
-} from '../../infrastructure/telegram/bot-client';
+} from '@/telegram/chain-dexter-bot/infrastructure/telegram/bot-client';
 
 @Injectable()
 export class ContextResolverService {

@@ -16,6 +16,14 @@ interface AppConfigShape {
   };
 }
 
+/**
+ * @deprecated Telegram Bot API sends move to the telegram-bots-gateway (todo 4):
+ * kol-system `GatewaySendClient` → `POST /api/bots/:id/send` (vault id only,
+ * global per-bot quota + centralized 429 backoff). This is the backend legacy
+ * direct-leg copy (`VIP_CALLS_BOT_TOKEN`, in-adapter 60 s throttle, no 429
+ * handling); kept wired until the global cutover (gateway todo 7) deletes it.
+ * Do not extend.
+ */
 @Injectable()
 export class VipCallsBotApiPublisherAdapter extends TelegramPublisherPort {
   private readonly logger = new Logger(VipCallsBotApiPublisherAdapter.name);

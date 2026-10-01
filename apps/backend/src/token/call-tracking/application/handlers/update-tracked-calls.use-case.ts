@@ -3,7 +3,7 @@ import { TrackedPublishedCallRepository } from '../ports/tracked-published-call.
 import { LiveMarketDataPort } from 'token/achievement/application/ports/live-market-data.port';
 import { AchievementThresholdRepository } from 'token/achievement/application/ports/achievement-threshold.repository';
 import { AchievementCachePort } from 'token/achievement/application/ports/achievement-cache.port';
-import { TrackedPublishedCall } from '../../domain/entities/tracked-published-call.entity';
+import { TrackedPublishedCall } from '@/token/call-tracking/domain/entities/tracked-published-call.entity';
 
 export interface UpdateTrackedCallsResult {
   readonly evaluated: number;

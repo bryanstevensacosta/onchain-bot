@@ -1,3 +1,8 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/scheduling/ (Tramo 2, todo 6 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add scheduling/ads logic in apps/feed-publisher/src/scheduling/ instead.
+ */
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { existsSync } from 'node:fs';
@@ -12,6 +17,12 @@ import {
 } from 'telegram/shared';
 
 /**
+ * @deprecated Ad dispatch moves to feed-publisher via the
+ * telegram-bots-gateway (todo 5): `TelegramScheduledAdDispatcher` →
+ * `GatewaySendClient` → `POST /api/bots/:id/send` (cutover blocker: button
+ * ads need gateway `reply_markup` support — gateway todo 7 — or stay dual).
+ * Backend legacy copy; removed at the global cutover. Do not extend.
+ *
  * Build the inline keyboard for an ad from its explicitly configured
  * `buttons` (opt-in per ad — body anchors are NOT auto-extracted into
  * buttons). Each `{ text, url }` pair becomes one URL button. Buttons are

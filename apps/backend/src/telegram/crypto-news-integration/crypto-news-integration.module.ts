@@ -1,3 +1,18 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/ingestion/ + apps/feed-publisher/src/matching/ (Tramo 2, todos 2+3 + P18 companion).
+ * Feed ingestion + matching now live in feed-publisher: FeedIngestionClient (SSE-only,
+ * client-side messageType==='crypto-news' filter, reconnect catch-up by cursor) +
+ * ProcessFeedMessageHandler (ingestion/) and FilteredFeedService +
+ * EnqueueMatchingCronScheduler + MatchingConfig (matching/). This module stays wired
+ * for dual-run; it will be removed at cutover (todo 11). Do not extend it — add feed
+ * ingestion/matching logic in apps/feed-publisher/src/ingestion/ or
+ * apps/feed-publisher/src/matching/ instead.
+ *
+ * New location: apps/feed-publisher/src/ingestion/ + apps/feed-publisher/src/matching/
+ * Reason: extracting feed pipeline from backend monolith to dedicated app
+ * Breaking change: Yes (removal at cutover)
+ * Rollback: re-enable backend path (USE_FEED_PUBLISHER=false)
+ */
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CryptoNewsIngestionClient } from 'telegram/crypto-news-integration/infrastructure/http/crypto-news-ingestion-client.service';

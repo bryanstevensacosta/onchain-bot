@@ -4,11 +4,18 @@ import {
   OnApplicationBootstrap,
   OnApplicationShutdown,
 } from '@nestjs/common';
-import { ChainDexterBotConfigService } from '../../bot.config';
-import { CommandRouterService } from '../../application/handlers/command-router.service';
+import { ChainDexterBotConfigService } from '@/telegram/chain-dexter-bot/bot.config';
+import { CommandRouterService } from '@/telegram/chain-dexter-bot/application/handlers/command-router.service';
 import { TelegramBotClient, TelegramUpdate } from './bot-client';
 
 @Injectable()
+/**
+ * @deprecated Polling ingress moves to the telegram-bots-gateway
+ * `UpdatePollerService` fallback (todo 3) + dexter `POST /dexter/ingress`
+ * fan-out target (todo 6). This backend legacy `getUpdates` loop (gated by
+ * `ingestMode`) stays live until the global cutover (gateway todo 7)
+ * deletes it. Do not extend.
+ */
 export class UpdatePollerService
   implements OnApplicationBootstrap, OnApplicationShutdown
 {

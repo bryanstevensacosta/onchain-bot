@@ -32,9 +32,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  *      `cleanupOrphanFiles` covers the latter once item 10 re-points it).
  *   4. NEVER delete files that fail to move — report + remediate.
  */
-export class FeedMessageMediaRename1790100000000
-  implements MigrationInterface
-{
+export class FeedMessageMediaRename1790100000000 implements MigrationInterface {
   name = 'FeedMessageMediaRename1790100000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

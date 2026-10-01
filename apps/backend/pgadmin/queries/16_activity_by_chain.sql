@@ -1,5 +1,5 @@
 -- =====================================================================
--- alpha-meta-token-scanner :: Activity by Chain
+-- onchain-bot :: Activity by Chain
 -- =====================================================================
 -- Resumen de actividad (tokens, scores, calls) por blockchain.
 -- =====================================================================

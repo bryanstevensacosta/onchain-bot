@@ -24,7 +24,7 @@ The project has 4 CHANGELOG files:
 
 ## What Happened
 
-1. PR #147 (feat: migrate crypto-news) merged to master
+1. PR #147 (feat: migrate feed) merged to master
 2. Release-please created PR #149 (release 3.0.0)
 3. PR #149 merged → CHANGELOG updated → release-please saw "changes"
 4. Release-please created PR #150 (duplicate release)

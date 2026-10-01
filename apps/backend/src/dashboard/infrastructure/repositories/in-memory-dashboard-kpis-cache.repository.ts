@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { DashboardKpisCachePort } from '../../application/ports/dashboard-kpis-cache.port';
-import type { DashboardKpis } from '../../application/ports/dashboard-kpis.port';
+import { DashboardKpisCachePort } from '@/dashboard/application/ports/dashboard-kpis-cache.port';
+import type { DashboardKpis } from '@/dashboard/application/ports/dashboard-kpis.port';
 
 interface CacheEntry {
   readonly value: DashboardKpis;

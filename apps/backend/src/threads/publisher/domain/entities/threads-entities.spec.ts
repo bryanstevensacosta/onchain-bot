@@ -131,7 +131,9 @@ describe('ThreadsLlmConfig defaults (no target column)', () => {
   });
 
   it('validates invariants on load and update', () => {
-    expect(() => ThreadsLlmConfig.load({ ...llmInput(), dailyCap: 0 })).toThrow();
+    expect(() =>
+      ThreadsLlmConfig.load({ ...llmInput(), dailyCap: 0 }),
+    ).toThrow();
     expect(() =>
       ThreadsLlmConfig.load({
         ...llmInput(),
@@ -225,11 +227,13 @@ describe('ThreadsOAuthToken defaults (id=1)', () => {
     tok.updateFromRefresh({ accessToken: 'new', expiresInS: 7200 });
     expect(tok.accessToken).toBe('new');
     expect(tok.expiresInS).toBe(7200);
-    expect(() => ThreadsOAuthToken.create({
-      accessToken: '  ',
-      threadsUserId: 'uid-1',
-      expiresInS: 10,
-    })).toThrow();
+    expect(() =>
+      ThreadsOAuthToken.create({
+        accessToken: '  ',
+        threadsUserId: 'uid-1',
+        expiresInS: 10,
+      }),
+    ).toThrow();
   });
 });
 

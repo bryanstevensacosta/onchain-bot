@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { CallNormalizedEvent } from 'token/normalization/domain/events/call-normalized.event';
-import { EnrichTokenUseCase } from '../../application/handlers/enrich-token.use-case';
+import { EnrichTokenUseCase } from '@/token/enrichment/application/handlers/enrich-token.use-case';
 
 /**
  * Subscribes to normalization.call.normalized and triggers enrichment.

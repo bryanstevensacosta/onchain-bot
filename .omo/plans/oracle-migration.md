@@ -49,7 +49,7 @@ Your next move: aprobar el arranque ($start-work) o pedir primero la revisión d
 
 - Test decision: **none (infra migration)** + agent-executed QA per todo (happy + failure, exact tool + invocation, evidence path).
 - Evidence: .omo/evidence/task-<N>-oracle-migration.<ext> (log de comandos + salidas; valores de secretos siempre redactados, solo nombres/l conteos).
-- Paridad de datos = row counts por DB (DO vs Oracle) + hash de `GET /api/crypto-news/sources` + healths `:3030/:3031/:3032` + `clients.connected >= 1` en ingestion.
+- Paridad de datos = row counts por DB (DO vs Oracle) + hash de `GET /api/feed/sources` + healths `:3030/:3031/:3032` + `clients.connected >= 1` en ingestion.
 
 ## Execution strategy
 
@@ -181,7 +181,7 @@ Your next move: aprobar el arranque ($start-work) o pedir primero la revisión d
       What to do / Must NOT do: desde local, copiar compose+env a Oracle: `scp apps/backend/docker-compose.prod.yml OracleDroplet:/opt/onchain-bot/apps/backend/docker-compose.prod.yml` + `scp apps/backend/.env.droplet.production OracleDroplet:/opt/onchain-bot/apps/backend/.env.production && chmod 600` en Oracle (compose exige el env_file para `up -d postgres redis`; el 13 hará solo sed+verificación). En Oracle: `docker network create onchain-bot-net && docker network create onchain-bot-staging-net` (AMBAS externas ahora: ingestion las necesita a las dos, ingestion.yml:57-62), `cd /opt/onchain-bot/apps/backend && docker compose -f docker-compose.prod.yml up -d postgres redis`, `createdb -h 127.0.0.1 -U alpha_meta_token_scanner alpha_meta_token_scanner_ingestion` (mismo hardcoded que deploy.yml:103-105), `pg_restore` de ambos dumps (flags exactos en evidencia), row counts vs tsv del 9. Must NOT: levantar backend/ingestion aún (M2/M3 orden); NO correr migrations aún.
       Parallelization: Wave 3 | Blocked by: 5, 6, 9 | Blocks: 14, 16
       References: docker-compose.prod.yml:2-72; deploy-ingestion.yml:79-82 (2 DBs mismo contenedor); docker-compose.ingestion.yml:57-62 (redes externas).
-      Acceptance: row counts Oracle == row counts DO (tsv 9) en las 3 tablas crypto-news + `vip_published_calls` + `PGDATABASE` listas.
+      Acceptance: row counts Oracle == row counts DO (tsv 9) en las 3 tablas feed + `vip_published_calls` + `PGDATABASE` listas.
       QA happy: `psql -c '\l'` muestra las 2 DBs. QA failure: `pg_restore` error de versión (pg16 ambos lados — si difiere, evidencia + `pg_restore --no-owner` reintento documentado). Evidence .omo/evidence/task-11-oracle-migration.{log,tsv}
       Commit: N.
 
@@ -200,13 +200,13 @@ Your next move: aprobar el arranque ($start-work) o pedir primero la revisión d
       `scp apps/ingestion-telegram/.env.droplet.production OracleDroplet:/opt/onchain-bot/apps/ingestion-telegram/.env.production`
       (nota: el `.env.production` del backend ya lo copió el 11 — omitir esa copia aquí, solo `chmod 600` si faltara).
       SOLO cambio permitido, con la IP anotada en la evidencia del 7 (variable ORACLE_TS_IP):
-      `ssh OracleDroplet "sed -i 's|^INGESTION_TELEGRAM_URL=._|INGESTION_TELEGRAM_URL=http://${ORACLE_TS_IP}:3032|' /opt/onchain-bot/apps/backend/.env.production /opt/onchain-bot-staging/apps/backend/.env.staging"`Verificaciones por NOMBRE (jamás valores):`cut -d= -f1`Oracle vs local → diff vacío salvo`INGESTION_TELEGRAM_URL`; `grep -rnE 'cryptoganster\.tail|100\.84\.4\.28|144\.126\.203\.139'`en los 3 envs Oracle = 0 hits (M6);`grep -cE 'RETENTION_HOURS=72'`≥ 1 (M7 conserva 72h).   Fallback si falta un`.env.droplet._`local: NO inventar — re-traerlo del DO y reintentar:`scp CryptoGanster:/opt/onchain-bot/apps/backend/.env.production apps/backend/.env.droplet.production`
+      `ssh OracleDroplet "sed -i 's|^INGESTION_TELEGRAM_URL=._|INGESTION*TELEGRAM_URL=http://${ORACLE_TS_IP}:3032|' /opt/onchain-bot/apps/backend/.env.production /opt/onchain-bot-staging/apps/backend/.env.staging"`Verificaciones por NOMBRE (jamás valores):`cut -d= -f1`Oracle vs local → diff vacío salvo`INGESTION_TELEGRAM_URL`; `grep -rnE 'cryptoganster\.tail|100\.84\.4\.28|144\.126\.203\.139'`en los 3 envs Oracle = 0 hits (M6);`grep -cE 'RETENTION_HOURS=72'`≥ 1 (M7 conserva 72h).   Fallback si falta un`.env.droplet.*`local: NO inventar — re-traerlo del DO y reintentar:`scp CryptoGanster:/opt/onchain-bot/apps/backend/.env.production apps/backend/.env.droplet.production`
 `scp CryptoGanster:/opt/onchain-bot-staging/apps/backend/.env.staging apps/backend/.env.droplet.staging`
 `scp CryptoGanster:/opt/onchain-bot/apps/ingestion-telegram/.env.production apps/ingestion-telegram/.env.droplet.production`si DO inaccesible → BLOCKED. Must NOT: imprimir ni loguear valores; NO cambiar ningún otro flag.
 Parallelization: Wave 3 | Blocked by: 3, 6, 7 | Blocks: 14, 15
 References: Metis M6/M7; app.config.ts:376 (default localhost:3031); .env.production.template:79 (dead DNS compose).
-Acceptance: key-presence diff (nombres) droplet-vs-Oracle = solo`INGESTION_TELEGRAM_URL`difiere Y 0 hits de strings DO en envs Oracle.
-QA happy:`diff <(cut -d= -f1 droplet) <(cut -d= -f1 oracle)`muestra solo la línea esperada. QA failure: falta`POSTGRES_PASSWORD`/`REDIS_PASSWORD`/`MTPROTO_SESSION`(nombres) → BLOCKED: re-copiar desde`.env.droplet._` locales, jamás inventar. Evidence .omo/evidence/task-13-oracle-migration.log (nombres y conteos únicamente)
+Acceptance: key-presence diff (nombres) droplet-vs-Oracle = solo`INGESTION*TELEGRAM_URL`difiere Y 0 hits de strings DO en envs Oracle.
+QA happy:`diff <(cut -d= -f1 droplet) <(cut -d= -f1 oracle)`muestra solo la línea esperada. QA failure: falta`POSTGRES_PASSWORD`/`REDIS_PASSWORD`/`MTPROTO_SESSION`(nombres) → BLOCKED: re-copiar desde`.env.droplet.*` locales, jamás inventar. Evidence .omo/evidence/task-13-oracle-migration.log (nombres y conteos únicamente)
       Commit: N (envs en host, gitignored).
 
 - [x] 14. Up backend+frontend prod Oracle (ingestion apagada) + migrations con gate — GATEWAY-DIFERIDO y UPLOADS-VACÍO aceptados por owner; UNBLOCKED 2026-09-10: `:latest` backend+frontend ya traen arm64 (verificado por orchestrator vía imagetools). NO retagear staging como :latest (build-args difieren).
@@ -226,10 +226,10 @@ QA happy:`diff <(cut -d= -f1 droplet) <(cut -d= -f1 oracle)`muestra solo la lín
       Commit: N.
 
 - [x] 16. Handoff ingestion DO→Oracle (SECUENCIAL, ventana de ingesta) — DO MUERTO 2026-09-10: sin gate de apagado/verificación DO; arranque directo en Oracle con retry AUTH_KEY 60s+ (sesión local len 368 verificada). HECHO vía bridge nativo arm64 (registry :latest seguía amd64-only); clients≥1 pendiente de socat (18a).
-      What to do / Must NOT do: 1) `curl -sf :3032/api/crypto-news/sources` en DO (hash de paridad) + `ingested_at` MAX; 2) STOP ingestion DO (`compose stop`, verificar `systemctl/docker ps` muerto + `tailscale`—liveness gate ambos lados); 3) en Oracle: `up -d` ingestion (redes externas ya existen por 13), health `:3032` + `mtproto.connected=true authorized=true` + `channels.total>0`; 4) `grep -i AUTH_KEY_DUPLICATED` en logs Oracle = 0 hits; 5) sources hash == DO + `ingested_at` MAX avanza. Ventana esperada <15 min (gap SSE lossy + backfill roto: posible pérdida acotada, mitigada en horario valle). Must NOT: arrancar Oracle con DO vivo NI UN SEGUNDO (C2/A4, `AUTH_KEY_DUPLICATED`); NO reintentar backfill.
+      What to do / Must NOT do: 1) `curl -sf :3032/api/feed/sources` en DO (hash de paridad) + `ingested_at` MAX; 2) STOP ingestion DO (`compose stop`, verificar `systemctl/docker ps` muerto + `tailscale`—liveness gate ambos lados); 3) en Oracle: `up -d` ingestion (redes externas ya existen por 13), health `:3032` + `mtproto.connected=true authorized=true` + `channels.total>0`; 4) `grep -i AUTH_KEY_DUPLICATED` en logs Oracle = 0 hits; 5) sources hash == DO + `ingested_at` MAX avanza. Ventana esperada <15 min (gap SSE lossy + backfill roto: posible pérdida acotada, mitigada en horario valle). Must NOT: arrancar Oracle con DO vivo NI UN SEGUNDO (C2/A4, `AUTH_KEY_DUPLICATED`); NO reintentar backfill.
       Parallelization: Wave 4 | Blocked by: 11, 14 | Blocks: 19 (SECUENCIAL respecto a la sesión MTProto: 17/18 pueden solaparse, nada de ingestión en paralelo)
       References: AGENTS.md:62-63 (single sesión); docker-compose.ingestion.yml:19,25-35,57-62; MIGRATION-GUIDE-DROPLET.md:350-366 (rollback AUTH_KEY).
-      Acceptance: Oracle `:3032/api/crypto-news/sources` 200 + hash == DO + `clients.connected >= 1` (deploy-ingestion.yml:116-123) + 0 `AUTH_KEY_DUPLICATED` + DO ingestion `exited/stopped`.
+      Acceptance: Oracle `:3032/api/feed/sources` 200 + hash == DO + `clients.connected >= 1` (deploy-ingestion.yml:116-123) + 0 `AUTH_KEY_DUPLICATED` + DO ingestion `exited/stopped`.
       QA happy: mensaje nuevo con `ingested_at` posterior al handoff aparece en Oracle. QA failure: `AUTH_KEY` → STOP Oracle inmediato, esperar 60s (guía:350-366), reintentar; si persiste → ROLLBACK: start DO, evidencia, BLOCKED. Evidence .omo/evidence/task-16-oracle-migration.log
       Commit: N.
 
@@ -242,10 +242,10 @@ QA happy:`diff <(cut -d= -f1 droplet) <(cut -d= -f1 oracle)`muestra solo la lín
       Commit: Y | ci(workflows): pin runs-on to oracle runner label.
 
 - [x] 18. Socat + Tailscale healthchecks Oracle — SPLIT: (a) prod DONE (template flip + :3032 unit + UFW ts0 + clients≥1); (b) staging tras el 15
-      What to do / Must NOT do: semántica C5 RESUELTA (verificada en infra/systemd/socat-backend.service.template:9): cada unit ESCUCHA en `127.0.0.1:LOCAL_PORT` y reenvía a `TAILSCALE_IP:TAILSCALE_PORT` — staging-frontend = escucha `:80` → reenvía a `${ORACLE_TS_IP}:4173`, sin misterio. Pasos en Oracle: `apt-get install -y socat`; `ORACLE_TS_IP=$(grep '^ORACLE_TS_IP=' .omo/evidence/task-7-oracle-migration.log | cut -d= -f2)` (registrada en el 7); `TAILSCALE_IP=${ORACLE_TS_IP} bash scripts/install-socat-services.sh prod` y `TAILSCALE_IP=${ORACLE_TS_IP} bash scripts/install-socat-services.sh staging` (el default `100.84.4.28` del script:11 es la IP vieja de DO — SIEMPRE override por env); `systemctl is-active onchain-bot-socat-backend onchain-bot-socat-frontend onchain-bot-staging-socat-backend onchain-bot-staging-socat-frontend`; healthchecks `curl -sf http://${ORACLE_TS_IP}:3030/api/health`, `http://${ORACLE_TS_IP}:3032/api/crypto-news/sources`, `http://${ORACLE_TS_IP}:3031/api/health`, `http://${ORACLE_TS_IP}:4173/`. Must NOT: exponer puertos fuera de Tailscale/loopback; NO cambiar el default del script en repo aquí (si se quiere, commit aparte).
+      What to do / Must NOT do: semántica C5 RESUELTA (verificada en infra/systemd/socat-backend.service.template:9): cada unit ESCUCHA en `127.0.0.1:LOCAL_PORT` y reenvía a `TAILSCALE_IP:TAILSCALE_PORT` — staging-frontend = escucha `:80` → reenvía a `${ORACLE_TS_IP}:4173`, sin misterio. Pasos en Oracle: `apt-get install -y socat`; `ORACLE_TS_IP=$(grep '^ORACLE_TS_IP=' .omo/evidence/task-7-oracle-migration.log | cut -d= -f2)` (registrada en el 7); `TAILSCALE_IP=${ORACLE_TS_IP} bash scripts/install-socat-services.sh prod` y `TAILSCALE_IP=${ORACLE_TS_IP} bash scripts/install-socat-services.sh staging` (el default `100.84.4.28` del script:11 es la IP vieja de DO — SIEMPRE override por env); `systemctl is-active onchain-bot-socat-backend onchain-bot-socat-frontend onchain-bot-staging-socat-backend onchain-bot-staging-socat-frontend`; healthchecks `curl -sf http://${ORACLE_TS_IP}:3030/api/health`, `http://${ORACLE_TS_IP}:3032/api/feed/sources`, `http://${ORACLE_TS_IP}:3031/api/health`, `http://${ORACLE_TS_IP}:4173/`. Must NOT: exponer puertos fuera de Tailscale/loopback; NO cambiar el default del script en repo aquí (si se quiere, commit aparte).
       Parallelization: Wave 4 | Blocked by: 7, 14, 15 | Blocks: 19
       References: infra/systemd/socat-backend.service.template:9; scripts/install-socat-services.sh:40-56; Metis C5/C6.
-      Acceptance: `curl -sf http://${ORACLE_TS_IP}:<puerto>` 200 en los 4 endpoints (`3030/api/health`, `3032/api/crypto-news/sources`, `3031/api/health`, `4173/`, con ORACLE_TS_IP de la evidencia del 7) + `systemctl is-active socat-*` active.
+      Acceptance: `curl -sf http://${ORACLE_TS_IP}:<puerto>` 200 en los 4 endpoints (`3030/api/health`, `3032/api/feed/sources`, `3031/api/health`, `4173/`, con ORACLE_TS_IP de la evidencia del 7) + `systemctl is-active socat-*` active.
       QA happy: `systemctl cat onchain-bot-staging-socat-frontend` muestra ExecStart con la IP nueva (escucha :80 → reenvía :4173). QA failure: `socat` ausente → apt en evidencia y reintento; puerto en uso → `ss -ltnp` en evidencia + BLOCKED. Evidence .omo/evidence/task-18-oracle-migration.log
       Commit: N (units en host; si hay fix al script → commit aparte `fix(socat): ...`).
 
@@ -291,6 +291,6 @@ QA happy:`diff <(cut -d= -f1 droplet) <(cut -d= -f1 oracle)`muestra solo la lín
 ## Success criteria
 
 - Oracle sirve prod (`:3030`+`:5173`), staging (`:3031`+`:4173`) e ingestion (`:3032`, MTProto `connected+authorized`, 0 `AUTH_KEY_DUPLICATED`).
-- Paridad: row counts 3 DBs iguales DO↔Oracle, hash `GET /api/crypto-news/sources` idéntico, `recent calls` frescos.
+- Paridad: row counts 3 DBs iguales DO↔Oracle, hash `GET /api/feed/sources` idéntico, `recent calls` frescos.
 - CI: `deploy-staging` verde tomado por el runner `oracle`; docs sin referencias DO vivas (`git grep` limpio salvo histórico marcado).
 - DO apagado solo tras matriz verde; alias `CryptoGanster` responde desde Oracle.

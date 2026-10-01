@@ -22,7 +22,7 @@ const SAFE_CMD_FRAGMENTS = [
   'vite',
   'apps/backend/dist/main',
   'apps/frontend',
-  'node /Users/bryanstevens/dev/alpha-meta-token-scanner/node_modules/.bin/vite',
+  'node /Users/bryanstevens/dev/onchain-bot/node_modules/.bin/vite',
 ];
 const PORTS = args.filter((a) => !a.startsWith('-')).map((p) => parseInt(p, 10)).filter(Boolean);
 const DEFAULT_PORTS = [3030, 5173];

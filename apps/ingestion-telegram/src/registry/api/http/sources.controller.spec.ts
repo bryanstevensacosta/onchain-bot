@@ -1,6 +1,6 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { SourcesController } from './sources.controller';
-import { RegisterNewsSourceUseCase } from '../../application/use-cases/register-news-source.use-case';
+import { RegisterNewsSourceUseCase } from '@/registry/application/use-cases/register-news-source.use-case';
 
 function makeRow(overrides: Record<string, unknown> = {}) {
   return {
@@ -75,6 +75,17 @@ describe('SourcesController (feed source catalog)', () => {
     expect(res[0].channelId).toBe('-1002');
   });
 
+  it('getSources projects avatarUrl per source (P19)', async () => {
+    sourceRepo.findAll.mockResolvedValue([
+      makeRow(),
+      makeRow({ channelId: '-1002', type: 'kol' }),
+    ]);
+    const res = await controller.getSources(undefined);
+    expect(res).toHaveLength(2);
+    expect(res[0]).toMatchObject({ avatarUrl: '/api/kol-avatar/-1001' });
+    expect(res[1]).toMatchObject({ avatarUrl: '/api/kol-avatar/-1002' });
+  });
+
   it('getSources rejects an unknown type with 400', async () => {
     await expect(controller.getSources('rss')).rejects.toMatchObject({
       status: 400,
@@ -113,7 +124,12 @@ describe('SourcesController (feed source catalog)', () => {
     sourceRepo.findByChannelId.mockResolvedValue(makeRow({ isActive: true }));
     sourceRepo.save.mockImplementation(async (s: any) => s);
     const res = await controller.toggleSource('-1001');
-    expect(res).toEqual({ channelId: '-1001', isActive: false });
+    expect(res).toEqual({
+      channelId: '-1001',
+      isActive: false,
+      avatarUrl: '/api/kol-avatar/-1001',
+      url: 'https://t.me/watcher',
+    });
   });
 
   it('toggleSource throws 404 for unknown channels', async () => {
@@ -145,7 +161,12 @@ describe('RegisterNewsSourceUseCase (feed repo wiring + batch)', () => {
       store,
       findByChannelId: jest.fn(async (id: string) => store.get(id) ?? null),
       create: jest.fn(
-        (channelId: string, title: string, handle?: string, type = 'crypto-news') => ({
+        (
+          channelId: string,
+          title: string,
+          handle?: string,
+          type = 'crypto-news',
+        ) => ({
           channelId,
           title,
           handle: handle ?? null,
@@ -175,7 +196,7 @@ describe('RegisterNewsSourceUseCase (feed repo wiring + batch)', () => {
 
   beforeEach(() => jest.clearAllMocks());
 
-  it('execute creates a crypto-news source by default', async () => {
+  it('execute creates a feed source by default', async () => {
     const repo = fakeRepo();
     const useCase = new RegisterNewsSourceUseCase(repo as any, listener);
     const out = await useCase.execute({ channelId: '123', title: 'T' });
@@ -216,7 +237,9 @@ describe('RegisterNewsSourceUseCase (feed repo wiring + batch)', () => {
     const repo = fakeRepo();
     const useCase = new RegisterNewsSourceUseCase(repo as any, listener);
     const payload = {
-      sources: [{ channelId: '-1001', title: 'News', type: 'crypto-news' as const }],
+      sources: [
+        { channelId: '-1001', title: 'News', type: 'crypto-news' as const },
+      ],
     };
     const first = await useCase.executeBatch(payload);
     const second = await useCase.executeBatch(payload);

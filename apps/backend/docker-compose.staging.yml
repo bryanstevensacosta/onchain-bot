@@ -26,12 +26,13 @@ services:
     image: postgres:16-alpine
     container_name: onchain-bot-postgres-staging
     restart: unless-stopped
+    # LIVE-DATA HOLD (rename-onchain-bot): POSTGRES_* fallbacks stay on the
+    # pre-rename names — deploy-staging.yml does NOT source .env.staging, so
+    # fallbacks are LIVE on the twin. Flip with ALTER DATABASE (runbook).
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-alpha_meta_token_scanner}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-alpha_meta_token_scanner}
       POSTGRES_DB: ${POSTGRES_DB:-alpha_meta_token_scanner_staging}
-    ports:
-      - '5433:5432'
     volumes:
       - onchain-bot-staging-pg-data:/var/lib/postgresql/data
     healthcheck:

@@ -24,66 +24,66 @@ Obtiene precios, market cap, volumen, metadata y métricas globales del mercado 
 
 ## Plan actual (Basic — gratuito)
 
-| Límite | Valor |
-|--------|-------|
-| Plan | **Basic** (gratuito, sin tarjeta) |
-| Créditos mensuales | **20,000** (hard cap, se resetea cada mes) |
-| Rate limit | **50 requests/minuto** (con API key) |
-| Endpoints habilitados | **29** (de ~60+ totales) |
-| Conversiones por request | 1 (solo USD) |
-| Datos históricos | Limitados |
-| OHLCV histórico | No |
-| Cache del lado servidor | 60 segundos (la mayoría de endpoints) |
+| Límite                   | Valor                                      |
+| ------------------------ | ------------------------------------------ |
+| Plan                     | **Basic** (gratuito, sin tarjeta)          |
+| Créditos mensuales       | **20,000** (hard cap, se resetea cada mes) |
+| Rate limit               | **50 requests/minuto** (con API key)       |
+| Endpoints habilitados    | **29** (de ~60+ totales)                   |
+| Conversiones por request | 1 (solo USD)                               |
+| Datos históricos         | Limitados                                  |
+| OHLCV histórico          | No                                         |
+| Cache del lado servidor  | 60 segundos (la mayoría de endpoints)      |
 
 > 💡 Con 20,000 créditos/mes y ~1 crédito por request promedio, puedes hacer ~20,000 requests/mes. Para uso intensivo, planes superiores ofrecen cientos de miles de créditos.
 
 ### Comparativa de planes
 
-| Feature | Basic ($0) | Startup ($79) | Builder ($199) | Enterprise (custom) |
-|---------|:----------:|:-------------:|:--------------:|:-------------------:|
-| Créditos/mes | 20,000 | 200,000 | 600,000 | Custom |
-| Rate limit/min | 50 | 100 | 500 | Custom |
-| Endpoints | 29 | 36 | 40 | Todos |
-| Conversiones/request | 1 (USD) | 10 | 50 | 120 |
-| Datos históricos | No | 30 días | 365 días | Full |
-| OHLCV histórico | No | No | Sí | Full |
-| Callbacks/Push | No | No | Sí | Sí |
-| Precio anual | — | $632 (-20%) | $1,599 (-20%) | Custom |
+| Feature              | Basic ($0) | Startup ($79) | Builder ($199) | Enterprise (custom) |
+| -------------------- | :--------: | :-----------: | :------------: | :-----------------: |
+| Créditos/mes         |   20,000   |    200,000    |    600,000     |       Custom        |
+| Rate limit/min       |     50     |      100      |      500       |       Custom        |
+| Endpoints            |     29     |      36       |       40       |        Todos        |
+| Conversiones/request |  1 (USD)   |      10       |       50       |         120         |
+| Datos históricos     |     No     |    30 días    |    365 días    |        Full         |
+| OHLCV histórico      |     No     |      No       |       Sí       |        Full         |
+| Callbacks/Push       |     No     |      No       |       Sí       |         Sí          |
+| Precio anual         |     —      |  $632 (-20%)  | $1,599 (-20%)  |       Custom        |
 
 ## Endpoints implementados en el servicio
 
-| Método service | Endpoint | Créditos | Descripción |
-|----------------|----------|:--------:|-------------|
-| `getQuotesLatest(symbol[])` | `GET /v3/cryptocurrency/quotes/latest` | 1/100 cryptos | Precios y market data de 1+ criptos |
-| `getInfo(symbol[])` | `GET /v2/cryptocurrency/info` | **0** | Metadata (logo, descripción, URLs) |
-| `getListingsLatest(limit)` | `GET /v1/cryptocurrency/listings/latest` | 1/200 cryptos | Listado rankeado por market cap |
-| `getMap()` | `GET /v1/cryptocurrency/map` | **0** | Mapping symbol/address → CMC ID |
-| `priceConversion(amount, symbol)` | `GET /v2/tools/price-conversion` | 1 | Conversión entre criptos/fiat |
-| `getGlobalMetrics()` | `GET /v1/global-metrics/quotes/latest` | 1 | Métricas globales del mercado |
+| Método service                    | Endpoint                                 |   Créditos    | Descripción                         |
+| --------------------------------- | ---------------------------------------- | :-----------: | ----------------------------------- |
+| `getQuotesLatest(symbol[])`       | `GET /v3/cryptocurrency/quotes/latest`   | 1/100 cryptos | Precios y market data de 1+ criptos |
+| `getInfo(symbol[])`               | `GET /v2/cryptocurrency/info`            |     **0**     | Metadata (logo, descripción, URLs)  |
+| `getListingsLatest(limit)`        | `GET /v1/cryptocurrency/listings/latest` | 1/200 cryptos | Listado rankeado por market cap     |
+| `getMap()`                        | `GET /v1/cryptocurrency/map`             |     **0**     | Mapping symbol/address → CMC ID     |
+| `priceConversion(amount, symbol)` | `GET /v2/tools/price-conversion`         |       1       | Conversión entre criptos/fiat       |
+| `getGlobalMetrics()`              | `GET /v1/global-metrics/quotes/latest`   |       1       | Métricas globales del mercado       |
 
 ### Response types (implementadas)
 
 ```typescript
 // CmcQuote — quote en USD de un token
 {
-  price: number;                        // Precio actual USD
-  volume_24h: number;                   // Volumen 24h USD
-  percent_change_1h: number;            // Cambio 1h %
-  percent_change_24h: number;           // Cambio 24h %
-  percent_change_7d: number;            // Cambio 7d %
-  market_cap: number;                   // Market cap USD
-  fully_diluted_market_cap: number;     // FDV USD
-  last_updated: string;                 // ISO timestamp
+  price: number; // Precio actual USD
+  volume_24h: number; // Volumen 24h USD
+  percent_change_1h: number; // Cambio 1h %
+  percent_change_24h: number; // Cambio 24h %
+  percent_change_7d: number; // Cambio 7d %
+  market_cap: number; // Market cap USD
+  fully_diluted_market_cap: number; // FDV USD
+  last_updated: string; // ISO timestamp
 }
 
 // CmcListing — entrada en listings
 {
   id: number;
-  name: string;                         // "Bitcoin"
-  symbol: string;                       // "BTC"
-  slug: string;                         // "bitcoin"
-  cmc_rank: number;                     // Ranking CMC
-  quote: Record<string, CmcQuote>;      // quotes por fiat
+  name: string; // "Bitcoin"
+  symbol: string; // "BTC"
+  slug: string; // "bitcoin"
+  cmc_rank: number; // Ranking CMC
+  quote: Record<string, CmcQuote>; // quotes por fiat
 }
 
 // CmcGlobalMetrics
@@ -100,118 +100,118 @@ Obtiene precios, market cap, volumen, metadata y métricas globales del mercado 
 
 ### Cryptocurrency API (19 endpoints, 14 en Basic)
 
-| # | Endpoint | Créditos | Plan | Descripción |
-|---|----------|:--------:|:----:|-------------|
-| 1 | `GET /v1/cryptocurrency/map` | **0** | Basic | Mapping de símbolos/addresses a CMC ID |
-| 2 | `GET /v3/cryptocurrency/listings/latest` | 1/200 | Basic | Listado rankeado de todas las criptos activas |
-| 3 | `GET /v1/cryptocurrency/listings/new` | — | Startup**+** | Criptos recién añadidas |
-| 4 | `GET /v1/cryptocurrency/listings/historical` | — | Basic**+** | Snapshot histórico diario del ranking |
-| 5 | `GET /v3/cryptocurrency/quotes/latest` | 1/100 | Basic | Precios y market data de 1+ criptos |
-| 6 | `GET /v3/cryptocurrency/quotes/historical` | Varía | Basic | Precios históricos |
-| 7 | `GET /v2/cryptocurrency/ohlcv/latest` | 1 | Basic | OHLCV (velas) del día actual |
-| 8 | `GET /v2/cryptocurrency/ohlcv/historical` | — | Builder | OHLCV histórico |
-| 9 | `GET /v2/cryptocurrency/market-pairs/latest` | 1 | Basic | Market pairs de un token |
-| 10 | `GET /v2/cryptocurrency/price-performance-stats/latest` | 1 | Basic | Estadísticas de rendimiento de precio |
-| 11 | `GET /v2/cryptocurrency/info` | **0** | Basic | Metadata (logo, descripción, URLs) |
-| 12 | `GET /v1/cryptocurrency/trending/latest` | 1 | Basic | Trending coins del momento |
-| 13 | `GET /v1/cryptocurrency/trending/gainers-losers` | 1 | Basic | Top gainers y losers |
-| 14 | `GET /v1/cryptocurrency/trending/most-visited` | 1 | Basic | Más visitados en CMC |
-| 15 | `GET /v1/simple/price` | 1 | Basic | Precio simple (ligero, 1+ criptos) |
-| 16 | `GET /v1/cryptocurrency/categories` | 1 | Basic | Todas las categorías con métricas |
-| 17 | `GET /v1/cryptocurrency/category` | 1 | Basic | Detalle de una categoría |
-| 18 | `GET /v1/cryptocurrency/airdrops` | 1 | Basic | Listado de airdrops activos |
-| 19 | `GET /v1/cryptocurrency/airdrop` | 1 | Basic | Detalle de un airdrop |
+| #   | Endpoint                                                | Créditos |     Plan     | Descripción                                   |
+| --- | ------------------------------------------------------- | :------: | :----------: | --------------------------------------------- |
+| 1   | `GET /v1/cryptocurrency/map`                            |  **0**   |    Basic     | Mapping de símbolos/addresses a CMC ID        |
+| 2   | `GET /v3/cryptocurrency/listings/latest`                |  1/200   |    Basic     | Listado rankeado de todas las criptos activas |
+| 3   | `GET /v1/cryptocurrency/listings/new`                   |    —     | Startup**+** | Criptos recién añadidas                       |
+| 4   | `GET /v1/cryptocurrency/listings/historical`            |    —     |  Basic**+**  | Snapshot histórico diario del ranking         |
+| 5   | `GET /v3/cryptocurrency/quotes/latest`                  |  1/100   |    Basic     | Precios y market data de 1+ criptos           |
+| 6   | `GET /v3/cryptocurrency/quotes/historical`              |  Varía   |    Basic     | Precios históricos                            |
+| 7   | `GET /v2/cryptocurrency/ohlcv/latest`                   |    1     |    Basic     | OHLCV (velas) del día actual                  |
+| 8   | `GET /v2/cryptocurrency/ohlcv/historical`               |    —     |   Builder    | OHLCV histórico                               |
+| 9   | `GET /v2/cryptocurrency/market-pairs/latest`            |    1     |    Basic     | Market pairs de un token                      |
+| 10  | `GET /v2/cryptocurrency/price-performance-stats/latest` |    1     |    Basic     | Estadísticas de rendimiento de precio         |
+| 11  | `GET /v2/cryptocurrency/info`                           |  **0**   |    Basic     | Metadata (logo, descripción, URLs)            |
+| 12  | `GET /v1/cryptocurrency/trending/latest`                |    1     |    Basic     | Trending coins del momento                    |
+| 13  | `GET /v1/cryptocurrency/trending/gainers-losers`        |    1     |    Basic     | Top gainers y losers                          |
+| 14  | `GET /v1/cryptocurrency/trending/most-visited`          |    1     |    Basic     | Más visitados en CMC                          |
+| 15  | `GET /v1/simple/price`                                  |    1     |    Basic     | Precio simple (ligero, 1+ criptos)            |
+| 16  | `GET /v1/cryptocurrency/categories`                     |    1     |    Basic     | Todas las categorías con métricas             |
+| 17  | `GET /v1/cryptocurrency/category`                       |    1     |    Basic     | Detalle de una categoría                      |
+| 18  | `GET /v1/cryptocurrency/airdrops`                       |    1     |    Basic     | Listado de airdrops activos                   |
+| 19  | `GET /v1/cryptocurrency/airdrop`                        |    1     |    Basic     | Detalle de un airdrop                         |
 
 ### Exchange API (7 endpoints, ninguno en Basic)
 
-| # | Endpoint | Plan mínimo | Descripción |
-|---|----------|:-----------:|-------------|
-| 1 | `GET /v1/exchange/map` | Startup | Mapa de exchanges |
-| 2 | `GET /v1/exchange/info` | Startup | Metadata de exchanges |
-| 3 | `GET /v1/exchange/listings/latest` | Startup | Exchanges rankeados por volumen |
-| 4 | `GET /v1/exchange/market-pairs/latest` | Startup | Market pairs de un exchange |
-| 5 | `GET /v1/exchange/quotes/latest` | Startup | Quotes de exchange |
-| 6 | `GET /v1/exchange/quotes/historical` | Startup | Quotes históricas |
-| 7 | `GET /v1/exchange/assets` | Startup | Proof-of-reserves |
+| #   | Endpoint                               | Plan mínimo | Descripción                     |
+| --- | -------------------------------------- | :---------: | ------------------------------- |
+| 1   | `GET /v1/exchange/map`                 |   Startup   | Mapa de exchanges               |
+| 2   | `GET /v1/exchange/info`                |   Startup   | Metadata de exchanges           |
+| 3   | `GET /v1/exchange/listings/latest`     |   Startup   | Exchanges rankeados por volumen |
+| 4   | `GET /v1/exchange/market-pairs/latest` |   Startup   | Market pairs de un exchange     |
+| 5   | `GET /v1/exchange/quotes/latest`       |   Startup   | Quotes de exchange              |
+| 6   | `GET /v1/exchange/quotes/historical`   |   Startup   | Quotes históricas               |
+| 7   | `GET /v1/exchange/assets`              |   Startup   | Proof-of-reserves               |
 
 ### Global Metrics API (6 endpoints, todos en Basic)
 
-| # | Endpoint | Créditos | Plan | Descripción |
-|---|----------|:--------:|:----:|-------------|
-| 1 | `GET /v1/global-metrics/quotes/latest` | 1 | Basic | Global market metrics |
-| 2 | `GET /v1/global-metrics/quotes/historical` | Varía | Basic | Global metrics históricas |
-| 3 | `GET /v1/global-metrics/fear-and-greed/latest` | 1 | Basic | Fear & Greed Index |
-| 4 | `GET /v1/global-metrics/fear-and-greed/historical` | Varía | Basic | Fear & Greed histórico |
-| 5 | `GET /v1/global-metrics/altcoin-season-index/latest` | 1 | Basic | Altcoin Season Index |
-| 6 | `GET /v1/global-metrics/altcoin-season-index/historical` | Varía | Basic | Altcoin Season Index histórico |
+| #   | Endpoint                                                 | Créditos | Plan  | Descripción                    |
+| --- | -------------------------------------------------------- | :------: | :---: | ------------------------------ |
+| 1   | `GET /v1/global-metrics/quotes/latest`                   |    1     | Basic | Global market metrics          |
+| 2   | `GET /v1/global-metrics/quotes/historical`               |  Varía   | Basic | Global metrics históricas      |
+| 3   | `GET /v1/global-metrics/fear-and-greed/latest`           |    1     | Basic | Fear & Greed Index             |
+| 4   | `GET /v1/global-metrics/fear-and-greed/historical`       |  Varía   | Basic | Fear & Greed histórico         |
+| 5   | `GET /v1/global-metrics/altcoin-season-index/latest`     |    1     | Basic | Altcoin Season Index           |
+| 6   | `GET /v1/global-metrics/altcoin-season-index/historical` |  Varía   | Basic | Altcoin Season Index histórico |
 
 ### Tools / Utilities API (4 endpoints)
 
-| # | Endpoint | Créditos | Plan | Descripción |
-|---|----------|:--------:|:----:|-------------|
-| 1 | `GET /v1/fiat/map` | 1 | Basic | Mapa de fiat currencies |
-| 2 | `GET /v1/key/info` | 1 | Basic | Info del API key (plan, usage) |
-| 3 | `GET /v2/tools/price-conversion` | 1 | Basic | Conversión entre criptos/fiat |
-| 4 | `GET /v1/tools/postman` | 0 | Basic | Postman collection |
+| #   | Endpoint                         | Créditos | Plan  | Descripción                    |
+| --- | -------------------------------- | :------: | :---: | ------------------------------ |
+| 1   | `GET /v1/fiat/map`               |    1     | Basic | Mapa de fiat currencies        |
+| 2   | `GET /v1/key/info`               |    1     | Basic | Info del API key (plan, usage) |
+| 3   | `GET /v2/tools/price-conversion` |    1     | Basic | Conversión entre criptos/fiat  |
+| 4   | `GET /v1/tools/postman`          |    0     | Basic | Postman collection             |
 
 ### Content API (4 endpoints, disponibles en Basic)
 
-| # | Endpoint | Créditos | Plan | Descripción |
-|---|----------|:--------:|:----:|-------------|
-| 1 | `GET /v1/content/latest` | 1 | Basic | Últimas noticias/headlines |
-| 2 | `GET /v1/content/top-posts` | 1 | Basic | Top posts de CMC Community |
-| 3 | `GET /v1/content/comments` | 1 | Basic | Comentarios |
-| 4 | `GET /v1/content/news` | 1 | Basic | News feed |
+| #   | Endpoint                    | Créditos | Plan  | Descripción                |
+| --- | --------------------------- | :------: | :---: | -------------------------- |
+| 1   | `GET /v1/content/latest`    |    1     | Basic | Últimas noticias/headlines |
+| 2   | `GET /v1/content/top-posts` |    1     | Basic | Top posts de CMC Community |
+| 3   | `GET /v1/content/comments`  |    1     | Basic | Comentarios                |
+| 4   | `GET /v1/content/news`      |    1     | Basic | News feed                  |
 
 ### Community API (2 endpoints, ambos en Basic)
 
-| # | Endpoint | Créditos | Plan | Descripción |
-|---|----------|:--------:|:----:|-------------|
-| 1 | `GET /v1/community/trending/topics` | 1 | Basic | Trending topics |
-| 2 | `GET /v1/community/trending/tokens` | 1 | Basic | Trending tokens en comunidad |
+| #   | Endpoint                            | Créditos | Plan  | Descripción                  |
+| --- | ----------------------------------- | :------: | :---: | ---------------------------- |
+| 1   | `GET /v1/community/trending/topics` |    1     | Basic | Trending topics              |
+| 2   | `GET /v1/community/trending/tokens` |    1     | Basic | Trending tokens en comunidad |
 
 ### CMC Index API (4 endpoints, todos en Basic)
 
-| # | Endpoint | Créditos | Plan | Descripción |
-|---|----------|:--------:|:----:|-------------|
-| 1 | `GET /v1/index/cmc100/latest` | 1 | Basic | CMC 100 Index |
-| 2 | `GET /v1/index/cmc100/historical` | 1 | Basic | CMC 100 histórico |
-| 3 | `GET /v1/index/cmc20/latest` | 1 | Basic | CMC 20 Index |
-| 4 | `GET /v1/index/cmc20/historical` | 1 | Basic | CMC 20 histórico |
+| #   | Endpoint                          | Créditos | Plan  | Descripción       |
+| --- | --------------------------------- | :------: | :---: | ----------------- |
+| 1   | `GET /v1/index/cmc100/latest`     |    1     | Basic | CMC 100 Index     |
+| 2   | `GET /v1/index/cmc100/historical` |    1     | Basic | CMC 100 histórico |
+| 3   | `GET /v1/index/cmc20/latest`      |    1     | Basic | CMC 20 Index      |
+| 4   | `GET /v1/index/cmc20/historical`  |    1     | Basic | CMC 20 histórico  |
 
 ### DEX Data API — Token (16 endpoints, 6 en Basic)
 
-| # | Endpoint | Créditos | Plan | Descripción |
-|---|----------|:--------:|:----:|-------------|
-| 1 | `GET /v1/dex/token/lookup` | 1 | Basic | DEX token lookup |
-| 2 | `GET /v1/dex/token/prices/latest` | 1 | Basic | DEX token prices |
-| 3 | `GET /v1/dex/token/pairs/latest` | 1 | Basic | DEX token pairs |
-| 4 | `GET /v1/dex/token/orders/latest` | 1 | Basic | DEX token orders |
-| 5 | `GET /v1/dex/token/transactions/latest` | 1 | Basic | DEX token transactions |
-| 6 | `GET /v1/dex/token/trending/latest` | 1 | Basic | DEX trending tokens |
-| 7 | `GET /v1/dex/token/security` | — | Startup+ | DEX token security |
-| 8+ | Resto endpoints DEX | — | Builder+ | — |
+| #   | Endpoint                                | Créditos |   Plan   | Descripción            |
+| --- | --------------------------------------- | :------: | :------: | ---------------------- |
+| 1   | `GET /v1/dex/token/lookup`              |    1     |  Basic   | DEX token lookup       |
+| 2   | `GET /v1/dex/token/prices/latest`       |    1     |  Basic   | DEX token prices       |
+| 3   | `GET /v1/dex/token/pairs/latest`        |    1     |  Basic   | DEX token pairs        |
+| 4   | `GET /v1/dex/token/orders/latest`       |    1     |  Basic   | DEX token orders       |
+| 5   | `GET /v1/dex/token/transactions/latest` |    1     |  Basic   | DEX token transactions |
+| 6   | `GET /v1/dex/token/trending/latest`     |    1     |  Basic   | DEX trending tokens    |
+| 7   | `GET /v1/dex/token/security`            |    —     | Startup+ | DEX token security     |
+| 8+  | Resto endpoints DEX                     |    —     | Builder+ | —                      |
 
 ### Derivatives API (3 endpoints, ninguno en Basic)
 
-| # | Endpoint | Plan mínimo | Descripción |
-|---|----------|:-----------:|-------------|
-| 1 | `GET /v1/derivatives/exchange/listings/latest` | Startup | Derivatives exchange listings |
-| 2 | `GET /v1/derivatives/exchange/quotes/latest` | Startup | Derivatives quotes |
-| 3 | `GET /v1/derivatives/exchange/quotes/historical` | Startup | Derivatives historical |
+| #   | Endpoint                                         | Plan mínimo | Descripción                   |
+| --- | ------------------------------------------------ | :---------: | ----------------------------- |
+| 1   | `GET /v1/derivatives/exchange/listings/latest`   |   Startup   | Derivatives exchange listings |
+| 2   | `GET /v1/derivatives/exchange/quotes/latest`     |   Startup   | Derivatives quotes            |
+| 3   | `GET /v1/derivatives/exchange/quotes/historical` |   Startup   | Derivatives historical        |
 
 ## Cuánto dura 20,000 créditos?
 
-| Endpoint | Créditos | Requests posibles | Escenario |
-|----------|:--------:|:-----------------:|-----------|
-| `/v2/cryptocurrency/info` | **0** | ∞ (50 req/min) | Metadata de cualquier token |
-| `/v1/cryptocurrency/map` | **0** | ∞ (50 req/min) | Mapping symbo→ID |
-| `/v3/cryptocurrency/quotes/latest` | 1/100 | ~20,000 | Quotes de 100 tokens cada vez |
-| `/v1/cryptocurrency/listings/latest` | 1/200 | ~20,000 | Listados de 200 tokens |
-| `/v1/global-metrics/quotes/latest` | 1 | ~20,000 | Métricas globales |
-| `/v2/tools/price-conversion` | 1 | ~20,000 | Conversiones |
-| `/v1/cryptocurrency/trending/latest` | 1 | ~20,000 | Trending |
-| Mix típico del pipeline | ~3 | ~6,666 | Enriquecimientos completos |
+| Endpoint                             | Créditos | Requests posibles | Escenario                     |
+| ------------------------------------ | :------: | :---------------: | ----------------------------- |
+| `/v2/cryptocurrency/info`            |  **0**   |  ∞ (50 req/min)   | Metadata de cualquier token   |
+| `/v1/cryptocurrency/map`             |  **0**   |  ∞ (50 req/min)   | Mapping symbo→ID              |
+| `/v3/cryptocurrency/quotes/latest`   |  1/100   |      ~20,000      | Quotes de 100 tokens cada vez |
+| `/v1/cryptocurrency/listings/latest` |  1/200   |      ~20,000      | Listados de 200 tokens        |
+| `/v1/global-metrics/quotes/latest`   |    1     |      ~20,000      | Métricas globales             |
+| `/v2/tools/price-conversion`         |    1     |      ~20,000      | Conversiones                  |
+| `/v1/cryptocurrency/trending/latest` |    1     |      ~20,000      | Trending                      |
+| Mix típico del pipeline              |    ~3    |      ~6,666       | Enriquecimientos completos    |
 
 ### Estrategia para maximizar créditos
 
@@ -250,6 +250,7 @@ curl -s --request GET \
 ## Chains soportadas
 
 CoinMarketCap es **chain-agnostic** — opera a nivel de activo/criptomoneda, no de chain individual. Cada token tiene un campo `platform` que indica su chain nativa:
+
 - `platform.name`: "Ethereum", "BNB Smart Chain", "Solana", etc.
 - `platform.symbol`: "ETH", "BNB", "SOL", etc.
 - `platform.token_address`: dirección del contrato en esa chain
@@ -258,11 +259,11 @@ Esto permite buscar tokens por address en lugar de symbol: `/v1/cryptocurrency/m
 
 ## Rate limits
 
-| Límite | Basic (key) | Basic (keyless) | Startup | Builder | Enterprise |
-|--------|:-----------:|:---------------:|:-------:|:-------:|:----------:|
-| Requests/min | 50 | 30 | 100 | 500 | Custom |
-| Créditos/mes | 20,000 | 10,000 | 200,000 | 600,000 | Custom |
-| Conversiones | 1 (USD) | 1 (USD) | 10 | 50 | 120 |
+| Límite       | Basic (key) | Basic (keyless) | Startup | Builder | Enterprise |
+| ------------ | :---------: | :-------------: | :-----: | :-----: | :--------: |
+| Requests/min |     50      |       30        |   100   |   500   |   Custom   |
+| Créditos/mes |   20,000    |     10,000      | 200,000 | 600,000 |   Custom   |
+| Conversiones |   1 (USD)   |     1 (USD)     |   10    |   50    |    120     |
 
 ### Headers de rate limit en response
 
@@ -287,35 +288,35 @@ X-CMC_PRO_CREDITS_RESET: 2025-06-01T00:00:00Z
 
 ### Cálculo de créditos por operación del pipeline
 
-| Operación | Endpoints | Créditos |
-|-----------|-----------|:--------:|
-| Enriquecimiento simple | quotes (1) + info (0) | **1 crédito** |
-| Enriquecimiento completo | quotes (1) + info (0) + listings (1) | **2 créditos** |
-| Global metrics | global-metrics (1) | **1 crédito** |
-| Price conversion | price-conversion (1) | **1 crédito** |
-| Trending check | trending (1) | **1 crédito** |
-| Batch de 100 tokens | quotes con 100 symbols (1) | **1 crédito** |
+| Operación                     | Endpoints                                             |    Créditos    |
+| ----------------------------- | ----------------------------------------------------- | :------------: |
+| Enriquecimiento simple        | quotes (1) + info (0)                                 | **1 crédito**  |
+| Enriquecimiento completo      | quotes (1) + info (0) + listings (1)                  | **2 créditos** |
+| Global metrics                | global-metrics (1)                                    | **1 crédito**  |
+| Price conversion              | price-conversion (1)                                  | **1 crédito**  |
+| Trending check                | trending (1)                                          | **1 crédito**  |
+| Batch de 100 tokens           | quotes con 100 symbols (1)                            | **1 crédito**  |
 | Análisis completo del mercado | quotes (1) + global (1) + listings (1) + trending (1) | **4 créditos** |
 
 ## Manejo de errores
 
 ### Tabla de códigos de error CMC
 
-| HTTP | error_code | Significado | Acción |
-|------|:----------:|-------------|--------|
-| 400 | — | Parámetros inválidos | Revisar payload y tipos |
-| 401 | 1001 | API key inválida | Verificar API key |
-| 401 | 1002 | API key faltante | Agregar header |
-| 403 | 1003 | Plan no activo (payment required) | Revisar suscripción |
-| 403 | 1004 | Plan cancelado | Renovar suscripción |
-| 403 | 1005 | IP no whitelisted | Configurar IP whitelist |
-| 403 | 1006 | Endpoint no disponible en tu plan | Ver plan mínimo del endpoint |
-| 429 | 1007 | Sin créditos disponibles | Esperar al próximo mes o upgradear |
-| 429 | 1008 | Rate limit por minuto excedido | Esperar 1 minuto (50 req/min) |
-| 429 | 1009 | Rate limit diario excedido | Esperar al próximo día |
-| 429 | 1010 | Rate limit mensual excedido | Esperar al próximo mes |
-| 429 | 1011 | Rate limit por segundo excedido | Limitar concurrencia |
-| 500 | — | Error interno del servidor | Retry después de 1s |
+| HTTP | error_code | Significado                       | Acción                             |
+| ---- | :--------: | --------------------------------- | ---------------------------------- |
+| 400  |     —      | Parámetros inválidos              | Revisar payload y tipos            |
+| 401  |    1001    | API key inválida                  | Verificar API key                  |
+| 401  |    1002    | API key faltante                  | Agregar header                     |
+| 403  |    1003    | Plan no activo (payment required) | Revisar suscripción                |
+| 403  |    1004    | Plan cancelado                    | Renovar suscripción                |
+| 403  |    1005    | IP no whitelisted                 | Configurar IP whitelist            |
+| 403  |    1006    | Endpoint no disponible en tu plan | Ver plan mínimo del endpoint       |
+| 429  |    1007    | Sin créditos disponibles          | Esperar al próximo mes o upgradear |
+| 429  |    1008    | Rate limit por minuto excedido    | Esperar 1 minuto (50 req/min)      |
+| 429  |    1009    | Rate limit diario excedido        | Esperar al próximo día             |
+| 429  |    1010    | Rate limit mensual excedido       | Esperar al próximo mes             |
+| 429  |    1011    | Rate limit por segundo excedido   | Limitar concurrencia               |
+| 500  |     —      | Error interno del servidor        | Retry después de 1s                |
 
 ### Estrategia de retry recomendada
 
@@ -332,7 +333,9 @@ async function cmcFetch<T>(
         timeout: 8_000,
       });
       if (data.status?.error_code && data.status.error_code !== 0) {
-        console.error(`CMC error [${data.status.error_code}]: ${data.status.error_message}`);
+        console.error(
+          `CMC error [${data.status.error_code}]: ${data.status.error_message}`,
+        );
         return null;
       }
       return data.data;
@@ -342,7 +345,7 @@ async function cmcFetch<T>(
         const status = err.response?.status;
         if (status === 429 || status === 500 || status === 503) {
           const delay = 1000 * Math.pow(2, attempt);
-          await new Promise(r => setTimeout(r, delay));
+          await new Promise((r) => setTimeout(r, delay));
           continue;
         }
       }
@@ -363,30 +366,30 @@ Los datos de la mayoría de endpoints se refrescan cada **60 segundos** del lado
 
 ## Métodos sugeridos para agregar al servicio
 
-| Método service sugerido | Endpoint | Créditos | Para qué sirve |
-|-------------------------|----------|:--------:|----------------|
-| `getTrendingLatest()` | `GET /v1/cryptocurrency/trending/latest` | 1 | Tokens trending del momento |
-| `getGainersLosers()` | `GET /v1/cryptocurrency/trending/gainers-losers` | 1 | Top gainers/losers 24h |
-| `getMostVisited()` | `GET /v1/cryptocurrency/trending/most-visited` | 1 | Más visitados en CMC |
-| `getFiatMap()` | `GET /v1/fiat/map` | 1 | Mapa de fiat currencies |
-| `getOHLCV(symbol)` | `GET /v2/cryptocurrency/ohlcv/latest` | 1 | OHLCV diario de un token |
-| `getMarketPairs(symbol)` | `GET /v2/cryptocurrency/market-pairs/latest` | 1 | Market pairs de un token |
-| `getPriceStats(symbol)` | `GET /v2/cryptocurrency/price-performance-stats/latest` | 1 | Estadísticas de precio |
-| `getSimplePrice(symbol)` | `GET /v1/simple/price` | 1 | Precio simple (sin metadata extra) |
-| `getKeyInfo()` | `GET /v1/key/info` | 1 | Info del API key (plan, créditos, usage) |
-| `getFearAndGreed()` | `GET /v1/global-metrics/fear-and-greed/latest` | 1 | Fear & Greed Index |
-| `getCategories()` | `GET /v1/cryptocurrency/categories` | 1 | Categorías de tokens |
-| `getAirdrops()` | `GET /v1/cryptocurrency/airdrops` | 1 | Airdrops activos |
-| `getCommunityTrending()` | `GET /v1/community/trending/tokens` | 1 | Trending en comunidad |
-| `getDexPrices(address)` | `GET /v1/dex/token/prices/latest` | 1 | Precios DEX de un token |
-| `searchDexPairs(address)` | `GET /v1/dex/token/pairs/latest` | 1 | Pairs DEX de un token |
+| Método service sugerido   | Endpoint                                                | Créditos | Para qué sirve                           |
+| ------------------------- | ------------------------------------------------------- | :------: | ---------------------------------------- |
+| `getTrendingLatest()`     | `GET /v1/cryptocurrency/trending/latest`                |    1     | Tokens trending del momento              |
+| `getGainersLosers()`      | `GET /v1/cryptocurrency/trending/gainers-losers`        |    1     | Top gainers/losers 24h                   |
+| `getMostVisited()`        | `GET /v1/cryptocurrency/trending/most-visited`          |    1     | Más visitados en CMC                     |
+| `getFiatMap()`            | `GET /v1/fiat/map`                                      |    1     | Mapa de fiat currencies                  |
+| `getOHLCV(symbol)`        | `GET /v2/cryptocurrency/ohlcv/latest`                   |    1     | OHLCV diario de un token                 |
+| `getMarketPairs(symbol)`  | `GET /v2/cryptocurrency/market-pairs/latest`            |    1     | Market pairs de un token                 |
+| `getPriceStats(symbol)`   | `GET /v2/cryptocurrency/price-performance-stats/latest` |    1     | Estadísticas de precio                   |
+| `getSimplePrice(symbol)`  | `GET /v1/simple/price`                                  |    1     | Precio simple (sin metadata extra)       |
+| `getKeyInfo()`            | `GET /v1/key/info`                                      |    1     | Info del API key (plan, créditos, usage) |
+| `getFearAndGreed()`       | `GET /v1/global-metrics/fear-and-greed/latest`          |    1     | Fear & Greed Index                       |
+| `getCategories()`         | `GET /v1/cryptocurrency/categories`                     |    1     | Categorías de tokens                     |
+| `getAirdrops()`           | `GET /v1/cryptocurrency/airdrops`                       |    1     | Airdrops activos                         |
+| `getCommunityTrending()`  | `GET /v1/community/trending/tokens`                     |    1     | Trending en comunidad                    |
+| `getDexPrices(address)`   | `GET /v1/dex/token/prices/latest`                       |    1     | Precios DEX de un token                  |
+| `searchDexPairs(address)` | `GET /v1/dex/token/pairs/latest`                        |    1     | Pairs DEX de un token                    |
 
 ## Ejemplos de uso
 
 ### Uso básico del service
 
 ```typescript
-import { CoinMarketCapService } from 'data-provider/coinmarketcap';
+import { CoinMarketCapService } from 'apps/market-data/src/provider/infrastructure/coinmarketcap';
 
 // El servicio se inyecta automáticamente (DataProviderModule es @Global)
 
@@ -443,7 +446,7 @@ const map = await cmcService.getMap();
 if (map) {
   console.log(`Total cryptocurrencies tracked: ${map.length}`);
   // Útil para obtener CMC IDs y usarlos en quotes
-  const solana = map.find(c => c.symbol === 'SOL');
+  const solana = map.find((c) => c.symbol === 'SOL');
   console.log(`SOL CMC ID: ${solana?.id}`);
 }
 ```
@@ -457,12 +460,12 @@ if (map) {
 async function enrichWithCMC(symbol: string) {
   // 1. Metadata (0 créditos)
   const info = await cmcService.getInfo(symbol);
-  
+
   // 2. Quote actual (1 crédito — 100 symbols por request)
   const quote = await cmcService.getQuotesLatest(symbol);
-  
+
   if (!quote || !quote[symbol]) return null;
-  
+
   const q = quote[symbol].quote['USD'];
   return {
     name: info?.[symbol]?.name,
@@ -552,14 +555,14 @@ async function checkCredits(apiKey: string): Promise<{
 
 CMC tiene versiones mixtas de endpoints:
 
-| Versión | Endpoint | Diferencia |
-|---------|----------|------------|
-| `/v1/cryptocurrency/listings/latest` | Listings v1 | Retorna array plano |
-| `/v3/cryptocurrency/listings/latest` | Listings v3 | Misma data, estructura más rica |
-| `/v1/cryptocurrency/quotes/latest` | Quotes v1 (deprecated) | Retorna objeto por ID |
-| `/v3/cryptocurrency/quotes/latest` | Quotes v3 | Retorna objeto por symbol |
-| `/v1/cryptocurrency/info` | Info v1 | Metadata básica |
-| `/v2/cryptocurrency/info` | Info v2 | Metadata extendida |
+| Versión                              | Endpoint               | Diferencia                      |
+| ------------------------------------ | ---------------------- | ------------------------------- |
+| `/v1/cryptocurrency/listings/latest` | Listings v1            | Retorna array plano             |
+| `/v3/cryptocurrency/listings/latest` | Listings v3            | Misma data, estructura más rica |
+| `/v1/cryptocurrency/quotes/latest`   | Quotes v1 (deprecated) | Retorna objeto por ID           |
+| `/v3/cryptocurrency/quotes/latest`   | Quotes v3              | Retorna objeto por symbol       |
+| `/v1/cryptocurrency/info`            | Info v1                | Metadata básica                 |
+| `/v2/cryptocurrency/info`            | Info v2                | Metadata extendida              |
 
 En el service actual usamos las versiones recomendadas (v3 para quotes, v2 para info).
 

@@ -1,3 +1,8 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/threads/ (Tramo 2, todo 8 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add threads logic in apps/feed-publisher/src/threads/ instead.
+ */
 import { Injectable } from '@nestjs/common';
 import { ThreadsPromptTemplate } from 'threads/publisher/domain/entities/threads-prompt-template.entity';
 import { ThreadsPromptTemplateRepository } from 'threads/publisher/application/ports/threads-prompt-template.repository';
@@ -71,9 +76,7 @@ export class InMemoryThreadsPromptTemplateRepository extends ThreadsPromptTempla
     return [...this.rows.values()];
   }
 
-  public async findById(
-    id: string,
-  ): Promise<ThreadsPromptTemplate | null> {
+  public async findById(id: string): Promise<ThreadsPromptTemplate | null> {
     return this.rows.get(id) ?? null;
   }
 
@@ -82,9 +85,7 @@ export class InMemoryThreadsPromptTemplateRepository extends ThreadsPromptTempla
   ): Promise<ReadonlyArray<ThreadsPromptTemplate>> {
     return ids
       .map((id) => this.rows.get(id) ?? null)
-      .filter(
-        (row): row is ThreadsPromptTemplate => row !== null,
-      );
+      .filter((row): row is ThreadsPromptTemplate => row !== null);
   }
 
   public async save(

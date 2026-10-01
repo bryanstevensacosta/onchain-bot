@@ -1,3 +1,8 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/threads/ (Tramo 2, todo 8 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add threads logic in apps/feed-publisher/src/threads/ instead.
+ */
 import { AggregateRoot } from 'shared/kernel/aggregate-root';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
 import type { DomainEvent } from 'shared/kernel/domain-event';
@@ -183,9 +188,7 @@ export class ThreadsQueueEntry extends AggregateRoot<string> {
    * Rehydrate from persistence without validation (use the persisted
    * shape as-is).
    */
-  public static reconstitute(
-    props: ThreadsQueueEntryProps,
-  ): ThreadsQueueEntry {
+  public static reconstitute(props: ThreadsQueueEntryProps): ThreadsQueueEntry {
     return new ThreadsQueueEntry(props.id, props);
   }
 

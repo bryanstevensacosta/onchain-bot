@@ -6,24 +6,25 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NewMessage } from 'telegram/events';
+import type { TelegramClient } from 'telegram';
 import type {
   TelegramRawMessage,
   TelegramMediaAttachment,
   ResolvedChannelMetadata,
   TelegramListenerPort,
   JoinChannelResult,
-} from '../../ports/telegram-listener.port';
-import { TelegramClientManager } from '../../infrastructure/services/telegram-client-manager.service';
-import { LastSeenManager } from '../../infrastructure/services/last-seen-manager.service';
-import { MessageQueue } from '../../infrastructure/services/message-queue';
-import { TelegramPeerResolver } from '../../infrastructure/services/telegram-peer-resolver';
-import { FloodWaitHandlerService } from '../../infrastructure/services/flood-wait-handler.service';
+} from '@/core/ports/telegram-listener.port';
+import { TelegramClientManager } from '@/core/infrastructure/services/telegram-client-manager.service';
+import { LastSeenManager } from '@/core/infrastructure/services/last-seen-manager.service';
+import { MessageQueue } from '@/core/infrastructure/services/message-queue';
+import { TelegramPeerResolver } from '@/core/infrastructure/services/telegram-peer-resolver';
+import { FloodWaitHandlerService } from '@/core/infrastructure/services/flood-wait-handler.service';
 import { TelegramFeedSourceRepository } from 'registry/infrastructure/persistence/typeorm/repositories/typeorm-feed-source.repository';
-import { IngestionSafetyConfig } from '../../infrastructure/config/ingestion-safety.config';
-import { SleepWindowService } from '../../infrastructure/services/sleep-window.service';
+import { IngestionSafetyConfig } from '@/core/infrastructure/config/ingestion-safety.config';
+import { SleepWindowService } from '@/core/infrastructure/services/sleep-window.service';
 import { Api } from 'telegram';
-import { CryptoNewsMessageTransformer } from 'shared/telegram/transformation';
-import { TelegramMediaExtractorService } from '../../application/services/telegram-media-extractor.service';
+import { FeedMessageTransformer } from 'shared/transformation';
+import { TelegramMediaExtractorService } from '@/core/application/services/telegram-media-extractor.service';
 
 /**
  * Normalize a jitter setting to a [0, 1] fraction.
@@ -81,6 +82,22 @@ export function capPolledChannels(
 }
 
 /**
+ * Normalize a Telegram channel id for realtime-vs-subscription matching.
+ *
+ * GramJS `chat.id` is the BARE MTProto id ('1358788312') while
+ * subscribedChannelIds holds '-100…' forms ('-1001358788312'), so a raw
+ * `includes()` never matches and every realtime event is dropped. Strip the
+ * '-100' channel prefix (and a leading '@', mirroring LastSeenManager) on
+ * both sides before comparing. Exact on the remaining digits — different
+ * channels never match.
+ */
+export function normalizeChannelIdForMatch(id: string): string {
+  let normalized = id.startsWith('@') ? id.slice(1) : id;
+  if (normalized.startsWith('-100')) normalized = normalized.slice(4);
+  return normalized;
+}
+
+/**
  * TelegramMtprotoListenerAdapter - MTProto adapter for ingestion-telegram
  *
  * Simplified from backend version:
@@ -104,10 +121,11 @@ export class TelegramMtprotoListenerAdapter
   private readonly messageQueue = new MessageQueue<TelegramRawMessage>();
   private readonly peerResolver = new TelegramPeerResolver();
   private running = false;
-  private loggedCryptoNewsChannels = false;
-  private cryptoNewsChannelCache = new Set<string>();
+  private loggedFeedChannels = false;
+  private feedChannelCache = new Set<string>();
   private cacheRefreshInterval: NodeJS.Timeout | null = null;
   private sleepNotified = false;
+  private listenerDisabled = false;
 
   constructor(
     private readonly config: ConfigService,
@@ -115,28 +133,46 @@ export class TelegramMtprotoListenerAdapter
     private readonly lastSeenManager: LastSeenManager,
     private readonly floodWaitHandler: FloodWaitHandlerService,
     private readonly feedSourceRepo: TelegramFeedSourceRepository,
-    private readonly messageTransformer: CryptoNewsMessageTransformer, // Phase 5: Shared transformation
+    private readonly messageTransformer: FeedMessageTransformer, // Phase 5: Shared transformation
     private readonly mediaExtractor: TelegramMediaExtractorService, // Phase 5.2: Extracted media download
     private readonly safety: IngestionSafetyConfig,
     private readonly sleepWindow: SleepWindowService,
   ) {}
 
   async onModuleInit(): Promise<void> {
-    // Load active crypto-news channels from DB on startup
+    // Load active feed channels from DB on startup
     // This runs regardless of MTProto credentials
-    await this.refreshCryptoNewsChannelCache();
+    await this.refreshFeedChannelCache();
 
     // Refresh cache every 5 minutes
     this.cacheRefreshInterval = setInterval(
       () => {
-        void this.refreshCryptoNewsChannelCache();
+        void this.refreshFeedChannelCache();
       },
       5 * 60 * 1000,
     );
 
     const cfg = this.config.get('app');
     if (!cfg?.telegram?.apiId || !cfg?.telegram?.apiHash) return;
-    await this.clientManager.markAuthorizedIfTrue();
+    // Fail-soft: an invalid/failed MTProto session must never crash the app
+    // (Nest aborts bootstrap when onModuleInit throws). Log + continue with
+    // the listener disabled — HTTP API + SSE stay live, /api/health degrades.
+    try {
+      await this.clientManager.markAuthorizedIfTrue();
+    } catch (err) {
+      this.listenerDisabled = true;
+      this.logger.error(
+        `MTProto listener disabled — HTTP+SSE continue without Telegram: ${(err as Error)?.message ?? String(err)}`,
+      );
+    }
+  }
+
+  /**
+   * Fail-soft probe: true when listener init failed and Telegram ingestion
+   * is off while HTTP API + SSE stay live.
+   */
+  isListenerDisabled(): boolean {
+    return this.listenerDisabled;
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -151,7 +187,20 @@ export class TelegramMtprotoListenerAdapter
       throw new Error('Telegram listener already running');
     }
 
-    const client = this.clientManager.ensureClient();
+    // Fail-soft: an invalid session string throws synchronously out of
+    // ensureClient ('Not a valid string') — idle instead of crashing the
+    // background listener task. Real triples are unaffected.
+    let client: TelegramClient;
+    try {
+      client = this.clientManager.ensureClient();
+    } catch (err) {
+      this.logger.warn(
+        `Telegram session invalid — listener will idle: ${(err as Error)?.message ?? String(err)}`,
+      );
+      this.subscribedChannelIds = [...channelIds];
+      this.running = true;
+      return;
+    }
     let authorized = false;
 
     this.logger.log('Checking MTProto authorization...');
@@ -227,19 +276,26 @@ export class TelegramMtprotoListenerAdapter
       if (!msg) return;
 
       const chat = await msg.getChat?.();
-      const channelId = chat ? String(chat.id) : '';
+      const rawChannelId = chat ? String(chat.id) : '';
 
-      if (!channelId || !this.subscribedChannelIds.includes(channelId)) return;
+      const matchedChannelId = rawChannelId
+        ? this.subscribedChannelIds.find(
+            (id) =>
+              normalizeChannelIdForMatch(id) ===
+              normalizeChannelIdForMatch(rawChannelId),
+          )
+        : undefined;
+      if (!matchedChannelId) return;
 
       // Update last seen
-      this.lastSeenManager.set(channelId, msg.id);
+      this.lastSeenManager.set(matchedChannelId, msg.id);
 
       // Transform and enqueue message (now async for media download)
-      const transformed = await this.transformMessage(channelId, msg);
+      const transformed = await this.transformMessage(matchedChannelId, msg);
       this.messageQueue.push(transformed);
 
       this.logger.debug(
-        `Enqueued message ${channelId}:${msg.id} (${this.messageQueue.length} in queue)`,
+        `Enqueued message ${matchedChannelId}:${msg.id} (${this.messageQueue.length} in queue)`,
       );
     } catch (err) {
       this.logger.error('Error processing Telegram update', err);
@@ -364,10 +420,10 @@ export class TelegramMtprotoListenerAdapter
    * Transform raw Telegram message to TelegramRawMessage format
    *
    * Phase 5.2 Refactor: Fully delegated transformation pipeline:
-   * - Text extraction → CryptoNewsMessageTransformer (4-source cascade)
-   * - Media metadata → CryptoNewsMessageTransformer
-   * - Media download → TelegramMediaExtractorService (crypto-news only)
-   * - Entity normalization → CryptoNewsMessageTransformer
+   * - Text extraction → FeedMessageTransformer (4-source cascade)
+   * - Media metadata → FeedMessageTransformer
+   * - Media download → TelegramMediaExtractorService (feed only)
+   * - Entity normalization → FeedMessageTransformer
    */
   private async transformMessage(
     peerId: string,
@@ -390,7 +446,7 @@ export class TelegramMtprotoListenerAdapter
       throw new Error(`Failed to transform message ${peerId}:${msg.id}`);
     }
 
-    // Step 2: Download media for crypto-news channels (if applicable)
+    // Step 2: Download media for feed channels (if applicable)
     let media =
       transformed.media.length > 0
         ? (transformed.media as unknown as TelegramMediaAttachment[])
@@ -398,7 +454,7 @@ export class TelegramMtprotoListenerAdapter
 
     if (
       msg.media &&
-      this.isCryptoNewsChannel(peerId) &&
+      this.isFeedChannel(peerId) &&
       transformed.media.length > 0
     ) {
       try {
@@ -434,38 +490,38 @@ export class TelegramMtprotoListenerAdapter
   }
 
   /**
-   * Refresh the in-memory cache of active crypto-news channels from DB.
+   * Refresh the in-memory cache of active feed channels from DB.
    * Called on startup and every 5 minutes.
    *
    * Replaces the deprecated seed-based approach.
    */
-  private async refreshCryptoNewsChannelCache(): Promise<void> {
+  private async refreshFeedChannelCache(): Promise<void> {
     try {
       const sources = await this.feedSourceRepo.findAllActive('crypto-news');
-      this.cryptoNewsChannelCache = new Set(sources.map((s) => s.channelId));
+      this.feedChannelCache = new Set(sources.map((s) => s.channelId));
 
       this.logger.log(
-        `[DB-CACHE] Loaded ${this.cryptoNewsChannelCache.size} active crypto-news channels from DB: ${Array.from(this.cryptoNewsChannelCache).join(', ')}`,
+        `[DB-CACHE] Loaded ${this.feedChannelCache.size} active feed channels from DB: ${Array.from(this.feedChannelCache).join(', ')}`,
       );
     } catch (error) {
       this.logger.error(
-        `[DB-CACHE] Failed to refresh crypto-news channel cache: ${(error as Error).message}`,
+        `[DB-CACHE] Failed to refresh feed channel cache: ${(error as Error).message}`,
       );
     }
   }
 
   /**
-   * Check if a channel is a crypto-news channel (uses DB cache).
+   * Check if a channel is a feed channel (uses DB cache).
    *
-   * This method queries the database to determine active crypto-news sources.
+   * This method queries the database to determine active feed sources.
    * Sources are created/updated via ingestion-telegram API (`POST /api/feed/sources`).
    */
-  private isCryptoNewsChannel(peerId: string): boolean {
-    const isMatch = this.cryptoNewsChannelCache.has(peerId);
+  private isFeedChannel(peerId: string): boolean {
+    const isMatch = this.feedChannelCache.has(peerId);
 
     if (!isMatch && peerId.startsWith('-100')) {
       this.logger.debug(
-        `[DB-CACHE] Channel ${peerId} not found in active crypto-news sources`,
+        `[DB-CACHE] Channel ${peerId} not found in active feed sources`,
       );
     }
 
@@ -537,7 +593,11 @@ export class TelegramMtprotoListenerAdapter
       await this.clientManager.connect();
     }
 
-    return this.peerResolver.resolveChannelMetadata(client, channelId);
+    // P57: single getEntity() inside the shared flood guard (P29 reuse —
+    // label 'entity-resolve', same backoff/counter as polling/avatar).
+    return this.floodWaitHandler.withRetry('entity-resolve', () =>
+      this.peerResolver.resolveChannelMetadata(client, channelId),
+    );
   }
 
   async joinChannel(peerId: string): Promise<JoinChannelResult> {

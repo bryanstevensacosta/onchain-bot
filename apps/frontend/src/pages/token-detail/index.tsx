@@ -13,6 +13,11 @@ import {
 } from '@/shared/ui';
 import { ScoreGauge, ScoreBreakdown } from '@/entities/token-score';
 import { formatPercent, formatRelativeTime, formatUsd } from '@/shared/lib';
+import {
+  DevRiskBadge,
+  useCompatSnapshot,
+  useDevDumpAlert,
+} from '@/entities/market-data';
 
 export function TokenDetailPage() {
   const { chain = '', address = '' } = useParams<{
@@ -23,6 +28,8 @@ export function TokenDetailPage() {
   const canonical = useCanonical(chain, address);
   const score = useScoreByToken(chain, address);
   const snapshot = useSnapshot(chain, address);
+  const compat = useCompatSnapshot(chain, address);
+  const devAlert = useDevDumpAlert(compat.data?.devPctSupply ?? null);
 
   const displayName =
     canonical.data?.name ?? snapshot.data?.name ?? score.data?.ticker ?? null;
@@ -48,6 +55,15 @@ export function TokenDetailPage() {
             <ChainIcon chain={chain} className="mr-1" />
             {chain === 'solana' ? 'Solana' : 'EVM'}
           </Badge>
+          <DevRiskBadge
+            devPctSupply={compat.data?.devPctSupply ?? null}
+            devWallets={compat.data?.devWallets ?? null}
+          />
+          {devAlert.triggered && (
+            <span data-testid="dev-dump-alert" className="text-xs text-red-400">
+              {devAlert.reason}
+            </span>
+          )}
         </div>
       </div>
 

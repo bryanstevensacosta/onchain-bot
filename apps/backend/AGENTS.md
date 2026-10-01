@@ -1,5 +1,7 @@
 # apps/backend/ — NestJS Knowledge Base
 
+> ⚠️ DEPRECATED — this backend monolith is being dismantled via the mega-refactor (see `.omo/plans/mega-refactor-central.md`). BCs are extracted per tramo: kol-system (Tramo 1, done) → feed-publisher (Tramo 2, in progress) → market-data + dexter (Tramo 3) → telegram-bots-gateway (future). No new features here — bugfixes only. Legacy code carries `@deprecated` headers pointing at new locations; removal happens only at the FINAL REVIEW (C4-bis).
+
 > Verified 2026-09-04 against code. v1.3.0 (source of truth: apps/backend/package.json + CHANGELOG; verified 2026-09-24). Supersedes the "19 BCs / 48 entities / vip-calls-channel" claims.
 
 Contents: OVERVIEW · COMMANDS · STRUCTURE · MODULES · INGESTION · KOL DOMAIN · CRYPTO-NEWS · PUBLISHING ·
@@ -16,7 +18,7 @@ NestJS 11 pipeline (DDD/Hexagonal) that consumes Telegram messages, runs them th
 ## COMMANDS
 
 ```bash
-# In apps/backend/ (or root with -w @alpha-meta-token-scanner/backend)
+# In apps/backend/ (or root with -w @onchain-bot/backend)
 npm run start:dev          # db:migrate + nest start --watch
 npm run start:debug        # db:migrate + nest start --debug --watch
 npm run dev:mock           # USE_SSE_INGESTION=false USE_MOCK_INGESTION=true start:dev (no Telegram)
@@ -168,7 +170,7 @@ Backend enforces LLM generation in production via controller guard:
 
    **Crypto-news sources/messages/media are SOLELY OWNED by ingestion-telegram in its own `<base>_ingestion` DB.**
 
-   - **Ingestion-telegram**: reads/writes its 3 tables + runs the 72h retention janitor
+   - **Ingestion-telegram**: reads/writes its 3 tables + runs the 24h retention janitor
    - **Backend**: no tables, no write path, no legacy reads — only filters CRUD + on-read matching
      (`FilteredCryptoNewsService` over HTTP-fetched RAW content)
    - **Eliminates**: circular dependency (backend ↔ ingestion), dual-DB sync issues
@@ -258,7 +260,8 @@ Real-time SSE event processor for `messageType='crypto-news'` messages. Implemen
    - Always skip: `PENDING` (already in queue), `PUBLISHED` (already published)
    - Conditionally skip: `FAILED` + blocking reason (uses `isBlockingFailureReason()` helper)
    - Allow retry: `FAILED` + non-blocking reason (e.g., "Expired: exceeded 24h", "Rate limit exceeded")
-3. **Filter + match**: Calls `FilteredCryptoNewsService.getMatchingMessages(1, channelId)`
+3. **Filter + match**: Calls `FilteredCryptoNewsService.getMatchingMessages(10, channelId, 'crypto-news')`
+   - Queue is crypto-news ONLY (P10: KOL goes to kol-system) — fetch pinned to `?type=crypto-news`, `getMatchingMessages` defaults to the pin, KOL-typed rows dropped client-side, mis-routed KOL SSE events skipped in `handle()`
    - Fetches RAW content from ingestion-telegram
    - Applies ContentFilterService regex transforms
    - Evaluates keyword matching
@@ -298,8 +301,8 @@ Real-time SSE event processor for `messageType='crypto-news'` messages. Implemen
 - Backend reads via HTTP (`INGESTION_TELEGRAM_URL/api/media/*`)
 - Serving re-sniffs via `media-serving.ts` (stored `.bin` MP4 served as `video/mp4`) with Range/206
 - **Backend cache is growth-zero (2026-09-19, backend-media-ownership)**: `ProcessNextQueuedArticleUseCase.ensureLocalFiles` stages to `os.tmpdir()/backend-media-<uuid>/` and deletes in `finally` (success AND failure); retry re-downloads from ingestion. Queue holds paths/URLs, never bytes. Specs: `zero-growth|re-download|orphan-404` in `process-next-queued-article.use-case.spec.ts`.
-- **Frontend display never breaks**: backend `queue-media.controller.ts:getQueueMedia` (split from `queue.controller.ts`) serves local-first with ingestion-proxy fallback (`convertLocalPathToIngestionUrl`), so deleted backend copies resolve via `GET /api/media/...` while ingestion holds them (72h).
-- **Ownership**: news cache → ingestion-telegram; ingestion `uploads/` → ingestion-telegram (source of truth + 72h janitor); `crypto-news-ads-library/` → backend (untouched, was empty). Full table: `docs/deployment/media-ownership.md`; cleanup tool: `scripts/crypto-news-media-cleanup.mjs` (always dry-run by default).
+- **Frontend display never breaks**: backend `queue-media.controller.ts:getQueueMedia` (split from `queue.controller.ts`) serves local-first with ingestion-proxy fallback (`convertLocalPathToIngestionUrl`), so deleted backend copies resolve via `GET /api/media/...` while ingestion holds them (24h).
+- **Ownership**: news cache → ingestion-telegram; ingestion `uploads/` → ingestion-telegram (source of truth + 24h janitor); `crypto-news-ads-library/` → backend (untouched, was empty). Full table: `docs/deployment/media-ownership.md`; cleanup tool: `scripts/crypto-news-media-cleanup.mjs` (always dry-run by default).
 
 **3-Flag Control System (CRITICAL DEPENDENCY)**:
 
@@ -521,7 +524,7 @@ silently dropped (no honeypot/filters/crypto-news on the socket). `hello` handsh
 tick EVERY_MINUTE; ads tick EVERY_MINUTE. ~~`MediaRetentionCleanupScheduler`~~ — **MOVED to
 ingestion-telegram 2026-09-08** (deleted here: provider + scheduler + spec): the new
 `CryptoNewsRetentionCleanupScheduler` runs EVERY_HOUR over there (advisory lock `9_421_373`,
-media pass + NEW messages pass, clock `ingested_at`, 72h per invariant; prod effective value
+media pass + NEW messages pass, clock `ingested_at`, 24h per invariant; valor efectivo en prod 24h por decisión del operador 2026-09-28
 pending operator decision — see task-10 §4 dossier: prod backend cleaned media with 24h).
 
 `SchedulerRegistry` dynamic registration (config-driven, concurrency-guarded):
@@ -547,7 +550,7 @@ Dynamic-interval polling scheduler that fetches crypto-news messages from ingest
 **Pipeline** (same as ProcessCryptoNewsMessageHandler):
 
 1. Check `MatchingConfig.enabled` (skip if disabled)
-2. Fetch recent messages: `FilteredCryptoNewsService.getMatchingMessages(limit=50)`
+2. Fetch recent messages: `FilteredCryptoNewsService.getMatchingMessages(50, undefined, 'crypto-news')` (queue is crypto-news ONLY, P10)
 3. For each match: `EnqueueMatchingMessageUseCase.execute()`
 4. Log batch stats (enqueued / skipped)
 
@@ -566,7 +569,7 @@ EnqueueMatchingCronScheduler ready (fetch limit: 50, enabled: true, interval: 5m
 ## HTTP ROUTES — 35 CONTROLLERS (verified `@Controller` prefixes)
 
 Pipeline: `token/intake/extraction`, `token/intake/parsing`, `token/normalization`,
-`token/market-data` (+ `token/image`), `token/classification`, `token/scoring`,
+`token/enrichment` (renamed Tramo 3 todo 6 from `token/market-data`; legacy kept as temporary 307 redirect, removed at cutover todo 8) (+ `token/image`), `token/classification`, `token/scoring`,
 `token/vip-call-approval`, `token/honeypot`, `token/call-tracking` + `call-tracking`
 (two prefixes: `call-tracking.controller` and `token/call-tracking`), `achievements`,
 `chain/detection`. Telegram: `telegram-kol/identity`, `telegram-kol/reputation`,
@@ -596,6 +599,15 @@ Stubs (return `{note:'Stub …'}`): all four `telegram-kol/stats/*` endpoints �
 ⚠️ README §4 tables are stale on prefixes (`/kols`, `/market-data`, `/intake/...` without
 `token/` scope, missing settings/ads/publisher/image/achievements groups entirely).
 Trust this section over README §4.
+
+**P41 dual-serve (T2 todo 13 Fase 1, live):** feed controllers serve old+new via
+`@Controller([...])` array alias (same handlers, zero duplication): `crypto-news-publisher/*` +
+`feed-publisher/*` (queue ×2, keywords, phrases, blacklist, llm), `crypto-news-ads/*` +
+`crypto-news-scheduling/*` + `feed-scheduling/*` (ads, rotation-config, media), `threads-publisher/*` +
+`feed-threads-publisher/*` (×5), `crypto-news/matching` + `feed-matching`, new `FeedFiltersController`
+(`feed-filters/:id*`, same filter use-cases; per-channel `crypto-news/sources/:channelId/filters` stays
+old-only per P41 exclusion). `ops/backups` kept. Old drops at cutover todo 11. Pinned by
+`src/telegram/api-prefix-migration-dual-serve.spec.ts` (18 tests).
 
 ## SHARED INFRA (`src/shared/` + feature modules)
 
@@ -634,11 +646,22 @@ Publisher{Queue,ThrottleState,SlotState}, Ad{,Media,RotationConfig,RotationState
 - TypeORM migrations: 15 files in `src/shared/common/persistence/migrations/` (`{ts}-*.ts`); DataSource `…/persistence/data-source.ts`.
 - `DATABASE_ENABLED=false` → in-memory repos; dev/test `synchronize:true`, staging/prod migrations (migration runbook from the old doc is still accurate — kept below).
 
-## DATA PROVIDERS — 13 CONFIRMED
+## DATA PROVIDERS — 13 CONFIRMED (CANONICAL HOME: market-data, SINCE TODO 4)
 
-`alchemy, birdeye, coingecko, coinmarketcap, dexscreener, fluxrpc, geckoterminal, helius, mobula, moralis, pumpdev, rugcheck, solana-rpc` + `core/` (`DataProviderPort`: 28 lines — `name`, `logger`, optional `onModuleInit()`). Categories: Market Data (dexscreener, geckoterminal, birdeye, mobula, moralis, coingecko, coinmarketcap) · RPC (alchemy EVM, helius Solana, fluxrpc, solana-rpc) · Security (rugcheck) · Trading (pumpdev). Conventions (see `data-provider/AGENTS.md`, current): per-provider `{x}.config/module/service/types/index/README`; `forRoot(testConfig)` + `forRootAsync()` env-driven; **raw axios, no shared HTTP wrapper**; **silent `null` on 404/429/timeout** (consumers cascade) **but log the failure**; no cache/rate-limit at this layer (consumer-side, 30–60 s TTL recommended). Rate limits live in per-provider READMEs (e.g. DexScreener 60 req/min, Birdeye 1 req/s, Helius 1M CU/month); shapes in `{provider}.types.ts`. `DataProviderModule` is `@Global`. Deps also include `openai`, `@huggingface/@xenova transformers` (LLM), `sharp`, `bs58`, `socket.io`, `lru-cache`.
+> **@deprecated (Tramo 3, todo 4, C-DATA-01 + P46/P47):** canonical owner is
+> `apps/market-data/src/provider/infrastructure/` (13 adapters +
+> `ProvidersModule`, registry 13/13). This tree keeps deprecated
+> re-export shims for dual-run (local default until the todo-5 HTTP
+> bridge, G-17); removed at cutover (todo 8). Zero `from 'data-provider`
+> imports remain in backend `*.ts` — 13 consumers (10 enrichment
+> adapters + 2 chain probers + ticker-resolver) import the canonical
+> home directly. chain-dexter-bot stays INTEGRATED (standalone is todo 9;
+> covered by `market-data-consumers.spec.ts`). Evidence:
+> `.omo/evidence/task-T3-04.log`.
 
-⚠️ `data-provider/README.md` says "11 providers" (13 exist) and points adapters at `chain/explorer/` (deleted). Same stale-doc class as gap 15. (`data-provider.module.ts` verified: imports+exports all 13.)
+`alchemy, birdeye, coingecko, coinmarketcap, dexscreener, fluxrpc, geckoterminal, helius, mobula, moralis, pumpdev, rugcheck, solana-rpc` + `core/` (`DataProviderPort`: 28 lines — `name`, `logger`, optional `onModuleInit()`). Tramo 3 todo 5 (G-17): `HttpMarketDataAdapter` (`token/enrichment/infrastructure/providers/http-market-data.adapter.ts`) calls `GET {MARKET_DATA_URL}/api/market-data/snapshot` (x-api-key, abort timeout, null + warn on failure) and prepends the cascade as http-primary + local-fallback when `USE_DATA_SERVICE_API=true` — DEFAULT FALSE (no flip: the server returns pending shells with no aggregators yet, flipping would regress enrichment; staging/prod flip only after the todo-8 24h SLO). Categories: Market Data (dexscreener, geckoterminal, birdeye, mobula, moralis, coingecko, coinmarketcap) · RPC (alchemy EVM, helius Solana, fluxrpc, solana-rpc) · Security (rugcheck) · Trading (pumpdev). Conventions: per-provider `{x}.config/module/service/types/index/README`; `forRoot(testConfig)` + `forRootAsync()` env-driven; **raw axios, no shared HTTP wrapper**; **silent `null` on 404/429/timeout** (consumers cascade) **but log the failure**; no cache/rate-limit at this layer (consumer-side, 30–60 s TTL recommended). Rate limits live in per-provider READMEs (e.g. DexScreener 60 req/min, Birdeye 1 req/s, Helius 1M CU/month); shapes in `{provider}.types.ts`. `DataProviderModule` is `@Global`. Deps also include `openai`, `@huggingface/@xenova transformers` (LLM), `sharp`, `bs58`, `socket.io`, `lru-cache`.
+
+⚠️ `data-provider/README.md` "11 providers" line fixed to 13 in todo 4 (index notice added); per-provider README import examples re-pointed at the canonical home. `chain/explorer/` references remain stale (gap 21 class).
 
 ## TESTS
 
@@ -673,7 +696,7 @@ Infra: `PORT=3000`, `DATABASE_{ENABLED=false,POSTGRES_*,SYNCHRONIZE=true,LOGGING
 `DEDUP_SEMANTIC_ARBITER_THRESHOLD=0.7` (0 disables), `LLM_GATEWAY_{BASE_URL=localhost:4845,API_KEY,MODEL=opencode-zen/deepseek-v4-flash}`,
 `LOG_{LEVEL,DIR=.,FILE=backend.log,ROTATION_SIZE=10m,ROTATION_LIMIT=5}`.
 
-⚠️ `.env.production.template` sets `USE_SSE_INGESTION=true` with `INGESTION_TELEGRAM_URL=http://onchain-bot-ingestion-telegram:3031` (prod DNS); staging twin uses `http://onchain-bot-ingestion-telegram-staging:3031` in `docker-compose.staging.yml:98` + `.env.staging.template:76`.
+⚠️ `.env.production.template` sets `USE_SSE_INGESTION=true` with `INGESTION_TELEGRAM_URL=http://onchain-bot-ingestion-telegram:3031` (prod DNS); staging ingestion uses `http://onchain-bot-ingestion-telegram-staging:3031` in `docker-compose.staging.yml:98` + `.env.staging.template:76`.
 The retired `INGESTION_REMOTE_URL` is already gone from the template (only `INGESTION_TELEGRAM_URL` is read, gap 21); the migration banner + `validate-session-migration.sh` reference (`:67`) are stale leftovers.
 Backend MTProto creds were removed from `src` entirely (see above); MTProto sessions must live ONLY in ingestion-telegram (AUTH_KEY_DUPLICATED otherwise).
 
@@ -717,7 +740,7 @@ pino-roll daily files (`logging.dir/fileName`, `limit count:1`) in dev/prod; pla
 22. **Backfill dead end-to-end (both sides)**: backend `backfill()` still calls ingestion-telegram `/api/ingestion/backfill/*`, but that endpoint was **deleted** with the multi-backend layer (per-env T4) — the call now 404s instead of the old `backfill:error`. `POST kols/:kolId/backfill` is 501 with a feed hint; legacy `GET crypto-news/backfill/:channelId` is 404 (split). No backfill path works in any mode — re-seed via `POST /api/feed/sources` on the owning ingestion.
 23. **`telegram:gen-session` generates session strings only** — sessions live in ingestion-telegram (`INGESTION_TELEGRAM_MTPROTO_*`, one triple per env, never shared); the backend never opens MTProto (branch deleted → `410 Gone`), so generating a session for backend `.env` would only risk `AUTH_KEY_DUPLICATED`.
 24. **Event-driven scoring runs degraded**: `TokenClassifiedHandler` nulls market metrics, forces counts=1 and reputation 0.5 before calling `ScoreTokenUseCase` — bus-path scores differ systematically from admin `POST score` results. Either enrich the event or document the skew.
-25. **Repo `.env.staging` (gitignored, local-only) still carries dead weight**: 127 keys with `USE_SSE_INGESTION=true` (`:63`) — good — but also dead `INGESTION_SERVICE_URL=http://ingestion-service:3031` (`:65`, no reader since the T10 fallback removal) + dummy `INGESTION_TELEGRAM_MTPROTO_*` (`:70-73`, no backend reader). Harmless locally (compose `environment:` pins the twin URL at runtime; the Oracle server real file is operator-owned) — clean it when touching the file, don't chase it.
+25. **Repo `.env.staging` (gitignored, local-only) still carries dead weight**: 127 keys with `USE_SSE_INGESTION=true` (`:63`) — good — but also dead `INGESTION_SERVICE_URL=http://ingestion-service:3031` (`:65`, no reader since the T10 fallback removal) + dummy `INGESTION_TELEGRAM_MTPROTO_*` (`:70-73`, no backend reader). Harmless locally (compose `environment:` pins the staging URL at runtime; the Oracle server real file is operator-owned) — clean it when touching the file, don't chase it.
 26. **Seed script emits invalid classifications**: `seed-pipeline-events.ts` uses `LEGITIMATE/RISKY/SAFE` — outside the `Classification` VO (`TOKEN/POOL/ROUTER/NFT/SCAM/UNKNOWN`). Any consumer validating via `Classification.fromString` throws `VALIDATION` on seeded traffic.
 27. **`token/identity/` VOs** (`ContractAddress`+spec, `NormalizedAddress`, `TokenLocator`) duplicate chain-validation logic across `token/identity`, `token/normalization` (`NormalizedAddress` again), and `chain/*` (`ChainId`/`Chain`/`ChainFamily`) — three address-validation homes. Consolidate or document the split.
 
@@ -726,7 +749,7 @@ pino-roll daily files (`logging.dir/fileName`, `limit count:1`) in dev/prod; pla
 Per-BC layout `api/application/domain/infrastructure` (+ `__tests__/` allowed beside co-located specs in some BCs).
 Use cases `<Action><Entity>UseCase` (`KolIngestionOrchestratorUseCase` lives in `kol/identity`, NOT `kol/ingestion`).
 Ports in `application/ports/`, impls in `infrastructure/` — except gap 7.
-Aliases per-BC (`shared/*`, `token/*`, …), never `@/*`.
+Aliases per-BC (`shared/*`, `token/*`, …) + `@/*` (= `src/*`, for 2+-level imports; 2026-09-27 migration).
 **Natural keys**: every pipeline entity keys on `${chain}:${address}` (lowercased).
 **Kernel**: extend `AggregateRoot` when the aggregate owns invariants + events, `Entity` for passive objects; promote a VO to shared only when 3+ BCs depend on it (audit payload changes).
 **KOL IDs**: numeric Telegram user/channel ID as string (`"123456789"`).
@@ -762,7 +785,7 @@ Hang at boot → check `NODE_ENV`, "Using migrations (synchronize: false)" in lo
 | `staging` \| `production` | JavaScript (`dist/`)                               | `dist/backend/src/shared/common/persistence/data-source.js` |
 | else (unset/dev/test)     | TypeScript (`src/`) via `typeorm-ts-node-commonjs` | `src/shared/common/persistence/data-source.ts`              |
 
-Staging-local caveat (NODE_ENV=staging hits dist mode): CLI `data-source.ts:28` loads only `.env` (never `.env.staging`); `.env.staging:97-105` is Docker-only, so local `NODE_ENV=staging` hits dev DB `alpha_meta_token_scanner` on `localhost:5432` by default.
+Staging-local caveat (NODE_ENV=staging hits dist mode): CLI `data-source.ts:28` loads only `.env` (never `.env.staging`); `.env.staging:97-105` is Docker-only, so local `NODE_ENV=staging` hits dev DB `onchain_bot_backend` on `localhost:5432` by default (consolidated 2026-09-28; the pre-consolidation dev DB keeps its old name until the dev volume is recreated — see rename evidence log).
 `--dry-run` (all 3 scripts): prints `[DRYRUN] mode=<javascript|typescript> data-source=<path>`, exit 0 without DB. See `.omo/drafts/staging-migration-test-fix.md`.
 
 ## OPS (scripts + compose)
@@ -770,10 +793,11 @@ Staging-local caveat (NODE_ENV=staging hits dist mode): CLI `data-source.ts:28` 
 - `scripts/seed-pipeline-events.ts` (181 lines): emits 4 events × N tokens (12 real addresses: USDC/SOL/BOME/WBTC/AAVE/CAKE/USDT/CBBTC/MATIC/GME…). ⚠️ Step 4 emits the GHOST `filters.token.*` names (gap 20) with classifications (`LEGITIMATE/RISKY/SAFE`) outside the `Classification` VO set (gap 31) — seeded approvals never reach `TokenApprovedPublishHandler`.
 - `scripts/run-migrations.sh` (15 lines): dual-mode — compiled `dist/.../data-source.js` in Docker, `typeorm-ts-node-commonjs` + `src/...` locally. `set -euo pipefail`.
 - `scripts/cli/`: interactive readline tools (inject reads `scripts/fixtures/*.json`).
-- Compose: `docker-compose.yml` (dev), `.prod.yml` (backend `:3030` + postgres/redis health-gated), `.staging.yml` (staging backend, `INGESTION_TELEGRAM_URL` pinned to the twin at `:98`), `.with-ingestion.yml` (builds ingestion Dockerfile, `PORT: 3031`, backend gets `INGESTION_TELEGRAM_URL: http://ingestion-telegram:3031` + read-only media volume, `depends_on` healthy), `.ingestion.yml` (prod ingestion standalone, host `:3032`→container `:3031`), `.staging-ingestion.yml` (staging TWIN, per-env 2026-09-22: project `onchain-bot-staging-ingestion`, host `:3033`→container `:3031`, own `.env.staging` triple + `alpha_meta_token_scanner_staging_ingestion` DB + own uploads volume). Healthchecks hit `/api/health` (stub-200 caveat, gap 18 backend / gap 23 ingestion-telegram).
+- Compose: `docker-compose.yml` (dev), `.prod.yml` (backend `:3030` + postgres/redis health-gated), `.staging.yml` (staging backend, `INGESTION_TELEGRAM_URL` pinned to staging ingestion at `:98`), `.with-ingestion.yml` (builds ingestion Dockerfile, `PORT: 3031`, backend gets `INGESTION_TELEGRAM_URL: http://ingestion-telegram:3031` + read-only media volume, `depends_on` healthy), `.ingestion.yml` (prod ingestion standalone, host `:3032`→container `:3031`), `.staging-ingestion.yml` (staging ingestion, per-env 2026-09-22: project `onchain-bot-staging-ingestion`, host `:3033`→container `:3031`, own `.env.staging` triple + `onchain_bot_staging_ingestion` DB + own uploads volume). Healthchecks hit `/api/health` (stub-200 caveat, gap 18 backend / gap 23 ingestion-telegram).
 
 ## NOTES
 
+- **DEPRECATION (Tramo 1, P18 gradual migration)**: `src/telegram/ingestion/kol/kol-ingestion.module.ts` carries an `@deprecated` header pointing at `apps/kol-system/src/ingestion/`. Code still live for dual-run; deletion only at Tramo 1 cutover — do not extend it.
 - `chain/identity/` + `token/identity/` are VO-only libraries (no module, no routes) — shared identifier types, not dead code. `kol/stats` is a stub (leaderboard/ROI per README).
 - `shared/common/utils/telegram-html-sanitizer.ts`: Telegram `parse_mode: HTML` allowlist sanitizer for ad/crypto bodies (mirrored by frontend `AdHtmlPreview` — keep both allowlists in sync).
 - Staging/prod deploy: `.github/workflows/deploy.yml` (test → ssh → backup → build → `migration:run` → recreate → `:3030/api/health`).

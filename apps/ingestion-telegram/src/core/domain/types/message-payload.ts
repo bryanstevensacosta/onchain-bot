@@ -2,7 +2,7 @@
  * MessagePayload - SSE event payload for Telegram messages
  *
  * Per ADR docs/architecture/adr-kol-raw-text.md (Q1-B amendment):
- * - Raw Telegram text IS carried in `text` for BOTH types (kol + crypto-news)
+ * - Raw Telegram text IS carried in `text` for BOTH types (kol + feed)
  * - Backend-internal ToS boundary UNCHANGED: `KolMessageIngestedEvent`
  *   (`telegram.message.ingested`) still carries NO text (fix-1 holds)
  *
@@ -54,7 +54,7 @@ export interface MessagePayload {
   /**
    * Raw message text content (BOTH types, Q1-B — missing → '').
    * - KOL: alpha-call text, persisted RAW (type='kol') + carried here
-   * - Crypto-news: opaque content, stored as-is
+   * - Feed: opaque content, stored as-is
    */
   text?: string;
 
@@ -73,4 +73,17 @@ export interface MessagePayload {
    * - 'crypto-news': General market intel from news channel
    */
   messageType: 'kol' | 'crypto-news';
+
+  /**
+   * Source display enrichments (central todo 12, P57 — additive, tolerant).
+   *
+   * Resolved read-only from the `telegram_feed_sources` row at broadcast
+   * time; unknown rows / DB trouble yield `handle: null` (+ `sourceUrl:
+   * null`) while `avatarUrl` stays always servable (placeholder 200
+   * downstream). Consumers filter on `messageType` only and must ignore
+   * unknown fields — these three never gate routing.
+   */
+  handle?: string | null;
+  avatarUrl?: string;
+  sourceUrl?: string | null;
 }

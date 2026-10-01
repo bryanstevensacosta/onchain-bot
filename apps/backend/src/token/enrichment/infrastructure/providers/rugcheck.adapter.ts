@@ -4,7 +4,7 @@ import {
   MarketData,
   MarketDataProviderPort,
 } from 'token/enrichment/domain/ports/market-data-provider.port';
-import { RugCheckService } from 'data-provider/rugcheck/rugcheck.service';
+import { RugCheckService } from '../../../../../../market-data/src/provider/infrastructure/rugcheck/rugcheck.service';
 
 @Injectable()
 export class RugCheckAdapter extends MarketDataProviderPort {

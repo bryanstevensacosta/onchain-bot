@@ -1,3 +1,8 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/threads/ (Tramo 2, todo 8 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add threads logic in apps/feed-publisher/src/threads/ instead.
+ */
 import { AggregateRoot } from 'shared/kernel/aggregate-root';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
 import type { DomainEvent } from 'shared/kernel/domain-event';
@@ -68,9 +73,7 @@ export class ThreadsOAuthToken extends AggregateRoot<number> {
     });
   }
 
-  public static reconstitute(
-    input: ThreadsOAuthTokenProps,
-  ): ThreadsOAuthToken {
+  public static reconstitute(input: ThreadsOAuthTokenProps): ThreadsOAuthToken {
     return new ThreadsOAuthToken(input.id, input);
   }
 
@@ -102,7 +105,9 @@ export class ThreadsOAuthToken extends AggregateRoot<number> {
    * Absolute expiry instant derived from obtainedAt + expiresInS.
    */
   public get expiresAt(): Date {
-    return new Date(this.state.obtainedAt.getTime() + this.state.expiresInS * 1000);
+    return new Date(
+      this.state.obtainedAt.getTime() + this.state.expiresInS * 1000,
+    );
   }
 
   /**
@@ -138,8 +143,9 @@ export class ThreadsOAuthToken extends AggregateRoot<number> {
       );
     }
     if (input.expiresInS !== undefined) {
-      this.state.expiresInS =
-        ThreadsOAuthToken.requirePositiveExpiresIn(input.expiresInS);
+      this.state.expiresInS = ThreadsOAuthToken.requirePositiveExpiresIn(
+        input.expiresInS,
+      );
     }
     const now = input.obtainedAt ?? new Date();
     this.state.obtainedAt = now;

@@ -3,10 +3,21 @@ import {
   ConflictException,
   Injectable,
   Logger,
+  Optional,
 } from '@nestjs/common';
-import { TelegramFeedSourceRepository } from '../../infrastructure/persistence/typeorm/repositories/typeorm-feed-source.repository';
-import type { TelegramFeedSourceType } from '../../infrastructure/persistence/typeorm/entities/telegram-feed-source.entity';
+import { TelegramFeedSourceRepository } from '@/registry/infrastructure/persistence/typeorm/repositories/typeorm-feed-source.repository';
+import type { TelegramFeedSourceType } from '@/registry/infrastructure/persistence/typeorm/entities/telegram-feed-source.entity';
 import { TelegramListenerPort } from 'core/ports/telegram-listener.port';
+import { kolAvatarUrlFor, sourceUrlFor } from '@/avatar/avatar.constants';
+import { KolAvatarService } from '@/avatar/kol-avatar.service';
+import {
+  assertSubscribableKind,
+  type TelegramEntityKind,
+} from '../entity-kind';
+import type { MetadataKind } from 'metadata/metadata-kind';
+// Value import (not `import type`): emitDecoratorMetadata must see the
+// runtime class or Nest resolves the @Optional() param to null.
+import { MetadataService } from 'metadata/metadata.service';
 
 export interface RegisterNewsSourceInput {
   readonly channelId: string;
@@ -23,6 +34,10 @@ export interface RegisterNewsSourceOutput {
   readonly isActive: boolean;
   readonly lifecycleStatus: string;
   readonly addedAt: string;
+  /** P19: permanent avatar URL (file-or-placeholder, always servable). */
+  readonly avatarUrl: string;
+  /** P57: public t.me URL (null for handle-less channels). */
+  readonly url: string | null;
 }
 
 export interface BatchSourceItem {
@@ -56,7 +71,7 @@ const BATCH_MAX_ITEMS = 500;
  * Use case: Register a new Telegram channel as a feed source.
  *
  * Ingestion-service is the SOLE OWNER of feed sources
- * (`telegram_feed_sources`, unified catalog for `kol` + `crypto-news`).
+ * (`telegram_feed_sources`, unified catalog for `kol` + `feed`).
  *
  * This use case:
  * 1. Validates the input (channelId format) — 400 on invalid
@@ -78,6 +93,8 @@ export class RegisterNewsSourceUseCase {
   constructor(
     private readonly sourceRepo: TelegramFeedSourceRepository,
     private readonly telegramListener: TelegramListenerPort,
+    @Optional() private readonly profilePhotos?: KolAvatarService,
+    @Optional() private readonly metadata?: MetadataService,
   ) {}
 
   public async execute(
@@ -90,8 +107,7 @@ export class RegisterNewsSourceUseCase {
     const normalizedChannelId = this.normalizeChannelId(input.channelId);
 
     // Check for duplicates
-    const existing =
-      await this.sourceRepo.findByChannelId(normalizedChannelId);
+    const existing = await this.sourceRepo.findByChannelId(normalizedChannelId);
     if (existing) {
       const handleInfo = existing.handle ? `@${existing.handle}` : 'no handle';
       throw new ConflictException(
@@ -99,37 +115,52 @@ export class RegisterNewsSourceUseCase {
       );
     }
 
-    // Auto-resolve title and handle from Telegram if not provided
+    // Auto-resolve title and handle from Telegram if not provided.
+    // P57: kind is ALWAYS resolved best-effort (single getEntity) so the
+    // channel/group-only guard runs even when title+handle are explicit.
+    // MTProto failure stays fail-open (kind null) — registration of a real
+    // channel must never break because Telegram was unreachable.
     let title = input.title?.trim();
     let handle = input.handle?.trim() || undefined;
+    let entityKind: TelegramEntityKind | null = null;
+    let isBot: boolean | null = null;
 
-    if (!title || !handle) {
-      try {
-        this.logger.log(
-          `Auto-resolving metadata for channel ${normalizedChannelId}...`,
+    try {
+      this.logger.log(
+        `Auto-resolving metadata for channel ${normalizedChannelId}...`,
+      );
+      const metadata =
+        await this.telegramListener.resolveChannelMetadata(normalizedChannelId);
+      title = title || metadata.title;
+      handle = handle || metadata.handle || undefined;
+      entityKind = metadata.kind ?? null;
+      isBot = metadata.isBot ?? null;
+      this.logger.log(
+        `Resolved metadata: title="${title}", handle="${handle || 'none'}", kind="${entityKind ?? 'unknown-unresolved'}"`,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Failed to auto-resolve metadata for ${normalizedChannelId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      // If title still not available, fail
+      if (!title) {
+        throw new BadRequestException(
+          `Cannot register source: title not provided and auto-resolution failed for channel ${normalizedChannelId}. ` +
+            `Either provide a title explicitly or ensure the bot has joined the channel.`,
         );
-        const metadata =
-          await this.telegramListener.resolveChannelMetadata(
-            normalizedChannelId,
-          );
-        title = title || metadata.title;
-        handle = handle || metadata.handle || undefined;
-        this.logger.log(
-          `Resolved metadata: title="${title}", handle="${handle || 'none'}"`,
-        );
-      } catch (error) {
-        this.logger.warn(
-          `Failed to auto-resolve metadata for ${normalizedChannelId}: ${error instanceof Error ? error.message : String(error)}`,
-        );
-        // If title still not available, fail
-        if (!title) {
-          throw new BadRequestException(
-            `Cannot register source: title not provided and auto-resolution failed for channel ${normalizedChannelId}. ` +
-              `Either provide a title explicitly or ensure the bot has joined the channel.`,
-          );
-        }
-        // Handle can remain undefined
       }
+      // Handle can remain undefined; kind stays null (fail-open).
+    }
+
+    if (!entityKind) {
+      const probe = await this.resolveKindBestEffort(normalizedChannelId);
+      entityKind = probe.kind;
+      if (isBot === null) {
+        isBot = probe.isBot;
+      }
+    }
+    if (entityKind) {
+      assertSubscribableKind(entityKind, normalizedChannelId);
     }
 
     // Create new source
@@ -138,7 +169,9 @@ export class RegisterNewsSourceUseCase {
       title, // guaranteed non-empty at this point
       handle,
       input.type ?? 'crypto-news',
+      { entityKind, isBot },
     );
+    source.url = sourceUrlFor(handle);
 
     // Persist to database
     const saved = await this.sourceRepo.save(source);
@@ -146,6 +179,20 @@ export class RegisterNewsSourceUseCase {
     this.logger.log(
       `Registered new feed source: ${saved.channelId} (${saved.title})`,
     );
+
+    // P58 dual-write (schema §4 step 1): mirror identity into metadata by
+    // id — the catalog keeps subscription state, metadata owns identity.
+    this.mirrorToMetadata(saved.channelId, {
+      handle: saved.handle,
+      title: saved.title,
+      kind: entityKind ?? null,
+      isBot,
+    });
+
+    // P19 fetch-ONCE (avatar-total, central todo 12: EVERY type, not just
+    // kol) — best-effort, MTProto miss keeps the placeholder and
+    // registration wins. The handle names the avatar file.
+    this.kickProfilePhoto(saved.channelId, saved.handle);
 
     // Return output
     return {
@@ -156,6 +203,8 @@ export class RegisterNewsSourceUseCase {
       isActive: saved.isActive,
       lifecycleStatus: saved.lifecycleStatus,
       addedAt: saved.addedAt?.toISOString() ?? new Date().toISOString(),
+      avatarUrl: kolAvatarUrlFor(saved.channelId),
+      url: saved.url ?? sourceUrlFor(saved.handle),
     };
   }
 
@@ -188,14 +237,33 @@ export class RegisterNewsSourceUseCase {
       this.validateBatchItem(item, index),
     );
 
+    // P57: resolve entity kinds for the whole batch BEFORE any write, so a
+    // single user/bot entry 400s the batch with the table untouched.
+    // MTProto failure per item stays fail-open (kind null).
+    const kinds = await Promise.all(
+      normalized.map((entry) => this.resolveKindBestEffort(entry.channelId)),
+    );
+    normalized.forEach((entry, index) => {
+      const kind = kinds[index]?.kind ?? null;
+      if (kind) {
+        try {
+          assertSubscribableKind(kind, entry.channelId);
+        } catch (error) {
+          throw new BadRequestException(
+            `sources[${index}] (${entry.channelId}): ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+      }
+    });
+
     let created = 0;
     let updated = 0;
     const results: RegisterNewsSourceOutput[] = [];
 
-    for (const entry of normalized) {
-      const existing = await this.sourceRepo.findByChannelId(
-        entry.channelId,
-      );
+    for (let i = 0; i < normalized.length; i += 1) {
+      const entry = normalized[i];
+      const kindMeta = kinds[i] ?? { kind: null, isBot: null };
+      const existing = await this.sourceRepo.findByChannelId(entry.channelId);
       if (!existing) {
         let title = entry.title?.trim();
         if (!title) {
@@ -206,7 +274,9 @@ export class RegisterNewsSourceUseCase {
           title,
           entry.handle?.trim() || undefined,
           entry.type,
+          { entityKind: kindMeta.kind, isBot: kindMeta.isBot },
         );
+        createdEntity.url = sourceUrlFor(createdEntity.handle);
         if (entry.isActive !== undefined) {
           createdEntity.isActive = entry.isActive;
         }
@@ -216,12 +286,23 @@ export class RegisterNewsSourceUseCase {
         const saved = await this.sourceRepo.save(createdEntity);
         created += 1;
         results.push(this.toOutput(saved));
+        this.kickProfilePhoto(saved.channelId, saved.handle);
+        this.mirrorToMetadata(saved.channelId, {
+          handle: saved.handle,
+          title: saved.title,
+          kind: kindMeta.kind ?? null,
+          isBot: kindMeta.isBot,
+        });
         continue;
       }
 
       let touched = false;
       const nextTitle = entry.title?.trim();
-      if (nextTitle !== undefined && nextTitle !== '' && nextTitle !== existing.title) {
+      if (
+        nextTitle !== undefined &&
+        nextTitle !== '' &&
+        nextTitle !== existing.title
+      ) {
         existing.title = nextTitle;
         touched = true;
       }
@@ -229,6 +310,10 @@ export class RegisterNewsSourceUseCase {
         const nextHandle = entry.handle?.trim() || null;
         if (nextHandle !== existing.handle) {
           existing.handle = nextHandle;
+          const nextUrl = sourceUrlFor(nextHandle);
+          if (nextUrl !== existing.url) {
+            existing.url = nextUrl;
+          }
           touched = true;
         }
       }
@@ -250,11 +335,35 @@ export class RegisterNewsSourceUseCase {
         existing.isActive = entry.isActive;
         touched = true;
       }
-      const saved = touched
-        ? await this.sourceRepo.save(existing)
-        : existing;
+      if (
+        kindMeta.kind !== null &&
+        kindMeta.kind !==
+          (existing as { entityKind?: string | null }).entityKind
+      ) {
+        (existing as { entityKind?: string | null }).entityKind = kindMeta.kind;
+        touched = true;
+      }
+      if (
+        kindMeta.isBot !== null &&
+        kindMeta.isBot !== (existing as { isBot?: boolean | null }).isBot
+      ) {
+        (existing as { isBot?: boolean | null }).isBot = kindMeta.isBot;
+        touched = true;
+      }
+      const saved = touched ? await this.sourceRepo.save(existing) : existing;
       if (touched) {
         updated += 1;
+        this.mirrorToMetadata(saved.channelId, {
+          handle: saved.handle,
+          title: saved.title,
+          kind: (kindMeta.kind ??
+            (existing as { entityKind?: string | null }).entityKind ??
+            null) as MetadataKind | null,
+          isBot:
+            kindMeta.isBot ??
+            (existing as { isBot?: boolean | null }).isBot ??
+            null,
+        });
       }
       results.push(this.toOutput(saved));
     }
@@ -317,6 +426,44 @@ export class RegisterNewsSourceUseCase {
     };
   }
 
+  /**
+   * P57 best-effort kind probe (single getEntity via the port).
+   *
+   * Never throws: MTProto trouble resolves to `{ kind: null }` (fail-open)
+   * so registration of a real channel survives outages.
+   *
+   * Probes every id form (`raw`, `-100`-prefixed, stripped): a bot/user id
+   * only resolves WITHOUT the `-100` prefix, while channels need it —
+   * probing just the normalized form would fail-open bots straight
+   * through the guard.
+   */
+  private async resolveKindBestEffort(
+    channelId: string,
+  ): Promise<{ kind: TelegramEntityKind | null; isBot: boolean | null }> {
+    const stripped = channelId.replace(/^-100/, '').replace(/^[+-]/, '');
+    const candidates = [channelId, stripped, `-100${stripped}`].filter(
+      (candidate, index, all) => all.indexOf(candidate) === index,
+    );
+    for (const candidate of candidates) {
+      try {
+        const metadata =
+          await this.telegramListener.resolveChannelMetadata(candidate);
+        return {
+          kind: metadata?.kind ?? null,
+          isBot: metadata?.isBot ?? null,
+        };
+      } catch (error) {
+        this.logger.debug(
+          `Kind probe missed for ${candidate}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+    this.logger.warn(
+      `Kind probe failed for ${channelId} in all id forms (fail-open)`,
+    );
+    return { kind: null, isBot: null };
+  }
+
   private async resolveTitle(channelId: string): Promise<string> {
     try {
       const metadata =
@@ -343,6 +490,7 @@ export class RegisterNewsSourceUseCase {
     isActive: boolean;
     lifecycleStatus: string;
     addedAt?: Date;
+    url?: string | null;
   }): RegisterNewsSourceOutput {
     return {
       channelId: saved.channelId,
@@ -352,7 +500,59 @@ export class RegisterNewsSourceUseCase {
       isActive: saved.isActive,
       lifecycleStatus: saved.lifecycleStatus,
       addedAt: saved.addedAt?.toISOString() ?? new Date().toISOString(),
+      avatarUrl: kolAvatarUrlFor(saved.channelId),
+      url: saved.url ?? sourceUrlFor(saved.handle),
     };
+  }
+
+  /**
+   * P58 dual-write mirror (schema §4 step 1): fire-and-forget identity
+   * mirror into metadata. Never fails registration — `adoptRegistryRow`
+   * is best-effort by contract (and guarded here for test doubles).
+   */
+  private mirrorToMetadata(
+    channelId: string,
+    fields: {
+      handle: string | null;
+      title: string;
+      kind: MetadataKind | null;
+      isBot: boolean | null;
+    },
+  ): void {
+    if (!this.metadata) {
+      return;
+    }
+    void Promise.resolve()
+      .then(() => this.metadata?.adoptRegistryRow(channelId, fields))
+      .then(() => this.logger.log(`Metadata mirror for ${channelId}: ok`))
+      .catch((error: unknown) =>
+        this.logger.warn(
+          `Metadata mirror failed for ${channelId} (${error instanceof Error ? error.message : String(error)})`,
+        ),
+      );
+  }
+
+  /**
+   * P19 fetch-ONCE hook (avatar-total, central todo 12): fire-and-forget
+   * avatar fetch for EVERY newly registered source — kol-only filter
+   * removed. Never fails registration — `fetchOnce` resolves to
+   * `placeholder` on MTProto trouble (deferred retry via explicit
+   * refresh or the backfill endpoint).
+   */
+  private kickProfilePhoto(channelId: string, handle?: string | null): void {
+    if (!this.profilePhotos) {
+      return;
+    }
+    void this.profilePhotos
+      .fetchOnce(channelId, handle ?? null)
+      .then((status) =>
+        this.logger.log(`Avatar fetch-once for ${channelId}: ${status}`),
+      )
+      .catch((error: unknown) =>
+        this.logger.warn(
+          `Avatar fetch-once failed for ${channelId} (${error instanceof Error ? error.message : String(error)})`,
+        ),
+      );
   }
 
   /**

@@ -1,3 +1,8 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/scheduling/ (Tramo 2, todo 6 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add scheduling/ads logic in apps/feed-publisher/src/scheduling/ instead.
+ */
 import { Injectable } from '@nestjs/common';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
 import { AdMediaRepository } from 'telegram/crypto-news-ads/application/ports/ad-media.repository';

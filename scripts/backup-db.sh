@@ -31,9 +31,9 @@ CONTAINER_NAME="${POSTGRES_CONTAINER:-onchain-bot-postgres-dev}"
 # the workflow already passes the NEW one — probe candidates in order and
 # use the first running container. Post-cutover the fallbacks never match.
 # Override via POSTGRES_CONTAINER_FALLBACKS (space-separated) if needed.
-FALLBACKS="${POSTGRES_CONTAINER_FALLBACKS:-onchain-bot-postgres onchain-bot-staging-postgres alpha-meta-token-scanner-postgres}"
-DB_NAME="${POSTGRES_DB:-alpha_meta_token_scanner}"
-DB_USER="${POSTGRES_USER:-alpha_meta_token_scanner}"
+FALLBACKS="${POSTGRES_CONTAINER_FALLBACKS:-onchain-bot-postgres onchain-bot-staging-postgres}"
+DB_NAME="${POSTGRES_DB:-onchain_bot}"
+DB_USER="${POSTGRES_USER:-onchain_bot}"
 
 mkdir -p "$BACKUP_DIR"
 

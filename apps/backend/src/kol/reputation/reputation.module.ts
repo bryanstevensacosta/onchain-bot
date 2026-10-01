@@ -1,3 +1,9 @@
+/**
+ * @deprecated Tramo 1 cutover (task-16, staging): KOL rating moved to
+ * apps/kol-calls/src/tracking (TrackedMention + kol_window_stats +
+ * GET /api/kol-rankings). Refactor target: delete this module at the
+ * central FINAL REVIEW (C4-bis.3). Rollback: backend path stays wired.
+ */
 import { Module, forwardRef } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';

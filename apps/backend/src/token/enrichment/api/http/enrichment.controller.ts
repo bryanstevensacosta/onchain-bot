@@ -1,11 +1,11 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
-import { EnrichTokenUseCase } from '../../application/handlers/enrich-token.use-case';
-import { GetSnapshotUseCase } from '../../application/handlers/get-snapshot.use-case';
-import { ListSnapshotsUseCase } from '../../application/handlers/list-snapshots.use-case';
+import { EnrichTokenUseCase } from '@/token/enrichment/application/handlers/enrich-token.use-case';
+import { GetSnapshotUseCase } from '@/token/enrichment/application/handlers/get-snapshot.use-case';
+import { ListSnapshotsUseCase } from '@/token/enrichment/application/handlers/list-snapshots.use-case';
 import { EnrichTokenInput } from '../input/enrich-token.input';
-import type { TokenSnapshotView } from '../../application/mappers/token-snapshot.mapper';
+import type { TokenSnapshotView } from '@/token/enrichment/application/mappers/token-snapshot.mapper';
 
-@Controller('token/market-data')
+@Controller('token/enrichment')
 export class EnrichmentController {
   public constructor(
     private readonly enrich: EnrichTokenUseCase,

@@ -1,5 +1,5 @@
 {
-  "name": "@alpha-meta-token-scanner/backend",
+  "name": "@onchain-bot/backend",
   "version": "1.3.0",
   "description": "NestJS pipeline for discovering, validating and republishing alpha-calls from Telegram channels",
   "private": true,
@@ -127,6 +127,7 @@
       }
     },
     "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/src/$1",
       "^telegram/events$": "<rootDir>/../../node_modules/telegram/events/index",
       "^telegram/sessions$": "<rootDir>/../../node_modules/telegram/sessions/index",
       "^telegram/extensions/Logger$": "<rootDir>/../../node_modules/telegram/extensions/Logger",
@@ -143,7 +144,7 @@
       "^health/(.*)$": "<rootDir>/src/health/$1",
       "^src/(.*)$": "<rootDir>/src/$1",
       "^@ingestion-telegram/media/(.*)$": "<rootDir>/../ingestion-telegram/src/shared/media/$1",
-      "^@ingestion-telegram/telegram/(.*)$": "<rootDir>/../ingestion-telegram/src/shared/telegram/$1"
+      "^@ingestion-telegram/telegram/(.*)$": "<rootDir>/../ingestion-telegram/src/shared/transformation/$1"
     }
   }
 }

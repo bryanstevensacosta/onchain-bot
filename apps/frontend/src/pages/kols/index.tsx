@@ -10,7 +10,7 @@ import { KolLeaderboard } from '@/widgets/kol-leaderboard';
 import { Button, Card } from '@/shared/ui';
 import { formatRelativeTime, usePagination } from '@/shared/lib';
 import { SetKolLifecycleButton } from '@/features/set-kol-lifecycle';
-import { AddKolModal } from '@/features/add-kol';
+import { AddKolTelegramModal } from '@/features/add-kol-telegram';
 import { RecomputeKolReputationButton } from '@/features/recompute-kol-reputation/ui/recompute-kol-reputation-button';
 import { useKolScoreFormula } from '@/features/kol-score-formula/model/use-kol-score-formula';
 import { KolScoreFormulaSelect } from '@/features/kol-score-formula/ui/kol-score-formula-select';
@@ -124,7 +124,7 @@ export function KolsPage() {
         </Button>
       </header>
 
-      <AddKolModal
+      <AddKolTelegramModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
       />

@@ -1,5 +1,5 @@
 -- =====================================================================
--- alpha-meta-token-scanner :: Score Tier Distribution
+-- onchain-bot :: Score Tier Distribution
 -- =====================================================================
 -- Distribución de tokens por tier y classification.
 -- =====================================================================

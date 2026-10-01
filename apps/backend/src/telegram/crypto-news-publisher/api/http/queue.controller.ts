@@ -1,3 +1,8 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/queue/ + apps/feed-publisher/src/llm/ + apps/feed-publisher/src/keywords/ (Tramo 2, todos 3+4+5 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add queue/llm/keywords logic in apps/feed-publisher/src/{queue,llm,keywords}/ instead.
+ */
 import {
   Controller,
   Delete,
@@ -42,7 +47,7 @@ export type { QueueCountsView, QueueEntryView, QueueSourceView };
  * Media lives in `QueueMediaController` (GET /:id/media, same prefix).
  */
 @ApiTags('crypto-news-publisher')
-@Controller('crypto-news-publisher/queue')
+@Controller(['crypto-news-publisher/queue', 'feed-publisher/queue'])
 export class QueueController {
   /** UTC reset hour for the 24h window (4am UTC). */
   private static readonly RESET_HOUR_UTC = 4;

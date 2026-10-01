@@ -1,5 +1,5 @@
 -- =====================================================================
--- alpha-meta-token-scanner :: Recent Canonical Calls
+-- onchain-bot :: Recent Canonical Calls
 -- =====================================================================
 -- Llamadas canónicas vistas recientemente en el sistema.
 -- =====================================================================

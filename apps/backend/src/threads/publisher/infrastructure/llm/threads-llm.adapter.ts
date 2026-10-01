@@ -1,3 +1,8 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/threads/ (Tramo 2, todo 8 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add threads logic in apps/feed-publisher/src/threads/ instead.
+ */
 import { Injectable, Logger } from '@nestjs/common';
 import { LlmPort } from 'shared/llm';
 import { isBlockingFailureReason } from 'shared/deduplication/domain/constants/blocking-failure-reasons';
@@ -173,8 +178,9 @@ export class ThreadsLlmAdapter {
       `PromptTemplate not found: ${requestedId} — falling back to ${THREADS_DEFAULT_TEMPLATE_ID}`,
     );
     if (requestedId !== THREADS_DEFAULT_TEMPLATE_ID) {
-      const seeded =
-        await this.templateRepo.findById(THREADS_DEFAULT_TEMPLATE_ID);
+      const seeded = await this.templateRepo.findById(
+        THREADS_DEFAULT_TEMPLATE_ID,
+      );
       if (seeded) {
         return seeded;
       }

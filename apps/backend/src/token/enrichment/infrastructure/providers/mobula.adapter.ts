@@ -4,7 +4,7 @@ import {
   MarketData,
   MarketDataProviderPort,
 } from 'token/enrichment/domain/ports/market-data-provider.port';
-import { MobulaService } from 'data-provider/mobula/mobula.service';
+import { MobulaService } from '../../../../../../market-data/src/provider/infrastructure/mobula/mobula.service';
 
 const CHAIN_MAP: Record<string, string> = {
   ethereum: 'ethereum',

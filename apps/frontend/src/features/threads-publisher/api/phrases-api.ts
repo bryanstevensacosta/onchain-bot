@@ -61,7 +61,7 @@ export async function fetchThreadsPhrases(): Promise<
   ReadonlyArray<ThreadsPhraseEntry>
 > {
   return httpGet<ReadonlyArray<ThreadsPhraseEntry>>(
-    '/threads-publisher/phrases',
+    '/feed-threads-publisher/phrases',
   );
 }
 
@@ -75,7 +75,7 @@ export async function searchThreadsPhrases(
     params.set('table', table);
   }
   return httpGet<ReadonlyArray<ThreadsPhraseEntry>>(
-    `/threads-publisher/phrases/search?${params.toString()}`,
+    `/feed-threads-publisher/phrases/search?${params.toString()}`,
   );
 }
 
@@ -93,6 +93,6 @@ export async function checkThreadsConflict(
     params.set('matchMode', matchMode);
   }
   return httpGet<ThreadsConflictCheckResult>(
-    `/threads-publisher/phrases/conflict-check?${params.toString()}`,
+    `/feed-threads-publisher/phrases/conflict-check?${params.toString()}`,
   );
 }

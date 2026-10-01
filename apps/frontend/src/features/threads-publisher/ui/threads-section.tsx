@@ -5,7 +5,7 @@ import { Button, Card } from '@/shared/ui';
 /**
  * Generic threads section shell — injects `basePath` + `queryKeys` so
  * threads blocks stay thin wrappers instead of as-is clones of the
- * crypto-news sections. `basePath` labels the backend prefix the block
+ * feed sections. `basePath` labels the backend prefix the block
  * talks to; `queryKeys` scopes the manual refresh button.
  */
 export interface ThreadsSectionProps {

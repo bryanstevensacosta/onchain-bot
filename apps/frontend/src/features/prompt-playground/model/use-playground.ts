@@ -7,13 +7,13 @@ import {
 } from '@/features/prompt-playground/api/playground-api';
 
 // Template list / models / create-template reuse the canonical
-// crypto-news-publisher hooks (same GET/POST endpoints, same cache keys).
+// feed-publisher hooks (same GET/POST endpoints, same cache keys).
 export {
   useCreateTemplate,
   useLlmModels,
   useTemplates,
   useUpdateTemplate,
-} from '@/features/crypto-news-publisher/model/use-llm-config';
+} from '@/features/feed-publisher/model/use-llm-config';
 
 /**
  * Test-run a prompt draft against a real news sample. SIMPLE tier:

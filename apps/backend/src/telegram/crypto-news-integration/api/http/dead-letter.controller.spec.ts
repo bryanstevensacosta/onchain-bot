@@ -4,8 +4,8 @@ import {
   DeadLetterController,
   toDeadLetterView,
 } from './dead-letter.controller';
-import { DeadLetterService } from '../../application/services/dead-letter.service';
-import { DeadLetterQueueEntry } from '../../domain/entities/dead-letter-queue-entry.entity';
+import { DeadLetterService } from '@/telegram/crypto-news-integration/application/services/dead-letter.service';
+import { DeadLetterQueueEntry } from '@/telegram/crypto-news-integration/domain/entities/dead-letter-queue-entry.entity';
 
 describe('DeadLetterController', () => {
   let controller: DeadLetterController;

@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import { LlmPort, LlmGenerateRequest } from '../llm.port';
-import type { AppConfig } from '../../common/config/app.config';
+import type { AppConfig } from '@/shared/common/config/app.config';
 
 /**
  * LLM adapter backed by an OpenAI-compatible gateway (e.g. LiteLLM proxy).

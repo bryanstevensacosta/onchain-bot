@@ -1,6 +1,7 @@
-# crypto-news-queue-media - Work Plan
+# feed-queue-media - Work Plan
 
 ## TL;DR (For humans)
+
 <!-- Fill this LAST, after the detailed plan below is written, so it summarizes the REAL plan. -->
 <!-- Plain English for a non-engineer: NO file paths, NO todo numbers, NO wave/agent/tool names. -->
 
@@ -21,35 +22,47 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
 > TL;DR (machine): <1 line - effort, risk, deliverables>
 
 ## Scope
+
 ### Must have
+
 ### Must NOT have (guardrails, anti-slop, scope boundaries)
 
 ## Verification strategy
+
 > Zero human intervention - all verification is agent-executed.
+
 - Test decision: <TDD | tests-after | none> + framework
-- Evidence: .omo/evidence/task-<N>-crypto-news-queue-media.<ext>
+- Evidence: .omo/evidence/task-<N>-feed-queue-media.<ext>
 
 ## Execution strategy
+
 ### Parallel execution waves
+
 > Target 5-8 todos per wave. Fewer than 3 (except the final) means you under-split.
 
 ### Dependency matrix
+
 | Todo | Depends on | Blocks | Can parallelize with |
-| --- | --- | --- | --- |
+| ---- | ---------- | ------ | -------------------- |
 
 ## Todos
+
 > Implementation + Test = ONE todo. Never separate.
+
 <!-- APPEND TASK BATCHES BELOW THIS LINE WITH edit/apply_patch - never rewrite the headers above. -->
+
 - [ ] 1. <title>
-  What to do / Must NOT do: <...>
-  Parallelization: Wave <N> | Blocked by: <...> | Blocks: <...>
-  References (executor has NO interview context - be exhaustive): <src/path:lines>
-  Acceptance criteria (agent-executable): <exact command or assertion>
-  QA scenarios (name the exact tool + invocation): happy + failure, Evidence .omo/evidence/task-1-crypto-news-queue-media.<ext>
-  Commit: <Y/N> | <type>(<scope>): <summary>
+     What to do / Must NOT do: <...>
+     Parallelization: Wave <N> | Blocked by: <...> | Blocks: <...>
+     References (executor has NO interview context - be exhaustive): <src/path:lines>
+     Acceptance criteria (agent-executable): <exact command or assertion>
+     QA scenarios (name the exact tool + invocation): happy + failure, Evidence .omo/evidence/task-1-feed-queue-media.<ext>
+     Commit: <Y/N> | <type>(<scope>): <summary>
 
 ## Final verification wave
+
 > Runs in parallel after ALL todos. ALL must APPROVE. Surface results and wait for the user's explicit okay before declaring complete.
+
 - [ ] F1. Plan compliance audit
 - [ ] F2. Code quality review
 - [ ] F3. Real manual QA

@@ -1,5 +1,5 @@
 import { AdsCronScheduler } from '../ads-cron.scheduler';
-import { PublishAdUseCase } from '../../handlers/publish-ad.use-case';
+import { PublishAdUseCase } from '@/telegram/crypto-news-ads/application/handlers/publish-ad.use-case';
 import { AdRepository } from 'telegram/crypto-news-ads/application/ports/ad.repository';
 import { AdRotationConfigRepository } from 'telegram/crypto-news-ads/application/ports/ad-rotation-config.repository';
 import { AdRotationConfig } from 'telegram/crypto-news-ads/domain/entities/ad-rotation-config.entity';

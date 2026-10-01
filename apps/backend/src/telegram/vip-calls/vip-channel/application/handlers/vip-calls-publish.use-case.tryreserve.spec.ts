@@ -1,4 +1,10 @@
 /**
+ * @deprecated Moved to apps/kol-calls-publisher/src/telegram/ (+ templates orchestration in
+ * apps/kol-calls-publisher/src/templates/, seed `vip-calls`) (Tramo 1, todo 11 + P18 companion).
+ * P14: `vip-calls` is a template SEED name, never a module. This backend legacy copy stays
+ * wired for dual-run; removed at central FINAL REVIEW. Do not extend.
+ */
+/**
  * TryReserve / Finalize / MarkFailed branch coverage for VipCallsPublishUseCase.
  *
  * Encodes the four execution paths of the reserve-then-finalize publishing
@@ -8,7 +14,7 @@
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ChainId } from 'chain/identity/chain-id.vo';
 import { PublishedCall } from 'telegram/shared';
-import { InMemoryPublishedCallRepository } from '../../infrastructure/repositories/in-memory-published-call.repository';
+import { InMemoryPublishedCallRepository } from '@/telegram/vip-calls/vip-channel/infrastructure/repositories/in-memory-published-call.repository';
 import { VipCallsPublishUseCase } from './vip-calls-publish.use-case';
 import type { TryReserveResult } from 'telegram/shared';
 

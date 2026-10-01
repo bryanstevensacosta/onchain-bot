@@ -12,6 +12,7 @@
     "baseUrl": "./",
     "incremental": true,
     "paths": {
+      "@/*": ["src/*"],
       "shared/kernel/*": ["src/shared/kernel/*"],
       "shared/common/*": ["src/shared/common/*"],
       "shared/*": ["src/shared/*"],
@@ -28,9 +29,11 @@
       "data-provider/*": ["src/data-provider/*"],
       "health/*": ["src/health/*"],
       "src/*": ["src/*"],
-      "@ingestion-telegram/media/*": ["../ingestion-telegram/src/shared/media/*"],
+      "@ingestion-telegram/media/*": [
+        "../ingestion-telegram/src/shared/media/*"
+      ],
       "@ingestion-telegram/telegram/*": [
-        "../ingestion-telegram/src/shared/telegram/*"
+        "../ingestion-telegram/src/shared/transformation/*"
       ]
     }
   },

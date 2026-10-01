@@ -2,21 +2,21 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
   ChatGroupEntity,
   TelegramChatType,
-} from '../../domain/chat-group.entity';
-import type { ChatSettingsEntity } from '../../domain/chat-settings.entity';
+} from '@/telegram/chain-dexter-bot/domain/chat-group.entity';
+import type { ChatSettingsEntity } from '@/telegram/chain-dexter-bot/domain/chat-settings.entity';
 import {
   CHAT_GROUP_REPOSITORY,
   ChatGroupRepository,
-} from '../../application/ports/chat-group.repository';
+} from '@/telegram/chain-dexter-bot/application/ports/chat-group.repository';
 import {
   CHAT_SETTINGS_REPOSITORY,
   ChatSettingsPatch,
   ChatSettingsRepository,
-} from '../../application/ports/chat-settings.repository';
+} from '@/telegram/chain-dexter-bot/application/ports/chat-settings.repository';
 import {
   TradeButtonRegistry,
   TradeButtonCode,
-} from '../../infrastructure/telegram/trade-button-registry';
+} from '@/telegram/chain-dexter-bot/infrastructure/telegram/trade-button-registry';
 
 export interface ChatSettingsContext {
   readonly group: ChatGroupEntity;

@@ -449,7 +449,7 @@ export const appConfig = registerAs('app', () => {
   // Storage configuration (Requirement 6.2)
   const uploads = {
     root: process.env.INGESTION_UPLOADS_ROOT || './uploads',
-    mediaPath: 'feed/media',
+    mediaPath: 'feed-media',
   };
 
   // Safety configuration (Requirement 11)
@@ -555,12 +555,12 @@ export const appConfig = registerAs('app', () => {
   // TODO: Implement validation functions
   //   validateApiConfig(api);
 
-  // Crypto-news retention janitor (db-separation todo 6): effective 72h,
+  // Feed retention janitor (db-separation todo 6): effective 24h,
   // unified with the backend's CRYPTO_NEWS_MEDIA_RETENTION_HOURS default
-  // (72h). The scheduler clamps to >= 1h at the seam. Clock is
+  // (24h, legacy env name preserved). The scheduler clamps to >= 1h at the seam. Clock is
   // crypto_news_messages.ingested_at (arrival), NEVER published_at.
-  const cryptoNewsMediaRetentionHours = parseInt(
-    process.env.INGESTION_CRYPTO_NEWS_MEDIA_RETENTION_HOURS ?? '72',
+  const feedMediaRetentionHours = parseInt(
+    process.env.INGESTION_CRYPTO_NEWS_MEDIA_RETENTION_HOURS ?? '24',
     10,
   );
 
@@ -572,6 +572,10 @@ export const appConfig = registerAs('app', () => {
   // Generate with: openssl rand -hex 32 (never commit a real value).
   const apiKeyRaw = (process.env.INGESTION_API_KEY || '').trim();
   const apiKey = apiKeyRaw.length > 0 ? apiKeyRaw : undefined;
+  // Trust-proxy flag (sec1 M2): when true, Express serves behind a trusted
+  // proxy AND the rate limiter keys by x-forwarded-for-first. Defaults OFF:
+  // honoring the header from an untrusted client lets it rotate identities.
+  const trustProxy = process.env.TRUST_PROXY === 'true';
   return {
     nodeEnv,
     imageRevision,
@@ -582,9 +586,10 @@ export const appConfig = registerAs('app', () => {
     ingestionSafety,
     database,
     logging,
-    cryptoNewsMediaRetentionHours,
+    feedMediaRetentionHours,
     apiKey,
     security: { apiKey },
+    trustProxy,
   };
 });
 

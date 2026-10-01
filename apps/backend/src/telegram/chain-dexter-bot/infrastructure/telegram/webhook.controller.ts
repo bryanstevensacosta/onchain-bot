@@ -10,13 +10,21 @@ import {
   Req,
 } from '@nestjs/common';
 import type { Request } from 'express';
-import { ChainDexterBotConfigService } from '../../bot.config';
-import { CommandRouterService } from '../../application/handlers/command-router.service';
+import { ChainDexterBotConfigService } from '@/telegram/chain-dexter-bot/bot.config';
+import { CommandRouterService } from '@/telegram/chain-dexter-bot/application/handlers/command-router.service';
 import type { TelegramUpdate } from './bot-client';
 
 interface RateLimiter {
   isAllowed(chatId: number): boolean;
 }
+
+/**
+ * @deprecated Ingress moves to the telegram-bots-gateway router (todo 3/6):
+ * `POST /api/ingress/:botId/updates` fans out to dexter
+ * `POST /dexter/ingress`. This backend legacy direct webhook (secret-token
+ * check + per-chat in-memory limiter) stays live until the global cutover
+ * (gateway todo 7) deletes it. Do not extend.
+ */
 
 class InMemoryRateLimiter implements RateLimiter {
   private readonly hits = new Map<

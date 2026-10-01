@@ -2,7 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   FetchedImage,
   TokenImageFetcher as TokenImageFetcherPort,
-} from '../../application/ports/token-image.fetcher';
+} from '@/token/enrichment/application/ports/token-image.fetcher';
 
 const FETCH_TIMEOUT_MS = 5000;
 const CACHE_TTL_MS = 5 * 60 * 1000;

@@ -1,3 +1,8 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/threads/ (Tramo 2, todo 8 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add threads logic in apps/feed-publisher/src/threads/ instead.
+ */
 import {
   BadRequestException,
   Body,
@@ -77,7 +82,7 @@ export type {
  * — easier to express at the controller boundary than inside the
  * persistence layer.
  */
-@Controller('threads-publisher/llm')
+@Controller(['threads-publisher/llm', 'feed-threads-publisher/llm'])
 export class ThreadsLlmConfigController {
   public constructor(
     private readonly templateRepo: ThreadsPromptTemplateRepository,

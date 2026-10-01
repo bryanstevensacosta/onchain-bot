@@ -5,7 +5,7 @@ import { AchievementEventPublisher } from '../ports/achievement-event.publisher'
 import {
   CallAchievementReachedEvent,
   CallAchievementReachedPayload,
-} from '../../domain/events/call-achievement-reached.event';
+} from '@/token/achievement/domain/events/call-achievement-reached.event';
 
 export interface RecordNotifiedAchievementInput {
   monitoredCall: MonitoredCallRecord;

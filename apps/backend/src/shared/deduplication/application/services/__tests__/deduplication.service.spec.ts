@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DeduplicationService } from '../deduplication.service';
-import { DeduplicationStore } from '../../ports/deduplication-store.port';
+import { DeduplicationStore } from '@/shared/deduplication/application/ports/deduplication-store.port';
 import { DedupRecord } from 'shared/deduplication/domain/entities/dedup-record.entity';
 import { Fingerprint } from 'shared/deduplication/domain/value-objects/fingerprint.vo';
 import { ContentNormalizerService } from 'shared/deduplication/domain/services/content-normalizer.service';

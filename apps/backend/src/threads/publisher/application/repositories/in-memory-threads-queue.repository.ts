@@ -1,3 +1,8 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/threads/ (Tramo 2, todo 8 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add threads logic in apps/feed-publisher/src/threads/ instead.
+ */
 import { Injectable } from '@nestjs/common';
 import { ThreadsQueueEntry } from 'threads/publisher/domain/entities/threads-queue-entry.entity';
 import {
@@ -35,8 +40,7 @@ export class InMemoryThreadsQueueRepository extends ThreadsQueueRepository {
     const cap = EnqueueThreadsMessageUseCase.THREADS_MAX_QUEUE_DEPTH;
     if (this.rows.size > cap) {
       const ordered = [...this.rows.values()].sort(
-        (a, b) =>
-          a.messageReceivedAt.getTime() - b.messageReceivedAt.getTime(),
+        (a, b) => a.messageReceivedAt.getTime() - b.messageReceivedAt.getTime(),
       );
       for (const victim of ordered.slice(0, this.rows.size - cap)) {
         this.rows.delete(victim.id);
@@ -48,8 +52,7 @@ export class InMemoryThreadsQueueRepository extends ThreadsQueueRepository {
     const pending = [...this.rows.values()]
       .filter((e) => e.status === 'PENDING')
       .sort(
-        (a, b) =>
-          a.messageReceivedAt.getTime() - b.messageReceivedAt.getTime(),
+        (a, b) => a.messageReceivedAt.getTime() - b.messageReceivedAt.getTime(),
       );
     return pending[0] ?? null;
   }
@@ -91,8 +94,7 @@ export class InMemoryThreadsQueueRepository extends ThreadsQueueRepository {
   ): Promise<ReadonlyArray<ThreadsQueueEntry>> {
     return [...this.rows.values()]
       .sort(
-        (a, b) =>
-          b.messageReceivedAt.getTime() - a.messageReceivedAt.getTime(),
+        (a, b) => b.messageReceivedAt.getTime() - a.messageReceivedAt.getTime(),
       )
       .slice(0, limit);
   }
@@ -119,8 +121,7 @@ export class InMemoryThreadsQueueRepository extends ThreadsQueueRepository {
   }
 
   public async countPending(): Promise<number> {
-    return [...this.rows.values()].filter((e) => e.status === 'PENDING')
-      .length;
+    return [...this.rows.values()].filter((e) => e.status === 'PENDING').length;
   }
 
   public async findById(id: string): Promise<ThreadsQueueEntry | null> {
@@ -142,9 +143,7 @@ export class InMemoryThreadsQueueRepository extends ThreadsQueueRepository {
   ): Promise<ReadonlyArray<ThreadsQueueEntry>> {
     const cutoff = Date.now() - thresholdMs;
     return [...this.rows.values()]
-      .filter(
-        (e) => e.status === 'PENDING' && e.queuedAt.getTime() < cutoff,
-      )
+      .filter((e) => e.status === 'PENDING' && e.queuedAt.getTime() < cutoff)
       .sort((a, b) => a.queuedAt.getTime() - b.queuedAt.getTime());
   }
 
@@ -155,8 +154,7 @@ export class InMemoryThreadsQueueRepository extends ThreadsQueueRepository {
     const matches = [...this.rows.values()]
       .filter((e) => e.channelId === channelId && e.messageId === messageId)
       .sort(
-        (a, b) =>
-          b.messageReceivedAt.getTime() - a.messageReceivedAt.getTime(),
+        (a, b) => b.messageReceivedAt.getTime() - a.messageReceivedAt.getTime(),
       );
     return matches[0] ?? null;
   }

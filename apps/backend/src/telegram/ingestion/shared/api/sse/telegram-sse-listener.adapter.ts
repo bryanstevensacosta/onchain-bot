@@ -6,7 +6,7 @@ import {
   ResolvedChannelMetadata,
   JoinChannelResult,
   // TelegramMediaAttachment, // Unused - MessagePayload uses different media structure
-} from '../../domain/ports/telegram-listener.port';
+} from '@/telegram/ingestion/shared/domain/ports/telegram-listener.port';
 
 /**
  * MessagePayload from Ingestion Service SSE stream

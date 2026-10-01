@@ -2,7 +2,7 @@ import { Controller, Get, Req, Res, Logger } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { randomUUID } from 'crypto';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { StreamService } from '../../application/services/stream.service';
+import { StreamService } from '@/stream/application/services/stream.service';
 
 /**
  * SSEStreamController exposes the SSE streaming endpoint for backend clients.

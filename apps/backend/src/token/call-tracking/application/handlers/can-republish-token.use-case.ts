@@ -4,7 +4,7 @@ import { TrackedPublishedCallRepository } from '../ports/tracked-published-call.
 import {
   PUBLISHED_CALL_TRACKING_DEFAULTS,
   PUBLISHED_CALL_TRACKING_FILTER_NAMES,
-} from '../../domain/types/published-call-tracking-filter';
+} from '@/token/call-tracking/domain/types/published-call-tracking-filter';
 
 export interface CanRepublishTokenInput {
   readonly chain: string;

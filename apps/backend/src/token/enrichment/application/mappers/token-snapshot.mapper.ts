@@ -1,4 +1,4 @@
-import type { TokenSnapshot } from '../../domain/entities/token-snapshot.entity';
+import type { TokenSnapshot } from '@/token/enrichment/domain/entities/token-snapshot.entity';
 
 export interface TokenSnapshotView {
   readonly id: string;

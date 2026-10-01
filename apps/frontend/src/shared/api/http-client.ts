@@ -100,7 +100,7 @@ export async function httpDelete<TResp = unknown>(
     const text = await res.text().catch(() => '');
     throw new HttpError(res.status, text, `DELETE ${path} → ${res.status}`);
   }
-  // Several backend DELETEs answer 204 No Content (crypto-news filters,
+  // Several backend DELETEs answer 204 No Content (feed filters,
   // publisher keywords/blacklist/queue, settings presets) — there is no
   // body to parse, so resolve undefined instead of throwing on res.json().
   if (res.status === 204) {

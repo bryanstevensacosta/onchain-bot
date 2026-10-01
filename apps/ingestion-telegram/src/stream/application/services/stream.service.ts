@@ -13,7 +13,7 @@ import { CronJob } from 'cron';
 import {
   DEFAULT_SSE_HEARTBEAT_INTERVAL_MS,
   type StreamConfig,
-} from '../../stream.config';
+} from '@/stream/stream.config';
 
 /**
  * SSE event payload structure

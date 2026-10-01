@@ -1,3 +1,8 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/scheduling/ (Tramo 2, todo 6 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add scheduling/ads logic in apps/feed-publisher/src/scheduling/ instead.
+ */
 import {
   Body,
   ConflictException,
@@ -51,7 +56,11 @@ import {
  * Bodies validated by the global `ValidationPipe` (400 on shape
  * violations). `Ad` is immutable — PATCH rebuilds via `applyAdPatch`.
  */
-@Controller('crypto-news-ads/ads')
+@Controller([
+  'crypto-news-ads/ads',
+  'crypto-news-scheduling/ads',
+  'feed-scheduling/ads',
+])
 export class AdsController {
   public constructor(
     private readonly adRepo: AdRepository,

@@ -1,3 +1,7 @@
+/**
+ * @deprecated Tramo 2 todo 15 (barrido JSDoc): legacy '/crypto-news*' guard below.
+ * New path: '/feed-threads-publisher/*' + '/threads/matching/*'; guard removed at cutover T2-11.
+ */
 import '@/test/setup';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -81,7 +85,7 @@ function stubFetch(): void {
 }
 
 describe('threads api endpoint URLs', () => {
-  it('every threads fetch fn hits /threads-publisher/* or /threads/matching/*, never /crypto-news*', async () => {
+  it('every threads fetch fn hits /feed-threads-publisher/* or /threads/matching/*, never /crypto-news*', async () => {
     stubFetch();
 
     await fetchThreadsKeywords();
@@ -132,21 +136,21 @@ describe('threads api endpoint URLs', () => {
     for (const req of seen) {
       const path = pathnameOf(req.url);
       expect(
-        path.startsWith('/threads-publisher/') ||
+        path.startsWith('/feed-threads-publisher/') ||
           path.startsWith('/threads/matching/'),
         `unexpected threads URL: ${req.method} ${req.url}`,
       ).toBe(true);
     }
-    expect(seen.filter((req) => req.url.includes('/crypto-news'))).toEqual([]);
+    expect(seen.filter((req) => req.url.includes('/crypto-news'))).toEqual([]); // @deprecated T2-15: legacy guard -> '/feed-threads-publisher/*'; remove at cutover T2-11.
   });
 
-  it('queue cancel issues DELETE against /threads-publisher/queue/:id', async () => {
+  it('queue cancel issues DELETE against /feed-threads-publisher/queue/:id', async () => {
     stubFetch();
     await cancelThreadsQueueEntry('entry-9');
     expect(seen).toHaveLength(1);
     expect(seen[0]?.method).toBe('DELETE');
     expect(pathnameOf(seen[0]?.url ?? '')).toBe(
-      '/threads-publisher/queue/entry-9',
+      '/feed-threads-publisher/queue/entry-9',
     );
   });
 });

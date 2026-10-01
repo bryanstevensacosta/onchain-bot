@@ -14,6 +14,13 @@ import {
 } from 'telegram/shared';
 import { RegisterCallForAchievementsEvent } from 'token/achievement/domain/events/register-call-for-achievements.event';
 
+/**
+ * @deprecated Publish flow moves to kol-system via the telegram-bots-gateway
+ * (todo 4): `ManualPublishUseCase`/`PublishFromTemplateUseCase` →
+ * `GatewaySendClient` → `POST /api/bots/:id/send`. This backend legacy
+ * `tryReserve` → `sendMessage` → `finalize` copy stays live until the global
+ * cutover (gateway todo 7) deletes it. Do not extend.
+ */
 export interface VipCallsPublishInput {
   readonly chain: string;
   readonly address: string;

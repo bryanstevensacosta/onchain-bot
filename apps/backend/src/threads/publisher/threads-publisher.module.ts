@@ -1,3 +1,16 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/threads/ (Tramo 2, todo 8 + P18 companion).
+ * Threads publishing now lives in feed-publisher: thread-builder/scheduler +
+ * use-cases + cron + entities + controller (esqueleto v1 + contrato de des-stubbeo
+ * C1). This module stays wired for dual-run; it will be removed at cutover
+ * (todo 11). Do not extend it — add threads logic in
+ * apps/feed-publisher/src/threads/ instead.
+ *
+ * New location: apps/feed-publisher/src/threads/
+ * Reason: extracting feed pipeline from backend monolith to dedicated app
+ * Breaking change: Yes (removal at cutover)
+ * Rollback: re-enable backend path (USE_FEED_PUBLISHER=false)
+ */
 import { Module, forwardRef } from '@nestjs/common';
 import { LlmPort } from 'shared/llm';
 import { LlmGatewayAdapter } from 'shared/llm/adapters/llm-gateway.adapter';

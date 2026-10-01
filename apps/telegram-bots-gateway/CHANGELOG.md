@@ -1,0 +1,60 @@
+# Changelog — @onchain-bot/telegram-bots-gateway
+
+## [Unreleased]
+
+### Changed
+
+- **Staging cutover (gateway todo 7, STAGING ONLY 2026-09-29, no prod
+  touch):** per-app staging flags point at the staging gateway `:4071`
+  (`kol-calls-publisher`: `KOL_PUBLISH_MODE=gateway`, fixed
+  `BOTS_GATEWAY_URL` `:4070`→`:4071`; `feed-publisher`:
+  `FEED_PUBLISH_MODE=gateway` + `BOTS_GATEWAY_URL=:4071` added, was
+  absent; `dexter-onchain-bot`: `DEXTER_SEND_MODE=gateway`, fixed URL
+  `:4070`→`:4071`; `kol-calls` template already `gateway`). Old
+  adapters STAY (no deletions, `@deprecated` headers intact — removal
+  at the central FINAL REVIEW). Send matrix live-verified on `:4071`
+  (message/photo-URL/media_group-URL → 777, idempotent replay cached;
+  feed local-file/video/buttons + dexter `reply_markup`/edit/callback
+  have no gateway equivalent and stay on direct legs). Rollback per
+  app: flip `*_MODE` back to `dual` (no gateway redeploy). Evidence:
+  `.omo/evidence/task-7-gateway-staging.log`.
+
+### Added
+
+- **Exclusive bot↔app binding (dexter task):** one bot serves ONE app
+  at a time. `BotBindingService` (vault-owned, exported from
+  `VaultModule`): `bind` locks a vault bot to an app id (second bind
+  to a different app → CONFLICT 409; re-bind to the same app is
+  idempotent), `unbind` releases it back to `available`, `inventory`
+  lists every vault bot with `{ boundApp, available }` (fresh
+  registers start locked to `ownerApp`, never floating).
+  `GET /api/bots/inventory` + `POST /api/bots/:id/bind` (admin) +
+  `POST /api/bots/:id/unbind` (admin) on `BotsController`.
+  `SendService.send` enforces the lock per caller client id (locked
+  bot used by another app → 409, no Telegram call). Failing-first:
+  `bot-binding.service.spec.ts` (second bind rejected + inventory
+  availability + send-gate); `send.service.spec.ts` extended
+  (per-app bots burst + cross-app send rejected).
+  (feat/mega-refactor-tramos)
+
+### Fixed
+
+- **Staging backport 2026-09-27:** staging compose builds locally
+  (GHCR pull denied) + joins `onchain-bot-staging-net` with DNS alias
+  `onchain-bot-telegram-bots-gateway-staging`. Registered
+  `scheduling-posts-staging` + `threads-publisher-staging` send-clients
+  in the staging `BOTS_GATEWAY_CLIENTS` (droplet env only, never
+  committed).
+
+### Added
+
+- App scaffold (todo 1): NestJS 11 service on port triplet 4070/4071/4072 (dev/staging/prod, verified free with `lsof`), `GET /api/health`, `Dockerfile` (`CMD dist/main.js`), dev + staging compose files, `.env.example` + `.env.development` + staging/production templates (own DB `onchain_bot_bots[_staging]`).
+- Encrypted bot vault (todo 1): `bot_vault` table shape (id, label, AES-256-GCM token, owner_app, created/rotated_at), internal CRUD (`POST/GET/GET :id/PATCH :id/rotate/DELETE :id /api/vault/bots`) with redacted reads (`token: '***'`), rotation without redeploy, fail-closed boot without `ENCRYPTION_KEY` (clear error, exit 1).
+- Bot resolver (todo 1): `GET /api/bots/:id/profile` (handle, bot id, username, display name, avatar URL via Bot API `getMe`/`getUserProfilePhotos`) with permanent avatar cache under `uploads/avatars/` (janitor-excluded); `GET /api/bots/:id/avatar` serves the cached JPEG or 404 when uncached.
+- Living `AGENTS.md` + test suite (6 suites, 19 tests, failing-first) with coverage.
+- Send gateway with global per-bot quota (todo 2): `POST /api/bots/:id/send` (message/photo/media-group) paced at 30/s per bot + ~1/s per chat via per-bot queues (Telegram-quota pacing only, no product delays), centralized 429 backoff honoring `retry_after` with bounded retries then closed failure, idempotency on (bot, chat, `client_msg_id`), per-bot accounting plus `GET /api/bots/:id/stats`.
+- Secure service access (todo 2): per-client API keys with `send` vs `admin` scopes (`BOTS_GATEWAY_CLIENTS`, empty = keyless dev), HMAC-SHA256 signed requests with timestamp window + single-use nonces (bad/expired/replayed auth → 401, wrong scope → 403), vault CRUD now requires `admin`, TLS-only transport rule and key-rotation drills in `docs/auth-compromise-drill.md`; keys never logged (pinned by spec).
+- Single webhook ingress + update router (todo 3): `POST /api/ingress/:botId/updates` (public to Telegram, per-route `x-telegram-bot-api-secret-token` compared timing-safe, 401 on mismatch) with pass-through fan-out of the raw update to subscribed apps (kol-system, feed-publisher, dexter) carrying `x-gateway-bot` + optional per-subscriber HMAC; webhook-vs-getUpdates exclusivity enforced per bot (single mode field, polling routes refuse webhooks with 409 and the fallback `UpdatePollerService` refuses to start under webhook mode); down apps get bounded retries with backoff (`BOTS_GATEWAY_FANOUT_MAX_ATTEMPTS`, `BOTS_GATEWAY_FANOUT_BACKOFF_MS`) then a dead-letter record readable via `GET /api/ingress/:botId/dead-letter`; route/mode management behind the `admin` scope with `BOTS_GATEWAY_INGRESS` JSON seeding; `GET /api/health` now reports `ingress: 'up'`.
+- kol-system migration contract (todo 4, docs only — no gateway code changes): kol-system is the first migrated client (vault re-register via `POST /api/vault/bots` with `admin` scope + HMAC, sends via `POST /api/bots/:id/send` with `send` scope + `client_msg_id` idempotency); operator wiring (`BOTS_GATEWAY_CLIENTS` entries for `kol-system` + migration admin credential, distinct secrets per env) and the exact-path/exact-bytes signing reminder documented in `AGENTS.md` §FIRST CLIENT.
+- dexter-onchain-bot migration contract (todo 6, docs only — no gateway code changes): dexter is the third migrated client (env-token vault re-register via `POST /api/vault/bots` with `admin` scope + HMAC, `ownerApp: 'dexter-onchain-bot'`; lookup answers via `POST /api/bots/:id/send` with `send` scope + per-lookup `client_msg_id`; `POST /dexter/ingress` as the `UpdateFanoutService` subscriber target); operator wiring (`BOTS_GATEWAY_CLIENTS` entries for `dexter-onchain-bot`, distinct secrets per env, staging/prod pin `DEXTER_SEND_MODE=gateway`) and known cutover blockers (keyboard sends, `editMessageText`, `answerCallbackQuery` — no `SendDto` equivalent, gateway todo 7) documented in `AGENTS.md` §DEXTER CLIENT. (feed-publisher migrated in todo 5 with zero gateway changes; its contract lives in its own `AGENTS.md`.)
+- Legacy deprecation sweep (todo 8, analysis + comment headers only — no logic moves, no deletions): `@deprecated` JSDoc headers (each naming the gateway destination + todo 4/5/6 absorber + todo 7 removal) added to every remaining legacy direct-leg file — backend vip-calls sender/use-case/achievement, crypto sender/transport/dispatch/ads/verify, dexter client/adapter/7 handlers/router/ingress/keyboards/config/token-scan, shared publisher port (rows 1-11 + 23-28, 39-40); feed-publisher direct-leg base + transport (todo 5); dexter-onchain-bot direct webhook/poller (todo 6). Plan inventory extended rows 23-40 (`EXTENSION` + per-file deprecation order + orphan check: zero orphan usages) in `.omo/plans/telegram-bots-gateway.md`. Evidence: `.omo/evidence/task-8-telegram-bots-gateway.log`.

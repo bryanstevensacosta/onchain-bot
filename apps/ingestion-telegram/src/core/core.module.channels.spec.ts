@@ -63,9 +63,7 @@ describe('CoreModule - local registry, no-restart refresh, cold-start', () => {
       },
       refresh: () => (mod as any).refreshChannels() as Promise<void>,
       stopTimer: () => {
-        const id = (mod as any).refreshIntervalId as
-          | NodeJS.Timeout
-          | undefined;
+        const id = (mod as any).refreshIntervalId as NodeJS.Timeout | undefined;
         if (id) {
           clearInterval(id);
         }

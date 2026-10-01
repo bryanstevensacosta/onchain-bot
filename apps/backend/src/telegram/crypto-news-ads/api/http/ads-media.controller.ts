@@ -1,3 +1,8 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/scheduling/ (Tramo 2, todo 6 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add scheduling/ads logic in apps/feed-publisher/src/scheduling/ instead.
+ */
 import * as path from 'node:path';
 import { promises as fs } from 'node:fs';
 import { Controller, Get, Param, Req, Res } from '@nestjs/common';
@@ -20,7 +25,7 @@ import type { AdMediaLibraryEntryView } from './ads-media.view';
  * missing row or file — never 500 for a stale path). Only the STORED
  * relative path from the media row is joined with the uploads root.
  */
-@Controller('crypto-news-ads')
+@Controller(['crypto-news-ads', 'crypto-news-scheduling', 'feed-scheduling'])
 export class AdsMediaController {
   private readonly uploadsRoot: string;
 

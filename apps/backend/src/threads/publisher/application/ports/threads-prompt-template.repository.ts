@@ -1,3 +1,8 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/threads/ (Tramo 2, todo 8 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add threads logic in apps/feed-publisher/src/threads/ instead.
+ */
 import { ThreadsPromptTemplate } from 'threads/publisher/domain/entities/threads-prompt-template.entity';
 
 /**
@@ -17,9 +22,7 @@ import { ThreadsPromptTemplate } from 'threads/publisher/domain/entities/threads
  */
 export abstract class ThreadsPromptTemplateRepository {
   public abstract findAll(): Promise<ReadonlyArray<ThreadsPromptTemplate>>;
-  public abstract findById(
-    id: string,
-  ): Promise<ThreadsPromptTemplate | null>;
+  public abstract findById(id: string): Promise<ThreadsPromptTemplate | null>;
   public abstract findByIds(
     ids: ReadonlyArray<string>,
   ): Promise<ReadonlyArray<ThreadsPromptTemplate>>;

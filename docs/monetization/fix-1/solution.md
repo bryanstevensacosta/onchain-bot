@@ -15,6 +15,7 @@ recibiendo texto (lo necesita para extraer ticker/name/métricas/chart), pero
 ese texto nunca se persiste ni se emite en eventos.
 
 **Cambios resumidos**:
+
 - 2 columnas TypeORM eliminadas (`extraction_results.raw_text`, `token_calls.raw_text`)
 - 2 entities de dominio sin `rawText` en su state
 - 2 mappers sin `rawText`
@@ -31,6 +32,7 @@ ese texto nunca se persiste ni se emite en eventos.
 ### 1.1 Por qué el texto debe seguir fluyendo, pero sin persistir ni emitirse
 
 El parser (`HeuristicParserAdapter`) extrae **info valiosa del texto**:
+
 - Ticker (`$XYZ` o `Ticker: XYZ`)
 - Name (`Name: ...`)
 - Métricas (MC, LP, FDV, Holders)
@@ -41,6 +43,7 @@ de valor (un `TokenCall` sin ticker/métricas/chart es inútil para traders).
 
 **Conclusión**: el texto debe fluir **ingestion → extraction → parsing** (en el
 call stack), pero nunca debe:
+
 - Escapar del call stack hacia un evento global
 - Persistirse en ninguna capa (DB, cache, log)
 
@@ -92,6 +95,7 @@ DESPUÉS (correcto):
 ```
 
 **Cambios clave**:
+
 - Los eventos siguen existiendo pero SOLO para observabilidad (no llevan texto).
 - Las llamadas cross-BC pasan de **event bus → direct call**.
 - El texto vive solo en el call stack de la cadena `consumeStream → extract → parse`.
@@ -113,14 +117,14 @@ DESPUÉS (correcto):
 
 ### A.1 Archivos afectados
 
-| Archivo | Cambio |
-|---|---|
-| `apps/backend/src/token/intake/extraction/domain/entities/extraction-result.entity.ts` | Quitar `rawText` del state, constructor, getter, método `emitCandidatesExtracted` |
-| `apps/backend/src/token/intake/extraction/infrastructure/persistence/typeorm/entities/extraction-result.entity.ts` | Quitar `@Column raw_text` |
-| `apps/backend/src/token/intake/extraction/infrastructure/persistence/typeorm/mappers/extraction-result.mapper.ts` | Quitar `row.rawText = r.rawText` y `rawText: row.rawText` |
-| `apps/backend/src/token/intake/extraction/application/mappers/extraction-result.mapper.ts` | Quitar `rawText` del tipo `ExtractionResultView` y del mapper |
-| `apps/backend/src/token/intake/extraction/application/handlers/get-extraction-result.use-case.ts` | Quitar `rawText` del output |
-| `apps/backend/src/token/intake/extraction/application/handlers/get-recent-results.use-case.ts` | Quitar `rawText` del output |
+| Archivo                                                                                                            | Cambio                                                                            |
+| ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| `apps/backend/src/token/intake/extraction/domain/entities/extraction-result.entity.ts`                             | Quitar `rawText` del state, constructor, getter, método `emitCandidatesExtracted` |
+| `apps/backend/src/token/intake/extraction/infrastructure/persistence/typeorm/entities/extraction-result.entity.ts` | Quitar `@Column raw_text`                                                         |
+| `apps/backend/src/token/intake/extraction/infrastructure/persistence/typeorm/mappers/extraction-result.mapper.ts`  | Quitar `row.rawText = r.rawText` y `rawText: row.rawText`                         |
+| `apps/backend/src/token/intake/extraction/application/mappers/extraction-result.mapper.ts`                         | Quitar `rawText` del tipo `ExtractionResultView` y del mapper                     |
+| `apps/backend/src/token/intake/extraction/application/handlers/get-extraction-result.use-case.ts`                  | Quitar `rawText` del output                                                       |
+| `apps/backend/src/token/intake/extraction/application/handlers/get-recent-results.use-case.ts`                     | Quitar `rawText` del output                                                       |
 
 ### A.2 Diff: `extraction-result.entity.ts`
 
@@ -263,14 +267,14 @@ DESPUÉS (correcto):
 
 ### B.1 Archivos afectados
 
-| Archivo | Cambio |
-|---|---|
-| `apps/backend/src/token/intake/parsing/domain/entities/token-call.entity.ts` | Quitar `rawText` del state, constructor, getter, método `emitCallParsed` |
-| `apps/backend/src/token/intake/parsing/infrastructure/persistence/typeorm/entities/token-call.entity.ts` | Quitar `@Column raw_text` |
-| `apps/backend/src/token/intake/parsing/infrastructure/persistence/typeorm/mappers/token-call.mapper.ts` | Quitar `row.rawText = c.rawText` y `rawText: row.rawText` |
-| `apps/backend/src/token/intake/parsing/application/mappers/token-call.mapper.ts` | Quitar `rawText` del tipo `TokenCallView` |
-| `apps/backend/src/token/intake/parsing/application/handlers/parse-from-candidates.use-case.ts` | No usar `rawText` para persistir |
-| `apps/backend/src/token/intake/parsing/infrastructure/adapters/heuristic-parser.adapter.ts` | **NO CAMBIA** (sigue extrayendo del texto) |
+| Archivo                                                                                                  | Cambio                                                                   |
+| -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `apps/backend/src/token/intake/parsing/domain/entities/token-call.entity.ts`                             | Quitar `rawText` del state, constructor, getter, método `emitCallParsed` |
+| `apps/backend/src/token/intake/parsing/infrastructure/persistence/typeorm/entities/token-call.entity.ts` | Quitar `@Column raw_text`                                                |
+| `apps/backend/src/token/intake/parsing/infrastructure/persistence/typeorm/mappers/token-call.mapper.ts`  | Quitar `row.rawText = c.rawText` y `rawText: row.rawText`                |
+| `apps/backend/src/token/intake/parsing/application/mappers/token-call.mapper.ts`                         | Quitar `rawText` del tipo `TokenCallView`                                |
+| `apps/backend/src/token/intake/parsing/application/handlers/parse-from-candidates.use-case.ts`           | No usar `rawText` para persistir                                         |
+| `apps/backend/src/token/intake/parsing/infrastructure/adapters/heuristic-parser.adapter.ts`              | **NO CAMBIA** (sigue extrayendo del texto)                               |
 
 ### B.2 Diff: `token-call.entity.ts`
 
@@ -600,12 +604,14 @@ DESPUÉS (correcto):
 ### C.8 Eliminar handlers
 
 **Borrar estos archivos**:
+
 - `apps/backend/src/token/intake/extraction/infrastructure/event-bus/kol-message-ingested.handler.ts`
 - `apps/backend/src/token/intake/extraction/infrastructure/event-bus/kol-message-ingested.handler.spec.ts`
 - `apps/backend/src/token/intake/parsing/infrastructure/event-bus/candidates-extracted.handler.ts`
 - `apps/backend/src/token/intake/parsing/infrastructure/event-bus/candidates-extracted.handler.spec.ts`
 
 **Actualizar wiring** en:
+
 - `apps/backend/src/token/intake/extraction/extraction.module.ts`
 - `apps/backend/src/token/intake/parsing/parsing.module.ts`
 
@@ -620,8 +626,9 @@ sigue aplicando regex sobre el texto. Solo cambia su calling site (ahora desde
 `ExtractFromMessageUseCase` directamente, no vía evento).
 
 Si en el futuro quieres reducir dependencia del texto en el parser:
+
 - Versión v2 podría operar solo sobre las entities estructuradas (candidates)
-  + keywords extraídos.
+  - keywords extraídos.
 - Pero esa es una evolución futura, no parte de fix-1.
 
 ---
@@ -685,7 +692,7 @@ describe('Anti-scraping compliance', () => {
       kolId: 'k1',
       messageId: 1,
       occurredAt: new Date(),
-      rawText: SENSITIVE,  // legacy param name kept for now (see Fase G)
+      rawText: SENSITIVE, // legacy param name kept for now (see Fase G)
       contractAddresses: [ca],
     });
 
@@ -771,16 +778,20 @@ describe('CandidatesExtractedEvent compliance', () => {
 describe('Pipeline E2E no-text-leak', () => {
   it('text from KOL never reaches any persistence or event payload', async () => {
     const SENSITIVE = 'TOP SECRET KOL MESSAGE — $XYZ 0xaaa...';
-    const messages = [{
-      kolId: 'k1',
-      messageId: 1,
-      text: SENSITIVE,
-      occurredAt: new Date(),
-    }];
+    const messages = [
+      {
+        kolId: 'k1',
+        messageId: 1,
+        text: SENSITIVE,
+        occurredAt: new Date(),
+      },
+    ];
 
     // Mock the listener
     jest.spyOn(listener, 'subscribe').mockReturnValue(
-      (async function* () { for (const m of messages) yield m; })(),
+      (async function* () {
+        for (const m of messages) yield m;
+      })(),
     );
 
     // Capture ALL events emitted by the system
@@ -838,7 +849,9 @@ function assertNoRawText(label: string, obj: unknown): void {
   for (const pattern of suspiciousPatterns) {
     if (pattern.test(str)) {
       rawTextLeakCounter.inc();
-      logger.error(`RAW TEXT LEAK DETECTED at ${label}: ${str.substring(0, 200)}`);
+      logger.error(
+        `RAW TEXT LEAK DETECTED at ${label}: ${str.substring(0, 200)}`,
+      );
       throw new Error(`Compliance violation: raw text in ${label}`);
     }
   }
@@ -896,7 +909,7 @@ npm run test:e2e
 
 ```bash
 # 1. Backup antes del deploy
-pg_dump alpha_meta_token_scanner > pre_fix_1_$(date +%Y%m%d).sql
+pg_dump onchain_bot > pre_fix_1_$(date +%Y%m%d).sql
 
 # 2. Deploy
 git pull origin main
@@ -927,8 +940,8 @@ watch -n 60 'curl http://localhost:3030/metrics | grep raw_text_leak'
 
 ```bash
 # 1. Schema check
-docker exec onchain-bot-postgres-dev psql -U alpha_meta_token_scanner \
-  -d alpha_meta_token_scanner -c "
+docker exec onchain-bot-postgres-dev psql -U onchain_bot \
+  -d onchain_bot -c "
     SELECT table_name, column_name
     FROM information_schema.columns
     WHERE table_name IN ('extraction_results', 'token_calls')
@@ -1004,15 +1017,15 @@ ALTER TABLE token_calls ADD COLUMN raw_text TEXT;
 
 ## 11. Riesgos residuales post-fix
 
-| Riesgo | Mitigación |
-|---|---|
-| Logs de aplicación imprimen texto por error | Code review + test que greps stdout/stderr |
-| Backups de DB con datos pre-fix | Los backups pre-fix están vacíos (DB nunca tuvo datos, ver `problem.md §10`); para futuros, cifrar o purgar backups antiguos |
-| Heap dump contiene texto en runtime | Aceptable — heap dump no es accesible sin acceso al proceso |
-| Cache Redis (futuro) podría serializar texto | Documentar: "no uses Redis para entidades que puedan contener texto crudo" |
-| Read replicas de Postgres | `DROP COLUMN` se replica automáticamente; verificar réplicas no tienen la columna |
-| Un developer añade `text: string` a un nuevo event en el futuro | Code review checklist + grep en CI: `grep -rn "rawText\|raw_text\|text:" apps/backend/src/*/domain/events/` debe ser 0 |
-| El parser se rompe si el texto está vacío | Tests deben cubrir el caso `text: ''` → parser devuelve `ticker: null, name: null, metrics: empty` |
+| Riesgo                                                          | Mitigación                                                                                                                   |
+| --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Logs de aplicación imprimen texto por error                     | Code review + test que greps stdout/stderr                                                                                   |
+| Backups de DB con datos pre-fix                                 | Los backups pre-fix están vacíos (DB nunca tuvo datos, ver `problem.md §10`); para futuros, cifrar o purgar backups antiguos |
+| Heap dump contiene texto en runtime                             | Aceptable — heap dump no es accesible sin acceso al proceso                                                                  |
+| Cache Redis (futuro) podría serializar texto                    | Documentar: "no uses Redis para entidades que puedan contener texto crudo"                                                   |
+| Read replicas de Postgres                                       | `DROP COLUMN` se replica automáticamente; verificar réplicas no tienen la columna                                            |
+| Un developer añade `text: string` a un nuevo event en el futuro | Code review checklist + grep en CI: `grep -rn "rawText\|raw_text\|text:" apps/backend/src/*/domain/events/` debe ser 0       |
+| El parser se rompe si el texto está vacío                       | Tests deben cubrir el caso `text: ''` → parser devuelve `ticker: null, name: null, metrics: empty`                           |
 
 ---
 

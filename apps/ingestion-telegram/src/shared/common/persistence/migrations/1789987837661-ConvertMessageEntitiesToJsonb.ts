@@ -14,9 +14,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * as a parsed array but pre-migration TEXT rows come back as strings, so
  * `CryptoNewsController.transformMessageForApi` accepts both shapes.
  */
-export class ConvertMessageEntitiesToJsonb1789987837661
-  implements MigrationInterface
-{
+export class ConvertMessageEntitiesToJsonb1789987837661 implements MigrationInterface {
   name = 'ConvertMessageEntitiesToJsonb1789987837661';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

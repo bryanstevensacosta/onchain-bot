@@ -49,11 +49,11 @@ apps/ingestion-telegram/src/shared/telegram/transformation/
 │   └── abstract-message-transformer.ts      # Template Method principal
 ├── extractors/
 │   ├── kol-text-extractor.ts                # Implementación KOL (vacío por ToS)
-│   ├── crypto-news-text-extractor.ts        # Implementación crypto-news (4-source cascade)
+│   ├── feed-text-extractor.ts        # Implementación feed (4-source cascade)
 │   ├── telegram-media-extractor.ts          # Extractor base de metadata
 │   └── telegram-entity-normalizer.ts        # Normalizador de entities
 ├── transformers/
-│   ├── crypto-news-message-transformer.ts   # Transformer para crypto-news (SOLO EN INGESTION)
+│   ├── feed-message-transformer.ts   # Transformer para feed (SOLO EN INGESTION)
 │   └── index.ts                             # Barrel export
 ├── ports/
 │   └── media-download-strategy.port.ts      # Contrato para dependency inversion
@@ -91,7 +91,7 @@ import {
 
 ```typescript
 // Ingestion code
-import { CryptoNewsMessageTransformer } from 'shared/telegram/transformation';
+import { FeedMessageTransformer } from 'shared/telegram/transformation';
 ```
 
 ---
@@ -182,7 +182,7 @@ export abstract class AbstractTextExtractor {
 export abstract class AbstractTextExtractor {
   /**
    * Extract text from a raw Telegram message.
-   * Subclasses define extraction strategy (e.g., KOL returns empty, crypto-news cascades sources)
+   * Subclasses define extraction strategy (e.g., KOL returns empty, feed cascades sources)
    */
   abstract extract(msg: RawTelegramMessage): string;
 
@@ -414,13 +414,13 @@ export abstract class AbstractMessageTransformer {
     peerId: string,
     msg: RawTelegramMessage,
   ): Promise<TelegramRawMessage> {
-    // Step 1: Extract text (strategy varies: KOL=empty, crypto-news=cascade)
+    // Step 1: Extract text (strategy varies: KOL=empty, feed=cascade)
     const text = await this.extractText(peerId, msg);
 
     // Step 2: Normalize entities (shared logic)
     const entities = this.extractEntities(msg);
 
-    // Step 3: Extract media (strategy varies: KOL=metadata-only, crypto-news=download)
+    // Step 3: Extract media (strategy varies: KOL=metadata-only, feed=download)
     const media = await this.extractMedia(peerId, msg);
 
     // Step 4: Build final result (shared logic)
@@ -621,14 +621,14 @@ export class KolTextExtractor extends AbstractTextExtractor {
 
 ---
 
-### Task 2.2: Implementar CryptoNewsTextExtractor ✅ COMPLETADO
+### Task 2.2: Implementar FeedTextExtractor ✅ COMPLETADO
 
 **Descripción**: Implementación con cascade 4-source
 
-**Archivo**: `apps/ingestion-telegram/src/shared/telegram/transformation/extractors/crypto-news-text-extractor.ts`
+**Archivo**: `apps/ingestion-telegram/src/shared/telegram/transformation/extractors/feed-text-extractor.ts`
 
 ```typescript
-export class CryptoNewsTextExtractor extends AbstractTextExtractor {
+export class FeedTextExtractor extends AbstractTextExtractor {
   /**
    * Extract text with 4-source cascade:
    * 1. msg.message
@@ -647,7 +647,7 @@ export class CryptoNewsTextExtractor extends AbstractTextExtractor {
 }
 ```
 
-**Tests**: `crypto-news-text-extractor.spec.ts`
+**Tests**: `feed-text-extractor.spec.ts`
 
 - [x] Extracts from msg.message first
 - [x] Falls back to msg.text
@@ -744,7 +744,7 @@ export class TelegramEntityNormalizer extends AbstractEntityNormalizer {
 ### FASE 2 - Checklist de Completitud ✅
 
 - [x] KolTextExtractor implementado + tests (3 tests)
-- [x] CryptoNewsTextExtractor implementado + tests (13 tests)
+- [x] FeedTextExtractor implementado + tests (13 tests)
 - [x] TelegramMediaExtractor implementado + tests (14 tests)
 - [x] TelegramEntityNormalizer implementado + tests (14 tests)
 - [x] Barrel exports actualizados
@@ -820,20 +820,20 @@ export class KolMessageTransformer extends AbstractMessageTransformer {
 
 ---
 
-### Task 3.2: Implementar CryptoNewsMessageTransformer ✅ COMPLETADO
+### Task 3.2: Implementar FeedMessageTransformer ✅ COMPLETADO
 
-**Descripción**: Transformer para crypto-news (con download)
+**Descripción**: Transformer para feed (con download)
 
-**Archivo**: `apps/ingestion-telegram/src/shared/telegram/transformation/transformers/crypto-news-message-transformer.ts`
+**Archivo**: `apps/ingestion-telegram/src/shared/telegram/transformation/transformers/feed-message-transformer.ts`
 
 ```typescript
-export class CryptoNewsMessageTransformer extends AbstractMessageTransformer {
+export class FeedMessageTransformer extends AbstractMessageTransformer {
   constructor(
     private readonly downloader: MediaDownloaderService,
     private readonly client: TelegramClient,
   ) {
     super(
-      new CryptoNewsTextExtractor(),
+      new FeedTextExtractor(),
       new TelegramMediaExtractor(),
       new TelegramEntityNormalizer(),
     );
@@ -843,7 +843,7 @@ export class CryptoNewsMessageTransformer extends AbstractMessageTransformer {
     peerId: string,
     msg: RawTelegramMessage,
   ): Promise<string> {
-    // Delegate to CryptoNewsTextExtractor (4-source cascade)
+    // Delegate to FeedTextExtractor (4-source cascade)
     return this.textExtractor.extract(msg);
   }
 
@@ -878,7 +878,7 @@ export class CryptoNewsMessageTransformer extends AbstractMessageTransformer {
 }
 ```
 
-**Tests**: `crypto-news-message-transformer.spec.ts`
+**Tests**: `feed-message-transformer.spec.ts`
 
 - [x] Transforms message with all fields
 - [x] Text extracted via 4-source cascade
@@ -896,7 +896,7 @@ export class CryptoNewsMessageTransformer extends AbstractMessageTransformer {
 ### FASE 3 - Checklist de Completitud ✅
 
 - [x] KolMessageTransformer implementado + tests (10 tests)
-- [x] CryptoNewsMessageTransformer implementado + tests (10 tests)
+- [x] FeedMessageTransformer implementado + tests (10 tests)
 - [x] Integration tests (transformers end-to-end)
 - [x] **Todos los tests de Fase 3 pasan (20 tests adicionales)**
 - [x] **Total acumulado: 179 tests pasando**
@@ -927,7 +927,9 @@ export class CryptoNewsMessageTransformer extends AbstractMessageTransformer {
       "shared/common/*": ["src/shared/common/*"],
       "shared/*": ["src/shared/*"],
       // ... otros paths existentes ...
-      "@ingestion-telegram/media/*": ["../ingestion-telegram/src/shared/media/*"],
+      "@ingestion-telegram/media/*": [
+        "../ingestion-telegram/src/shared/media/*"
+      ],
       "@ingestion-telegram/telegram/*": [
         "../ingestion-telegram/src/shared/telegram/*"
       ] // ← AGREGAR
@@ -955,11 +957,11 @@ export class CryptoNewsMessageTransformer extends AbstractMessageTransformer {
 
 - [x] Can import AbstractMessageTransformer from ingestion-telegram
 - [x] Can import KolTextExtractor from ingestion-telegram
-- [x] Can import CryptoNewsTextExtractor from ingestion-telegram
+- [x] Can import FeedTextExtractor from ingestion-telegram
 - [x] Can import TelegramMediaExtractor from ingestion-telegram
 - [x] Can import TelegramEntityNormalizer from ingestion-telegram
 - [x] Can instantiate KolMessageTransformer with extractors
-- [x] Can instantiate CryptoNewsMessageTransformer with extractors
+- [x] Can instantiate FeedMessageTransformer with extractors
 
 **Criterio de éxito**:
 
@@ -1145,7 +1147,7 @@ import {
 
 ## FASE 5: Integrar en Ingestion-Service ✅ COMPLETADA
 
-**Objetivo**: Reemplazar código inline del adapter con CryptoNewsMessageTransformer  
+**Objetivo**: Reemplazar código inline del adapter con FeedMessageTransformer  
 **Riesgo**: 🔴 ALTO (modifica producción)  
 **Estado**: ✅ COMPLETADA (Task 5.1, ~80 LOC eliminadas)  
 **Completado**: 2026-09-07  
@@ -1153,7 +1155,7 @@ import {
 
 ### Task 5.1: Actualizar adapter ingestion-telegram ✅ COMPLETADO
 
-**Descripción**: Migrar `TelegramMtprotoListenerAdapter` para usar `CryptoNewsMessageTransformer`
+**Descripción**: Migrar `TelegramMtprotoListenerAdapter` para usar `FeedMessageTransformer`
 
 **Archivos modificados**:
 
@@ -1165,32 +1167,32 @@ import {
 1. **SharedModule actualizado**:
 
    ```typescript
-   import { CryptoNewsMessageTransformer } from 'shared/telegram/transformation';
+   import { FeedMessageTransformer } from 'shared/telegram/transformation';
 
    providers: [
      {
-       provide: CryptoNewsMessageTransformer,
-       useFactory: () => new CryptoNewsMessageTransformer(),
+       provide: FeedMessageTransformer,
+       useFactory: () => new FeedMessageTransformer(),
      },
    ],
-   exports: [CryptoNewsMessageTransformer],
+   exports: [FeedMessageTransformer],
    ```
 
 2. **Adapter refactorizado**:
-   - Constructor: inyecta `CryptoNewsMessageTransformer`
+   - Constructor: inyecta `FeedMessageTransformer`
    - `transformMessage()` simplificado (~70 LOC → ~45 LOC):
      ```typescript
      private async transformMessage(peerId: string, msg: {...}): Promise<TelegramRawMessage> {
        const transformed = this.messageTransformer.transform({ ...msg, peerId });
        // Handle media download if needed
-       if (msg.media && this.isCryptoNewsChannel(peerId) && transformed.media.length > 0) {
+       if (msg.media && this.isFeedChannel(peerId) && transformed.media.length > 0) {
          const downloaded = await this.extractAndDownloadMedia(peerId, msg.id, msg.media);
          // Merge with metadata
        }
        return { /* mapped to TelegramRawMessage */ };
      }
      ```
-   - `extractAllText()` **eliminado** (~80 LOC) — lógica ahora en `CryptoNewsTextExtractor`
+   - `extractAllText()` **eliminado** (~80 LOC) — lógica ahora en `FeedTextExtractor`
    - `extractAndDownloadMedia()` **mantenido** (requiere TelegramClient async)
 
 **LOC reducido**: ~80 LOC eliminadas (extractAllText completamente removido)
@@ -1237,7 +1239,7 @@ export class TelegramMediaExtractorService {
    * - Download files via MediaDownloaderService
    * - Return TelegramMediaAttachment[] with filePath
    *
-   * Used ONLY for crypto-news channels (KOL messages skip media)
+   * Used ONLY for feed channels (KOL messages skip media)
    */
   async extractAndDownload(
     client: TelegramClient,
@@ -1258,20 +1260,20 @@ constructor(
   private readonly clientManager: TelegramClientManager,
   private readonly lastSeenManager: LastSeenManager,
   private readonly floodWaitHandler: FloodWaitHandlerService,
-  private readonly cryptoNewsSourceRepo: CryptoNewsSourceRepository,
-  private readonly messageTransformer: CryptoNewsMessageTransformer,
+  private readonly feedSourceRepo: FeedSourceRepository,
+  private readonly messageTransformer: FeedMessageTransformer,
   private readonly mediaExtractor: TelegramMediaExtractorService, // ← NUEVO
 ) {}
 
 private async transformMessage(peerId: string, msg: {...}): Promise<TelegramRawMessage> {
   const transformed = this.messageTransformer.transform({ ...msg, peerId });
 
-  // Step 2: Download media for crypto-news channels (if applicable)
+  // Step 2: Download media for feed channels (if applicable)
   let media = transformed.media.length > 0
     ? (transformed.media as unknown as TelegramMediaAttachment[])
     : undefined;
 
-  if (msg.media && this.isCryptoNewsChannel(peerId) && transformed.media.length > 0) {
+  if (msg.media && this.isFeedChannel(peerId) && transformed.media.length > 0) {
     try {
       const downloaded = await this.mediaExtractor.extractAndDownload(
         this.clientManager.ensureClient(),
@@ -1325,7 +1327,7 @@ private async transformMessage(peerId: string, msg: {...}): Promise<TelegramRawM
 **Cambios**:
 
 ```typescript
-import { CryptoNewsMessageTransformer } from 'shared/telegram/transformation';
+import { FeedMessageTransformer } from 'shared/telegram/transformation';
 
 @Global()
 @Module({
@@ -1334,12 +1336,12 @@ import { CryptoNewsMessageTransformer } from 'shared/telegram/transformation';
 
     // AGREGAR transformer
     {
-      provide: CryptoNewsMessageTransformer,
+      provide: FeedMessageTransformer,
       useFactory: (
         downloader: MediaDownloaderService,
         clientManager: TelegramClientManager,
       ) => {
-        return new CryptoNewsMessageTransformer(
+        return new FeedMessageTransformer(
           downloader,
           clientManager.getClient(),
         );
@@ -1349,7 +1351,7 @@ import { CryptoNewsMessageTransformer } from 'shared/telegram/transformation';
   ],
   exports: [
     // ... exports existentes ...
-    CryptoNewsMessageTransformer, // ← AGREGAR
+    FeedMessageTransformer, // ← AGREGAR
   ],
 })
 export class SharedModule {}
@@ -1369,11 +1371,11 @@ export class SharedModule {}
 
 ```typescript
 import { oldTransformMessage } from './old-adapter-backup';
-import { CryptoNewsMessageTransformer } from 'shared/telegram/transformation';
+import { FeedMessageTransformer } from 'shared/telegram/transformation';
 
 async function compare() {
-  const transformer = new CryptoNewsMessageTransformer(/* ... */);
-  const testMessages = loadTestMessages(); // 1000 crypto-news messages
+  const transformer = new FeedMessageTransformer(/* ... */);
+  const testMessages = loadTestMessages(); // 1000 feed messages
 
   for (const msg of testMessages) {
     const oldResult = await oldTransformMessage(msg.peerId, msg.raw);
@@ -1388,7 +1390,7 @@ async function compare() {
 }
 ```
 
-**Test**: Ejecutar 1000 mensajes crypto-news, comparar:
+**Test**: Ejecutar 1000 mensajes feed, comparar:
 
 - [ ] Text extraído (4-source cascade correcto)
 - [ ] Media downloaded (filePath presente)
@@ -1405,8 +1407,8 @@ async function compare() {
 **Métodos a eliminar del adapter**:
 
 - [ ] `transformMessage()` inline → reemplazado con delegación (5 LOC)
-- [ ] `extractAllText()` → ahora en `CryptoNewsTextExtractor`
-- [ ] `extractAndDownloadMedia()` → ahora en `CryptoNewsMessageTransformer.extractMedia()`
+- [ ] `extractAllText()` → ahora en `FeedTextExtractor`
+- [ ] `extractAndDownloadMedia()` → ahora en `FeedMessageTransformer.extractMedia()`
 - [ ] Logs `[MSG-TRANSFORM-DEBUG]` / `[TEXT-EXTRACTION-DEBUG]` / `[MEDIA-DEBUG]`
 
 **Criterio de éxito**:
@@ -1455,7 +1457,7 @@ async function compare() {
 
 - **Abstracts**: `AbstractTextExtractor`, `AbstractMediaExtractor`, `AbstractEntityNormalizer`, `AbstractMessageTransformer`
 - **Backend**: Uses `KolMessageTransformer` (ToS-compliant, no text extraction)
-- **Ingestion**: Uses `CryptoNewsMessageTransformer` (4-source text cascade + media download)
+- **Ingestion**: Uses `FeedMessageTransformer` (4-source text cascade + media download)
 
 **Location**: `shared/telegram/transformation/`
 
@@ -1563,7 +1565,7 @@ npm run start:prod
 
 1. **¿Por qué Template Method?**
    - Flujo de transformación es estable (texto → entities → media)
-   - Solo las estrategias de extracción varían (KOL vs crypto-news)
+   - Solo las estrategias de extracción varían (KOL vs feed)
 
 2. **¿Por qué NO Strategy puro?**
    - Template Method permite reusar `buildResult()` y `extractEntities()`
@@ -1576,7 +1578,7 @@ npm run start:prod
 ### Invariantes a Preservar
 
 1. **ToS**: KOL text NUNCA debe salir por event bus
-2. **Media download**: Solo crypto-news descarga (KOL metadata-only)
+2. **Media download**: Solo feed descarga (KOL metadata-only)
 3. **4-source cascade**: Orden fijo (message → text → caption → fwdFrom)
 4. **Entity normalization**: Mantener compatibilidad con formato actual
 
@@ -1636,8 +1638,8 @@ Al completar el refactoring, verificar:
 - [ ] Zero breaking changes confirmado
 - [ ] Performance dentro de ±5%
 
-**Firma de completitud**: ****\_\_\_****  
-**Fecha**: ****\_\_\_****
+**Firma de completitud**: \***\*\_\_\_\*\***  
+**Fecha**: \***\*\_\_\_\*\***
 
 ---
 
@@ -1664,11 +1666,11 @@ apps/ingestion-telegram/src/shared/telegram/transformation/
 │   └── abstract-message-transformer.ts
 ├── extractors/                          # Implementaciones (reutilizables)
 │   ├── kol-text-extractor.ts
-│   ├── crypto-news-text-extractor.ts
+│   ├── feed-text-extractor.ts
 │   ├── telegram-media-extractor.ts
 │   └── telegram-entity-normalizer.ts
-├── transformers/                        # Orquestador crypto-news (solo ingestion)
-│   └── crypto-news-message-transformer.ts
+├── transformers/                        # Orquestador feed (solo ingestion)
+│   └── feed-message-transformer.ts
 ├── ports/                               # Interfaces hexagonales
 │   └── media-download-strategy.port.ts
 └── utils/                               # Utilidades puras (reutilizables)
@@ -1706,7 +1708,7 @@ import { AbstractMessageTransformer, ... } from '@ingestion-telegram/telegram/tr
 **Ingestion code** (sin cambios, alias local ya existe):
 
 ```typescript
-import { CryptoNewsMessageTransformer } from 'shared/telegram/transformation';
+import { FeedMessageTransformer } from 'shared/telegram/transformation';
 ```
 
 ---

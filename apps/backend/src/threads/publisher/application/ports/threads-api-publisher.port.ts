@@ -1,4 +1,9 @@
 /**
+ * @deprecated Moved to apps/feed-publisher/src/threads/ (Tramo 2, todo 8 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add threads logic in apps/feed-publisher/src/threads/ instead.
+ */
+/**
  * Outbound port for publishing TEXT posts to the Threads Graph API.
  *
  * Owned by T3 (`threads-publisher` plan todo 3). T2's

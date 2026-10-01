@@ -1,5 +1,5 @@
 import { Controller, Get, Header } from '@nestjs/common';
-import { MetricsService } from '../../metrics.service';
+import { MetricsService } from '@/metrics/metrics.service';
 
 /**
  * MetricsController exposes Prometheus metrics endpoint

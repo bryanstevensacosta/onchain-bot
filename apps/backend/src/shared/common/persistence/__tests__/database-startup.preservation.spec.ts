@@ -212,15 +212,9 @@ describe('Preservation Property Tests: Development/Test Auto-Sync Unchanged', ()
     const defaultCfg = undefined;
     expect(defaultCfg?.host ?? 'localhost').toBe('localhost');
     expect(defaultCfg?.port ?? 5432).toBe(5432);
-    expect(defaultCfg?.username ?? 'alpha_meta_token_scanner').toBe(
-      'alpha_meta_token_scanner',
-    );
-    expect(defaultCfg?.password ?? 'alpha_meta_token_scanner').toBe(
-      'alpha_meta_token_scanner',
-    );
-    expect(defaultCfg?.database ?? 'alpha_meta_token_scanner').toBe(
-      'alpha_meta_token_scanner',
-    );
+    expect(defaultCfg?.username ?? 'onchain_bot').toBe('onchain_bot');
+    expect(defaultCfg?.password ?? 'onchain_bot').toBe('onchain_bot');
+    expect(defaultCfg?.database ?? 'onchain_bot').toBe('onchain_bot');
     expect(defaultCfg?.synchronize ?? true).toBe(true);
   });
 
@@ -409,9 +403,9 @@ describe('Preservation Property Tests: Development/Test Auto-Sync Unchanged', ()
           const defaultDbConfig = {
             host: 'localhost',
             port: 5432,
-            username: 'alpha_meta_token_scanner',
-            password: 'alpha_meta_token_scanner',
-            database: 'alpha_meta_token_scanner',
+            username: 'onchain_bot',
+            password: 'onchain_bot',
+            database: 'onchain_bot',
           };
           expect(defaultDbConfig.host).toBe('localhost');
           expect(defaultDbConfig.port).toBe(5432);

@@ -1,61 +1,12 @@
-export interface PumpDevTradeRequest {
-  readonly publicKey: string;
-  readonly action: 'buy' | 'sell';
-  readonly mint: string;
-  readonly amount: number;
-  readonly denominatedInSol?: boolean;
-  readonly slippage?: number;
-}
-
-export interface PumpDevTradeResponse {
-  readonly success: boolean;
-  readonly txId?: string;
-  readonly error?: string;
-}
-
-export interface PumpDevCreateTokenRequest {
-  readonly name: string;
-  readonly symbol: string;
-  readonly description?: string;
-  readonly image?: string;
-  readonly amount?: number;
-}
-
-export interface PumpDevCreateTokenResponse {
-  readonly success: boolean;
-  readonly mint?: string;
-  readonly txId?: string;
-  readonly error?: string;
-}
-
-export interface PumpDevBundleRequest {
-  readonly mint: string;
-  readonly buyers: ReadonlyArray<{
-    readonly publicKey: string;
-    readonly amount: number;
-  }>;
-}
-
-export interface PumpDevBundleResponse {
-  readonly success: boolean;
-  readonly txId?: string;
-  readonly error?: string;
-}
-
-export interface PumpDevTransferRequest {
-  readonly to: string;
-  readonly amount: number;
-}
-
-export interface PumpDevTransferResponse {
-  readonly success: boolean;
-  readonly txId?: string;
-  readonly error?: string;
-}
-
-export interface PumpDevClaimResponse {
-  readonly success: boolean;
-  readonly txId?: string;
-  readonly amount?: number;
-  readonly error?: string;
-}
+/**
+ * @deprecated Moved to apps/market-data/src/provider/infrastructure/pumpdev/ (Tramo 3, todo 4, C-DATA-01).
+ * Canonical owner is now market-data (ProvidersModule); this file is a
+ * dual-run re-export shim so legacy backend consumers stay green.
+ * Removed at cutover (todo 8). Do not extend it.
+ *
+ * New location: apps/market-data/src/provider/infrastructure/pumpdev/
+ * Reason: extracting market-data providers from backend monolith to dedicated app
+ * Breaking change: Yes (removal at cutover)
+ * Rollback: restore backend implementation from git history
+ */
+export * from '../../../../market-data/src/provider/infrastructure/pumpdev/pumpdev.types';

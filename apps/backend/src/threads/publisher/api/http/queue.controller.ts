@@ -1,3 +1,8 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/threads/ (Tramo 2, todo 8 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add threads logic in apps/feed-publisher/src/threads/ instead.
+ */
 import {
   Controller,
   Delete,
@@ -77,7 +82,7 @@ export interface ThreadsQueueCountsView {
  *  - No `threads_oauth_tokens.access_token` is ever exposed here
  *    (the queue entry carries no token field at all).
  */
-@Controller('threads-publisher/queue')
+@Controller(['threads-publisher/queue', 'feed-threads-publisher/queue'])
 export class ThreadsQueueController {
   /** UTC reset hour for the 24h window (4am UTC). */
   private static readonly RESET_HOUR_UTC = 4;

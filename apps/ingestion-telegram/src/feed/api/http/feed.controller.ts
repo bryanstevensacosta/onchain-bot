@@ -14,8 +14,9 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { TelegramFeedMessageRepository } from '../../infrastructure/persistence/typeorm/repositories/telegram-feed-message.repository';
-import type { TelegramFeedMessageType } from '../../infrastructure/persistence/typeorm/entities/telegram-feed-message.entity';
+import { TelegramFeedMessageRepository } from '@/feed/infrastructure/persistence/typeorm/repositories/telegram-feed-message.repository';
+import type { TelegramFeedMessageType } from '@/feed/infrastructure/persistence/typeorm/entities/telegram-feed-message.entity';
+import { decodeFeedCursor } from 'feed/feed-cursor';
 import { TelegramFeedSourceRepository } from 'registry/infrastructure/persistence/typeorm/repositories/typeorm-feed-source.repository';
 
 /**
@@ -80,12 +81,14 @@ function parseMessageTypeFilter(
  * - GET /api/feed/messages/channel/:channelId — messages by channel
  * - GET /api/feed/stats — message/source counts
  *
- * Response shapes are ported 1:1 from the retired crypto-news controller
+ * Response shapes are ported 1:1 from the retired feed controller
  * (wrapped `{timestamp,count,data}` on the recent-messages read, bare
- * arrays on the channel read).
+ * arrays on the channel read). The recent-messages read additionally
+ * returns an opaque `nextCursor` for keyset pagination (`null` at the end);
+ * old clients ignore it and keep the same first page as before.
  */
 @ApiTags('feed')
-@Controller('api/feed')
+@Controller(['api/feed', 'api/crypto-news'])
 export class FeedController {
   constructor(
     private readonly messageRepo: TelegramFeedMessageRepository,
@@ -108,25 +111,35 @@ export class FeedController {
     description:
       'Filter by feed type: kol | crypto-news (default: mixed, backward compatible)',
   })
+  @ApiQuery({
+    name: 'cursor',
+    required: false,
+    description:
+      'Opaque page cursor from the previous response nextCursor (omit for the first page; invalid values return 400)',
+  })
   @ApiResponse({
     status: 200,
-    description: 'Recent messages with timestamp/count/data',
+    description: 'Recent messages with timestamp/count/data/nextCursor',
   })
   async getRecentMessages(
     @Query('limit', ParseIntPipe) limit = 50,
     @Query('type') type?: string,
+    @Query('cursor') cursor?: string,
   ) {
     const typeFilter = parseMessageTypeFilter(type);
-    const messages = await this.messageRepo.findRecent(
+    const keyset = cursor === undefined ? undefined : decodeFeedCursor(cursor);
+    const { rows, nextCursor } = await this.messageRepo.findRecentPaged(
       Math.min(limit, 200),
       typeFilter,
+      keyset,
     );
 
     // Return object with timestamp to bust ETags on each request
     return {
       timestamp: new Date().toISOString(),
-      count: messages.length,
-      data: messages.map((msg) => this.transformMessageForApi(msg)),
+      count: rows.length,
+      data: rows.map((msg) => this.transformMessageForApi(msg)),
+      nextCursor,
     };
   }
 

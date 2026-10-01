@@ -4,7 +4,7 @@ import {
   TelegramRawMessage,
   ResolvedChannelMetadata,
   JoinChannelResult,
-} from '../../domain/ports/telegram-listener.port';
+} from '@/telegram/ingestion/shared/domain/ports/telegram-listener.port';
 
 /**
  * Mock adapter for TelegramListenerPort

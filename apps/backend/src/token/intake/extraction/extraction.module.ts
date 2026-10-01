@@ -17,6 +17,17 @@ import { EnrichOnExtractionHandler } from 'token/intake/extraction/infrastructur
 import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-process-domain-event.publisher';
 
 /**
+ * @deprecated Moved to apps/kol-system/src/extraction/ (Tramo 1, todo 5 + P18 companion).
+ * Extraction per-mention now lives in kol-system: ExtractFromMessageUseCase (direct call,
+ * fix-1, no event bus; multi-tip NO collapse, one row per mention) + snapshot base emit.
+ * This module stays wired for dual-run; it will be removed in todo 16 (cutover + cleanup).
+ * Do not extend it — add extraction logic in apps/kol-system/src/extraction/ instead.
+ *
+ * New location: apps/kol-system/src/extraction/
+ * Reason: extracting KOL pipeline from backend monolith to dedicated app
+ * Breaking change: Yes (removal in todo 16)
+ * Rollback: re-enable backend path (KOL_PIPELINE_ENABLED=true)
+ *
  * Extraction BC module.
  *
  * Wires the hexagonal layers:

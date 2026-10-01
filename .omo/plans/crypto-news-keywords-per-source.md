@@ -1,4 +1,4 @@
-# crypto-news-keywords-per-source - Work Plan
+# feed-keywords-per-source - Work Plan
 
 ## TL;DR (For humans)
 
@@ -20,7 +20,7 @@
     - Añadir columna `source_channel_id` (VARCHAR(64), nullable)
   - **Backend — mapper**: `infrastructure/persistence/typeorm/mappers/keyword.mapper.ts`:
     - Mapear `sourceChannelId` en toEntity/toDomain
-  - **Backend — handler**: `infrastructure/event-bus/crypto-news-message-ingested.handler.ts`:
+  - **Backend — handler**: `infrastructure/event-bus/feed-message-ingested.handler.ts`:
     - En `handle()`, cambiar el filtro de keywords. Antes:
       ```ts
       const enabledKeywords = await this.keywordRepo.findEnabled();
@@ -38,7 +38,7 @@
   - **Backend — controller**: `api/http/keywords.controller.ts`:
     - En `create()` y `PATCH`, aceptar `sourceChannelId?: string | null`
     - En `toView()`, incluir el campo
-  - **Backend — tests**: Actualizar `keyword.entity.spec.ts`, `crypto-news-message-ingested.handler.spec.ts`, `keywords.controller.spec.ts`
+  - **Backend — tests**: Actualizar `keyword.entity.spec.ts`, `feed-message-ingested.handler.spec.ts`, `keywords.controller.spec.ts`
   - **Frontend — types**: `api/keywords-api.ts`:
     - Add `sourceChannelId?: string | null` a `KeywordView`, `CreateKeywordBody`, `UpdateKeywordBody`
   - **Frontend — UI**: `ui/keywords-manager.tsx`:
@@ -49,10 +49,10 @@
 ## Verification
 
 - tsc clean
-- jest crypto-news-publisher pasa
+- jest feed-publisher pasa
 - eslint clean
-- vitest crypto-news page pasa
+- vitest feed page pasa
 
 ## Commits
 
-1. `feat(crypto-news-publisher): add per-source keyword scoping`
+1. `feat(feed-publisher): add per-source keyword scoping`

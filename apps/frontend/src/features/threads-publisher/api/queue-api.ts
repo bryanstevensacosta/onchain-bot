@@ -25,17 +25,19 @@ export async function fetchThreadsQueue(
     qs.set('status', status);
   }
   return httpGet<ReadonlyArray<ThreadsQueueEntryView>>(
-    `/threads-publisher/queue?${qs.toString()}`,
+    `/feed-threads-publisher/queue?${qs.toString()}`,
   );
 }
 
 export async function fetchThreadsQueueCounts(): Promise<ThreadsQueueCountsView> {
-  return httpGet<ThreadsQueueCountsView>('/threads-publisher/queue/counts');
+  return httpGet<ThreadsQueueCountsView>(
+    '/feed-threads-publisher/queue/counts',
+  );
 }
 
 export async function cancelThreadsQueueEntry(id: string): Promise<void> {
   const res = await fetch(
-    `${API_BASE_URL}/threads-publisher/queue/${encodeURIComponent(id)}`,
+    `${API_BASE_URL}/feed-threads-publisher/queue/${encodeURIComponent(id)}`,
     { method: 'DELETE' },
   );
   if (!res.ok) {

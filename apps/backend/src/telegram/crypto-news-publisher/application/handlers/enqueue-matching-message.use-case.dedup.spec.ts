@@ -7,7 +7,7 @@ import { PublisherQueueRepository } from '../ports/publisher-queue.repository';
 import {
   EnqueueMessageDto,
   EnqueueMessageMediaDto,
-} from '../../domain/dtos/enqueue-message.dto';
+} from '@/telegram/crypto-news-publisher/domain/dtos/enqueue-message.dto';
 import { PublisherQueueEntry } from 'telegram/crypto-news-publisher/domain/entities/publisher-queue-entry.entity';
 import { DeduplicationService } from 'shared/deduplication/application/services/deduplication.service';
 import { DedupRecord } from 'shared/deduplication/domain/entities/dedup-record.entity';

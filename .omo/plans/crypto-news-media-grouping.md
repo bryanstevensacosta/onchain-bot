@@ -1,4 +1,4 @@
-# crypto-news-media-grouping - Work Plan
+# feed-media-grouping - Work Plan
 
 ## TL;DR (For humans)
 
@@ -23,7 +23,7 @@
 
 - [ ] 2. Frontend: agrupar mensajes por `groupedId`
      What to do:
-  - **Types**: Añadir `groupedId?: string | null` a `CryptoNewsMessage`
+  - **Types**: Añadir `groupedId?: string | null` a `FeedMessage`
   - **Page** (index.tsx):
     - Antes de `filteredMessages.map`, agrupar mensajes consecutivos con el mismo `groupedId`:
     ```tsx
@@ -61,5 +61,5 @@
 
 ## Commits
 
-1. `feat(crypto-news): extract and persist groupedId for media albums`
+1. `feat(feed): extract and persist groupedId for media albums`
 2. `feat(frontend): group consecutive messages by groupedId`

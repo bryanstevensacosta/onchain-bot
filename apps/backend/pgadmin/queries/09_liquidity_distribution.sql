@@ -1,5 +1,5 @@
 -- =====================================================================
--- alpha-meta-token-scanner :: Liquidity Distribution
+-- onchain-bot :: Liquidity Distribution
 -- =====================================================================
 -- Distribución de market cap y liquidity por rangos.
 -- =====================================================================

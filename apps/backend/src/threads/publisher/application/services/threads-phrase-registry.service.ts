@@ -1,3 +1,8 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/threads/ (Tramo 2, todo 8 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add threads logic in apps/feed-publisher/src/threads/ instead.
+ */
 import { ConflictException, Injectable } from '@nestjs/common';
 import { ThreadsKeywordRepository } from 'threads/publisher/application/ports/threads-keyword.repository';
 import { ThreadsBlacklistPhraseRepository } from 'threads/publisher/application/ports/threads-blacklist-phrase.repository';
@@ -36,7 +41,7 @@ export class ThreadsPhraseRegistryService {
   ) {}
 
   /**
-    * Check that `phrase` is not already taken within its own table.
+   * Check that `phrase` is not already taken within its own table.
    *
    * Only simple phrases (`andGroupId === null`) are validated.
    * Compounds are silently skipped.

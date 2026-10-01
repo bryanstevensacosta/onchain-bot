@@ -106,6 +106,17 @@ jobs:
           INGESTION_REDIS_PORT: 6379
           DATABASE_ENABLED: true
 
+      - name: Run ai-ml tests (cutover default ai-ml, parity gate)
+        run: npm test -w @onchain-bot/ai-ml
+        env:
+          DATABASE_ENABLED: true
+
+      - name: Run feed-publisher tests (FEED_AI_ML_MODE=ai-ml cutover)
+        run: npm test -w @onchain-bot/feed-publisher
+        env:
+          FEED_AI_ML_MODE: ai-ml
+          DATABASE_ENABLED: true
+
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -240,7 +251,7 @@ jobs:
         run: npm run build:frontend
 
       - name: Build ingestion-telegram
-        run: npm run build -w @alpha-meta-token-scanner/ingestion-telegram
+        run: npm run build -w @onchain-bot/ingestion-telegram
 
       - name: Upload backend dist
         if: success()

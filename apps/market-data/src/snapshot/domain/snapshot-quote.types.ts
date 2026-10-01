@@ -1,0 +1,110 @@
+/**
+ * Snapshot quote types (Tramo 3, todo-3 aggregation gap).
+ *
+ * The live-price aggregation contract: every supporting provider is
+ * fanned out in parallel and the first non-null value per field wins.
+ * `SnapshotQuote` is the merged, all-nullable price view; `QuoteFetcher`
+ * is the per-provider fetch shape the aggregator runs (adapters stay
+ * untouched — thin wrappers in `provider/infrastructure/quote-fetchers/`
+ * adapt their existing public methods to this shape; the merge lives in
+ * `aggregators/`).
+ */
+import type { ProviderRateLimitConfig } from 'provider/domain/provider-limiter-config';
+
+export interface DevWalletQuote {
+  readonly wallet: string;
+  readonly holdAmount: number | null;
+  readonly percentOfSupply: number | null;
+  readonly pnlUsd: number | null;
+  readonly tag: string | null;
+  readonly probable?: boolean;
+}
+
+export interface SnapshotQuote {
+  readonly priceUsd: number | null;
+  readonly marketCapUsd: number | null;
+  readonly fdvUsd: number | null;
+  readonly liquidityUsd: number | null;
+  readonly volume24hUsd: number | null;
+  readonly priceChange24h: number | null;
+  readonly holders: number | null;
+  readonly top10HolderPercent: number | null;
+  readonly symbol: string | null;
+  readonly name: string | null;
+  readonly lockedLiquidityPercent: number | null;
+  readonly burnedPercent: number | null;
+  readonly totalSupply: number | null;
+  readonly circulatingSupply: number | null;
+  readonly maxSupply: number | null;
+  readonly devWallets: ReadonlyArray<DevWalletQuote> | null;
+  readonly devPctSupply: number | null;
+}
+
+export const SNAPSHOT_QUOTE_FIELDS: ReadonlyArray<keyof SnapshotQuote> = [
+  'priceUsd',
+  'marketCapUsd',
+  'fdvUsd',
+  'liquidityUsd',
+  'volume24hUsd',
+  'priceChange24h',
+  'holders',
+  'top10HolderPercent',
+  'symbol',
+  'name',
+  'lockedLiquidityPercent',
+  'burnedPercent',
+  'totalSupply',
+  'circulatingSupply',
+  'maxSupply',
+  'devWallets',
+  'devPctSupply',
+];
+
+export function emptySnapshotQuote(): SnapshotQuote {
+  return {
+    priceUsd: null,
+    marketCapUsd: null,
+    fdvUsd: null,
+    liquidityUsd: null,
+    volume24hUsd: null,
+    priceChange24h: null,
+    holders: null,
+    top10HolderPercent: null,
+    symbol: null,
+    name: null,
+    lockedLiquidityPercent: null,
+    burnedPercent: null,
+    totalSupply: null,
+    circulatingSupply: null,
+    maxSupply: null,
+    devWallets: null,
+    devPctSupply: null,
+  };
+}
+
+/**
+ * One provider's fetch step. `name` MUST match the provider registry
+ * descriptor (so health recording + the `providers` hint list stay
+ * consistent); `supportsChains` mirrors the descriptor's chain list.
+ *
+ * P48-bis seams (all optional, additive): `covers` gates effective
+ * coverage before any quota is touched (ccxt: CEX pair symbols only);
+ * `endpoint` + `limiterConfig` select the per-endpoint bucket cost.
+ */
+export interface QuoteFetcher {
+  readonly name: string;
+  readonly supportsChains: ReadonlyArray<string>;
+  readonly covers?: (chain: string, address: string) => boolean;
+  readonly endpoint?: string;
+  readonly limiterConfig?: ProviderRateLimitConfig;
+  fetch(chain: string, address: string): Promise<Partial<SnapshotQuote> | null>;
+}
+
+/** DI token for the ordered fetcher list (P48-bis: ccxt first where it covers). */
+export const SNAPSHOT_QUOTE_PROVIDERS = 'SNAPSHOT_QUOTE_PROVIDERS';
+
+/** Per-call ceiling for one provider fetch (adapters use 5-8s axios). */
+export const SNAPSHOT_PROVIDER_TIMEOUT_MS = 8_000;
+
+/** Hot-result cache TTL in seconds (mirrors the 30s edge cache). */
+export const SNAPSHOT_CACHE_TTL_SECONDS = 30;

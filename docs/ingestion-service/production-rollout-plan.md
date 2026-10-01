@@ -375,7 +375,7 @@ docker logs ingestion-telegram | grep "Legacy Mode"
 **Code Changes:**
 
 1. Remove `fetchActiveKolIds()` method from BackendChannelProviderService
-2. Remove `fetchActiveCryptoNewsSourceIds()` method
+2. Remove `fetchActiveFeedSourceIds()` method
 3. Remove HTTP polling fallback from `fetchAllActiveChannelIds()`
 4. Update tests to remove legacy path coverage
 

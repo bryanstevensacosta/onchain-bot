@@ -13,10 +13,19 @@ import { SettingsViewHandler } from './commands/settings-view.handler';
 import {
   TelegramBotClient,
   TelegramUpdate,
-} from '../../infrastructure/telegram/bot-client';
+} from '@/telegram/chain-dexter-bot/infrastructure/telegram/bot-client';
 import { CommandContext, CommandHandler } from './command-handler';
 import { ChatSettingsService } from './chat-settings.service';
-import { InlineKeyboardBuilder } from '../../infrastructure/telegram/inline-keyboard.builder';
+import { InlineKeyboardBuilder } from '@/telegram/chain-dexter-bot/infrastructure/telegram/inline-keyboard.builder';
+
+/**
+ * @deprecated Command routing moves to dexter-onchain-bot
+ * (`apps/dexter-onchain-bot/src/commands/`) via the telegram-bots-gateway
+ * (todo 6): lookup answers through `DEXTER_SEND_MODE`, updates via gateway
+ * fan-out `POST /dexter/ingress`. Backend legacy copy with the 7 command
+ * handlers below; removed at the global cutover (gateway todo 7).
+ * Do not extend.
+ */
 
 @Injectable()
 export class CommandRouterService {

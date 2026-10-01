@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import type { CommandContext, CommandHandler } from '../command-handler';
-import { InlineKeyboardBuilder } from '../../../infrastructure/telegram/inline-keyboard.builder';
-import { TelegramBotClient } from '../../../infrastructure/telegram/bot-client';
+import { InlineKeyboardBuilder } from '@/telegram/chain-dexter-bot/infrastructure/telegram/inline-keyboard.builder';
+import { TelegramBotClient } from '@/telegram/chain-dexter-bot/infrastructure/telegram/bot-client';
 import { ChatSettingsService } from '../chat-settings.service';
-import { TradeButtonRegistry } from '../../../infrastructure/telegram/trade-button-registry';
+import { TradeButtonRegistry } from '@/telegram/chain-dexter-bot/infrastructure/telegram/trade-button-registry';
 
+/** @deprecated Moved to dexter-onchain-bot (`commands/`) via the telegram-bots-gateway (todo 6); removed at cutover (gateway todo 7). Do not extend. */
 @Injectable()
 export class TbTradeButtonsHandler implements CommandHandler {
   public readonly name = 'tb';

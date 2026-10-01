@@ -15,6 +15,17 @@ import { ParsingController } from 'token/intake/parsing/api/http/parsing.control
 import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-process-domain-event.publisher';
 
 /**
+ * @deprecated Moved to apps/kol-system/src/parsing/ (Tramo 1, todo 6 + P18 companion).
+ * Parsing 1:1 now lives in kol-system: ParseFromCandidatesUseCase → ParsedCall
+ * (preserves mentions, NO collapse-to-one). This module stays wired for dual-run;
+ * it will be removed in todo 16 (cutover + cleanup). Do not extend it — add parsing
+ * logic in apps/kol-system/src/parsing/ instead.
+ *
+ * New location: apps/kol-system/src/parsing/
+ * Reason: extracting KOL pipeline from backend monolith to dedicated app
+ * Breaking change: Yes (removal in todo 16)
+ * Rollback: re-enable backend path (KOL_PIPELINE_ENABLED=true)
+ *
  * Parsing BC module.
  *
  * Per fix-1: CandidatesExtractedHandler was removed. The use case is

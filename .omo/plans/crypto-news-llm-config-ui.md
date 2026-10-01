@@ -1,4 +1,4 @@
-# crypto-news-llm-config-ui - Work Plan
+# feed-llm-config-ui - Work Plan
 
 ## TL;DR (For humans)
 
@@ -32,7 +32,7 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
 > Zero human intervention - all verification is agent-executed.
 
 - Test decision: <TDD | tests-after | none> + framework
-- Evidence: .omo/evidence/task-<N>-crypto-news-llm-config-ui.<ext>
+- Evidence: .omo/evidence/task-<N>-feed-llm-config-ui.<ext>
 
 ## Execution strategy
 
@@ -56,7 +56,7 @@ Your next move: <fill - e.g. approve, or run a high-accuracy review>. Full execu
      Parallelization: Wave <N> | Blocked by: <...> | Blocks: <...>
      References (executor has NO interview context - be exhaustive): <src/path:lines>
      Acceptance criteria (agent-executable): <exact command or assertion>
-     QA scenarios (name the exact tool + invocation): happy + failure, Evidence .omo/evidence/task-1-crypto-news-llm-config-ui.<ext>
+     QA scenarios (name the exact tool + invocation): happy + failure, Evidence .omo/evidence/task-1-feed-llm-config-ui.<ext>
      Commit: <Y/N> | <type>(<scope>): <summary>
 
 ## Final verification wave

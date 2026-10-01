@@ -10,7 +10,7 @@ This document defines all Bounded Contexts (BCs) for the crypto Telegram bot. Ea
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Alpha Meta Token Scanner                       │
+│                    Onchain Bot                       │
 ├─────────────┬──────────────┬─────────────┬──────────────────────┤
 │   Token      │   Trading    │   Alert     │   User               │
 │   Context    │   Context    │   Context   │   Context            │
@@ -26,33 +26,33 @@ This document defines all Bounded Contexts (BCs) for the crypto Telegram bot. Ea
 
 **Responsibility**: Resolve, validate, and provide live data for any crypto token.
 
-| Attribute | Value |
-|-----------|-------|
-| **Domain** | Token discovery and data |
-| **DB** | `tokens` schema/collection |
-| **Owner** | Core team |
+| Attribute  | Value                      |
+| ---------- | -------------------------- |
+| **Domain** | Token discovery and data   |
+| **DB**     | `tokens` schema/collection |
+| **Owner**  | Core team                  |
 
 ## Ubiquitous Language
 
-| Term | Definition |
-|------|------------|
-| **Token** | A crypto asset identified by contract address |
-| **Chain** | Blockchain network (Ethereum, Solana, BSC) |
-| **Pair** | Trading pair on a DEX (e.g., PEPE/WETH) |
-| **Contract Address** | On-chain identifier of the token |
-| **Ticker** | Symbol (PEPE, SOL, USDC) |
-| **Price** | Current USD price |
-| **Liquidity** | Total USD in DEX pools |
-| **Market Cap** | Total market capitalization |
-| **FDV** | Fully Diluted Valuation |
-| **Volume 24h** | Trading volume in last 24 hours |
-| **Holders** | Number of unique wallet addresses holding the token |
-| **Age** | Time since first pair creation |
-| **ATH** | All-Time High price |
-| **Top Holders Concentration** | % of supply held by top 10 wallets |
-| **Honeypot** | Token that blocks selling |
-| **Sell Tax** | Fee charged on sell transactions |
-| **GT Score** | GeckoTerminal quality score (0-100) |
+| Term                          | Definition                                          |
+| ----------------------------- | --------------------------------------------------- |
+| **Token**                     | A crypto asset identified by contract address       |
+| **Chain**                     | Blockchain network (Ethereum, Solana, BSC)          |
+| **Pair**                      | Trading pair on a DEX (e.g., PEPE/WETH)             |
+| **Contract Address**          | On-chain identifier of the token                    |
+| **Ticker**                    | Symbol (PEPE, SOL, USDC)                            |
+| **Price**                     | Current USD price                                   |
+| **Liquidity**                 | Total USD in DEX pools                              |
+| **Market Cap**                | Total market capitalization                         |
+| **FDV**                       | Fully Diluted Valuation                             |
+| **Volume 24h**                | Trading volume in last 24 hours                     |
+| **Holders**                   | Number of unique wallet addresses holding the token |
+| **Age**                       | Time since first pair creation                      |
+| **ATH**                       | All-Time High price                                 |
+| **Top Holders Concentration** | % of supply held by top 10 wallets                  |
+| **Honeypot**                  | Token that blocks selling                           |
+| **Sell Tax**                  | Fee charged on sell transactions                    |
+| **GT Score**                  | GeckoTerminal quality score (0-100)                 |
 
 ## Entities
 
@@ -130,11 +130,11 @@ TokenValidationService {
 
 ## Events
 
-| Event | Payload |
-|-------|---------|
-| `TokenSearched` | tokenId, chainId, source (address/symbol) |
-| `TokenSnapshotTaken` | tokenId, snapshot |
-| `HoneypotDetected` | tokenId, score, flags |
+| Event                | Payload                                   |
+| -------------------- | ----------------------------------------- |
+| `TokenSearched`      | tokenId, chainId, source (address/symbol) |
+| `TokenSnapshotTaken` | tokenId, snapshot                         |
+| `HoneypotDetected`   | tokenId, score, flags                     |
 
 ## Transactional Boundary
 
@@ -151,27 +151,27 @@ Token Context         Token DB (tokens, snapshots, chains)
 
 **Responsibility**: Execute and track token swaps, positions, and PnL.
 
-| Attribute | Value |
-|-----------|-------|
+| Attribute  | Value                                   |
+| ---------- | --------------------------------------- |
 | **Domain** | Order execution and position management |
-| **DB** | `trading` schema/collection |
-| **Owner** | Core team |
+| **DB**     | `trading` schema/collection             |
+| **Owner**  | Core team                               |
 
 ## Ubiquitous Language
 
-| Term | Definition |
-|------|------------|
-| **Order** | A buy or sell instruction for a token |
-| **Position** | An open holding in a token |
-| **Swap** | Token-to-token exchange via DEX |
-| **Entry Price** | Price at which position was opened |
-| **Exit Price** | Price at which position was closed |
-| **PnL** | Profit and Loss (realized) |
-| **Unrealized PnL** | Current profit/loss on open positions |
-| **Slippage** | Difference between expected and actual price |
-| **Gas** | Transaction fee in native currency |
-| **Wallet** | User's connected wallet address |
-| **Route** | Series of swaps to execute a trade |
+| Term               | Definition                                   |
+| ------------------ | -------------------------------------------- |
+| **Order**          | A buy or sell instruction for a token        |
+| **Position**       | An open holding in a token                   |
+| **Swap**           | Token-to-token exchange via DEX              |
+| **Entry Price**    | Price at which position was opened           |
+| **Exit Price**     | Price at which position was closed           |
+| **PnL**            | Profit and Loss (realized)                   |
+| **Unrealized PnL** | Current profit/loss on open positions        |
+| **Slippage**       | Difference between expected and actual price |
+| **Gas**            | Transaction fee in native currency           |
+| **Wallet**         | User's connected wallet address              |
+| **Route**          | Series of swaps to execute a trade           |
 
 ## Entities
 
@@ -248,12 +248,12 @@ PositionService {
 
 ## Events
 
-| Event | Payload |
-|-------|---------|
-| `OrderExecuted` | orderId, tokenId, txHash, price |
-| `OrderFailed` | orderId, reason |
+| Event            | Payload                         |
+| ---------------- | ------------------------------- |
+| `OrderExecuted`  | orderId, tokenId, txHash, price |
+| `OrderFailed`    | orderId, reason                 |
 | `PositionOpened` | positionId, tokenId, entryPrice |
-| `PositionClosed` | positionId, tokenId, PnL |
+| `PositionClosed` | positionId, tokenId, PnL        |
 
 ## Transactional Boundary
 
@@ -271,22 +271,22 @@ Trading Context       Trading DB (orders, positions, swaps)
 
 **Responsibility**: Manage user-defined price alerts and notify when triggered.
 
-| Attribute | Value |
-|-----------|-------|
+| Attribute  | Value                       |
+| ---------- | --------------------------- |
 | **Domain** | Price monitoring and alerts |
-| **DB** | `alerts` schema/collection |
-| **Owner** | Core team |
+| **DB**     | `alerts` schema/collection  |
+| **Owner**  | Core team                   |
 
 ## Ubiquitous Language
 
-| Term | Definition |
-|------|------------|
-| **Alert** | A condition to monitor (e.g., price above X) |
-| **Trigger** | The moment an alert condition is met |
-| **Condition** | The rule that defines when to fire |
-| **Cooldown** | Minimum time between re-triggers |
-| **Target Price** | The price at which alert fires |
-| **Frequency** | One-time or recurring |
+| Term             | Definition                                   |
+| ---------------- | -------------------------------------------- |
+| **Alert**        | A condition to monitor (e.g., price above X) |
+| **Trigger**      | The moment an alert condition is met         |
+| **Condition**    | The rule that defines when to fire           |
+| **Cooldown**     | Minimum time between re-triggers             |
+| **Target Price** | The price at which alert fires               |
+| **Frequency**    | One-time or recurring                        |
 
 ## Entities
 
@@ -337,11 +337,11 @@ AlertDispatcher {
 
 ## Events
 
-| Event | Payload |
-|-------|---------|
+| Event            | Payload                                |
+| ---------------- | -------------------------------------- |
 | `AlertTriggered` | alertId, userId, tokenId, currentPrice |
-| `AlertCreated` | alertId, userId, tokenId, condition |
-| `AlertDisabled` | alertId |
+| `AlertCreated`   | alertId, userId, tokenId, condition    |
+| `AlertDisabled`  | alertId                                |
 
 ## Transactional Boundary
 
@@ -358,22 +358,22 @@ Alert Context         Alert DB (alerts, triggers)
 
 **Responsibility**: Manage Telegram users, preferences, and linked wallets.
 
-| Attribute | Value |
-|-----------|-------|
+| Attribute  | Value                         |
+| ---------- | ----------------------------- |
 | **Domain** | User identity and preferences |
-| **DB** | `users` schema/collection |
-| **Owner** | Core team |
+| **DB**     | `users` schema/collection     |
+| **Owner**  | Core team                     |
 
 ## Ubiquitous Language
 
-| Term | Definition |
-|------|------------|
-| **User** | A Telegram user interacting with the bot |
-| **Chat** | Telegram chat (private or group) |
-| **Preference** | Per-user settings (currency, language) |
-| **Wallet** | Linked blockchain wallet address |
-| **Watchlist** | List of token addresses the user tracks |
-| **Credits** | Balance for premium features |
+| Term           | Definition                               |
+| -------------- | ---------------------------------------- |
+| **User**       | A Telegram user interacting with the bot |
+| **Chat**       | Telegram chat (private or group)         |
+| **Preference** | Per-user settings (currency, language)   |
+| **Wallet**     | Linked blockchain wallet address         |
+| **Watchlist**  | List of token addresses the user tracks  |
+| **Credits**    | Balance for premium features             |
 
 ## Entities
 
@@ -426,11 +426,11 @@ ChatSettings { rateLimitEnabled: boolean; autoDetect: boolean }
 
 ## Events
 
-| Event | Payload |
-|-------|---------|
-| `UserRegistered` | userId, telegramId |
-| `WalletLinked` | userId, walletAddress, chainId |
-| `WatchlistUpdated` | userId, tokenIds |
+| Event              | Payload                        |
+| ------------------ | ------------------------------ |
+| `UserRegistered`   | userId, telegramId             |
+| `WalletLinked`     | userId, walletAddress, chainId |
+| `WatchlistUpdated` | userId, tokenIds               |
 
 ## Transactional Boundary
 
@@ -447,23 +447,23 @@ User Context          User DB (users, wallets, watchlists, chats)
 
 **Responsibility**: Track user holdings, balances, and performance over time.
 
-| Attribute | Value |
-|-----------|-------|
+| Attribute  | Value                          |
+| ---------- | ------------------------------ |
 | **Domain** | Portfolio tracking and history |
-| **DB** | `portfolio` schema/collection |
-| **Owner** | Core team |
+| **DB**     | `portfolio` schema/collection  |
+| **Owner**  | Core team                      |
 
 ## Ubiquitous Language
 
-| Term | Definition |
-|------|------------|
-| **Portfolio** | Aggregate of all user holdings |
-| **Holding** | Balance of a specific token in a wallet |
-| **Balance** | Current token amount |
-| **Total Value** | USD value of all holdings |
-| **P&L** | Profit/loss of the portfolio |
-| **Allocation** | % of portfolio per token |
-| **History** | Time-series of balance snapshots |
+| Term            | Definition                              |
+| --------------- | --------------------------------------- |
+| **Portfolio**   | Aggregate of all user holdings          |
+| **Holding**     | Balance of a specific token in a wallet |
+| **Balance**     | Current token amount                    |
+| **Total Value** | USD value of all holdings               |
+| **P&L**         | Profit/loss of the portfolio            |
+| **Allocation**  | % of portfolio per token                |
+| **History**     | Time-series of balance snapshots        |
 
 ## Entities
 
@@ -523,10 +523,10 @@ SnapshotService {
 
 ## Events
 
-| Event | Payload |
-|-------|---------|
-| `PortfolioUpdated` | userId, totalValue, changePercent |
-| `SnapshotTaken` | userId, snapshotId |
+| Event                 | Payload                             |
+| --------------------- | ----------------------------------- |
+| `PortfolioUpdated`    | userId, totalValue, changePercent   |
+| `SnapshotTaken`       | userId, snapshotId                  |
 | `HoldingValueChanged` | userId, tokenId, oldValue, newValue |
 
 ## Transactional Boundary
@@ -544,26 +544,26 @@ Portfolio Context    Portfolio DB (holdings, snapshots)
 
 **Responsibility**: Calculate token risk scores, detect honeypots, analyze market data.
 
-| Attribute | Value |
-|-----------|-------|
+| Attribute  | Value                          |
+| ---------- | ------------------------------ |
 | **Domain** | Token risk and market analysis |
-| **DB** | `analytics` schema/collection |
-| **Owner** | Core team |
+| **DB**     | `analytics` schema/collection  |
+| **Owner**  | Core team                      |
 
 ## Ubiquitous Language
 
-| Term | Definition |
-|------|------------|
-| **Risk Score** | 0-100 score indicating token safety |
-| **Honeypot** | Token designed to block sells |
-| **Sell Tax** | % deducted on sell |
-| **Buy Tax** | % deducted on buy |
-| **Liquidity Lock** | % of LP tokens locked |
-| **Holder Concentration** | Top holders % of supply |
-| **Mint Authority** | Can new tokens be minted? |
-| **Freeze Authority** | Can tokens be frozen? |
-| **Simulation** | Fork-based buy/sell test |
-| **Volume Anomaly** | Unusual trading pattern |
+| Term                     | Definition                          |
+| ------------------------ | ----------------------------------- |
+| **Risk Score**           | 0-100 score indicating token safety |
+| **Honeypot**             | Token designed to block sells       |
+| **Sell Tax**             | % deducted on sell                  |
+| **Buy Tax**              | % deducted on buy                   |
+| **Liquidity Lock**       | % of LP tokens locked               |
+| **Holder Concentration** | Top holders % of supply             |
+| **Mint Authority**       | Can new tokens be minted?           |
+| **Freeze Authority**     | Can tokens be frozen?               |
+| **Simulation**           | Fork-based buy/sell test            |
+| **Volume Anomaly**       | Unusual trading pattern             |
 
 ## Entities
 
@@ -630,11 +630,11 @@ HolderAnalysisService {
 
 ## Events
 
-| Event | Payload |
-|-------|---------|
-| `RiskReported` | tokenId, overallScore, status |
-| `HoneypotConfirmed` | tokenId, sellTax, flags |
-| `AnomalyDetected` | tokenId, type, description |
+| Event               | Payload                       |
+| ------------------- | ----------------------------- |
+| `RiskReported`      | tokenId, overallScore, status |
+| `HoneypotConfirmed` | tokenId, sellTax, flags       |
+| `AnomalyDetected`   | tokenId, type, description    |
 
 ## Transactional Boundary
 
@@ -651,21 +651,21 @@ Analytics Context    Analytics DB (risk_reports, honeypot_checks)
 
 **Responsibility**: Deliver messages to users via Telegram and other channels.
 
-| Attribute | Value |
-|-----------|-------|
-| **Domain** | Message delivery and templates |
-| **DB** | `notifications` schema/collection |
-| **Owner** | Core team |
+| Attribute  | Value                             |
+| ---------- | --------------------------------- |
+| **Domain** | Message delivery and templates    |
+| **DB**     | `notifications` schema/collection |
+| **Owner**  | Core team                         |
 
 ## Ubiquitous Language
 
-| Term | Definition |
-|------|------------|
-| **Notification** | A message delivered to a user |
-| **Template** | Reusable message format with variables |
-| **Channel** | Delivery method (Telegram, email) |
-| **Preference** | Per-user notification settings |
-| **Delivery** | Successful transmission of a notification |
+| Term             | Definition                                |
+| ---------------- | ----------------------------------------- |
+| **Notification** | A message delivered to a user             |
+| **Template**     | Reusable message format with variables    |
+| **Channel**      | Delivery method (Telegram, email)         |
+| **Preference**   | Per-user notification settings            |
+| **Delivery**     | Successful transmission of a notification |
 
 ## Entities
 
@@ -714,8 +714,8 @@ TelegramDispatcher {
 
 ## Events
 
-| Event | Payload |
-|-------|---------|
+| Event              | Payload                              |
+| ------------------ | ------------------------------------ |
 | `NotificationSent` | notificationId, userId, type, status |
 
 ## Transactional Boundary
@@ -733,11 +733,11 @@ Notification Context   Notification DB (notifications, templates)
 
 **Responsibility**: Manage referral links, tracking, and rewards.
 
-| Attribute | Value |
-|-----------|-------|
+| Attribute  | Value                         |
+| ---------- | ----------------------------- |
 | **Domain** | User referrals and incentives |
-| **DB** | `referrals` schema/collection |
-| **Owner** | Core team |
+| **DB**     | `referrals` schema/collection |
+| **Owner**  | Core team                     |
 
 ## Entities
 
@@ -797,28 +797,28 @@ Referral {
 
 # Transactional Boundaries Summary
 
-| BC | Database | Owns Data | Reads From |
-|----|----------|-----------|------------|
-| Token | `tokens` | Tokens, snapshots, chains | External APIs |
-| Trading | `trading` | Orders, positions, swaps | Token, User |
-| Alert | `alerts` | Alerts, triggers | Token, User |
-| User | `users` | Users, wallets, watchlists | Telegram |
-| Portfolio | `portfolio` | Holdings, snapshots | Token, Trading |
-| Analytics | `analytics` | Risk reports, checks | Token |
-| Notification | `notifications` | Notifications, templates | All BCs |
-| Referral | `referrals` | Referrals, codes | User |
+| BC           | Database        | Owns Data                  | Reads From     |
+| ------------ | --------------- | -------------------------- | -------------- |
+| Token        | `tokens`        | Tokens, snapshots, chains  | External APIs  |
+| Trading      | `trading`       | Orders, positions, swaps   | Token, User    |
+| Alert        | `alerts`        | Alerts, triggers           | Token, User    |
+| User         | `users`         | Users, wallets, watchlists | Telegram       |
+| Portfolio    | `portfolio`     | Holdings, snapshots        | Token, Trading |
+| Analytics    | `analytics`     | Risk reports, checks       | Token          |
+| Notification | `notifications` | Notifications, templates   | All BCs        |
+| Referral     | `referrals`     | Referrals, codes           | User           |
 
 ---
 
 # BC Communication Matrix
 
-| From \ To | Token | Trading | Alert | User | Portfolio | Analytics | Notif |
-|-----------|-------|---------|-------|------|-----------|-----------|-------|
-| Token | — | Price data | — | — | — | Token data | — |
-| Trading | Quote | — | — | Wallet | Positions | — | Trade result |
-| Alert | Snapshots | — | — | Prefs | — | — | Alert fired |
-| User | — | — | Config | — | Watchlist | — | — |
-| Portfolio | Price | Positions | — | — | — | — | Portfolio summary |
-| Analytics | Token info | — | — | — | — | — | Risk report |
-| Notif | — | — | — | — | — | — | — |
-| Referral | — | — | — | User | — | — | — |
+| From \ To | Token      | Trading    | Alert  | User   | Portfolio | Analytics  | Notif             |
+| --------- | ---------- | ---------- | ------ | ------ | --------- | ---------- | ----------------- |
+| Token     | —          | Price data | —      | —      | —         | Token data | —                 |
+| Trading   | Quote      | —          | —      | Wallet | Positions | —          | Trade result      |
+| Alert     | Snapshots  | —          | —      | Prefs  | —         | —          | Alert fired       |
+| User      | —          | —          | Config | —      | Watchlist | —          | —                 |
+| Portfolio | Price      | Positions  | —      | —      | —         | —          | Portfolio summary |
+| Analytics | Token info | —          | —      | —      | —         | —          | Risk report       |
+| Notif     | —          | —          | —      | —      | —         | —          | —                 |
+| Referral  | —          | —          | —      | User   | —         | —          | —                 |

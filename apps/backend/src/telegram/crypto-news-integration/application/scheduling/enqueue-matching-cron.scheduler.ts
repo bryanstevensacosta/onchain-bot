@@ -1,16 +1,21 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/ingestion/ + apps/feed-publisher/src/matching/ (Tramo 2, todos 2+3 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add feed ingestion/matching logic in apps/feed-publisher/src/ingestion/ or apps/feed-publisher/src/matching/ instead.
+ */
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { CronJob } from 'cron';
 import { FilteredCryptoNewsService } from '../services/filtered-crypto-news.service';
-import { EnqueueMatchingMessageUseCase } from '../../../crypto-news-publisher/application/handlers/enqueue-matching-message.use-case';
-import type { CryptoNewsMessageDto } from '../../domain/dtos/crypto-news-message.dto';
+import { EnqueueMatchingMessageUseCase } from '@/telegram/crypto-news-publisher/application/handlers/enqueue-matching-message.use-case';
+import type { CryptoNewsMessageDto } from '@/telegram/crypto-news-integration/domain/dtos/crypto-news-message.dto';
 import { MatchingConfigRepository } from '../ports/matching-config.repository';
 import { MatchingHealthState } from '../state/matching-health.state';
 import type {
   EnqueueMessageDto,
   EnqueueMessageMediaDto,
-} from '../../../crypto-news-publisher/domain/dtos';
+} from '@/telegram/crypto-news-publisher/domain/dtos';
 
 /**
  * EnqueueMatchingCronScheduler - Poll ingestion-telegram for matching crypto-news messages

@@ -2,9 +2,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { Logger } from '@nestjs/common';
 import { ProcessCryptoNewsMessageHandler } from './process-crypto-news-message.handler';
 import { FilteredCryptoNewsService } from '../services/filtered-crypto-news.service';
-import { EnqueueMatchingMessageUseCase } from '../../../crypto-news-publisher/application/handlers/enqueue-matching-message.use-case';
+import { EnqueueMatchingMessageUseCase } from '@/telegram/crypto-news-publisher/application/handlers/enqueue-matching-message.use-case';
 import { MatchingConfigRepository } from '../ports/matching-config.repository';
-import { PublisherQueueRepository } from '../../../crypto-news-publisher/application/ports/publisher-queue.repository';
+import { PublisherQueueRepository } from '@/telegram/crypto-news-publisher/application/ports/publisher-queue.repository';
 import { TelegramRawMessage } from 'telegram/ingestion/shared/domain/ports/telegram-listener.port';
 
 describe('ProcessCryptoNewsMessageHandler - Latency Measurement', () => {
@@ -281,6 +281,13 @@ describe('ProcessCryptoNewsMessageHandler - Latency Measurement', () => {
         '-100123456789',
         'crypto-news',
       );
+    });
+
+    it('skips mis-routed KOL events without fetching (P10: queue is crypto-news only)', async () => {
+      await handler.handle({ ...mockRawMessage, messageType: 'kol' });
+
+      expect(filteredNewsService.getMatchingMessages).not.toHaveBeenCalled();
+      expect(enqueueUseCase.execute).not.toHaveBeenCalled();
     });
   });
 });

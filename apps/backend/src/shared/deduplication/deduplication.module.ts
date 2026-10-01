@@ -1,3 +1,16 @@
+/**
+ * @deprecated Feed side moved to apps/feed-publisher/src/deduplication/ (Tramo 2, todo 4 + P18 companion).
+ * Feed deduplication now lives in feed-publisher: DeduplicationService cascada
+ * exact→content→semantic (fail-open) + embeddings. This shared module stays wired
+ * (other consumers + dual-run); the FEED wiring will be removed at cutover
+ * (todo 11). Do not extend the feed path here — add dedup logic in
+ * apps/feed-publisher/src/deduplication/ instead.
+ *
+ * New location: apps/feed-publisher/src/deduplication/
+ * Reason: extracting feed pipeline from backend monolith to dedicated app
+ * Breaking change: Yes (feed-path removal at cutover)
+ * Rollback: re-enable backend path (USE_FEED_PUBLISHER=false)
+ */
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { isDatabaseEnabled } from 'shared/common/persistence/database.module';

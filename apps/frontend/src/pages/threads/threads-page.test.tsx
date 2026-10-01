@@ -1,3 +1,7 @@
+/**
+ * @deprecated Tramo 2 todo 15 (barrido JSDoc): legacy '/crypto-news-publisher/*'
+ * guard below. New path: '/feed-publisher/*' (feed-publisher app); guard removed at cutover T2-11.
+ */
 // @vitest-environment jsdom
 import '@/test/setup';
 
@@ -27,7 +31,7 @@ function jsonResponse(body: unknown) {
 const fetchSpy = vi.fn();
 
 function mockFetchRouter(url: string) {
-  if (url.includes('/threads-publisher/keywords')) {
+  if (url.includes('/feed-threads-publisher/keywords')) {
     return jsonResponse([
       {
         id: 'tkw-1',
@@ -38,10 +42,10 @@ function mockFetchRouter(url: string) {
       },
     ]);
   }
-  if (url.includes('/threads-publisher/blacklist')) {
+  if (url.includes('/feed-threads-publisher/blacklist')) {
     return jsonResponse([]);
   }
-  if (url.includes('/threads-publisher/queue/counts')) {
+  if (url.includes('/feed-threads-publisher/queue/counts')) {
     return jsonResponse({ pending: 5, publishedToday: 12, remaining: 24 });
   }
   if (url.includes('status=BLOCKED')) {
@@ -63,7 +67,7 @@ function mockFetchRouter(url: string) {
       },
     ]);
   }
-  if (url.includes('/threads-publisher/queue')) {
+  if (url.includes('/feed-threads-publisher/queue')) {
     return jsonResponse([
       {
         id: 'tq-1',
@@ -99,7 +103,7 @@ function mockFetchRouter(url: string) {
       queuePending: 5,
     });
   }
-  if (url.includes('/threads-publisher/llm/config')) {
+  if (url.includes('/feed-threads-publisher/llm/config')) {
     return jsonResponse({
       id: 1,
       defaultTemplateId: 'threads-default',
@@ -114,7 +118,7 @@ function mockFetchRouter(url: string) {
       updatedAt: '2025-01-01T00:00:00.000Z',
     });
   }
-  if (url.includes('/threads-publisher/llm/templates')) {
+  if (url.includes('/feed-threads-publisher/llm/templates')) {
     return jsonResponse([
       {
         id: 'threads-default',
@@ -143,7 +147,7 @@ beforeEach(() => {
   vi.stubGlobal('fetch', fetchSpy);
 });
 
-describe('ThreadsPage — 6 sections, no Ads', () => {
+describe('ThreadsPage — 6 sections, no Scheduling', () => {
   it('renders header "Threads" and EXACTLY 6 details blocks', async () => {
     renderWithClient(<ThreadsPage />);
 
@@ -166,10 +170,10 @@ describe('ThreadsPage — 6 sections, no Ads', () => {
 
     const details = document.querySelectorAll('details');
     expect(details).toHaveLength(6);
-    expect(screen.queryByText('Ads')).not.toBeInTheDocument();
+    expect(screen.queryByText('Scheduling')).not.toBeInTheDocument();
   });
 
-  it('fetches Threads URLs (never crypto-news publisher URLs)', async () => {
+  it('fetches Threads URLs (never feed publisher URLs)', async () => {
     renderWithClient(<ThreadsPage />);
 
     await screen.findByText('SEC');
@@ -177,21 +181,23 @@ describe('ThreadsPage — 6 sections, no Ads', () => {
 
     const calledUrls = fetchSpy.mock.calls.map((c) => String(c[0]));
     for (const expected of [
-      '/threads-publisher/keywords',
-      '/threads-publisher/queue/counts',
+      '/feed-threads-publisher/keywords',
+      '/feed-threads-publisher/queue/counts',
       '/threads/matching/config',
       '/threads/matching/health',
-      '/threads-publisher/llm/config',
-      '/threads-publisher/llm/templates',
+      '/feed-threads-publisher/llm/config',
+      '/feed-threads-publisher/llm/templates',
     ]) {
       expect(
         calledUrls.some((u) => u.includes(expected)),
         `expected fetch of ${expected}`,
       ).toBe(true);
     }
-    expect(
-      calledUrls.some((u) => u.includes('/crypto-news-publisher/')),
-    ).toBe(false);
+    const legacyPublisherPrefix =
+      '/crypto-news-publisher/'; /* @deprecated T2-15: legacy guard -> '/feed-publisher/*'; remove at cutover T2-11. */
+    expect(calledUrls.some((u) => u.includes(legacyPublisherPrefix))).toBe(
+      false,
+    );
   });
 
   it('renders queue counters, queue row, and blocked row', async () => {
@@ -203,9 +209,7 @@ describe('ThreadsPage — 6 sections, no Ads', () => {
     expect(screen.getByText('24')).toBeInTheDocument();
     expect(screen.getByText('PENDING')).toBeInTheDocument();
 
-    expect(
-      await screen.findByText('Blocked Threads post'),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('Blocked Threads post')).toBeInTheDocument();
     expect(screen.getByText('blacklisted phrase hit')).toBeInTheDocument();
   });
 

@@ -1,8 +1,8 @@
-# crypto-news-layout-consistency - Work Plan
+# feed-layout-consistency - Work Plan
 
 ## TL;DR (For humans)
 
-**What you'll get:** Todos los posts de crypto-news se ven iguales, ordenados, como si fuera un chat de Telegram. Sin saltos raros, sin fotos que aparecen centradas o desordenadas. Layout fijo: burbuja oscura con esquinas redondeadas → fotos (si hay) → texto → link preview (si hay).
+**What you'll get:** Todos los posts de feed se ven iguales, ordenados, como si fuera un chat de Telegram. Sin saltos raros, sin fotos que aparecen centradas o desordenadas. Layout fijo: burbuja oscura con esquinas redondeadas → fotos (si hay) → texto → link preview (si hay).
 
 **Why this approach:** El layout actual tiene demasiada lógica dinámica: la grilla de fotos checkea aspect ratio onLoad y cambia el layout en medio del render (causa reflow), el link preview filtra la primera imagen, etc. Un layout fijo y predecible elimina toda esa complejidad y da consistencia.
 
@@ -17,7 +17,7 @@
 
 - Layout fijo para todos los articles: fotos → texto → link preview
 - Grilla de fotos SIN detección de aspect ratio (siempre `grid-cols-1 sm:grid-cols-2` para 2+, `grid-cols-1` para 1)
-- Eliminar `CryptoNewsMediaGrid` y su lógica de aspect ratio
+- Eliminar `FeedMediaGrid` y su lógica de aspect ratio
 - Link preview foto solo dentro del card, no en la grilla
 - Responsive: mobile 1 col, desktop 2 col para 2+ fotos
 
@@ -34,12 +34,12 @@
 
 ## Todos
 
-- [ ] 1. Reemplazar `CryptoNewsMediaGrid` + link preview filter por layout inline fijo
+- [ ] 1. Reemplazar `FeedMediaGrid` + link preview filter por layout inline fijo
      What to do / Must NOT do:
-  - **Archivo:** `apps/frontend/src/pages/crypto-news/index.tsx`
-  - **Eliminar** `import { useCallback, useRef, useState } from 'react'` de la línea 1 y poner solo `import { useState } from 'react'` (useCallback y useRef solo se usaban en CryptoNewsMediaGrid)
-  - **Eliminar** la función `CryptoNewsMediaGrid` completa (desde `function CryptoNewsMediaGrid(` hasta su `}` de cierre)
-  - **Reemplazar** el bloque actual (con su respectiva importación de `useCallback`, `useRef`, y función `CryptoNewsMediaGrid`) por un layout inline sin detección de aspect ratio:
+  - **Archivo:** `apps/frontend/src/pages/feed/index.tsx`
+  - **Eliminar** `import { useCallback, useRef, useState } from 'react'` de la línea 1 y poner solo `import { useState } from 'react'` (useCallback y useRef solo se usaban en FeedMediaGrid)
+  - **Eliminar** la función `FeedMediaGrid` completa (desde `function FeedMediaGrid(` hasta su `}` de cierre)
+  - **Reemplazar** el bloque actual (con su respectiva importación de `useCallback`, `useRef`, y función `FeedMediaGrid`) por un layout inline sin detección de aspect ratio:
     ```tsx
     {
       msg.media && msg.media.length > 0 && (
@@ -67,8 +67,8 @@
     - **Nunca se filtra ninguna imagen**. Todas las fotos (directas + link preview) se muestran en la grilla.
     - Imágenes rectangulares se cortan con `object-cover` para llenar el espacio.
     - No hay detección de aspect ratio ni reflow visual.
-    - **Eliminar** `import { useCallback, useRef, useState } from 'react'` y poner solo `import { useState } from 'react'` (useCallback y useRef solo se usaban en CryptoNewsMediaGrid)
-    - **Eliminar** la función `CryptoNewsMediaGrid` completa.
+    - **Eliminar** `import { useCallback, useRef, useState } from 'react'` y poner solo `import { useState } from 'react'` (useCallback y useRef solo se usaban en FeedMediaGrid)
+    - **Eliminar** la función `FeedMediaGrid` completa.
   - **Reemplazar** el link preview card para usar `msg.media[0]` solo si `msg.media.length > 0`:
     ```tsx
     {
@@ -108,21 +108,21 @@
     ```
   - **NO modificar** la metadata line, el filter, los tests
     References:
-  - `apps/frontend/src/pages/crypto-news/index.tsx` — archivo completo
-  - Línea actual donde está CryptoNewsMediaGrid (~142-149)
+  - `apps/frontend/src/pages/feed/index.tsx` — archivo completo
+  - Línea actual donde está FeedMediaGrid (~142-149)
   - Línea actual del link preview (~155-184)
-  - Función CryptoNewsMediaGrid (actual ~161-212)
-  - `apps/frontend/src/pages/crypto-news/__tests__/crypto-news-page.test.tsx` — tests
+  - Función FeedMediaGrid (actual ~161-212)
+  - `apps/frontend/src/pages/feed/__tests__/feed-page.test.tsx` — tests
 
 ## Final verification wave
 
 - [ ] F1. TypeScript compila: `cd apps/frontend && npx tsc --noEmit`
-- [ ] F2. Tests: `cd apps/frontend && npx vitest run src/pages/crypto-news/__tests__/`
+- [ ] F2. Tests: `cd apps/frontend && npx vitest run src/pages/feed/__tests__/`
 - [ ] F3. Playwright: verificar layout consistente
 
 ## Commit strategy
 
-1. `fix(frontend): consistent crypto-news layout - remove dynamic image grid`
+1. `fix(frontend): consistent feed layout - remove dynamic image grid`
 
 ## Success criteria
 

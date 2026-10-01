@@ -135,19 +135,19 @@ export async function fetchThreadsLlmModels(): Promise<
   ReadonlyArray<ThreadsLlmModel>
 > {
   return httpGet<ReadonlyArray<ThreadsLlmModel>>(
-    '/threads-publisher/llm/models',
+    '/feed-threads-publisher/llm/models',
   );
 }
 
 export async function fetchThreadsLlmConfig(): Promise<ThreadsLlmConfigView> {
-  return httpGet<ThreadsLlmConfigView>('/threads-publisher/llm/config');
+  return httpGet<ThreadsLlmConfigView>('/feed-threads-publisher/llm/config');
 }
 
 export async function updateThreadsLlmConfig(
   body: UpdateThreadsLlmConfigBody,
 ): Promise<ThreadsLlmConfigView> {
   return httpPatch<UpdateThreadsLlmConfigBody, ThreadsLlmConfigView>(
-    '/threads-publisher/llm/config',
+    '/feed-threads-publisher/llm/config',
     body,
   );
 }
@@ -156,7 +156,7 @@ export async function fetchThreadsTemplates(): Promise<
   ReadonlyArray<ThreadsPromptTemplateView>
 > {
   return httpGet<ReadonlyArray<ThreadsPromptTemplateView>>(
-    '/threads-publisher/llm/templates',
+    '/feed-threads-publisher/llm/templates',
   );
 }
 
@@ -164,7 +164,7 @@ export async function fetchThreadsTemplate(
   id: string,
 ): Promise<ThreadsPromptTemplateView> {
   return httpGet<ThreadsPromptTemplateView>(
-    `/threads-publisher/llm/templates/${encodeURIComponent(id)}`,
+    `/feed-threads-publisher/llm/templates/${encodeURIComponent(id)}`,
   );
 }
 
@@ -172,7 +172,7 @@ export async function createThreadsTemplate(
   body: CreateThreadsPromptTemplateBody,
 ): Promise<ThreadsPromptTemplateView> {
   return httpPost<CreateThreadsPromptTemplateBody, ThreadsPromptTemplateView>(
-    '/threads-publisher/llm/templates',
+    '/feed-threads-publisher/llm/templates',
     body,
   );
 }
@@ -182,14 +182,14 @@ export async function updateThreadsTemplate(
   body: UpdateThreadsPromptTemplateBody,
 ): Promise<ThreadsPromptTemplateView> {
   return httpPatch<UpdateThreadsPromptTemplateBody, ThreadsPromptTemplateView>(
-    `/threads-publisher/llm/templates/${encodeURIComponent(id)}`,
+    `/feed-threads-publisher/llm/templates/${encodeURIComponent(id)}`,
     body,
   );
 }
 
 export async function deleteThreadsTemplate(id: string): Promise<void> {
   await httpDelete<void>(
-    `/threads-publisher/llm/templates/${encodeURIComponent(id)}`,
+    `/feed-threads-publisher/llm/templates/${encodeURIComponent(id)}`,
   );
 }
 

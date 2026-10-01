@@ -1,3 +1,8 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/ingestion/ + apps/feed-publisher/src/matching/ (Tramo 2, todos 2+3 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add feed ingestion/matching logic in apps/feed-publisher/src/ingestion/ or apps/feed-publisher/src/matching/ instead.
+ */
 import { Controller, Get, Param, Post, Query } from '@nestjs/common';
 import {
   ApiOperation,
@@ -63,8 +68,15 @@ export class DeadLetterController {
   public constructor(private readonly deadLetters: DeadLetterService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List captured crypto-news failures, newest first (manual retry only)' })
-  @ApiQuery({ name: 'limit', required: false, description: 'Max entries (1-200, default 50)' })
+  @ApiOperation({
+    summary:
+      'List captured crypto-news failures, newest first (manual retry only)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: 'Max entries (1-200, default 50)',
+  })
   @ApiResponse({ status: 200, description: 'Dead-letter entries' })
   public async list(
     @Query() query: ListDeadLetterQuery,
@@ -74,7 +86,10 @@ export class DeadLetterController {
   }
 
   @Post(':id/retry')
-  @ApiOperation({ summary: 'Manually re-enqueue a PENDING dead-letter entry (no automatic retry exists)' })
+  @ApiOperation({
+    summary:
+      'Manually re-enqueue a PENDING dead-letter entry (no automatic retry exists)',
+  })
   @ApiParam({ name: 'id', description: 'Dead-letter entry id (uuid)' })
   @ApiResponse({ status: 200, description: 'Entry marked RETRIED' })
   @ApiResponse({ status: 404, description: 'Unknown dead-letter id' })

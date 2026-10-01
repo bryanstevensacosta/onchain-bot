@@ -1,3 +1,10 @@
+/**
+ * @deprecated Tramo 1 cutover (task-16, staging): KOL hot path moved to
+ * apps/kol-calls (ingestion/extraction/parsing/normalization) +
+ * apps/kol-calls-publisher (scoring/templates/approval/publishing).
+ * Refactor target: delete this module at the central FINAL REVIEW (C4-bis.3).
+ * Rollback: backend path stays wired; nothing deleted here.
+ */
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ExtractionModule } from 'token/intake/extraction/extraction.module';

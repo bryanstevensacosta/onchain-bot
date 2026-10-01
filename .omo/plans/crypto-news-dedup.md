@@ -1,8 +1,8 @@
-# crypto-news-dedup - Work Plan
+# feed-dedup - Work Plan
 
 ## TL;DR (For humans)
 
-**What you'll get:** Sistema de **event resolution** para el publisher queue de crypto-news, no una mera detección binaria de duplicados. 4 niveles + un árbitro LLM para casos difíciles. Nivel 1: mismo mensaje Telegram no se encola dos veces. Nivel 2: mismo contenido exacto. Nivel 3: misma URL. Nivel 4: scorer multi-señal (cosine similarity + penalizaciones por números/entidades/cashtags + boosts contextuales) que clasifica pares como DUPLICATE, DIFFERENT, o zona gris. La zona gris (<1% de mensajes) se resuelve con un LLM que actúa como editor: recibe resúmenes de ambos posts y decide si son DUPLICATE, UPDATE, o DIFFERENT. Los UPDATE se **encolan** (no se bloquean) porque añaden información nueva al mismo evento. El LLM cuesta ~$0.0004/día. Todo en `shared/deduplication/`, desacoplado.
+**What you'll get:** Sistema de **event resolution** para el publisher queue de feed, no una mera detección binaria de duplicados. 4 niveles + un árbitro LLM para casos difíciles. Nivel 1: mismo mensaje Telegram no se encola dos veces. Nivel 2: mismo contenido exacto. Nivel 3: misma URL. Nivel 4: scorer multi-señal (cosine similarity + penalizaciones por números/entidades/cashtags + boosts contextuales) que clasifica pares como DUPLICATE, DIFFERENT, o zona gris. La zona gris (<1% de mensajes) se resuelve con un LLM que actúa como editor: recibe resúmenes de ambos posts y decide si son DUPLICATE, UPDATE, o DIFFERENT. Los UPDATE se **encolan** (no se bloquean) porque añaden información nueva al mismo evento. El LLM cuesta ~$0.0004/día. Todo en `shared/deduplication/`, desacoplado.
 
 **Why this approach:** El threshold perfecto de similitud no existe. 0.90 puede ser duplicado, 0.91 puede no serlo, 0.95 puede seguir sin serlo. En lugar de trazar una línea arbitraria, combinamos 3 penalizaciones ortogonales (numbers, entities, cashtags) para cubrir ~94% de casos con certeza, y delegamos el <1% más dudoso a un LLM que toma decisiones editoriales, no matemáticas. Esto da 99.99% de precisión sin pagar LLM en toda la ingesta.
 
@@ -38,16 +38,16 @@ Estas constraints se documentan aquí para que Momus (plan critic) las considere
 
 ### Modelo de embeddings: `Xenova/all-MiniLM-L6-v2`
 
-| Propiedad         | Valor                                      |
-| ----------------- | ------------------------------------------ |
-| **Desarrollador** | Microsoft (ONNX export vía HuggingFace)    |
-| **Dimensiones**   | 384                                        |
-| **Disco**         | ~23 MB (ONNX cuantizado)                   |
-| **RAM peak**      | ~40-60 MB (con `onnxruntime-node` nativo)  |
-| **Velocidad**     | ~2-5ms por inferencia en CPU               |
-| **MTEB Score**    | ~61.0                                      |
-| **Licencia**      | Apache 2.0                                 |
-| **Idioma**        | Inglés (óptimo para crypto-news en inglés) |
+| Propiedad         | Valor                                     |
+| ----------------- | ----------------------------------------- |
+| **Desarrollador** | Microsoft (ONNX export vía HuggingFace)   |
+| **Dimensiones**   | 384                                       |
+| **Disco**         | ~23 MB (ONNX cuantizado)                  |
+| **RAM peak**      | ~40-60 MB (con `onnxruntime-node` nativo) |
+| **Velocidad**     | ~2-5ms por inferencia en CPU              |
+| **MTEB Score**    | ~61.0                                     |
+| **Licencia**      | Apache 2.0                                |
+| **Idioma**        | Inglés (óptimo para feed en inglés)       |
 
 **Por qué este modelo:**
 
@@ -83,7 +83,7 @@ Your next move: approve the plan, then `$start-work` to begin execution.
 - 3 penalizaciones ortogonales: number penalty (números distintos), entity penalty (entidades capitalizadas distintas), cashtag penalty (tickers $ distintos). Todas heurísticas, sin listas ni modelos.
 - Preprocessing: strip markdown + extracción de números, entidades (capitalizadas), cashtags
 - `shared/deduplication/` module: ContentNormalizerService, ContentHashService, UrlNormalizerService, PreprocessingService, SemanticScorer, DedupScorer, FingerprintVO, DedupRecord, DeduplicationStore port, DeduplicationService, EmbeddingService (ONNX), LlmArbiterService, TypeORM persistence
-- Integración **solo** en `CryptoNewsMessageIngestedHandler` después de blacklist check, antes de enqueue
+- Integración **solo** en `FeedMessageIngestedHandler` después de blacklist check, antes de enqueue
 - **Aislamiento por `source`**: crypto-news solo ve fingerprints con source='crypto-news'
 - blockedReason con 4 formatos: exact, content, URL, semantic (con similarity score y eventRelation si aplica)
 - Frontend blocked posts list con badges diferenciados para cada tipo (incluyendo UPDATE si llega a blocked)
@@ -93,8 +93,8 @@ Your next move: approve the plan, then `$start-work` to begin execution.
 
 ### Must NOT have (guardrails, anti-slop, scope boundaries)
 
-- **NO integración en vip-calls, chain-dexter-bot, o ningún BC que no sea crypto-news**
-- **NO cross-BC dedup**: crypto-news nunca ve fingerprints de otro source
+- **NO integración en vip-calls, chain-dexter-bot, o ningún BC que no sea feed**
+- **NO cross-BC dedup**: feed nunca ve fingerprints de otro source
 - No listas de tickers, entidades, palabras clave, ni ningún conocimiento explícito del dominio crypto
 - No cambios a `EnqueueMatchingMessageUseCase`, `PublisherQueueRepository`, keyword/blacklist/throttle logic
 - No cambios a `PublisherQueueEntry` ni `PublisherQueueEntity` existentes
@@ -139,7 +139,7 @@ Raw Telegram message (rawContent, channelId, messageId)
 
 - Test decision: TDD for new services and domain logic. Tests-after for handler integration.
 - Framework: Jest (backend, co-located `*.spec.ts`), Vitest (frontend). For EmbeddingService: integration test that loads model and computes a known cosine similarity.
-- Evidence: `.omo/evidence/task-N-crypto-news-dedup.txt`
+- Evidence: `.omo/evidence/task-N-feed-dedup.txt`
 
 ## Execution strategy
 
@@ -201,9 +201,9 @@ Raw Telegram message (rawContent, channelId, messageId)
   - `services/url-normalizer.service.ts` — Static `extractUrls(content: string): string[]` (regex: https?://\S+). Static `normalize(url: string): string` — removes query params: `utm_*`, `fbclid`, `gclid`, `ref`, `source`, `campaign`. Static `normalizeAll(urls: string[]): string[]`. Static `hash(url: string): string` (normalize + SHA256).
     Must NOT do: No NestJS decorators. No TypeORM. No ML dependencies.
     Parallelization: Wave 1 | Blocked by: — | Blocks: 2, 3, 4
-    References: `shared/kernel/value-object.ts` for VO base. `shared/kernel/domain-error.ts` for error pattern. `telegram/ingestion/crypto-news/domain/value-objects/crypto-news-media.vo.ts` for VO style.
+    References: `shared/kernel/value-object.ts` for VO base. `shared/kernel/domain-error.ts` for error pattern. `telegram/ingestion/feed/domain/value-objects/feed-media.vo.ts` for VO style.
     Acceptance criteria: `ContentHashService.hash('HELLO World')` returns deterministic 64-char hex. `UrlNormalizerService.normalize('https://example.com/post?id=123&utm_source=x')` returns `'https://example.com/post?id=123'`. `Fingerprint.exact('ch', 42).toString()` returns `'exact:ch:42'`. `ContentNormalizerService.normalize('**BTC** hits \$120K')` returns `'btc hits \$120k'` (markdown stripped). `ContentNormalizerService.extractCashtags('Pumping \$BTC and \$ETH!')` returns `['BTC', 'ETH']`.
-    QA scenarios: Happy — normalize multi-whitespace, URLs with all tracking params removed, extracts multiple URLs. Failure — empty content → empty URL list, missing params → unchanged URL. Evidence `.omo/evidence/task-1-crypto-news-dedup.txt`.
+    QA scenarios: Happy — normalize multi-whitespace, URLs with all tracking params removed, extracts multiple URLs. Failure — empty content → empty URL list, missing params → unchanged URL. Evidence `.omo/evidence/task-1-feed-dedup.txt`.
     Commit: Y | `feat(dedup): add ContentHashService, FingerprintVO, and UrlNormalizer`
 
 - [x] 2. `shared/deduplication/domain/`: SemanticScorer + DedupScorer
@@ -247,7 +247,7 @@ Raw Telegram message (rawContent, channelId, messageId)
     Parallelization: Wave 1 | Blocked by: — | Blocks: 4
     References: Standard cosine similarity math. Thresholds from sentence-transformers literature (0.85+).
     Acceptance criteria: `cosineSimilarity([1,0], [1,0])` = 1.0. `cosineSimilarity([1,0], [0,1])` = 0.0. `jaccardSimilarity(['btc','up'], ['btc','up','now'])` = 0.666... `numberJaccardSimilarity([120000, 5], [120000, 5])` = 1.0. `numberJaccardSimilarity([120000, 5], [115000, 5])` = 0.5. `entityJaccardSimilarity(['bitcoin','sec'], ['bitcoin','sec'])` = 1.0. `entityJaccardSimilarity(['bitcoin'], ['ethereum'])` = 0.0. `cashtagJaccardSimilarity(['BTC', 'ETH'], ['BTC', 'ETH'])` = 1.0. `cashtagJaccardSimilarity(['BTC'], ['SOL'])` = 0.0. `computeScore(identical)` returns `{ score: 1.0, zone: 'duplicate', signals: [...] }`. Score with `numbersM: [120000], numbersE: [115000]` returns score ~0.77 (base 0.92 - 0.15 penalty). Score with `entitiesM: ['bitcoin'], entitiesE: ['ethereum']` returns score ~0.80 (base 0.92 - 0.12 penalty). Score in gray zone range returns `zone: 'gray_zone'`.
-    QA scenarios: Happy — identical vectors produce zone 'duplicate'. Orthogonal vectors produce zone 'different'. URL boost raises score into higher zone. Proximity boost raises score. Number penalty can push score into gray zone. Entity penalty can push score into gray zone. Cashtag penalty can push score into gray zone. Failure — different dimensions throws error. Evidence `.omo/evidence/task-2-crypto-news-dedup.txt`.
+    QA scenarios: Happy — identical vectors produce zone 'duplicate'. Orthogonal vectors produce zone 'different'. URL boost raises score into higher zone. Proximity boost raises score. Number penalty can push score into gray zone. Entity penalty can push score into gray zone. Cashtag penalty can push score into gray zone. Failure — different dimensions throws error. Evidence `.omo/evidence/task-2-feed-dedup.txt`.
     Commit: Y | `feat(dedup): add SemanticScorer and DedupScorer domain services`
     ````
 
@@ -255,9 +255,9 @@ Raw Telegram message (rawContent, channelId, messageId)
      What to do: Create `entities/dedup-record.entity.ts` — Domain entity (NOT TypeORM). `DedupRecordProps`: `id: string`, `fingerprint: Fingerprint`, `source: string`, `channelId: string`, `messageId: number`, `urlsHashes: string[]` (hashes de URLs normalizadas para matching rápido), `tokens: string[]` (tokens únicos ordenados del contenido normalizado, usado para Jaccard similarity), `numbers: number[]` (números extraídos normalizados, usado para number penalty), `entities: string[]` (entidades capitalizadas extraídas heurísticamente, usado para entity penalty), `cashtags: string[]` (cashtags extraídos del raw para cashtag penalty), `embedding: number[] | null` (384-dim vector, nullable para levels 1-3), `referencedEntryId: string | null`, `referencedChannelId: string | null`, `referencedMessageId: number | null`, `createdAt: Date`. Static `create()` factory with validation. Static `reconstitute()` for hydration. Getters for all fields.
      Must NOT do: No TypeORM. No NestJS decorators.
      Parallelization: Wave 1 | Blocked by: 1 | Blocks: 4
-     References: `telegram/crypto-news-publisher/domain/entities/publisher-queue-entry.entity.ts` for entity pattern.
+     References: `telegram/feed-publisher/domain/entities/publisher-queue-entry.entity.ts` for entity pattern.
      Acceptance criteria: `DedupRecord.create({fingerprint, source, channelId, messageId, ...})` returns valid entity. Getters return correct values.
-     QA scenarios: Happy — entity created with correct fingerprint. `referencedEntryId` is set when provided. Failure — empty source throws DomainError. Evidence `.omo/evidence/task-3-crypto-news-dedup.txt`.
+     QA scenarios: Happy — entity created with correct fingerprint. `referencedEntryId` is set when provided. Failure — empty source throws DomainError. Evidence `.omo/evidence/task-3-feed-dedup.txt`.
      Commit: Y (squash with task 1 or separate) | `feat(dedup): add DedupRecord domain entity with embedding field`
 
 - [x] 4. `shared/deduplication/application/`: DeduplicationStore port + DeduplicationService
@@ -327,11 +327,11 @@ Raw Telegram message (rawContent, channelId, messageId)
     ```
 
   - Methods: - `checkExact(source, channelId, messageId)` → `DedupResult` - `checkContent(source, rawContent)` → `DedupResult` - `checkUrl(source, rawContent)` → `DedupResult` - `checkSemantic(source, rawContent, channelId, messageId)` → `DedupResult` (usa LLM si gray_zone) - `classifyEvent(normalized, candidate)` → `EventRelation | null` (invoca LLM directamente, usado por handler) - `markAsSeen(...)` → stores fingerprints for all levels
-    Must NOT do: No imports from telegram or crypto-news. Source param keeps it generic. No hardcoded LLM provider — `LlmArbiterService` es injectado.
+    Must NOT do: No imports from telegram or feed. Source param keeps it generic. No hardcoded LLM provider — `LlmArbiterService` es injectado.
     Parallelization: Wave 1 | Blocked by: 1, 2, 3 | Blocks: 6, 8
     References: `application/services/throttle-scheduler.service.ts` for NestJS service pattern.
     Acceptance criteria: Service compiles. Methods return correct DedupResult with zones. Gray zone triggers LLM if available, falls back to `isDuplicate: false` if not.
-    QA scenarios: Happy — checkExact returns `{isDuplicate: false}` for unseen, `{isDuplicate: true}` for seen. Gray zone score with LLM returns correct eventRelation. Gray zone without LLM returns `{isDuplicate: false}`. markAsSeen stores fingerprints. Failure — store throws → service logs and returns `{isDuplicate: false}` (fail-open). Evidence `.omo/evidence/task-4-crypto-news-dedup.txt`.
+    QA scenarios: Happy — checkExact returns `{isDuplicate: false}` for unseen, `{isDuplicate: true}` for seen. Gray zone score with LLM returns correct eventRelation. Gray zone without LLM returns `{isDuplicate: false}`. markAsSeen stores fingerprints. Failure — store throws → service logs and returns `{isDuplicate: false}` (fail-open). Evidence `.omo/evidence/task-4-feed-dedup.txt`.
     Commit: Y | `feat(dedup): add DeduplicationStore port and DeduplicationService`
 
 - [x] 5. EmbeddingService with @xenova/transformers
@@ -357,11 +357,11 @@ Raw Telegram message (rawContent, channelId, messageId)
         xenova_cache:
       ```
   - **CAMBIAR memory limit del contenedor backend** en `docker-compose.prod.yml` línea 122: `memory: 128M` → `memory: 256M` (ver Hardware Constraints — el modelo necesita ~40-60 MB peak, y el contenedor actual tiene solo ~20 MB libres). Este cambio es **requerido** para que funcione, no opcional.
-    Must NOT do: No hacer blocking await en el constructor (usar `onModuleInit`). No cargar el modelo si no se usa (but it's always used for crypto-news). No exceder el memory limit — si el modelo no cabe, el container OOM.
+    Must NOT do: No hacer blocking await en el constructor (usar `onModuleInit`). No cargar el modelo si no se usa (but it's always used for feed). No exceder el memory limit — si el modelo no cabe, el container OOM.
     Parallelization: Wave 2 | Blocked by: — | Blocks: 6
     References: `@xenova/transformers` docs. `docker-compose.prod.yml` línea 122 para memory limit. Hardware Constraints section arriba para rationale del modelo y alternativas.
     Acceptance criteria: `embedService.embed('Bitcoin rises to $100k')` returns a 384-element Float64Array. `cosineSimilarity(embed('BTC up'), embed('Bitcoin up'))` > 0.85. Embedding is deterministic (same input → same vector). Container boots sin OOM con `memory: 256M` (verificar con `docker stats`).
-    QA scenarios: Happy — embedding shape is 384, values are finite. Same text → same vector. Similar texts in different languages? (Probably low, all-MiniLM is English-centric but handles code-mixed crypto slang). Failure — model cache corrupted → onModuleInit logs warning and disables semantic dedup gracefully. Failure — memory limit no actualizado → container OOM en boot → error log de docker. Evidence `.omo/evidence/task-5-crypto-news-dedup.txt`.
+    QA scenarios: Happy — embedding shape is 384, values are finite. Same text → same vector. Similar texts in different languages? (Probably low, all-MiniLM is English-centric but handles code-mixed crypto slang). Failure — model cache corrupted → onModuleInit logs warning and disables semantic dedup gracefully. Failure — memory limit no actualizado → container OOM en boot → error log de docker. Evidence `.omo/evidence/task-5-feed-dedup.txt`.
     Commit: Y | `feat(dedup): add EmbeddingService with @xenova/transformers + update docker-compose memory`
 
 - [x] 6. TypeORM entity + TypeOrmDeduplicationStore
@@ -398,7 +398,7 @@ Raw Telegram message (rawContent, channelId, messageId)
     Parallelization: Wave 2 | Blocked by: 4, 5 | Blocks: 8
     References: `typeorm-publisher-queue.repository.ts` for repo pattern. `publisher-queue.entity.ts` for entity pattern. `publisher-queue.mapper.ts` for mapper pattern.
     Acceptance criteria: Store integrates with TypeORM synchronize=true. Can save and retrieve all fingerprint types. Full scan for similar embeddings loads records and computes cosine.
-    QA scenarios: Happy — exact save + find. URL hash save + find. Embedding save + load + cosine computed. Prune removes old records. Failure — duplicate fingerprint_type+value+source throws DomainError CONFLICT. Evidence `.omo/evidence/task-6-crypto-news-dedup.txt`.
+    QA scenarios: Happy — exact save + find. URL hash save + find. Embedding save + load + cosine computed. Prune removes old records. Failure — duplicate fingerprint_type+value+source throws DomainError CONFLICT. Evidence `.omo/evidence/task-6-feed-dedup.txt`.
     Commit: Y | `feat(dedup): add TypeORM persistence with embedding support`
 
 - [x] 7. DeduplicationModule + AppModule wiring
@@ -413,12 +413,12 @@ Raw Telegram message (rawContent, channelId, messageId)
     Parallelization: Wave 3 | Blocked by: 6 | Blocks: 9
     References: `app.module.ts` imports section. `shared/llm/llm.module.ts` for shared module pattern.
     Acceptance criteria: `npm run start:dev` boots successfully. Model cache downloads on first boot. EmbeddingService loads model.
-    QA scenarios: Happy — app boots, DeduplicationService injectable. Failure — @xenova/transformers fails to download model → app logs warning, semantic dedup disabled, other levels still work. Evidence `.omo/evidence/task-7-crypto-news-dedup.txt`.
+    QA scenarios: Happy — app boots, DeduplicationService injectable. Failure — @xenova/transformers fails to download model → app logs warning, semantic dedup disabled, other levels still work. Evidence `.omo/evidence/task-7-feed-dedup.txt`.
     Commit: Y | `feat(dedup): wire DeduplicationModule into AppModule`
 
 - [x] 8. LlmArbiterService (reuses existing `LlmPort`)
      What to do: Create `shared/deduplication/infrastructure/llm/llm-arbiter.service.ts`:
-  - NestJS `@Injectable()` service. **Injects `LlmPort` (from `shared/llm/`)** — NO crea un nuevo cliente OpenAI. El `LlmPort` ya está resuelto por `LlmModule` (global) o sobreescrito por `CryptoNewsPublisherModule` según el BC. El config (`app.llm.gateway.*` con env vars `LLM_GATEWAY_BASE_URL`, `LLM_GATEWAY_API_KEY`, `LLM_GATEWAY_MODEL`) lo maneja el adapter, no este servicio.
+  - NestJS `@Injectable()` service. **Injects `LlmPort` (from `shared/llm/`)** — NO crea un nuevo cliente OpenAI. El `LlmPort` ya está resuelto por `LlmModule` (global) o sobreescrito por `FeedPublisherModule` según el BC. El config (`app.llm.gateway.*` con env vars `LLM_GATEWAY_BASE_URL`, `LLM_GATEWAY_API_KEY`, `LLM_GATEWAY_MODEL`) lo maneja el adapter, no este servicio.
   - `async arbitrate(contentA: string, contentB: string, candidate: DedupRecord): Promise<LlmVerdict>`:
     1. Build prompt payload from both articles: extract headline (primeras ~50 chars), summary (primeros ~400 chars del contenido), source, published time.
     2. System prompt: `"Eres un editor de noticias. Determina si ambos artículos representan EXACTAMENTE el mismo evento. Responde únicamente con JSON."`
@@ -436,18 +436,18 @@ Raw Telegram message (rawContent, channelId, messageId)
   - Logging: cada decisión del LLM se loguea con `this.logger.log({...})` para auditoría. Sin exponer API keys, prompts, ni contenido raw.
     Must NOT do: No importar `openai` directamente. No crear segundo cliente LLM. No hardcodear modelo. No exponer API key en logs. No ejecutar LLM para todos los mensajes (solo gray zone).
     Parallelization: Wave 3 | Blocked by: 4, 5 | Blocks: 9
-    References: `shared/llm/llm.port.ts` (abstract class), `shared/llm/llm.module.ts` (@Global provider), `CryptoNewsLlmAdapter` como ejemplo de uso de LlmPort.
+    References: `shared/llm/llm.port.ts` (abstract class), `shared/llm/llm.module.ts` (@Global provider), `FeedLlmAdapter` como ejemplo de uso de LlmPort.
     Acceptance criteria: `arbitrate('SEC approves Bitcoin ETF', 'SEC approves Bitcoin ETF after months')` returns `{ classification: 'duplicate', confidence: > 0.9 }`. `arbitrate('Bitcoin rises 10%', 'Bitcoin falls 8%')` returns `{ classification: 'different', confidence: > 0.85 }`. `arbitrate('Binance hacked for $5M', 'Binance confirms hack reached $7M')` returns `{ classification: 'update', confidence: > 0.85 }`. Sin instalar `openai` — todo via `LlmPort`.
-    QA scenarios: Happy — LLM returns valid JSON with correct classification via LlmPort. Failure — LlmPort throws → fallback with 'DIFFERENT'. Failure — LlmPort.isAvailable() false → service no llama, retorna DIFFERENT. Evidence `.omo/evidence/task-8-crypto-news-dedup.txt`.
+    QA scenarios: Happy — LLM returns valid JSON with correct classification via LlmPort. Failure — LlmPort throws → fallback with 'DIFFERENT'. Failure — LlmPort.isAvailable() false → service no llama, retorna DIFFERENT. Evidence `.omo/evidence/task-8-feed-dedup.txt`.
     Commit: Y | `feat(dedup): add LlmArbiterService for gray zone resolution (reuses LlmPort)`
 
-- [x] 9. Integrate dedup + LLM in CryptoNewsMessageIngestedHandler
+- [x] 9. Integrate dedup + LLM in FeedMessageIngestedHandler
   - [x] 9a. Fix deduplication.service.spec.ts (rename llmArbiter→arbiterService + arbiter mock mismatch)
-  - [x] 9b. Fix crypto-news-message-ingested.handler.spec.ts (add DeduplicationService mock)
+  - [x] 9b. Fix feed-message-ingested.handler.spec.ts (add DeduplicationService mock)
   - [x] 9c. Verify: `npx jest` passes (all 1290+ tests)
         ```
     - All existing tests should pass without modification (mocks return `{ isDuplicate: false }` for all levels)
-      What to do: Modify `crypto-news-message-ingested.handler.ts`:
+      What to do: Modify `feed-message-ingested.handler.ts`:
     1. Inject `DeduplicationService` in constructor
     2. After blacklist check passes, before `enqueue.execute()`:
 
@@ -490,10 +490,10 @@ Raw Telegram message (rawContent, channelId, messageId)
     4. For blacklist BLOCKED path: also call `dedupService.markAsSeen()` so blocked entries are tracked
        Must NOT do: No changes to `EnqueueMatchingMessageUseCase`. No removing the existing DB unique constraint. No blocking the handler on LLM timeout (>5s → timeout → fallback DIFFERENT).
        Parallelization: Wave 4 | Blocked by: 7, 8 | Blocks: 11
-       References: `crypto-news-message-ingested.handler.ts` lines 130-177 for BLOCKED pattern.
+       References: `feed-message-ingested.handler.ts` lines 130-177 for BLOCKED pattern.
        Acceptance criteria: Handler compiles. 4 levels of dedup execute in order. UPDATE blocks? No — UPDATE pasa a PENDING. Gray zone with LLM → correct classification. LLM timeout → message proceeds as DIFFERENT.
-       QA scenarios: Happy — exact duplicate stops at Level 1. UPDATE goes through as PENDING. Same event diff text triggers LLM gray zone. Failure — LLM timeout → message enqueued as DIFFERENT. EmbeddingService unavailable → Level 4 skipped. Evidence `.omo/evidence/task-9-crypto-news-dedup.txt`.
-       Commit: Y | `feat(crypto-news-publisher): integrate 4-level dedup with LLM arbiter in handler`
+       QA scenarios: Happy — exact duplicate stops at Level 1. UPDATE goes through as PENDING. Same event diff text triggers LLM gray zone. Failure — LLM timeout → message enqueued as DIFFERENT. EmbeddingService unavailable → Level 4 skipped. Evidence `.omo/evidence/task-9-feed-dedup.txt`.
+       Commit: Y | `feat(feed-publisher): integrate 4-level dedup with LLM arbiter in handler`
 
 - [x] 10. Tests for shared/deduplication
       What to do: Create these spec files:
@@ -507,22 +507,22 @@ Raw Telegram message (rawContent, channelId, messageId)
   - `infrastructure/ml/__tests__/embedding.service.spec.ts` — integration: load model, compute embedding, deterministic output
   - `infrastructure/persistence/typeorm/repositories/__tests__/typeorm-deduplication-store.spec.ts` — SQLite integration, save + find + prune
   - `infrastructure/llm/__tests__/llm-arbiter.service.spec.ts` — mock OpenAI, test DUPLICATE/UPDATE/DIFFERENT responses, test fallback
-    Must NOT do: No crypto-news imports. No handler tests (those are task 11).
+    Must NOT do: No feed imports. No handler tests (those are task 11).
     Parallelization: Wave 5 | Blocked by: 6, 8 | Blocks: 11
     References: Existing spec files for mocking patterns.
     Acceptance criteria: `npm run test:backend` passes. All 10 new spec files execute.
-    QA scenarios: All tests pass. Evidence `.omo/evidence/task-10-crypto-news-dedup.txt`.
+    QA scenarios: All tests pass. Evidence `.omo/evidence/task-10-feed-dedup.txt`.
     Commit: Y (squash with respective implementation commits, or as `test(dedup): add comprehensive tests`)
 
-- [x] 11. Update crypto-news handler spec for dedup + LLM behavior (29 tests pass)
-      What to do: Modify `crypto-news-message-ingested.handler.spec.ts`:
+- [x] 11. Update feed handler spec for dedup + LLM behavior (29 tests pass)
+      What to do: Modify `feed-message-ingested.handler.spec.ts`:
   1. Add mock for `DeduplicationService` (incluyendo `checkSemantic` que devuelve zona) in test module
   1. Test cases: - "exact duplicate → BLOCKED with duplicate reason" - "content duplicate → BLOCKED with content reason" - "URL duplicate → BLOCKED with URL reason" - "semantic high score > 0.95 → BLOCKED with semantic reason" - "gray zone → LLM DUPLICATE → BLOCKED" - "gray zone → LLM UPDATE → PENDING (enqueued)" - "gray zone → LLM DIFFERENT → PENDING (enqueued)" - "gray zone without LLM → PENDING (fail-open)" - "first level match stops chain (exact match → no content/URL/semantic check)" - "no duplicate → enqueued as PENDING" - "blacklist still works before dedup" - "dedup service failure → handler continues (fail-open)" - "markAsSeen called after successful enqueue" - "markAsSeen also called for blacklist blocked entries"
      Must NOT do: No changes to existing test cases for keyword matching or blacklist.
      Parallelization: Wave 4 | Blocked by: 9, 10 | Blocks: —
-     References: `crypto-news-message-ingested.handler.spec.ts` lines 1-626.
+     References: `feed-message-ingested.handler.spec.ts` lines 1-626.
      Acceptance criteria: All existing tests pass. 10 new test cases pass.
-     QA scenarios: Run `npx jest --testPathPattern="crypto-news-message-ingested.handler.spec"` — all pass. Evidence `.omo/evidence/task-11-crypto-news-dedup.txt`.
+     QA scenarios: Run `npx jest --testPathPattern="feed-message-ingested.handler.spec"` — all pass. Evidence `.omo/evidence/task-11-feed-dedup.txt`.
      Commit: Y (squash with task 9 commit)
 
 - [-] 12. Update frontend BlockedPostsList for 4 blocked reason types (SKIPPED — frontend-only, scoped to backend dedup)
@@ -538,25 +538,25 @@ Raw Telegram message (rawContent, channelId, messageId)
      Parallelization: Wave 5 | Blocked by: — | Blocks: 13
      References: `blocked-posts-list.tsx` lines 1-128. `shared/ui/badge.tsx` for badge styles.
      Acceptance criteria: Frontend builds. BlockedPostsList shows correct badge for each blockedReason type.
-     QA scenarios: Happy — 4 different blockedReason prefixes → 4 different badges. Failure — null blockedReason → "No reason". Evidence `.omo/evidence/task-12-crypto-news-dedup.txt`.
+     QA scenarios: Happy — 4 different blockedReason prefixes → 4 different badges. Failure — null blockedReason → "No reason". Evidence `.omo/evidence/task-12-feed-dedup.txt`.
      Commit: Y | `feat(frontend): update BlockedPostsList with 4 dedup reason badges`
 
 - [-] 13. Frontend tests for updated BlockedPostsList (SKIPPED — frontend-only)
-  What to do: Create `features/crypto-news-publisher/ui/__tests__/blocked-posts-list.test.tsx`:
+  What to do: Create `features/feed-publisher/ui/__tests__/blocked-posts-list.test.tsx`:
   - Mock `useQueue` returning entries with each blockedReason type
   - Test: renders correct badge for each type
   - Test: renders "No reason" when blockedReason is null
   - Test: pagination still works with mixed blocked reasons
     Must NOT do: No changes to existing page-level tests.
     Parallelization: Wave 5 | Blocked by: 12 | Blocks: —
-    References: `crypto-news-page.test.tsx` for mock pattern.
+    References: `feed-page.test.tsx` for mock pattern.
     Acceptance criteria: `npm run test:frontend` passes.
-    QA scenarios: All tests pass. Evidence `.omo/evidence/task-13-crypto-news-dedup.txt`.
+    QA scenarios: All tests pass. Evidence `.omo/evidence/task-13-feed-dedup.txt`.
     Commit: Y (squash with task 12 commit)
 
 - [x] 14. Threshold tuning script (with gray zone analysis) — validated zones ✅
       What to do: Create `apps/backend/scripts/dedup/threshold-tuner.mjs` (pure JS, sin dependencias del proyecto):
-  1. Carga ~100 mensajes reales del feed crypto-news (de una exportación JSON, no en vivo)
+  1. Carga ~100 mensajes reales del feed feed (de una exportación JSON, no en vivo)
   1. Para cada par de mensajes en ventana de 48h:
      a. Compute embeddings via calling a small Node script that loads the model
      b. Compute cosine similarity
@@ -584,7 +584,7 @@ Raw Telegram message (rawContent, channelId, messageId)
      Parallelization: Wave 6 | Blocked by: 5 | Blocks: —
      References: Standard Node.js script pattern in `apps/backend/scripts/`.
      Acceptance criteria: Script runs without errors. Outputs distribution + suggested thresholds + gray zone %.
-     QA scenarios: Happy — script runs, outputs histogram and gray zone analysis. Failure — no data file → clear error message. Evidence `.omo/evidence/task-14-crypto-news-dedup.txt`.
+     QA scenarios: Happy — script runs, outputs histogram and gray zone analysis. Failure — no data file → clear error message. Evidence `.omo/evidence/task-14-feed-dedup.txt`.
      Commit: Y | `chore(dedup): add threshold tuning script with gray zone analysis`
 
 - [x] 15. LLM Arbiter prompt evaluation + test — mock eval script created ✅
@@ -602,13 +602,13 @@ Raw Telegram message (rawContent, channelId, messageId)
      Parallelization: Wave 6 | Blocked by: 8 | Blocks: —
      References: LlmArbiterService, OpenAI API docs.
      Acceptance criteria: Script runs. Outputs confusion matrix. Precision > 90% for all categories or prompt is adjusted.
-     QA scenarios: Happy — > 90% accuracy across all 3 categories. Failure — API key missing → clear error. Evidence `.omo/evidence/task-15-crypto-news-dedup.txt`.
+     QA scenarios: Happy — > 90% accuracy across all 3 categories. Failure — API key missing → clear error. Evidence `.omo/evidence/task-15-feed-dedup.txt`.
      Commit: Y | `chore(dedup): add LLM prompt evaluation script`
 
 ## Final verification wave
 
 - [x] F1. Plan compliance audit: All 15 tasks completed. No scope creep. Must NOT have items verified.
-- [x] F2. Code quality review: `npm run lint` passes (0 errors, 3 pre-existing frontend warnings). `npm run build` passes. No crypto-news references in shared/dedup/.
+- [x] F2. Code quality review: `npm run lint` passes (0 errors, 3 pre-existing frontend warnings). `npm run build` passes. No feed references in shared/dedup/.
 - [x] F3. Full test suite: Backend 128 suites, 1300 tests — all pass. Frontend tests unaffected.
 - [x] F4. Scope fidelity: No changes to EnqueueMatchingMessageUseCase, PublisherQueueRepository, keywords, blacklist, vip-calls, token pipeline.
 
@@ -621,7 +621,7 @@ Raw Telegram message (rawContent, channelId, messageId)
 3. `feat(dedup): add TypeORM persistence` — Task 6 (TypeORM entity, store, mapper)
 4. `feat(dedup): add LlmArbiterService for gray zone resolution` — Task 8
 5. `feat(dedup): wire DeduplicationModule into AppModule` — Task 7
-6. `feat(crypto-news-publisher): integrate 4-level dedup with LLM arbiter in handler` — Tasks 9, 11 (handler changes + spec)
+6. `feat(feed-publisher): integrate 4-level dedup with LLM arbiter in handler` — Tasks 9, 11 (handler changes + spec)
 7. `feat(frontend): update BlockedPostsList for 4 dedup badges` — Tasks 12, 13 (frontend + tests)
 8. `chore(dedup): add tuning scripts (threshold + LLM prompt eval)` — Tasks 14, 15
 
@@ -647,5 +647,5 @@ No force-push needed. All commits on `dev` branch, push normally.
 - [ ] **Isolation by source**: crypto-news only sees source='crypto-news'
 - [ ] Frontend shows 4 different badges (Duplicate, Duplicate Content, Duplicate URL, Semantic)
 - [ ] All existing tests pass
-- [ ] `shared/deduplication/` has zero references to telegram, crypto-news, or any BC
+- [ ] `shared/deduplication/` has zero references to telegram, feed, or any BC
 - [ ] Tuning scripts output distribution + thresholds + gray zone % + LLM accuracy

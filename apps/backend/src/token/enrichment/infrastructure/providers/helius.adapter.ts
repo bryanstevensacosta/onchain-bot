@@ -4,7 +4,7 @@ import {
   MarketData,
   MarketDataProviderPort,
 } from 'token/enrichment/domain/ports/market-data-provider.port';
-import { HeliusService } from 'data-provider/helius/helius.service';
+import { HeliusService } from '../../../../../../market-data/src/provider/infrastructure/helius/helius.service';
 
 /**
  * Thin wrapper that delegates to `HeliusService.getTokenAccounts`.

@@ -5,7 +5,7 @@ import { PathSanitizer } from '../utils/path-sanitizer';
 /**
  * Abstract base class for media path building strategies.
  *
- * Different contexts (crypto-news, ads) use different path conventions.
+ * Different contexts (feed, ads) use different path conventions.
  * Subclasses implement specific patterns while inheriting common sanitization.
  *
  * **Path Convention Examples**:
@@ -16,7 +16,7 @@ import { PathSanitizer } from '../utils/path-sanitizer';
  *
  * @example
  * ```ts
- * class CryptoNewsPathBuilder extends BaseMediaPathBuilder {
+ * class FeedPathBuilder extends BaseMediaPathBuilder {
  *   buildMediaPath(channelId: string, messageId: number, index: number, ext: string): string {
  *     const sanitized = this.sanitizeId(channelId);
  *     const filename = `${messageId}_${index}${ext}`;

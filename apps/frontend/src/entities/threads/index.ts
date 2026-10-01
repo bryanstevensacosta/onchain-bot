@@ -1,8 +1,8 @@
 export {
   threadsPublisherKeys,
   threadsMatchingKeys,
-  fetchCryptoNewsMessages,
-  fetchCryptoNewsSources,
+  fetchFeedMessages,
+  fetchFeedSources,
   fetchFilters,
   createFilter,
   updateFilter,
@@ -12,12 +12,12 @@ export {
 export type {
   ThreadsQueueEntryView,
   ThreadsQueueCountsView,
-  CryptoNewsMessage,
-  CryptoNewsSource,
+  FeedMessage,
+  FeedSource,
   ContentFilter,
   CreateFilterDto,
   UpdateFilterDto,
-  CryptoNewsMediaView,
+  FeedMediaView,
 } from './api/threads-queries';
 export {
   useThreadsMessages,

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { CallPublishedEvent } from 'telegram/shared/domain/events/call-published.event';
-import { TrackPublishedCallUseCase } from '../../application/handlers/track-published-call.use-case';
+import { TrackPublishedCallUseCase } from '@/token/call-tracking/application/handlers/track-published-call.use-case';
 
 export const CALL_PUBLISHED_EVENT_NAME = 'publishing.telegram.published';
 

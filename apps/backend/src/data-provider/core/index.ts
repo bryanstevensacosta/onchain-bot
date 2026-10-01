@@ -1,25 +1,14 @@
-export { DataProviderPort } from './data-provider.port';
+/**
+ * @deprecated Moved to apps/market-data/src/provider/infrastructure/ (Tramo 3, todo 4, C-DATA-01).
+ * Canonical owner is now market-data; this barrel is a dual-run re-export
+ * shim so legacy backend consumers stay green. Removed at cutover (todo 8).
+ * Do not extend it.
+ *
+ * New location: apps/market-data/src/provider/infrastructure/index.ts
+ * Reason: extracting market-data providers from backend monolith to dedicated app
+ * Breaking change: Yes (removal at cutover)
+ * Rollback: restore backend implementation from git history
+ */
+export * from '../../../../market-data/src/provider/infrastructure/core/data-provider.port';
+export * from '../../../../market-data/src/provider/infrastructure/index';
 export { DataProviderModule } from './data-provider.module';
-
-export {
-  CoinMarketCapModule,
-  CoinMarketCapService,
-} from 'data-provider/coinmarketcap';
-export { FluxRpcModule, FluxRpcService } from 'data-provider/fluxrpc';
-export { PumpDevModule, PumpDevService } from 'data-provider/pumpdev';
-export { AlchemyModule, AlchemyService } from 'data-provider/alchemy';
-export { BirdeyeModule, BirdeyeService } from 'data-provider/birdeye';
-export { MobulaModule, MobulaService } from 'data-provider/mobula';
-export { MoralisModule, MoralisService } from 'data-provider/moralis';
-export { HeliusModule, HeliusService } from 'data-provider/helius';
-export {
-  DexScreenerModule,
-  DexScreenerService,
-} from 'data-provider/dexscreener';
-export {
-  GeckoTerminalModule,
-  GeckoTerminalService,
-} from 'data-provider/geckoterminal';
-export { CoinGeckoModule, CoinGeckoService } from 'data-provider/coingecko';
-export { RugCheckModule, RugCheckService } from 'data-provider/rugcheck';
-export { SolanaRpcModule, SolanaRpcService } from 'data-provider/solana-rpc';

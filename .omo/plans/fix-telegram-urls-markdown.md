@@ -5,7 +5,7 @@
 <!-- Fill this LAST, after the detailed plan below is written, so it summarizes the REAL plan. -->
 <!-- Plain English for a non-engineer: NO file paths, NO todo numbers, NO wave/agent/tool names. -->
 
-**What you'll get:** URLs in Telegram messages (both crypto-news and vip-calls) will appear as clickable links instead of plain text. This is done by converting raw URLs like `https://solscan.io/...` to Markdown format `[https://solscan.io/...](https://solscan.io/...)` before sending to Telegram.
+**What you'll get:** URLs in Telegram messages (both feed and vip-calls) will appear as clickable links instead of plain text. This is done by converting raw URLs like `https://solscan.io/...` to Markdown format `[https://solscan.io/...](https://solscan.io/...)` before sending to Telegram.
 
 **Why this approach:** The Telegram Bot API requires explicit Markdown/HTML formatting for clickable links. Setting `parse_mode: Markdown` alone is NOT enough — raw URLs remain as plain text. The solution is a simple regex-based converter applied at the publisher level, which is the most robust and maintainable approach.
 
@@ -19,14 +19,14 @@ Your next move: approve, or run a high-accuracy review. Full execution detail fo
 
 ---
 
-> TL;DR (machine): Short, Low risk, adds formatUrlsAsMarkdown utility + applies to both crypto-news and vip-calls publishers
+> TL;DR (machine): Short, Low risk, adds formatUrlsAsMarkdown utility + applies to both feed and vip-calls publishers
 
 ## Scope
 
 ### Must have
 
 - Create a utility function `formatUrlsAsMarkdown(text)` that converts raw URLs to Markdown format
-- Apply the fix to both crypto-news publisher (`BotApiCryptoNewsPublisherAdapter`) and vip-calls publisher (`VipCallsBotApiPublisherAdapter`)
+- Apply the fix to both feed publisher (`BotApiFeedPublisherAdapter`) and vip-calls publisher (`VipCallsBotApiPublisherAdapter`)
 - Add unit tests for the URL conversion utility
 - Ensure backward compatibility - messages without URLs should pass through unchanged
 
@@ -53,7 +53,7 @@ Your next move: approve, or run a high-accuracy review. Full execution detail fo
 Single wave for this small task (3 todos):
 
 - Todo 1: Create utility function (standalone, no deps)
-- Todo 2: Integrate into crypto-news publisher (depends on 1)
+- Todo 2: Integrate into feed publisher (depends on 1)
 - Todo 3: Integrate into vip-calls publisher (depends on 1, can parallel with 2 after 1 completes)
 
 ### Dependency matrix
@@ -87,21 +87,21 @@ Single wave for this small task (3 todos):
     Evidence: .omo/evidence/task-1-format-urls-utility.spec.ts
     Commit: Y | feat(shared): add formatUrlsAsMarkdown utility for Telegram link formatting
 
-- [ ] 2. Integrate utility into crypto-news publisher
-     What to do: Import and apply `formatUrlsAsMarkdown` to the text in `BotApiCryptoNewsPublisherAdapter` before sending. Apply to all send methods: sendMessage, sendPhoto (caption), sendVideo (caption), sendMediaGroup (caption).
+- [ ] 2. Integrate utility into feed publisher
+     What to do: Import and apply `formatUrlsAsMarkdown` to the text in `BotApiFeedPublisherAdapter` before sending. Apply to all send methods: sendMessage, sendPhoto (caption), sendVideo (caption), sendMediaGroup (caption).
      Must NOT do: Do NOT change parse_mode or any other API parameters
      Parallelization: Wave 1 | Blocked by: 1 | Blocks: -
      References:
-  - `apps/backend/src/telegram/crypto-news-publisher/infrastructure/senders/bot-api-crypto-news-publisher.adapter.ts:90-110` (sendMessage)
-  - `apps/backend/src/telegram/crypto-news-publisher/infrastructure/senders/bot-api-crypto-news-publisher.adapter.ts:121-177` (sendPhoto)
-  - `apps/backend/src/telegram/crypto-news-publisher/infrastructure/senders/bot-api-crypto-news-publisher.adapter.ts:179-236` (sendVideo)
-  - `apps/backend/src/telegram/crypto-news-publisher/infrastructure/senders/bot-api-crypto-news-publisher.adapter.ts:238-325` (sendMediaGroup)
+  - `apps/backend/src/telegram/crypto-news-publisher/infrastructure/senders/bot-api-feed-publisher.adapter.ts:90-110` (sendMessage)
+  - `apps/backend/src/telegram/crypto-news-publisher/infrastructure/senders/bot-api-feed-publisher.adapter.ts:121-177` (sendPhoto)
+  - `apps/backend/src/telegram/crypto-news-publisher/infrastructure/senders/bot-api-feed-publisher.adapter.ts:179-236` (sendVideo)
+  - `apps/backend/src/telegram/crypto-news-publisher/infrastructure/senders/bot-api-feed-publisher.adapter.ts:238-325` (sendMediaGroup)
     Acceptance criteria: Build passes: `npm run build:backend` succeeds
     QA scenarios:
   - Test that a message with raw URL gets converted before send
   - Verify parse_mode: 'Markdown' is still set
-    Evidence: .omo/evidence/task-2-crypto-news-integration.spec.ts
-    Commit: Y | fix(crypto-news-publisher): convert raw URLs to Markdown format before sending to Telegram
+    Evidence: .omo/evidence/task-2-feed-integration.spec.ts
+    Commit: Y | fix(feed-publisher): convert raw URLs to Markdown format before sending to Telegram
 
 - [ ] 3. Integrate utility into vip-calls publisher
      What to do: Import and apply `formatUrlsAsMarkdown` to the text in `VipCallsBotApiPublisherAdapter` before sending. Apply in `sendChunk` method which is used for all text sending.
@@ -122,7 +122,7 @@ Single wave for this small task (3 todos):
 
 - [ ] F1. Plan compliance audit - Verify all 3 todos completed as specified
 - [ ] F2. Code quality review - Run linter: `npm run lint:backend` passes
-- [ ] F3. Real manual QA - Verify tests pass: `npm run test:backend -- --testPathPattern="telegram-url-formatter|crypto-news-publisher|vip-calls-publisher"`
+- [ ] F3. Real manual QA - Verify tests pass: `npm run test:backend -- --testPathPattern="telegram-url-formatter|feed-publisher|vip-calls-publisher"`
 - [ ] F4. Scope fidelity - Confirm no unintended changes to other files
 
 ## Commit strategy

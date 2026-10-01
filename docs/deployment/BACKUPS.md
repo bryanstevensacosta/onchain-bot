@@ -108,13 +108,13 @@ One scale governs the script, the deploy step, and the daily health watchdog
   (~+273 files / +120 MB in 3 days — active daily writes, not a static leftover).
 - Prod backend **already runs SSE** (`USE_SSE_INGESTION=true` effective in container
   `onchain-bot-backend-production`; legacy MTProto doubly dead:
-  `INGESTION_TELEGRAM_MTPROTO_ENABLED=false` + `StubCryptoNewsMediaDownloader`
+  `INGESTION_TELEGRAM_MTPROTO_ENABLED=false` + `StubFeedMediaDownloader`
   throws since Fase 5 `dcf5342a`).
 - The writer is the **pre-`1df4b8b9` persistent SSE cache** in the deployed image
   (`ghcr.io/...-backend:latest` built 2026-09-18T14:19:03Z):
   `process-next-queued-article.use-case.ts:441-442` (`1df4b8b9^`) saved to
   `uploads/crypto-news/media/<channelId>/`. The fix `1df4b8b9`
-  (`fix(crypto-news-publisher): tmp-download-and-delete media cache`, 2026-09-19)
+  (`fix(feed-publisher): tmp-download-and-delete media cache`, 2026-09-19)
   moved the cache to `os.tmpdir()/backend-media-<uuid>/` with `finally` cleanup —
   **not yet deployed at dossier time**.
 - **No physical duplication on Oracle server:** backend-prod and ingestion-telegram mount
@@ -128,7 +128,7 @@ One scale governs the script, the deploy step, and the daily health watchdog
 ### Why it is not backed up
 
 1. `uploads/crypto-news/media/` is **ingestion-owned**: the owner (writer of record +
-   72 h janitor `CryptoNewsRetentionCleanupScheduler`, lock `9_421_373`) is
+   72 h janitor `FeedRetentionCleanupScheduler`, lock `9_421_373`) is
    ingestion-telegram; the backend copy is a transient cache on a **shared mount** —
    backing it up would snapshot somebody else's data through a side window.
 2. Deleting anything from the shared dir would damage ingestion serving (same bind-mount).

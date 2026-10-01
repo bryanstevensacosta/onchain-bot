@@ -1,5 +1,5 @@
 -- =====================================================================
--- alpha-meta-token-scanner :: Risky / Flagged Tokens
+-- onchain-bot :: Risky / Flagged Tokens
 -- =====================================================================
 -- Tokens con flags de seguridad o clasificaciones de riesgo.
 -- =====================================================================

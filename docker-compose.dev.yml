@@ -1,0 +1,701 @@
+# Centralized local dev — ONE compose for the whole monorepo.
+#
+# Usage: docker compose -f docker-compose.dev.yml up --build
+# Docs: ./DEV-LOCAL.md (URLs, logs, stop/clean, troubleshooting).
+#
+# Design (read before changing):
+# - Apps build from source (builder stage of each prod Dockerfile) and run
+#   their documented watch command (`start:dev` = nest --watch, except
+#   backend = tsc-watch + nodemon, frontend = vite). Only ./apps/<app>/src
+#   is bind-mounted so the image's linux node_modules stay intact
+#   (host darwin binaries would break inside the container).
+# - ONE postgres server (:5432) with ONE DB PER APP named exactly after
+#   the app (C-DB-01 consolidated 2026-09-28): backend_db,
+#   ingestion_telegram_db, kol_calls_db,
+#   kol_calls_publisher_db, feed_publisher_db,
+#   market_data_db, dexter_db, telegram_bots_db,
+#   scheduling_posts_db, ai_ml_db, threads_publisher_db
+#   (+ _test variants + backend_db_test). Dev local ONLY — staging/prod
+#   keep their own servers (never touch Oracle here).
+#   kol-calls-publisher has its OWN DB (split from kol-calls 2026-09-28).
+#   Ingestion shares the single dev postgres (pre-existing dev layout).
+# - ALL secrets are dummies. Explicit `environment:` wins over `env_file`
+#   (Nest ConfigModule: real env > env files). NEVER point env_file at a
+#   file holding real credentials (ingestion .env has the real MTProto
+#   triple — it is NOT referenced here).
+# - Single postgres: host :5432 (container :5432). Per-app standalone
+#   composes keep their own pg host ports; THIS file is the consolidated
+#   dev path (all apps → `pg:5432`).
+# - Dev ports are the container/dev defaults (dexter :4060, threads :4100).
+#   :4061/:4101 are the STAGING host ports (C-PORTS-01 triplets), not dev.
+
+name: onchain-bot-dev-central
+
+services:
+  # ---------------------------------------------------------------- infra
+  # ------------------------------------------------- single postgres (:5432)
+  # ONE server for all dev apps. Per-app DBs are created on first boot
+  # (synchronize:true) — see header for the full C-DB-01 name list.
+  pg:
+    image: postgres:16-alpine
+    container_name: onchain-dev-pg
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: onchain_bot
+      POSTGRES_PASSWORD: onchain_bot
+      POSTGRES_DB: backend_db
+    ports:
+      - '5432:5432'
+    volumes:
+      - dev-central-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U onchain_bot -d backend_db']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis-backend:
+    image: redis:7-alpine
+    container_name: onchain-dev-redis-backend
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - dev-central-redis-backend:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis-kol:
+    image: redis:7
+    container_name: onchain-dev-redis-kol
+    restart: unless-stopped
+    ports:
+      - '6382:6379'
+    volumes:
+      - dev-central-redis-kol:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis-feed:
+    image: redis:7
+    container_name: onchain-dev-redis-feed
+    restart: unless-stopped
+    ports:
+      - '6383:6379'
+    volumes:
+      - dev-central-redis-feed:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis-market:
+    image: redis:7
+    container_name: onchain-dev-redis-market
+    restart: unless-stopped
+    ports:
+      - '6385:6379'
+    volumes:
+      - dev-central-redis-market:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis-dexter:
+    image: redis:7
+    container_name: onchain-dev-redis-dexter
+    restart: unless-stopped
+    ports:
+      - '6387:6379'
+    volumes:
+      - dev-central-redis-dexter:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis-scheduling:
+    image: redis:7
+    container_name: onchain-dev-redis-scheduling
+    restart: unless-stopped
+    ports:
+      - '6389:6379'
+    volumes:
+      - dev-central-redis-scheduling:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis-aiml:
+    image: redis:7
+    container_name: onchain-dev-redis-aiml
+    restart: unless-stopped
+    ports:
+      - '6391:6379'
+    volumes:
+      - dev-central-redis-aiml:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis-threads:
+    image: redis:7
+    container_name: onchain-dev-redis-threads
+    restart: unless-stopped
+    ports:
+      - '6393:6379'
+    volumes:
+      - dev-central-redis-threads:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ------------------------------------------------------------------ apps
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+      target: build
+    container_name: onchain-dev-backend
+    restart: unless-stopped
+    env_file:
+      - path: apps/backend/.env.development
+        required: false
+    environment:
+      NODE_ENV: development
+      PORT: 3030
+      DATABASE_ENABLED: 'true'
+      POSTGRES_HOST: pg
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: onchain_bot
+      POSTGRES_PASSWORD: onchain_bot
+      POSTGRES_DB: backend_db
+      DATABASE_SYNCHRONIZE: 'true'
+      DATABASE_LOGGING: 'false'
+      REDIS_HOST: redis-backend
+      REDIS_PORT: 6379
+      INGESTION_TELEGRAM_URL: http://ingestion:3031
+    ports:
+      - '3030:3030'
+    volumes:
+      - ./apps/backend/src:/repo/apps/backend/src
+    depends_on:
+      pg:
+        condition: service_healthy
+      redis-backend:
+        condition: service_healthy
+      ingestion:
+        condition: service_started
+    command: npm run start:dev -w @onchain-bot/backend
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://127.0.0.1:3030/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+  ingestion:
+    build:
+      context: .
+      dockerfile: apps/ingestion-telegram/Dockerfile
+      target: builder
+    container_name: onchain-dev-ingestion
+    restart: unless-stopped
+    # NO env_file: apps/ingestion-telegram/.env holds the REAL MTProto
+    # triple and must never be loaded here. All values below are dummies.
+    environment:
+      NODE_ENV: development
+      INGESTION_PORT: 3031
+      # Dummy MTProto creds (pass format validation only). Real Telegram
+      # stays OFF in centralized dev: listener connect fails/retries, the
+      # HTTP API + SSE still serve. See DEV-LOCAL.md.
+      INGESTION_TELEGRAM_MTPROTO_API_ID: 1
+      INGESTION_TELEGRAM_MTPROTO_API_HASH: dev-dummy-hash-0000000000000000000000
+      INGESTION_TELEGRAM_MTPROTO_SESSION: dev-dummy-session
+      INGESTION_TELEGRAM_MTPROTO_LOG_LEVEL: error
+      DATABASE_ENABLED: 'true'
+      INGESTION_DATABASE_HOST: pg
+      INGESTION_DATABASE_PORT: 5432
+      INGESTION_DATABASE_NAME: ingestion_telegram_db
+      INGESTION_DATABASE_USER: onchain_bot
+      INGESTION_DATABASE_PASSWORD: onchain_bot
+      INGESTION_REDIS_HOST: redis-backend
+      INGESTION_REDIS_PORT: 6379
+    ports:
+      - '3031:3031'
+    volumes:
+      - ./apps/ingestion-telegram/src:/app/apps/ingestion-telegram/src
+      - dev-central-ingestion-uploads:/app/uploads
+    depends_on:
+      pg:
+        condition: service_healthy
+      redis-backend:
+        condition: service_healthy
+    command: npm run start:dev -w @onchain-bot/ingestion-telegram
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://127.0.0.1:3031/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+  feed-publisher:
+    build:
+      context: .
+      dockerfile: apps/feed-publisher/Dockerfile
+      target: builder
+    container_name: onchain-dev-feed-publisher
+    restart: unless-stopped
+    env_file:
+      - path: apps/feed-publisher/.env.development
+        required: false
+    environment:
+      NODE_ENV: development
+      FEED_PUBLISHER_PORT: 3040
+      DATABASE_URL: postgres://onchain_bot:onchain_bot@pg:5432/feed_publisher_db
+      REDIS_URL: redis://redis-feed:6379/0
+      DATABASE_SYNCHRONIZE: 'true'
+      ENCRYPTION_KEY: dev-dummy-encryption-key-00000000000000000000000000000000
+      MATCHING_ENABLED: 'false'
+      LLM_ENABLED: 'false'
+      PUBLISHING_ENABLED: 'false'
+    ports:
+      - '3040:3040'
+    volumes:
+      - ./apps/feed-publisher/src:/app/apps/feed-publisher/src
+    depends_on:
+      pg:
+        condition: service_healthy
+      redis-feed:
+        condition: service_healthy
+    command: npm run start:dev -w @onchain-bot/feed-publisher
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://127.0.0.1:3040/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+  kol-calls:
+    build:
+      context: .
+      dockerfile: apps/kol-calls/Dockerfile
+      target: builder
+    container_name: onchain-dev-kol-calls
+    restart: unless-stopped
+    env_file:
+      - path: apps/kol-calls/.env.development
+        required: false
+    environment:
+      NODE_ENV: development
+      KOL_CALLS_ENABLED: 'true'
+      KOL_CALLS_PORT: 3050
+      DATABASE_URL: postgres://onchain_bot:onchain_bot@pg:5432/kol_calls_db
+      REDIS_URL: redis://redis-kol:6379/0
+      DATABASE_SYNCHRONIZE: 'true'
+      ENCRYPTION_KEY: dev-dummy-encryption-key-00000000000000000000000000000000
+      INGESTION_TELEGRAM_URL: http://ingestion:3031
+      USE_DATA_SERVICE_API: 'true'
+      MARKET_DATA_URL: http://market-data:4000
+      BOTS_GATEWAY_URL: http://gateway:4070
+      KOL_PUBLISH_MODE: dual
+    ports:
+      - '3050:3050'
+    volumes:
+      - ./apps/kol-calls/src:/app/apps/kol-calls/src
+    depends_on:
+      pg:
+        condition: service_healthy
+      redis-kol:
+        condition: service_healthy
+    command: npm run start:dev -w @onchain-bot/kol-calls
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://127.0.0.1:3050/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+  kol-calls-publisher:
+    build:
+      context: .
+      dockerfile: apps/kol-calls-publisher/Dockerfile
+      target: builder
+    container_name: onchain-dev-kol-calls-publisher
+    restart: unless-stopped
+    env_file:
+      - path: apps/kol-calls-publisher/.env.development
+        required: false
+    environment:
+      NODE_ENV: development
+      KOL_CALLS_PUBLISHER_ENABLED: 'true'
+      KOL_CALLS_PUBLISHER_PORT: 3060
+      # Own logical DB (split from kol-calls 2026-09-28).
+      DATABASE_URL: postgres://onchain_bot:onchain_bot@pg:5432/kol_calls_publisher_db
+      REDIS_URL: redis://redis-kol:6379/0
+      DATABASE_SYNCHRONIZE: 'true'
+      ENCRYPTION_KEY: dev-dummy-encryption-key-00000000000000000000000000000000
+      KOL_CALLS_URL: http://kol-calls:3050
+      MARKET_DATA_URL: http://market-data:4000
+      BOTS_GATEWAY_URL: http://gateway:4070
+      KOL_PUBLISH_MODE: dual
+    ports:
+      - '3060:3060'
+    volumes:
+      - ./apps/kol-calls-publisher/src:/app/apps/kol-calls-publisher/src
+    depends_on:
+      pg:
+        condition: service_healthy
+      redis-kol:
+        condition: service_healthy
+      kol-calls:
+        condition: service_started
+    command: npm run start:dev -w @onchain-bot/kol-calls-publisher
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://127.0.0.1:3060/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+  market-data:
+    build:
+      context: .
+      dockerfile: apps/market-data/Dockerfile
+      target: builder
+    container_name: onchain-dev-market-data
+    restart: unless-stopped
+    env_file:
+      - path: apps/market-data/.env.development
+        required: false
+    environment:
+      NODE_ENV: development
+      MARKET_DATA_PORT: 4000
+      DATABASE_URL: postgres://onchain_bot:onchain_bot@pg:5432/market_data_db
+      REDIS_URL: redis://redis-market:6379/0
+      DATABASE_SYNCHRONIZE: 'true'
+      ENCRYPTION_KEY: dev-dummy-encryption-key-00000000000000000000000000000000
+    ports:
+      - '4000:4000'
+    volumes:
+      - ./apps/market-data/src:/app/apps/market-data/src
+    depends_on:
+      pg:
+        condition: service_healthy
+      redis-market:
+        condition: service_healthy
+    command: npm run start:dev -w @onchain-bot/market-data
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://127.0.0.1:4000/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+  dexter:
+    build:
+      context: .
+      dockerfile: apps/dexter-onchain-bot/Dockerfile
+      target: builder
+    container_name: onchain-dev-dexter
+    restart: unless-stopped
+    env_file:
+      - path: apps/dexter-onchain-bot/.env.development
+        required: false
+    environment:
+      NODE_ENV: development
+      DEXTER_PORT: 4060
+      DATABASE_URL: postgres://onchain_bot:onchain_bot@pg:5432/dexter_db
+      REDIS_URL: redis://redis-dexter:6379/0
+      DATABASE_SYNCHRONIZE: 'true'
+      ENCRYPTION_KEY: dev-dummy-encryption-key-00000000000000000000000000000000
+    ports:
+      - '4060:4060'
+    volumes:
+      - ./apps/dexter-onchain-bot/src:/app/apps/dexter-onchain-bot/src
+    depends_on:
+      pg:
+        condition: service_healthy
+      redis-dexter:
+        condition: service_healthy
+    command: npm run start:dev -w @onchain-bot/dexter-onchain-bot
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://127.0.0.1:4060/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+  gateway:
+    build:
+      context: .
+      dockerfile: apps/telegram-bots-gateway/Dockerfile
+      target: build
+    container_name: onchain-dev-gateway
+    restart: unless-stopped
+    env_file:
+      - path: apps/telegram-bots-gateway/.env.development
+        required: false
+    environment:
+      NODE_ENV: development
+      BOTS_GATEWAY_PORT: 4070
+      DATABASE_URL: postgres://onchain_bot:onchain_bot@pg:5432/telegram_bots_db
+      DATABASE_SYNCHRONIZE: 'true'
+      ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+    ports:
+      - '4070:4070'
+    volumes:
+      - ./apps/telegram-bots-gateway/src:/app/apps/telegram-bots-gateway/src
+      - dev-central-gateway-avatars:/app/uploads/avatars
+    depends_on:
+      pg:
+        condition: service_healthy
+    command: npm run start:dev -w @onchain-bot/telegram-bots-gateway
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://127.0.0.1:4070/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+  scheduling:
+    build:
+      context: .
+      dockerfile: apps/scheduling-posts/Dockerfile
+      target: builder
+    container_name: onchain-dev-scheduling
+    restart: unless-stopped
+    env_file:
+      - path: apps/scheduling-posts/.env.development
+        required: false
+    environment:
+      NODE_ENV: development
+      SCHEDULING_POSTS_ENABLED: 'true'
+      SCHEDULING_POSTS_PORT: 4080
+      DATABASE_URL: postgres://onchain_bot:onchain_bot@pg:5432/scheduling_posts_db
+      REDIS_URL: redis://redis-scheduling:6379/0
+      DATABASE_SYNCHRONIZE: 'true'
+      ENCRYPTION_KEY: dev-dummy-encryption-key-00000000000000000000000000000000
+      BOTS_GATEWAY_URL: http://gateway:4070
+    ports:
+      - '4080:4080'
+    volumes:
+      - ./apps/scheduling-posts/src:/app/apps/scheduling-posts/src
+    depends_on:
+      pg:
+        condition: service_healthy
+      redis-scheduling:
+        condition: service_healthy
+    command: npm run start:dev -w @onchain-bot/scheduling-posts
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://127.0.0.1:4080/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+  ai-ml:
+    build:
+      context: .
+      dockerfile: apps/ai-ml/Dockerfile
+      target: builder
+    container_name: onchain-dev-ai-ml
+    restart: unless-stopped
+    env_file:
+      - path: apps/ai-ml/.env.development
+        required: false
+    environment:
+      NODE_ENV: development
+      AI_ML_PORT: 4090
+      DATABASE_URL: postgres://onchain_bot:onchain_bot@pg:5432/ai_ml_db
+      REDIS_URL: redis://redis-aiml:6379/0
+      DATABASE_SYNCHRONIZE: 'true'
+      ENCRYPTION_KEY: dev-dummy-encryption-key-00000000000000000000000000000000
+    ports:
+      - '4090:4090'
+    volumes:
+      - ./apps/ai-ml/src:/app/apps/ai-ml/src
+    depends_on:
+      pg:
+        condition: service_healthy
+      redis-aiml:
+        condition: service_healthy
+    command: npm run start:dev -w @onchain-bot/ai-ml
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://127.0.0.1:4090/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+  threads:
+    build:
+      context: .
+      dockerfile: apps/threads-publisher/Dockerfile
+      target: builder
+    container_name: onchain-dev-threads
+    restart: unless-stopped
+    env_file:
+      - path: apps/threads-publisher/.env.development
+        required: false
+    environment:
+      NODE_ENV: development
+      THREADS_PUBLISHER_PORT: 4100
+      DATABASE_URL: postgres://onchain_bot:onchain_bot@pg:5432/threads_publisher_db
+      REDIS_URL: redis://redis-threads:6379/0
+      DATABASE_SYNCHRONIZE: 'true'
+      ENCRYPTION_KEY: dev-dummy-encryption-key-00000000000000000000000000000000
+      BOTS_GATEWAY_URL: http://gateway:4070
+    ports:
+      - '4100:4100'
+    volumes:
+      - ./apps/threads-publisher/src:/app/apps/threads-publisher/src
+    depends_on:
+      pg:
+        condition: service_healthy
+      redis-threads:
+        condition: service_healthy
+    command: npm run start:dev -w @onchain-bot/threads-publisher
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://127.0.0.1:4100/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+  frontend:
+    image: node:22-alpine
+    container_name: onchain-dev-frontend
+    restart: unless-stopped
+    working_dir: /app
+    # NOTE: vite proxy targets come from ROOT .env.development (see
+    # DEV-LOCAL.md step 1) — vite loadEnv reads env files, not
+    # process.env, so `environment:` cannot override the proxy.
+    ports:
+      - '5173:5173'
+    volumes:
+      - .:/app:cached
+      - dev-central-frontend-node_modules:/app/node_modules
+    depends_on:
+      backend:
+        condition: service_started
+    command: sh -c "test -f node_modules/.package-lock.json || npm ci --no-audit --no-fund --ignore-scripts; npm run dev -w @onchain-bot/frontend -- --host 0.0.0.0 --port 5173"
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://127.0.0.1:5173/',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 180s
+
+  # ------------------------------------------------------- unified log UI
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: onchain-dev-dozzle
+    restart: unless-stopped
+    ports:
+      - '8080:8080'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    # No healthcheck: distroless image ships no shell/wget/node.
+
+volumes:
+  dev-central-pg:
+  dev-central-redis-backend:
+  dev-central-redis-kol:
+  dev-central-redis-feed:
+  dev-central-redis-market:
+  dev-central-redis-dexter:
+  dev-central-redis-scheduling:
+  dev-central-redis-aiml:
+  dev-central-redis-threads:
+  dev-central-ingestion-uploads:
+  dev-central-gateway-avatars:
+  dev-central-frontend-node_modules:

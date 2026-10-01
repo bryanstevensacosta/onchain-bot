@@ -4,8 +4,8 @@ import { Repository } from 'typeorm';
 import {
   AchievementThresholdRepository,
   AchievementThresholdRecord,
-} from '../../../../application/ports/achievement-threshold.repository';
-import { AchievementThresholdEntity } from '../../../../domain/entities/achievement-threshold.entity';
+} from '@/token/achievement/application/ports/achievement-threshold.repository';
+import { AchievementThresholdEntity } from '@/token/achievement/domain/entities/achievement-threshold.entity';
 
 @Injectable()
 export class TypeormAchievementThresholdRepository extends AchievementThresholdRepository {

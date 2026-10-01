@@ -3,7 +3,7 @@ import {
   TrackedPublishedCallRepository,
   TrackedPublishedCallRecord,
   FindTrackedCallsFilters,
-} from '../../application/ports/tracked-published-call.repository';
+} from '@/token/call-tracking/application/ports/tracked-published-call.repository';
 
 @Injectable()
 export class InMemoryTrackedPublishedCallRepository extends TrackedPublishedCallRepository {

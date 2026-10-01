@@ -14,6 +14,30 @@ export default defineConfig(({ mode }) => {
     env.BACKEND_PROXY_TARGET ?? 'http://localhost:3030';
   const INGESTION_PROXY_TARGET =
     env.INGESTION_PROXY_TARGET ?? 'http://localhost:3031';
+  const KOL_SYSTEM_PROXY_TARGET =
+    env.KOL_SYSTEM_PROXY_TARGET ?? 'http://localhost:3050';
+  // Feed-publisher (Tramo 2, todo 9): queue stats, matching config, llm
+  // config + flags, scheduling/ads, threads stub. FEED naming (not
+  // CONTENT) per the P35 content→feed rename. Dev config only — prod
+  // nginx (/feed-api/ location) is a deploy follow-up (todos 10/11).
+  const FEED_PUBLISHER_PROXY_TARGET =
+    env.FEED_PUBLISHER_PROXY_TARGET ?? 'http://localhost:3040';
+  // Market-data (Tramo 3, todo 7): snapshots, chains, providers, address
+  // lookup + Dexter views. Triplet :4000 dev / :4001 staging / :4002
+  // prod via env override. Prod nginx is a deploy follow-up (todo 8).
+  const MARKET_DATA_PROXY_TARGET =
+    env.MARKET_DATA_PROXY_TARGET ?? 'http://localhost:4000';
+  // Scheduling-posts (live-errors-fix 2026-09-28): the ads catalog,
+  // rotation-config and media library moved out of feed-publisher
+  // into scheduling-posts. Triplet :4080 dev / :4081 staging / :4082
+  // prod via env override. Prod nginx is a deploy follow-up.
+  const SCHEDULING_POSTS_PROXY_TARGET =
+    env.SCHEDULING_POSTS_PROXY_TARGET ?? 'http://localhost:4080';
+  // Dexter (exclusive-gateway task): bot binding API (inventory/bind/
+  // unbind/migrate). Triplet :4060 dev / :4061 staging / :4062 prod
+  // via env override. Prod nginx is a deploy follow-up.
+  const DEXTER_PROXY_TARGET =
+    env.DEXTER_PROXY_TARGET ?? 'http://localhost:4060';
   // Hosts permitidos (el acceso por Tailscale llega con otro Host header).
   const ALLOWED_HOSTS = (
     env.VITE_ALLOWED_HOSTS ??
@@ -44,19 +68,31 @@ export default defineConfig(({ mode }) => {
           target: BACKEND_PROXY_TARGET,
           changeOrigin: false,
         },
+        '/feed-publisher': {
+          target: BACKEND_PROXY_TARGET,
+          changeOrigin: false,
+        },
         // Ops backups status (GET /ops/backups/status on the backend).
         // IMPORTANT: Use specific path to avoid intercepting frontend /ops route
         '/ops/backups': {
           target: BACKEND_PROXY_TARGET,
           changeOrigin: false,
         },
-        '/crypto-news-ads': {
+        '/crypto-news-scheduling': {
           target: BACKEND_PROXY_TARGET,
           changeOrigin: false,
         },
-        // Threads publisher (mirror of crypto-news-publisher precedent above).
+        '/feed-scheduling': {
+          target: BACKEND_PROXY_TARGET,
+          changeOrigin: false,
+        },
+        // Threads publisher (mirror of feed-publisher precedent above).
         // IMPORTANT: Use specific paths to avoid intercepting frontend /threads route
         '/threads-publisher': {
+          target: BACKEND_PROXY_TARGET,
+          changeOrigin: false,
+        },
+        '/feed-threads-publisher': {
           target: BACKEND_PROXY_TARGET,
           changeOrigin: false,
         },
@@ -69,17 +105,21 @@ export default defineConfig(({ mode }) => {
         },
         // Matching activation (SOLE source: crypto_news_matching_config id=1)
         // GET/PATCH /crypto-news/matching/config on the backend
-        // IMPORTANT: Use specific path to avoid intercepting frontend /crypto-news route
+        // IMPORTANT: Use specific path to avoid intercepting frontend /feed route
         '/crypto-news/matching': {
           target: BACKEND_PROXY_TARGET,
           changeOrigin: false,
         },
+        '/feed-matching': {
+          target: BACKEND_PROXY_TARGET,
+          changeOrigin: false,
+        },
         // POST /crypto-news/sources now handled by ingestion-telegram (migrated 2026-09-05, renamed 2026-09-17)
-        // Old endpoint /crypto-news/sources deprecated (backend returns 501)
+        // Old endpoint /feed/sources deprecated (backend returns 501)
         // Content-filter CRUD stays on the backend (Opción A, filter on-read):
         // GET/POST /crypto-news/sources/:channelId/filters + PUT/DELETE/PATCH
-        // /crypto-news/filters/:id. Specific prefixes only — never bare
-        // /crypto-news (frontend route intact).
+        // /feed/filters/:id. Specific prefixes only — never bare
+        // /feed (frontend route intact).
         '/crypto-news/sources': {
           target: BACKEND_PROXY_TARGET,
           changeOrigin: false,
@@ -88,10 +128,39 @@ export default defineConfig(({ mode }) => {
           target: BACKEND_PROXY_TARGET,
           changeOrigin: false,
         },
+        '/feed-filters': {
+          target: BACKEND_PROXY_TARGET,
+          changeOrigin: false,
+        },
         '/ingestion-api': {
           target: INGESTION_PROXY_TARGET,
           changeOrigin: false,
           rewrite: (path) => path.replace(/^\/ingestion-api/, '/api'),
+        },
+        '/kol-api': {
+          target: KOL_SYSTEM_PROXY_TARGET,
+          changeOrigin: false,
+          rewrite: (path) => path.replace(/^\/kol-api/, '/api'),
+        },
+        '/feed-api': {
+          target: FEED_PUBLISHER_PROXY_TARGET,
+          changeOrigin: false,
+          rewrite: (path) => path.replace(/^\/feed-api/, ''),
+        },
+        '/scheduling-api': {
+          target: SCHEDULING_POSTS_PROXY_TARGET,
+          changeOrigin: false,
+          rewrite: (path) => path.replace(/^\/scheduling-api/, ''),
+        },
+        '/market-data-api': {
+          target: MARKET_DATA_PROXY_TARGET,
+          changeOrigin: false,
+          rewrite: (path) => path.replace(/^\/market-data-api/, ''),
+        },
+        '/dexter-api': {
+          target: DEXTER_PROXY_TARGET,
+          changeOrigin: false,
+          rewrite: (path) => path.replace(/^\/dexter-api/, ''),
         },
         '/socket.io': {
           target: BACKEND_PROXY_TARGET,

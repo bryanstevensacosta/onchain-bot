@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ChainId } from 'chain/identity/chain-id.vo';
-import { TokenSnapshot } from '../../../../domain/entities/token-snapshot.entity';
-import { TokenSnapshotRepository } from '../../../../application/ports/token-snapshot.repository';
+import { TokenSnapshot } from '@/token/enrichment/domain/entities/token-snapshot.entity';
+import { TokenSnapshotRepository } from '@/token/enrichment/application/ports/token-snapshot.repository';
 import { TokenSnapshotEntity } from '../entities/token-snapshot.entity';
 import { TokenSnapshotMapper } from '../mappers/token-snapshot.mapper';
 

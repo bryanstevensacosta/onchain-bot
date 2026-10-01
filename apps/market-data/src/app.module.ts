@@ -1,0 +1,92 @@
+import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { APP_GUARD } from '@nestjs/core';
+import { HealthModule } from './health/health.module';
+import { SharedModule } from './shared/shared.module';
+import { ApiKeyGuard } from './shared/infrastructure/guards/api-key.guard';
+import {
+  buildDatabaseConfig,
+  isDatabaseEnabled,
+} from './shared/infrastructure/config/database.config';
+import { SnapshotHistoryEntity } from './snapshot/infrastructure/snapshot-history.entity';
+import { CreateSnapshotHistory1772000000000 } from './snapshot/infrastructure/migrations/1772000000000-CreateSnapshotHistory';
+import { AssetRegistryEntity } from './asset-registry/infrastructure/asset-registry.entity';
+import { CreateAssetRegistry1773000000000 } from './asset-registry/infrastructure/migrations/1773000000000-CreateAssetRegistry';
+import { AssetRegistryModule } from './asset-registry/asset-registry.module';
+import { TokenModule } from './token/token.module';
+import { AddressModule } from './address/address.module';
+import { SnapshotModule } from './snapshot/snapshot.module';
+import { AggregatorsModule } from './aggregators/aggregators.module';
+import { ProvidersModule } from './provider/infrastructure/providers.module';
+import { ChainModule } from './chain/chain.module';
+import { ChainLogoModule } from './chain-logo/chain-logo.module';
+import { ProviderModule } from './provider/provider.module';
+import { CacheModule } from './cache/cache.module';
+import { RateLimiterModule } from './rate-limiter/rate-limiter.module';
+import { GatewayModule } from './gateway/gateway.module';
+import { AuthModule } from './auth/auth.module';
+import { StreamModule } from './stream/stream.module';
+import { HoldersModule } from './holders/holders.module';
+import { appConfig } from './shared/infrastructure/config/app.config';
+
+/**
+ * AppModule - Root module for market-data (Tramo 3, todo 2).
+ *
+ * Wires Config (envFilePath ['.env.dev', '.env']) + HealthModule
+ * (GET /api/health -> { status: 'ok' }) + SharedModule (global) +
+ * TokenModule (deprecated P45 alias of AddressModule) + AddressModule
+ * (universal model, P45) + Chain/Provider/Cache/RateLimiter
+ * (ports, todo 2) + GatewayModule (P43: the ONLY feature controllers).
+ * Inbound x-api-key enforced globally at the edge (fail-open dev).
+ * Variante A: single-BC monorepo app (no Nx, no libs/* — see AGENTS.md G-16).
+ */
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: ['.env.dev', '.env'],
+      load: [appConfig],
+    }),
+    HealthModule,
+    SharedModule,
+    ...(isDatabaseEnabled()
+      ? [
+          TypeOrmModule.forRootAsync({
+            inject: [ConfigService],
+            useFactory: () => {
+              const database = buildDatabaseConfig();
+              return {
+                type: 'postgres',
+                url: database.url,
+                synchronize: database.synchronize,
+                migrationsRun: false,
+                entities: [SnapshotHistoryEntity, AssetRegistryEntity],
+                migrations: [
+                  CreateSnapshotHistory1772000000000,
+                  CreateAssetRegistry1773000000000,
+                ],
+              };
+            },
+          }),
+        ]
+      : []),
+    TokenModule,
+    AddressModule,
+    SnapshotModule,
+    AggregatorsModule,
+    AssetRegistryModule,
+    ProvidersModule,
+    ChainModule,
+    ChainLogoModule,
+    ProviderModule,
+    CacheModule,
+    RateLimiterModule,
+    GatewayModule,
+    AuthModule,
+    StreamModule,
+    HoldersModule,
+  ],
+  providers: [{ provide: APP_GUARD, useClass: ApiKeyGuard }],
+})
+export class AppModule {}

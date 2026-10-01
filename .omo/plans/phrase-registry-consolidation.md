@@ -196,11 +196,11 @@ Your next move: approve o high-accuracy review. Full execution detail follows be
      Must NOT: No duplicar lógica de form existente
      Parallelization: Wave 2 | Blocked by: T2,T3 | Blocks: T7,T8
      References:
-  - apps/frontend/src/features/crypto-news-publisher/ui/keywords-section.tsx
-  - apps/frontend/src/features/crypto-news-publisher/ui/blacklist-manager.tsx
-  - apps/frontend/src/features/crypto-news-publisher/ui/compound-group-modal.tsx
+  - apps/frontend/src/features/feed-publisher/ui/keywords-section.tsx
+  - apps/frontend/src/features/feed-publisher/ui/blacklist-manager.tsx
+  - apps/frontend/src/features/feed-publisher/ui/compound-group-modal.tsx
     Acceptance criteria:
-  - PhraseForm component existe en features/crypto-news-publisher/ui
+  - PhraseForm component existe en features/feed-publisher/ui
   - Renderiza correctamente para tipo keyword y blacklist
   - Incluye toggle para caseSensitive y dropdown para matchMode
     QA scenarios:
@@ -213,7 +213,7 @@ Your next move: approve o high-accuracy review. Full execution detail follows be
      Must NOT: No perder funcionalidad existente de compound groups
      Parallelization: Wave 2 | Blocked by: T2,T3 | Blocks: T8
      References:
-  - apps/frontend/src/features/crypto-news-publisher/ui/keywords-section.tsx
+  - apps/frontend/src/features/feed-publisher/ui/keywords-section.tsx
     Acceptance criteria:
   - Un solo botón visible para agregar phrases
   - Dropdown ofrece opciones: "Keyword (simple)", "Keyword (compound)", "Blacklist (simple)", "Blacklist (compound)"
@@ -227,7 +227,7 @@ Your next move: approve o high-accuracy review. Full execution detail follows be
      Must NOT: No perder funcionalidad existente
      Parallelization: Wave 2 | Blocked by: T2,T3 | Blocks: T8
      References:
-  - apps/frontend/src/features/crypto-news-publisher/ui/blacklist-manager.tsx
+  - apps/frontend/src/features/feed-publisher/ui/blacklist-manager.tsx
     Acceptance criteria:
   - Un solo botón visible para agregar blacklist phrases
   - Dropdown ofrece opciones correctas
@@ -235,14 +235,14 @@ Your next move: approve o high-accuracy review. Full execution detail follows be
   - Happy: igual que T7 pero para blacklist
     Commit: Y | refactor(frontend): unify add phrase buttons in blacklist section
 
-- [ ] 9. Crear search unificado en crypto-news-page
+- [ ] 9. Crear search unificado en feed-page
      What to do: Crear un solo search input que busque en ambas tablas (keywords y blacklist) y muestre resultados categorizados.
      Must NOT: No romper searches existentes
      Parallelization: Wave 3 | Blocked by: T6,T7 | Blocks: T10
      References:
-  - apps/frontend/src/pages/crypto-news/index.tsx
-  - apps/frontend/src/features/crypto-news-publisher/api/keywords-api.ts
-  - apps/frontend/src/features/crypto-news-publisher/api/blacklist-api.ts
+  - apps/frontend/src/pages/feed/index.tsx
+  - apps/frontend/src/features/feed-publisher/api/keywords-api.ts
+  - apps/frontend/src/features/feed-publisher/api/blacklist-api.ts
     Acceptance criteria:
   - Search input existe y busca en ambos endpoints
   - Resultados se muestran categorizados por tipo (Keywords / Blacklist)
@@ -258,7 +258,7 @@ Your next move: approve o high-accuracy review. Full execution detail follows be
   - apps/backend/src/telegram/crypto-news-publisher/api/http/keywords.controller.ts (referencia para patrón)
     Acceptance criteria:
   - GET /phrases/conflict-check?phrase=war&caseSensitive=false&matchMode=exact retorna {keyword: boolean, blacklist: boolean}
-  - Endpoint en nuevo controller o en existente de crypto-news-publisher
+  - Endpoint en nuevo controller o en existente de feed-publisher
     QA scenarios:
   - Happy: endpoint retorna {keyword: boolean, blacklist: boolean}
     Commit: Y | feat(backend): add conflict check endpoint

@@ -13,6 +13,10 @@ import { MobulaAdapter } from 'token/enrichment/infrastructure/providers/mobula.
 import { MoralisAdapter } from 'token/enrichment/infrastructure/providers/moralis.adapter';
 import { RugCheckAdapter } from 'token/enrichment/infrastructure/providers/rugcheck.adapter';
 import { SolanaRpcAdapter } from 'token/enrichment/infrastructure/providers/solana-rpc.adapter';
+import {
+  HttpMarketDataAdapter,
+  useDataServiceApi,
+} from 'token/enrichment/infrastructure/providers/http-market-data.adapter';
 import { MARKET_DATA_PROVIDERS } from 'token/enrichment/enrichment.tokens';
 import { TokenSnapshotRepository } from 'token/enrichment/application/ports/token-snapshot.repository';
 import { EnrichmentEventPublisher } from 'token/enrichment/application/ports/enrichment-event.publisher';
@@ -24,6 +28,7 @@ import { TokenSnapshotEntity } from 'token/enrichment/infrastructure/persistence
 import { TypeOrmTokenSnapshotRepository } from 'token/enrichment/infrastructure/persistence/typeorm/repositories/typeorm-token-snapshot.repository';
 import { CallNormalizedHandler } from 'token/enrichment/infrastructure/event-bus/call-normalized.handler';
 import { EnrichmentController } from 'token/enrichment/api/http/enrichment.controller';
+import { EnrichmentRedirectController } from 'token/enrichment/api/http/enrichment-redirect.controller';
 import { TokenImageController } from 'token/enrichment/api/http/token-image.controller';
 import { InProcessDomainEventPublisher } from 'shared/common/messaging/in-process-domain-event.publisher';
 import { TokenImageService } from 'token/enrichment/application/services/token-image.service';
@@ -35,6 +40,18 @@ import {
 } from 'shared/cache/token-image-cache.adapter';
 
 /**
+ * @deprecated Moved to apps/kol-system/src/enrichment/ (Tramo 1, todo 8 + P18 companion).
+ * Enrichment via MarketDataPort dual now lives in kol-system: EnrichmentOrchestratorService
+ * (local-cascade default + http-market-data stub; snapshot completion in src/snapshot/).
+ * Physical providers stay in backend (Tramo 3 moves them). This module stays wired for
+ * dual-run; it will be removed in todo 16 (cutover + cleanup). Do not extend it — add
+ * enrichment logic in apps/kol-system/src/enrichment/ instead.
+ *
+ * New location: apps/kol-system/src/enrichment/
+ * Reason: extracting KOL pipeline from backend monolith to dedicated app
+ * Breaking change: Yes (removal in todo 16)
+ * Rollback: re-enable backend path (KOL_PIPELINE_ENABLED=true)
+ *
  * Chain Explorer BC module.
  *
  * Provides third-party market data adapters AND the enrichment pipeline:
@@ -55,7 +72,11 @@ import {
     ChainRegistryModule,
     TypeOrmModule.forFeature([TokenSnapshotEntity]),
   ],
-  controllers: [EnrichmentController, TokenImageController],
+  controllers: [
+    EnrichmentController,
+    EnrichmentRedirectController,
+    TokenImageController,
+  ],
   providers: [
     CoinMarketCapAdapter,
     DexScreenerAdapter,
@@ -68,6 +89,7 @@ import {
     MoralisAdapter,
     RugCheckAdapter,
     SolanaRpcAdapter,
+    HttpMarketDataAdapter,
     TokenImageService,
     {
       provide: TOKEN_IMAGE_FETCHER,
@@ -90,18 +112,24 @@ import {
         moralis: MoralisAdapter,
         rugcheck: RugCheckAdapter,
         solanaRpc: SolanaRpcAdapter,
-      ): ReadonlyArray<MarketDataProviderPort> => [
-        dex,
-        gt,
-        cg,
-        cmc,
-        birdeye,
-        helius,
-        mobula,
-        moralis,
-        rugcheck,
-        solanaRpc,
-      ],
+        http: HttpMarketDataAdapter,
+      ): ReadonlyArray<MarketDataProviderPort> => {
+        // G-17: default false — the server has no aggregators yet, so
+        // flipping now would regress enrichment. Merge is the fallback.
+        const local = [
+          dex,
+          gt,
+          cg,
+          cmc,
+          birdeye,
+          helius,
+          mobula,
+          moralis,
+          rugcheck,
+          solanaRpc,
+        ];
+        return useDataServiceApi() ? [http, ...local] : local;
+      },
       inject: [
         DexScreenerAdapter,
         GeckoTerminalAdapter,
@@ -113,6 +141,7 @@ import {
         MoralisAdapter,
         RugCheckAdapter,
         SolanaRpcAdapter,
+        HttpMarketDataAdapter,
       ],
     },
     EnrichTokenUseCase,

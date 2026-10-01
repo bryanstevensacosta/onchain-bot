@@ -19,16 +19,16 @@ Your next move: aprueba para $start-work, o pide high-accuracy review (dual Momu
 
 ---
 
-> TL;DR (machine): Large, Medium (DB destructivo + DI) — retira MTProto backend, stubs crypto-news, flags/config, seeders, dead-code frontend y deuda transversal con 25 todos + F1-F4
+> TL;DR (machine): Large, Medium (DB destructivo + DI) — retira MTProto backend, stubs feed, flags/config, seeders, dead-code frontend y deuda transversal con 25 todos + F1-F4
 
 ## Scope
 
 ### Must have
 
-- C1 backend MTProto: flip default USE_SSE_INGESTION=true, rama MTProto a error 410 Gone, borrar 8 servicios + adapter + safety-config + StubCryptoNewsMediaDownloader + specs, desvincular health/config controllers.
-- C2 stubs crypto-news backend: migrar consumidores (QueueController y handlers) a DTO HTTP, borrar CryptoNewsMessageRepository, save/delete deprecated de SourceRepository, InMemory vacios, stub, VO duplicado, shims DI.
+- C1 backend MTProto: flip default USE_SSE_INGESTION=true, rama MTProto a error 410 Gone, borrar 8 servicios + adapter + safety-config + StubFeedMediaDownloader + specs, desvincular health/config controllers.
+- C2 stubs feed backend: migrar consumidores (QueueController y handlers) a DTO HTTP, borrar FeedMessageRepository, save/delete deprecated de SourceRepository, InMemory vacios, stub, VO duplicado, shims DI.
 - C3 flags/config: quitar fallback INGESTION_SERVICE_URL + INGESTION_REMOTE_URL muerto + ghost filters.token.\* en seed, dropear columna llm_config.matching_enabled con backup+migracion (onda destructiva con owner-gate), alinear TELEGRAM_BOT_TOKEN docs/templates.
-- C4 ingestion seeders: borrar KolSeeder + CryptoNewsSeeder + registros, mover seeds/\*.seed.ts a docs o borrar, quitar fetchActiveCryptoNewsSourceIds y fallback BACKEND_PORT.
+- C4 ingestion seeders: borrar KolSeeder + FeedSeeder + registros, mover seeds/\*.seed.ts a docs o borrar, quitar fetchActiveFeedSourceIds y fallback BACKEND_PORT.
 - C5 frontend dead-code: quitar refs matchingEnabled/endpoints deprecated, eliminar dead URLs (kols.backfill, publishing.byToken, reprocess\*, llm-config /api prod), evidencia depcheck/knip sin prune a ciegas.
 - C6a logger: migrar console.log hot path a Nest Logger (o borrar ruido con nivel debug).
 - C6b versiones-docs: single-source package.json, corregir AGENTS + README badges/tabla/counts/links rotos.
@@ -51,7 +51,7 @@ Your next move: aprueba para $start-work, o pide high-accuracy review (dual Momu
 - Test decision: tests-after + QA agent-executed (Jest backend, Jest ingestion, Vitest frontend, tsc, curl, Playwright smoke). TDD no aplica (refactor sin cambio funcional); cada todo incluye implementación+test en uno.
 - Baseline canónica a fijar en T1 (AGENTS post-split dice backend 170 suites/1969 tests, ingestion 43/815; README dice 173+2e2e / 15+5e2e — T1 decide uno y lo pinnea).
 - Evidence: .omo/evidence/task-<N>-deprecados-deuda-tecnica.log (comando+salida), dumps backup en /tmp/\*-cleanup/, migration:show outputs. Prohibido "verifica manualmente / clickea": todo curl, lsp_find_references, depcheck/knip, vite build, Playwright.
-- Comandos canónicos: npm run test:backend; cd apps/ingestion-telegram && npm test; npm run test:frontend; npx tsc --noEmit -p apps/backend/tsconfig.json; npx tsc --noEmit -p apps/ingestion-telegram/tsconfig.json; npx tsc --noEmit -p apps/frontend/tsconfig.json; curl -s localhost:3030/api/health; curl -s localhost:3031/api/health + /ready + /live; curl -s localhost:3032/api/crypto-news/messages?limit=2; PATCH /llm-config con matchingEnabled→400.
+- Comandos canónicos: npm run test:backend; cd apps/ingestion-telegram && npm test; npm run test:frontend; npx tsc --noEmit -p apps/backend/tsconfig.json; npx tsc --noEmit -p apps/ingestion-telegram/tsconfig.json; npx tsc --noEmit -p apps/frontend/tsconfig.json; curl -s localhost:3030/api/health; curl -s localhost:3031/api/health + /ready + /live; curl -s localhost:3032/api/feed/messages?limit=2; PATCH /llm-config con matchingEnabled→400.
 
 ## Execution strategy
 
@@ -110,8 +110,8 @@ Your next move: aprueba para $start-work, o pide high-accuracy review (dual Momu
 - [x] 2. Inventario residual @deprecated + referencias (ast-grep + LSP) — DONE 2026-09-20: 26 matches/23 archivos; importadores: MessageRepo 3 no-spec, QueueController:26,91, MtprotoAdapter 1, fetchActive 1 interno, Stub 0; drift queue.controller:205→:26/:91. Evidencia .omo/evidence/task-2-deprecados-deuda-tecnica.log
      What to do: Correr sg --pattern '@deprecated' --lang ts en apps/\*/src y lsp_find_references de cada port/servicio C1-C4; producir tabla archivo:línea + n importadores. Must NOT do: no borrar nada aún.
      Parallelization: Wave 1 | Blocked by: T1 | Blocks: T3-T25
-     References: apps/backend/src/telegram/ingestion/shared/api/mtproto/telegram-mtproto-listener.adapter.ts:37-65; apps/backend/src/telegram/ingestion/shared/shared-ingestion.module.ts:25-52,81-122,149-150,211-223; apps/backend/src/telegram/ingestion/crypto-news/application/ports/crypto-news-message.repository.ts:4-69; .../crypto-news-source.repository.ts:22-53; apps/backend/src/telegram/ingestion/crypto-news/domain/crypto-news-message.stub.ts:1-21; .../value-objects/crypto-news-media.vo.ts:1-16; apps/ingestion-telegram/src/telegram/kol/seeders/kol.seeder.ts:7,46,52-55; .../crypto-news/seeders/crypto-news.seeder.ts:10,55-60,70-96; .../seeds/crypto-news.seed.ts:1-66
-     Acceptance criteria: sg lista 100% de @deprecated con path:línea; lsp_find_references de CryptoNewsMessageRepository, SourceRepository.save/delete, TelegramMtprotoListenerAdapter, fetchActiveCryptoNewsSourceIds documentado con conteo importadores
+     References: apps/backend/src/telegram/ingestion/shared/api/mtproto/telegram-mtproto-listener.adapter.ts:37-65; apps/backend/src/telegram/ingestion/shared/shared-ingestion.module.ts:25-52,81-122,149-150,211-223; apps/backend/src/telegram/ingestion/feed/application/ports/feed-message.repository.ts:4-69; .../feed-source.repository.ts:22-53; apps/backend/src/telegram/ingestion/feed/domain/feed-message.stub.ts:1-21; .../value-objects/feed-media.vo.ts:1-16; apps/ingestion-telegram/src/telegram/kol/seeders/kol.seeder.ts:7,46,52-55; .../feed/seeders/feed.seeder.ts:10,55-60,70-96; .../seeds/feed.seed.ts:1-66
+     Acceptance criteria: sg lista 100% de @deprecated con path:línea; lsp_find_references de FeedMessageRepository, SourceRepository.save/delete, TelegramMtprotoListenerAdapter, fetchActiveFeedSourceIds documentado con conteo importadores
      QA scenarios: happy=sg corre y lista coincide con inventario C1-C4 evidencia .omo/evidence/task-2-deprecados-deuda-tecnica.log; failure=símbolo con importadores no-spec bloquea su delete (prueba con QueueController) evidencia mismo log
      Commit: N | —
 - [x] 3. Experimento falseable A1 (¿MTProto backend vivo en prod/staging?) — DONE 2026-09-20: A1 CAE, borrado total aprobado; SSE efectivo en todos los ambientes, 0 AUTH_KEY en logs, 4 guards. Evidencia .omo/evidence/task-3-deprecados-deuda-tecnica.log
@@ -129,7 +129,7 @@ Your next move: aprueba para $start-work, o pide high-accuracy review (dual Momu
      QA scenarios: happy=USE_SSE_INGESTION unset → SSE (bash + jest shared-ingestion.module.spec) evidencia .omo/evidence/task-4-deprecados-deuda-tecnica.log; failure=forzar MTProto → 410 esperado, no AUTH_KEY_DUPLICATED evidencia mismo log
      Commit: Y | feat(ingestion): default SSE y MTProto a 410 Gone
 - [x] 5. Borrar bloque MTProto backend (8 servicios + adapter + safety + stub + specs) — DONE 2026-09-20: commit f3f86f76, 12 ficheros git rm, build OK, backend 197/197 suites 2134+3skip. Evidencia .omo/evidence/task-5-deprecados-deuda-tecnica.log
-     What to do: Borrar api/mtproto/telegram-mtproto-listener.adapter.ts, services telegram-client-manager, flood-wait-counter, flood-wait-handler, sleep-window, last-seen-manager, telegram-media-download, config ingestion-safety.config, StubCryptoNewsMediaDownloader en shared-ingestion.module, specs asociados (shared-ingestion.module.integration.spec, telegram-client-manager.service.spec:373). Must NOT do: no borrar adapter SSE/Mock, no romper providers list sin actualizar factory.
+     What to do: Borrar api/mtproto/telegram-mtproto-listener.adapter.ts, services telegram-client-manager, flood-wait-counter, flood-wait-handler, sleep-window, last-seen-manager, telegram-media-download, config ingestion-safety.config, StubFeedMediaDownloader en shared-ingestion.module, specs asociados (shared-ingestion.module.integration.spec, telegram-client-manager.service.spec:373). Must NOT do: no borrar adapter SSE/Mock, no romper providers list sin actualizar factory.
      Parallelization: Wave 1 | Blocked by: T4 | Blocks: T6
      References: lista T2 + apps/backend/src/telegram/ingestion/shared/infrastructure/services/flood-wait-counter.service.ts:4; .../sleep-window.service.ts:5; .../last-seen-manager.service.ts:5; .../telegram-client-manager.service.ts:28; .../flood-wait-handler.service.ts:6; .../config/ingestion-safety.config.ts:32; .../telegram-media-download.service.ts:24; .../shared-ingestion.module.ts:25-52,91-102
      Acceptance criteria: grep -ri mtproto en apps/backend/src solo docs/rollback-note + lsp_find_references de cada símbolo borrado = 0; nest build + test:backend verdes
@@ -143,26 +143,26 @@ Your next move: aprueba para $start-work, o pide high-accuracy review (dual Momu
      QA scenarios: happy=curl health 200 evidencia .omo/evidence/task-6-deprecados-deuda-tecnica.log; failure=controller con import borrado → tsc falla antes del merge evidencia mismo log
      Commit: N | — (T5 f3f86f7 ya completo; verificación sin cambios — corregido 2026-09-20 VPS, working tree sin commitear)
 - [x] 7. Migrar consumidores C2 a DTO HTTP (QueueController + handlers) — DONE 2026-09-20: commit 84b410a5, QueueController a GET :3032 tipado, 197/2137. Evidencia .omo/evidence/task-7-deprecados-deuda-tecnica.log
-     What to do: Con lsp_find_references, migrar cada importador de CryptoNewsMessageRepository/SourceRepository save-delete/stub/VO a crypto-news-integration DTO + GET ingestion:3032. Must NOT do: no borrar ports aún.
+     What to do: Con lsp_find_references, migrar cada importador de FeedMessageRepository/SourceRepository save-delete/stub/VO a feed-integration DTO + GET ingestion:3032. Must NOT do: no borrar ports aún.
      Parallelization: Wave 2 | Blocked by: T6 | Blocks: T8-T9
-     References: apps/backend/src/telegram/ingestion/crypto-news/application/ports/crypto-news-message.repository.ts:4-69; .../crypto-news-source.repository.ts:22-53; apps/backend/src/telegram/crypto-news-integration/domain/dtos/crypto-news-message.dto.ts:5; apps/backend/src/telegram/crypto-news-publisher/api/http/queue.controller.ts:205; apps/backend/src/telegram/ingestion/crypto-news/crypto-news-ingestion.module.ts:32,59-64
+     References: apps/backend/src/telegram/ingestion/feed/application/ports/feed-message.repository.ts:4-69; .../feed-source.repository.ts:22-53; apps/backend/src/telegram/crypto-news-integration/domain/dtos/feed-message.dto.ts:5; apps/backend/src/telegram/crypto-news-publisher/api/http/queue.controller.ts:205; apps/backend/src/telegram/ingestion/feed/feed-ingestion.module.ts:32,59-64
      Acceptance criteria: lsp_find_references post-migración = 0 importadores no-spec fuera de módulos shim; publisher queue e2e/smoke verde
      QA scenarios: happy=enqueue+publish smoke vía ingestion :3032 evidencia .omo/evidence/task-7-deprecados-deuda-tecnica.log; failure=consumidor sin migrar listado bloquea T8 evidencia mismo log
-     Commit: Y | refactor(crypto-news): consumidores a DTO HTTP ingestion
+     Commit: Y | refactor(feed): consumidores a DTO HTTP ingestion
 - [x] 8. Borrar ports/stubs/VO C2 — DONE 2026-09-20: commit 4e746f7e, 6 git rm, 195 suites/2126 tests (delta exacto). Evidencia .omo/evidence/task-8-deprecados-deuda-tecnica.log
-     What to do: Borrar crypto-news-message.repository.ts, save/delete deprecated, in-memory-crypto-news-message.repository.ts, in-memory-crypto-news-source save/delete overrides, crypto-news-message.stub.ts, crypto-news-media.vo.ts + specs DEPRECATED asociados. Must NOT do: no tocar channel-filter.repository.ts:23 (slice vigente).
+     What to do: Borrar feed-message.repository.ts, save/delete deprecated, in-memory-feed-message.repository.ts, in-memory-feed-source save/delete overrides, feed-message.stub.ts, feed-media.vo.ts + specs DEPRECATED asociados. Must NOT do: no tocar channel-filter.repository.ts:23 (slice vigente).
      Parallelization: Wave 2 | Blocked by: T7 | Blocks: T9
-     References: misma T7 + apps/backend/src/telegram/ingestion/crypto-news/infrastructure/repositories/in-memory-crypto-news-message.repository.ts:10; .../in-memory-crypto-news-source.repository.ts:17,50; .../infrastructure/repositories/**tests**/in-memory-crypto-news-source.repository.spec.ts:4-27
+     References: misma T7 + apps/backend/src/telegram/ingestion/feed/infrastructure/repositories/in-memory-feed-message.repository.ts:10; .../in-memory-feed-source.repository.ts:17,50; .../infrastructure/repositories/**tests**/in-memory-feed-source.repository.spec.ts:4-27
      Acceptance criteria: archivos inexistentes + grep de símbolos = 0; nest build + test:backend verdes
      QA scenarios: happy=build verde evidencia .omo/evidence/task-8-deprecados-deuda-tecnica.log; failure=spec huérfano que importa borrado → tsc lo detecta evidencia mismo log
-     Commit: Y | feat(crypto-news): elimina ports y stubs ingestion-owned
+     Commit: Y | feat(feed): elimina ports y stubs ingestion-owned
 - [x] 9. Quitar shims DI en módulos — DONE 2026-09-20: commit 9b1aff90, 195/2126 delta 0, 0 code refs. Evidencia .omo/evidence/task-9-deprecados-deuda-tecnica.log
-     What to do: Quitar tokens legacy en crypto-news-ingestion.module.ts:59-64, crypto-news-publisher.module.ts:74-77, shared-ingestion.module.ts:149-150 manteniendo providers vigentes. Must NOT do: no dejar providers huérfanos.
+     What to do: Quitar tokens legacy en feed-ingestion.module.ts:59-64, feed-publisher.module.ts:74-77, shared-ingestion.module.ts:149-150 manteniendo providers vigentes. Must NOT do: no dejar providers huérfanos.
      Parallelization: Wave 2 | Blocked by: T8 | Blocks: T10
-     References: apps/backend/src/telegram/ingestion/crypto-news/crypto-news-ingestion.module.ts:32,59-64; apps/backend/src/telegram/crypto-news-publisher/crypto-news-publisher.module.ts:74-77
+     References: apps/backend/src/telegram/ingestion/feed/feed-ingestion.module.ts:32,59-64; apps/backend/src/telegram/crypto-news-publisher/feed-publisher.module.ts:74-77
      Acceptance criteria: nest build verde; test arranque AppModule sin warnings DI
      QA scenarios: happy=boot + health 200 evidencia .omo/evidence/task-9-deprecados-deuda-tecnica.log; failure=token faltante → Nest DI error al boot evidencia mismo log
-     Commit: Y | fix(di): retira shims crypto-news deprecated
+     Commit: Y | fix(di): retira shims feed deprecated
 - [x] 10. Quitar fallbacks INGESTION*SERVICE_URL/REMOTE_URL + ghost seed — DONE 2026-09-20: commit 9df73165, 12 files, greps funcionales 0, 195/2126. Evidencia .omo/evidence/task-10-deprecados-deuda-tecnica.log
       What to do: Eliminar var legacy + warn en app.config.ts:85,94-109, actualizar process-next-queued-article fallback:545, borrar INGESTION_REMOTE_URL muerto, ghost filters.token.* en apps/backend/scripts/seed-pipeline-events.ts:140-142 + vip-call-approval README. Must NOT do: no cambiar INGESTION*TELEGRAM_URL default :3031.
       Parallelization: Wave 2 | Blocked by: T9 | Blocks: T11-T13
@@ -181,7 +181,7 @@ Your next move: aprueba para $start-work, o pide high-accuracy review (dual Momu
       What to do: Migración que dropea columna + alinear entidad dominio/infra + DTO input:195-202 + controller 400-guard:232-238,243-249 + mapper toConfigView omite campo; actualizar specs (llm-config.controller.spec:319,368). Must NOT do: sin OK de T11 no ejecutar.
       Parallelization: Wave 2 | Blocked by: T11 (owner OK) | Blocks: T13
       References: apps/backend/src/telegram/crypto-news-publisher/domain/entities/llm-config.entity.ts:15-21; .../infrastructure/persistence/typeorm/entities/llm-config.entity.ts:36,39-40; .../api/input/llm-config.input.ts:195-202; .../api/http/llm-config.controller.ts:225-249; .../api/http/matching-config.controller.ts:42
-      Acceptance criteria: PATCH /llm-config con matchingEnabled → 400 con hint a /crypto-news/matching/config; GET omite campo; migration:show limpio; test:backend verde
+      Acceptance criteria: PATCH /llm-config con matchingEnabled → 400 con hint a /feed/matching/config; GET omite campo; migration:show limpio; test:backend verde
       QA scenarios: happy=PATCH 400 + GET sin campo (curl) evidencia .omo/evidence/task-12-deprecados-deuda-tecnica.log; failure=PATCH sin 400 → falla el todo evidencia mismo log
       Commit: Y | feat(db)!: dropea llm_config.matching_enabled (requiere backup T11)
 - [x] 13. TELEGRAM_BOT_TOKEN docs + templates — DONE 2026-09-20: commit 20d34f11, generico @deprecated, templates alineados, validator 19/19. Evidencia .omo/evidence/task-13-deprecados-deuda-tecnica.log
@@ -191,31 +191,31 @@ Your next move: aprueba para $start-work, o pide high-accuracy review (dual Momu
       Acceptance criteria: grep TELEGRAM_BOT_TOKEN solo en nota deprecated + templates por-bot; config-validator spec verde
       QA scenarios: happy=validator PASS evidencia .omo/evidence/task-13-deprecados-deuda-tecnica.log; failure=config con token genérico → warn deprecated evidencia mismo log
       Commit: Y | docs(config): alinea tokens por bot y depreca genérico
-- [x] 14. Borrar seeders ingestion + registros (Kol/CryptoNews) — DONE 2026-09-20: commit 9a29b8e1, grep seeder 0, ingestion 43/817. Evidencia .omo/evidence/task-14-deprecados-deuda-tecnica.log
-      What to do: Borrar kol.seeder.ts + crypto-news.seeder.ts + registros DEPRECATED en telegram.module.ts:35,42-43,70,117; quitar refresh inefectivo scheduleChannelRefresh:167-171 si queda huérfano. Must NOT do: no tocar BackendChannelProvider vigente (T15) ni StreamService.
+- [x] 14. Borrar seeders ingestion + registros (Kol/Feed) — DONE 2026-09-20: commit 9a29b8e1, grep seeder 0, ingestion 43/817. Evidencia .omo/evidence/task-14-deprecados-deuda-tecnica.log
+      What to do: Borrar kol.seeder.ts + feed.seeder.ts + registros DEPRECATED en telegram.module.ts:35,42-43,70,117; quitar refresh inefectivo scheduleChannelRefresh:167-171 si queda huérfano. Must NOT do: no tocar BackendChannelProvider vigente (T15) ni StreamService.
       Parallelization: Wave 3 | Blocked by: T13 | Blocks: T15-T16
-      References: apps/ingestion-telegram/src/telegram/kol/seeders/kol.seeder.ts:7,46,52-55; apps/ingestion-telegram/src/telegram/crypto-news/seeders/crypto-news.seeder.ts:10,55-60,70-96; apps/ingestion-telegram/src/telegram/telegram.module.ts:30-43,95,167-171,212
+      References: apps/ingestion-telegram/src/telegram/kol/seeders/kol.seeder.ts:7,46,52-55; apps/ingestion-telegram/src/telegram/feed/seeders/feed.seeder.ts:10,55-60,70-96; apps/ingestion-telegram/src/telegram/telegram.module.ts:30-43,95,167-171,212
       Acceptance criteria: grep seeder/seedKols/seedNews = 0 en src; npm test ingestion verde
       QA scenarios: happy=test verde evidencia .omo/evidence/task-14-deprecados-deuda-tecnica.log; failure=módulo que importa seeder → tsc falla evidencia mismo log
       Commit: Y | feat(ingestion): elimina seeders deprecated
-- [x] 15. Seeds históricas + fetchActiveCryptoNewsSourceIds + BACKEND_PORT fallback — DONE 2026-09-20: commit d938adb5, seeds rm, endpoint borrado (no stub), 43/818. Evidencia .omo/evidence/task-15-deprecados-deuda-tecnica.log
-      What to do: Borrar o mover a docs/ seeds/crypto-news.seed.ts:1-66 y kol/seeds/kol.seed.ts; convertir fetchActiveCryptoNewsSourceIds en eliminado (no stub []) actualizando callers backend-channel-provider.service.ts:28-37,73-95,146-155 + specs:275,280,332,356; quitar fallback BACKEND_PORT. Must NOT do: no romper canal KOL vigente (fetchActiveKolIds).
+- [x] 15. Seeds históricas + fetchActiveFeedSourceIds + BACKEND_PORT fallback — DONE 2026-09-20: commit d938adb5, seeds rm, endpoint borrado (no stub), 43/818. Evidencia .omo/evidence/task-15-deprecados-deuda-tecnica.log
+      What to do: Borrar o mover a docs/ seeds/feed.seed.ts:1-66 y kol/seeds/kol.seed.ts; convertir fetchActiveFeedSourceIds en eliminado (no stub []) actualizando callers backend-channel-provider.service.ts:28-37,73-95,146-155 + specs:275,280,332,356; quitar fallback BACKEND_PORT. Must NOT do: no romper canal KOL vigente (fetchActiveKolIds).
       Parallelization: Wave 3 | Blocked by: T14 | Blocks: T16
-      References: apps/ingestion-telegram/src/telegram/crypto-news/seeds/crypto-news.seed.ts:1-66; .../kol/seeds/kol.seed.ts; .../shared/services/backend-channel-provider.service.ts:27-37,73-155; .../telegram/crypto-news/api/http/crypto-news.controller.ts:26-27,56; .../application/use-cases/register-news-source.use-case.ts:36-40
-      Acceptance criteria: grep CRYPTO_NEWS_SEED/fetchActiveCryptoNewsSourceIds/BACKEND_PORT legacy = 0 salvo nota histórica en docs; tests provider actualizados y verdes
+      References: apps/ingestion-telegram/src/telegram/feed/seeds/feed.seed.ts:1-66; .../kol/seeds/kol.seed.ts; .../shared/services/backend-channel-provider.service.ts:27-37,73-155; .../telegram/feed/api/http/feed.controller.ts:26-27,56; .../application/use-cases/register-news-source.use-case.ts:36-40
+      Acceptance criteria: grep CRYPTO_NEWS_SEED/fetchActiveFeedSourceIds/BACKEND_PORT legacy = 0 salvo nota histórica en docs; tests provider actualizados y verdes
       QA scenarios: happy=tests verdes evidencia .omo/evidence/task-15-deprecados-deuda-tecnica.log; failure=caller restante del endpoint legacy → grep lo detecta evidencia mismo log
-      Commit: Y | feat(ingestion): retira seeds y endpoint crypto-news legacy
-- [x] 16. Verificar ingestion :3032 como única fuente crypto-news — GREEN 2026-09-20 VPS: sources 200 (13), messages 200, health/ready/live 200. Nota: :3032=ingestion, :3031=staging backend (ready/live 404 por diseño). Evidencia .omo/evidence/task-16-deprecados-deuda-tecnica.log
-      What to do: curl GET /api/crypto-news/sources y /messages?limit=2 contra :3032 + backend staging apuntando a ingestion; documentar invariantes 1-7 singleton. Must NOT do: no crear DBs \*\_staging_ingestion, no añadir compose staging/prod.
+      Commit: Y | feat(ingestion): retira seeds y endpoint feed legacy
+- [x] 16. Verificar ingestion :3032 como única fuente feed — GREEN 2026-09-20 VPS: sources 200 (13), messages 200, health/ready/live 200. Nota: :3032=ingestion, :3031=staging backend (ready/live 404 por diseño). Evidencia .omo/evidence/task-16-deprecados-deuda-tecnica.log
+      What to do: curl GET /api/feed/sources y /messages?limit=2 contra :3032 + backend staging apuntando a ingestion; documentar invariantes 1-7 singleton. Must NOT do: no crear DBs \*\_staging_ingestion, no añadir compose staging/prod.
       Parallelization: Wave 3 | Blocked by: T15 | Blocks: T17
-      References: apps/ingestion-telegram/src/telegram/crypto-news/crypto-news.module.ts:17; AGENTS.md invariantes ingestion
+      References: apps/ingestion-telegram/src/telegram/feed/feed.module.ts:17; AGENTS.md invariantes ingestion
       Acceptance criteria: curl :3032 sources+messages 200 con shape esperado; backend lee vía INGESTION_TELEGRAM_URL sin tablas locales
       QA scenarios: happy=curls 200 evidencia .omo/evidence/task-16-deprecados-deuda-tecnica.log; failure=:3032 caído → curl no-200 y se aborta T17 evidencia mismo log
       Commit: N | —
 - [x] 17. Frontend: quitar refs legacy matchingEnabled/endpoints — DONE 2026-09-20 VPS (commit 164ba59, 3 files): grep 0 en src no-test, vitest 30/336 PASS = baseline. Evidencia .omo/evidence/task-17-deprecados-deuda-tecnica.log
       What to do: Limpiar endpoints.ts:88 nota deprecated, matching-toggle-button.tsx:20, llm-config-api threads:39, tests legacy matchingEnabled:458-461 y payload:349-360. Must NOT do: no cambiar lógica 3 flags (matching/llm/publishing truth table intacta).
       Parallelization: Wave 3 | Blocked by: T16 | Blocks: T18-T19
-      References: apps/frontend/src/shared/api/endpoints.ts:88; .../features/crypto-news-publisher/ui/matching-toggle-button.tsx:20; .../features/threads-publisher/api/llm-config-api.ts:39; .../pages/crypto-news/**tests**/llm-config.test.tsx:458-461; .../crypto-news-page.test.tsx:349-360,1210
+      References: apps/frontend/src/shared/api/endpoints.ts:88; .../features/feed-publisher/ui/matching-toggle-button.tsx:20; .../features/threads-publisher/api/llm-config-api.ts:39; .../pages/feed/**tests**/llm-config.test.tsx:458-461; .../feed-page.test.tsx:349-360,1210
       Acceptance criteria: grep matchingEnabled/legacy en frontend src = solo tests negativos que asertan ausencia; vitest verde
       QA scenarios: happy=vitest PASS evidencia .omo/evidence/task-17-deprecados-deuda-tecnica.log; failure=toggle con campo legacy → test lo detecta evidencia mismo log
       Commit: Y | fix(frontend): retira refs legacy matchingEnabled
@@ -226,10 +226,10 @@ Your next move: aprueba para $start-work, o pide high-accuracy review (dual Momu
       Acceptance criteria: depcheck/knip outputs guardados; 0 fetch a rutas muertas (grep); decisión keep/prune documentada por dep con evidencia
       QA scenarios: happy=depcheck/knip + grep 0 rutas muertas evidencia .omo/evidence/task-18-deprecados-deuda-tecnica.log; failure=dep marcada unused pero con import dinámico → knip/depcheck lo revela y se hace keep evidencia mismo log
       Commit: Y | chore(frontend): elimina dead URLs y documenta deps
-- [x] 19. Frontend build + smoke /crypto-news sin 404 muertos — DONE 2026-09-20: N commit (verificación), build 11.72s PASS, Playwright smoke 50 requests / 0 dead-hits / 0 404 / 0 pageerrors en 2 corridas (servidor /tmp PID explícito, solo lectura dev :3040 + :3032). Evidencia .omo/evidence/task-19-deprecados-deuda-tecnica.log
-      What to do: vite build + Playwright smoke /crypto-news (konsola sin 404 a backfill/byToken/reprocess/llm-config rota). Must NOT do: no verificación manual con clicks humanos.
+- [x] 19. Frontend build + smoke /feed sin 404 muertos — DONE 2026-09-20: N commit (verificación), build 11.72s PASS, Playwright smoke 50 requests / 0 dead-hits / 0 404 / 0 pageerrors en 2 corridas (servidor /tmp PID explícito, solo lectura dev :3040 + :3032). Evidencia .omo/evidence/task-19-deprecados-deuda-tecnica.log
+      What to do: vite build + Playwright smoke /feed (konsola sin 404 a backfill/byToken/reprocess/llm-config rota). Must NOT do: no verificación manual con clicks humanos.
       Parallelization: Wave 3 | Blocked by: T18 | Blocks: T20
-      References: apps/frontend/src/pages/crypto-news/**tests**/crypto-news-page.test.tsx; apps/frontend/nginx.conf; apps/frontend/vite.config.ts
+      References: apps/frontend/src/pages/feed/**tests**/feed-page.test.tsx; apps/frontend/nginx.conf; apps/frontend/vite.config.ts
       Acceptance criteria: vite build PASS; smoke PASS sin requests a endpoints muertos
       QA scenarios: happy=build+smoke PASS evidencia .omo/evidence/task-19-deprecados-deuda-tecnica.log; failure=smoke detecta 404 a ruta muerta → falla evidencia mismo log
       Commit: N | —
@@ -268,8 +268,8 @@ Your next move: aprueba para $start-work, o pide high-accuracy review (dual Momu
       Acceptance criteria: npm run dev:ingestion arranca :3031; pre-commit tsc cubre 3 apps; npm run docs:check PASS
       QA scenarios: happy=scripts + hook verificados (bash --dry-run) evidencia .omo/evidence/task-24-deprecados-deuda-tecnica.log; failure=hook sin ingestion → tsc no lo cubre y se detecta evidencia mismo log
       Commit: Y | chore(tooling): añade dev:ingestion y tsc en hooks
-- [x] 25. tsconfig alias muertos (discovery/* + settings duplicado) — DONE 2026-09-20: 2 líneas fuera en apps/backend/tsconfig.json, tsc backend verde, grep discovery/* 0 en código, settings/* 1 entrada, frontend @/* intacto. Evidencia .omo/evidence/task-25-deprecados-deuda-tecnica.log
-      What to do: Quitar alias discovery/_ (sin src/discovery) + duplicado settings/_ en apps/backend/tsconfig.json, verificar imports. Must NOT do: no tocar @/_ frontend.
+- [x] 25. tsconfig alias muertos (discovery/_ + settings duplicado) — DONE 2026-09-20: 2 líneas fuera en apps/backend/tsconfig.json, tsc backend verde, grep discovery/_ 0 en código, settings/_ 1 entrada, frontend @/_ intacto. Evidencia .omo/evidence/task-25-deprecados-deuda-tecnica.log
+      What to do: Quitar alias discovery/_ (sin src/discovery) + duplicado settings/_ en apps/backend/tsconfig.json, verificar imports. Must NOT do: no tocar @/\_ frontend.
       Parallelization: Wave 4 | Blocked by: T24 | Blocks: F1-F4
       References: apps/backend/tsconfig.json; AGENTS.md CONVENTIONS path aliases
       Acceptance criteria: tsc backend verde; grep discovery/\* = 0
@@ -282,7 +282,7 @@ Your next move: aprueba para $start-work, o pide high-accuracy review (dual Momu
 
 - [ ] F1. Plan compliance audit — cada T1-T25 con references+acceptance+QA+commit verificables; waves 6-7-6-6 y matriz dependencias consistente; evidencia .omo/evidence/task-F1-deprecados-deuda-tecnica.log (bash: grep TODO list completa)
 - [ ] F2. Code quality review — tsc 3 apps + lint 3 apps + tests 3 apps verdes con conteos T1; sin @deprecated residual (sg) salvo notas históricas en docs; evidencia .omo/evidence/task-F2-deprecados-deuda-tecnica.log
-- [ ] F3. Real manual QA — agent-executed: curl :3030/health + :3031 health/ready/live + :3032 messages?limit=2 + PATCH llm-config 400 + Playwright /crypto-news sin 404 muertos; evidencia .omo/evidence/task-F3-deprecados-deuda-tecnica.log (prohibido QA humana)
+- [ ] F3. Real manual QA — agent-executed: curl :3030/health + :3031 health/ready/live + :3032 messages?limit=2 + PATCH llm-config 400 + Playwright /feed sin 404 muertos; evidencia .omo/evidence/task-F3-deprecados-deuda-tecnica.log (prohibido QA humana)
 - [ ] F4. Scope fidelity — Must NOT have respetado (singleton ingestion, sin prune ciego, sin ScoreTier/boundaries, sin terraform/migrations-prod, rama feat/\* + conventional); evidencia .omo/evidence/task-F4-deprecados-deuda-tecnica.log
 
 ## Commit strategy
@@ -293,7 +293,7 @@ Your next move: aprueba para $start-work, o pide high-accuracy review (dual Momu
 
 ## Success criteria
 
-- sg --pattern '@deprecated' en apps/\*/src = 0 salvo notas históricas en docs/; grep INGESTION_SERVICE_URL/REMOTE_URL/fetchActiveCryptoNewsSourceIds/CRYPTO_NEWS_SEED/SSE-DEBUG = 0 en src.
+- sg --pattern '@deprecated' en apps/\*/src = 0 salvo notas históricas en docs/; grep INGESTION_SERVICE_URL/REMOTE_URL/fetchActiveFeedSourceIds/CRYPTO_NEWS_SEED/SSE-DEBUG = 0 en src.
 - test:backend + ingestion + frontend verdes con conteos T1; tsc 3 apps verde; vite build + Playwright smoke PASS.
 - PATCH /llm-config con matchingEnabled → 400; GET omite campo; :3032 sources/messages 200 como única fuente.
 - README/AGENTS versiones y counts coherentes; docs:check PASS; hooks cubren 3 apps.

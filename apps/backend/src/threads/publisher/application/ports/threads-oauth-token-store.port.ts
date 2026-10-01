@@ -1,4 +1,9 @@
 /**
+ * @deprecated Moved to apps/feed-publisher/src/threads/ (Tramo 2, todo 8 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add threads logic in apps/feed-publisher/src/threads/ instead.
+ */
+/**
  * Minimal persistence contract for the singleton Threads OAuth token row.
  *
  * The refresher (`ThreadsTokenRefresher`) is the ONLY writer of

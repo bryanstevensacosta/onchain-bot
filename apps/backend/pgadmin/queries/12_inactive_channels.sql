@@ -1,5 +1,5 @@
 -- =====================================================================
--- alpha-meta-token-scanner :: Inactive Channels
+-- onchain-bot :: Inactive Channels
 -- =====================================================================
 -- Canales marcados como inactivos o sin ingestar recientemente.
 -- =====================================================================

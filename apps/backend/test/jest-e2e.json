@@ -12,7 +12,6 @@
     "^telegram/events$": "<rootDir>/../../../node_modules/telegram/events/index.js",
     "^telegram/(.*)$": "<rootDir>/../src/telegram/$1",
     "^shared/(.*)$": "<rootDir>/../src/shared/$1",
-    "^discovery/(.*)$": "<rootDir>/../src/discovery/$1",
     "^chain/(.*)$": "<rootDir>/../src/chain/$1",
     "^token/(.*)$": "<rootDir>/../src/token/$1",
     "^kol/(.*)$": "<rootDir>/../src/kol/$1",
@@ -20,8 +19,6 @@
     "^settings/(.*)$": "<rootDir>/../src/settings/$1",
     "^data-provider/(.*)$": "<rootDir>/../src/data-provider/$1",
     "^health/(.*)$": "<rootDir>/../src/health/$1",
-    "^src/(.*)$": "<rootDir>/../src/$1",
-    "^@ingestion-telegram/media/(.*)$": "<rootDir>/../../ingestion-telegram/src/shared/media/$1",
-    "^@ingestion-telegram/telegram/(.*)$": "<rootDir>/../../ingestion-telegram/src/shared/telegram/$1"
+    "^src/(.*)$": "<rootDir>/../src/$1"
   }
 }

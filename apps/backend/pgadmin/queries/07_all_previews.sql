@@ -1,5 +1,5 @@
 -- =====================================================================
--- alpha-meta-token-scanner :: Universal Quick Preview
+-- onchain-bot :: Universal Quick Preview
 -- =====================================================================
 -- Hasta 5 filas de cada tabla en una sola consulta (todo a la vista).
 -- =====================================================================

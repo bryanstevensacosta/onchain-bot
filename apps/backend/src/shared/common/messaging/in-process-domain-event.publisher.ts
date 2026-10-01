@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { DomainEvent } from '../../kernel/domain-event';
+import { DomainEvent } from '@/shared/kernel/domain-event';
 import { DomainEventPublisher } from '../ports/domain-event.publisher';
 
 /**

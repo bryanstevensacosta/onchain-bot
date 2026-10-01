@@ -29,7 +29,7 @@ ordenadas por urgencia.
 const raw: RawKolMessage = {
   kolId,
   messageId: message.id,
-  text: message.message ?? '',   // ← texto crudo del KOL
+  text: message.message ?? '', // ← texto crudo del KOL
   occurredAt: new Date(message.date * 1000),
 };
 
@@ -37,7 +37,7 @@ const raw: RawKolMessage = {
 return messages.map((m) => ({
   kolId,
   messageId: m.id,
-  text: m.message ?? '',          // ← texto crudo del KOL
+  text: m.message ?? '', // ← texto crudo del KOL
   occurredAt: new Date(m.date * 1000),
 }));
 ```
@@ -48,7 +48,7 @@ return messages.map((m) => ({
 export interface RawKolMessage {
   readonly kolId: string;
   readonly messageId: number;
-  readonly text: string;   // ← contrato del port exige text
+  readonly text: string; // ← contrato del port exige text
   readonly occurredAt: Date;
 }
 ```
@@ -74,7 +74,7 @@ await this.extract.execute({
   kolId: event.payload.kolId,
   messageId: event.payload.messageId,
   occurredAt: event.payload.occurredAt,
-  text: event.payload.text,    // ← pasa al use case
+  text: event.payload.text, // ← pasa al use case
 });
 ```
 
@@ -94,13 +94,13 @@ const result = ExtractionResult.create({
   kolId: input.kolId,
   messageId: input.messageId,
   occurredAt: input.occurredAt,
-  rawText: input.text,         // ← el texto se guarda como parte del agregado
+  rawText: input.text, // ← el texto se guarda como parte del agregado
   contractAddresses: candidates.contractAddresses,
   tickers: candidates.tickers,
   urls: candidates.urls,
 });
 
-await this.resultRepo.save(result);   // ← INSERT en extraction_results
+await this.resultRepo.save(result); // ← INSERT en extraction_results
 ```
 
 ### 1.4 Round-trip (lectura desde DB)
@@ -108,7 +108,7 @@ await this.resultRepo.save(result);   // ← INSERT en extraction_results
 **Archivo**: `apps/backend/src/token/intake/extraction/infrastructure/persistence/typeorm/mappers/extraction-result.mapper.ts:14`
 
 ```ts
-row.rawText = r.rawText;   // ← al escribir
+row.rawText = r.rawText; // ← al escribir
 // línea 39: rawText: row.rawText,   // al leer
 ```
 
@@ -131,9 +131,9 @@ Cualquier consumidor downstream de `token.candidates.extracted` recibe el texto.
 
 ### 2.1 Bot Developer ToS §4.3
 
-> *"Always prohibited uses include any form of data collection aimed at creating
+> _"Always prohibited uses include any form of data collection aimed at creating
 > large datasets, machine learning models and AI products, **such as scraping
-> public group or channel contents**."*
+> public group or channel contents**."_
 > — [https://telegram.org/tos/bot-developers]
 
 Cada fila en `extraction_results` con `raw_text` lleno = un row de dataset
@@ -141,15 +141,15 @@ construido a partir de contenido scrapeado de canales públicos.
 
 ### 2.2 Content Licensing ToS
 
-> *"Telegram firmly prohibits the scraping, indexing, harvesting, aggregation
+> _"Telegram firmly prohibits the scraping, indexing, harvesting, aggregation
 > or use of data obtained from its platform to train, fine-tune, validate or
 > otherwise engage in the development, enhancement, benchmarking or deployment
-> of artificial intelligence, machine learning models and similar technologies."*
+> of artificial intelligence, machine learning models and similar technologies."_
 > — [https://telegram.org/tos/content-licensing]
 
-> *"Any such data is licensed on a retractable, limited, non-exclusive,
+> _"Any such data is licensed on a retractable, limited, non-exclusive,
 > non-transferable and **non-sublicensable** basis **solely to the extent
-> strictly required to operate the relevant service**."*
+> strictly required to operate the relevant service**."_
 > — [https://telegram.org/tos/content-licensing]
 
 Tu DB no cumple "strictly required to operate the relevant service": para
@@ -158,14 +158,15 @@ detectar CAs/tickers/URLs solo necesitas los matches (las `contractAddresses`,
 
 ### 2.3 Lo que pasaría si Telegram audita (API ToS §4)
 
-> *"If your app violates these terms, we will notify the Telegram account
+> _"If your app violates these terms, we will notify the Telegram account
 > responsible for the app about the breach of terms. If you do not update the
 > app to fix the highlighted issues within 10 days, we will have to discontinue
 > your access to Telegram API and contact the app stores about the removal of
-> your apps that are using the Telegram API in violation of these terms."*
+> your apps that are using the Telegram API in violation of these terms."_
 > — [https://core.telegram.org/api/terms]
 
 ⏱️ **10 días de reloj** para:
+
 1. Migrar la DB.
 2. Cambiar el contrato de eventos.
 3. Borrar el texto persistido.
@@ -176,9 +177,10 @@ Si no llegas, te cierran el bot + report a Apple/Google.
 ### 2.4 Lo que pasaría si un KOL te demanda
 
 Un KOL podría argumentar:
-- *"Almacenaste mis mensajes en tu DB sin mi opt-in."*
-- *"Usaste mi contenido para construir un producto comercial."*
-- *"Vendiste acceso a derivados de mi trabajo sin licencia."*
+
+- _"Almacenaste mis mensajes en tu DB sin mi opt-in."_
+- _"Usaste mi contenido para construir un producto comercial."_
+- _"Vendiste acceso a derivados de mi trabajo sin licencia."_
 
 Sin opt-in (ver `04-architecture-gaps.md §1.4`), tu defensa es débil.
 
@@ -207,6 +209,7 @@ ALTER TABLE extraction_results DROP COLUMN raw_text;
 tabla mediana).
 
 **Verificación post-Fase 1**:
+
 ```sql
 SELECT column_name FROM information_schema.columns
 WHERE table_name = 'extraction_results' AND column_name = 'raw_text';
@@ -299,6 +302,7 @@ in-memory-extraction-result.repository.ts`).
 **Archivo**: `apps/backend/src/token/intake/extraction/domain/entities/extraction-result.entity.ts`
 
 Quitar `rawText` de:
+
 - el state interno (línea 13).
 - el constructor `create` (línea 40).
 - el constructor `rehydrate` (línea 74).
@@ -482,7 +486,7 @@ export class IngestAndExtractUseCase {
     kolId: string;
     messageId: number;
     occurredAt: Date;
-    text: string;             // ← vive solo aquí dentro
+    text: string; // ← vive solo aquí dentro
   }): Promise<void> {
     const candidates = await this.extractor.extract(input);
 
@@ -625,13 +629,13 @@ Día 3:
 
 ## 5. Riesgos residuales post-fix
 
-| Riesgo | Mitigación |
-|---|---|
-| Logs de aplicación que imprimen el texto por error | Revisar `Logger.*` en cada use case; añadir test que greps logs en CI |
-| Backups de DB contienen texto pre-fix | Backup a tabla `pre_fix_1` → eliminar tras 30 días; o cifrar el backup |
+| Riesgo                                                                       | Mitigación                                                                                                        |
+| ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Logs de aplicación que imprimen el texto por error                           | Revisar `Logger.*` en cada use case; añadir test que greps logs en CI                                             |
+| Backups de DB contienen texto pre-fix                                        | Backup a tabla `pre_fix_1` → eliminar tras 30 días; o cifrar el backup                                            |
 | Memoria del proceso (heap dump) puede contener el texto durante la ejecución | No podemos controlar esto en JS; aceptable porque el heap dump no es accesible externamente sin acceso al proceso |
-| Cache de Redis (si lo añades después) puede contener texto | No uses Redis para `ExtractionResult`; si lo haces, el cache key debe ser derivado y nunca serializar texto |
-| Réplicas de Postgres (read replicas) | El `DROP COLUMN` se replica automáticamente; verificar que las réplicas tampoco tienen la columna |
+| Cache de Redis (si lo añades después) puede contener texto                   | No uses Redis para `ExtractionResult`; si lo haces, el cache key debe ser derivado y nunca serializar texto       |
+| Réplicas de Postgres (read replicas)                                         | El `DROP COLUMN` se replica automáticamente; verificar que las réplicas tampoco tienen la columna                 |
 
 ---
 
@@ -674,6 +678,7 @@ Cualquier hit → evaluar y migrar.
 ## 8. Próximo fix
 
 `fix-2.md` (a crear tras cerrar este) debería atacar:
+
 - In-memory `InMemoryExtractionResultRepository` que pueda tener texto en runtime.
 - `kol.message.ingested` event handlers de terceros (si los hay).
 - Logs estructurados que puedan contener el texto.
@@ -727,18 +732,18 @@ KolMessageIngestedEvent ─── text? ──┐
 
 Para que el fix sea completo, también hay que modificar:
 
-| Archivo | Cambio |
-|---|---|
-| `apps/backend/src/token/intake/parsing/infrastructure/persistence/typeorm/entities/token-call.entity.ts:32-33` | DROP `@Column raw_text` |
-| `apps/backend/src/token/intake/parsing/infrastructure/persistence/typeorm/mappers/token-call.mapper.ts:14,54` | Quitar `row.rawText = c.rawText` y `rawText: row.rawText` |
-| `apps/backend/src/token/intake/parsing/domain/entities/token-call.entity.ts:13,44,79,98,110,129-130` | Quitar `rawText` del state, constructor y getter |
-| `apps/backend/src/token/intake/parsing/application/handlers/parse-from-candidates.use-case.ts:16,37,43` | No pasar `rawText` al parser ni persistirlo |
-| `apps/backend/src/token/intake/parsing/application/mappers/token-call.mapper.ts:11,33` | Quitar `rawText` del view |
-| `apps/backend/src/token/intake/parsing/domain/ports/parser.port.ts:11` | Quitar `text` del port (cambiar a no recibir texto o recibir solo lo mínimo) |
-| `apps/backend/src/token/intake/parsing/infrastructure/event-bus/candidates-extracted.handler.ts:43` | No pasar `rawText` al use case |
-| `apps/backend/src/token/intake/extraction/domain/events/candidates-extracted.event.ts:12,28,45` | Quitar `rawText` del evento |
-| `apps/backend/src/token/intake/extraction/application/mappers/extraction-result.mapper.ts:11,33` | Quitar `rawText` del view |
-| `apps/backend/src/token/intake/parsing/infrastructure/adapters/heuristic-parser.adapter.ts:54` | El parser ya no debe recibir texto (recibirá structured input) |
+| Archivo                                                                                                        | Cambio                                                                       |
+| -------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `apps/backend/src/token/intake/parsing/infrastructure/persistence/typeorm/entities/token-call.entity.ts:32-33` | DROP `@Column raw_text`                                                      |
+| `apps/backend/src/token/intake/parsing/infrastructure/persistence/typeorm/mappers/token-call.mapper.ts:14,54`  | Quitar `row.rawText = c.rawText` y `rawText: row.rawText`                    |
+| `apps/backend/src/token/intake/parsing/domain/entities/token-call.entity.ts:13,44,79,98,110,129-130`           | Quitar `rawText` del state, constructor y getter                             |
+| `apps/backend/src/token/intake/parsing/application/handlers/parse-from-candidates.use-case.ts:16,37,43`        | No pasar `rawText` al parser ni persistirlo                                  |
+| `apps/backend/src/token/intake/parsing/application/mappers/token-call.mapper.ts:11,33`                         | Quitar `rawText` del view                                                    |
+| `apps/backend/src/token/intake/parsing/domain/ports/parser.port.ts:11`                                         | Quitar `text` del port (cambiar a no recibir texto o recibir solo lo mínimo) |
+| `apps/backend/src/token/intake/parsing/infrastructure/event-bus/candidates-extracted.handler.ts:43`            | No pasar `rawText` al use case                                               |
+| `apps/backend/src/token/intake/extraction/domain/events/candidates-extracted.event.ts:12,28,45`                | Quitar `rawText` del evento                                                  |
+| `apps/backend/src/token/intake/extraction/application/mappers/extraction-result.mapper.ts:11,33`               | Quitar `rawText` del view                                                    |
+| `apps/backend/src/token/intake/parsing/infrastructure/adapters/heuristic-parser.adapter.ts:54`                 | El parser ya no debe recibir texto (recibirá structured input)               |
 
 ### 9.4 Refactor del parser
 
@@ -762,9 +767,9 @@ interface StructuredContext {
   tickers: ReadonlyArray<Ticker>;
   urls: ReadonlyArray<Url>;
   // Palabras clave relevantes (no el texto completo)
-  keywords: ReadonlyArray<string>;     // ej: ["alpha", "10x", "early"]
+  keywords: ReadonlyArray<string>; // ej: ["alpha", "10x", "early"]
   // Mensaje completo solo como flag opcional para audit/debug, NO para lógica
-  hasFullText?: never;                  // ← imposible a nivel TS
+  hasFullText?: never; // ← imposible a nivel TS
 }
 ```
 
@@ -801,18 +806,18 @@ grep -rn "rawText\|raw_text" apps/backend/src/ --include="*.ts" \
 
 ## 10. Estado del fix
 
-| Fase | Status | Notas |
-|---|---|---|
-| 1. Purgar data existente | ✅ **No aplica** | DB está vacía (sin tablas), `synchronize=true` aún no se ejecutó |
-| 2. Quitar columna TypeORM extraction_results | 🔴 Pendiente | |
-| 2b. Quitar columna TypeORM token_calls | 🔴 Pendiente | **descubierto en verificación** |
-| 3. Quitar campo del entity de dominio | 🔴 Pendiente | |
-| 4. Cambiar contrato de extracción | 🔴 Pendiente | |
-| 5. Quitar text del evento upstream + refactor parser | 🔴 Pendiente | |
-| 6. Tests de compliance | 🔴 Pendiente | |
+| Fase                                                 | Status           | Notas                                                            |
+| ---------------------------------------------------- | ---------------- | ---------------------------------------------------------------- |
+| 1. Purgar data existente                             | ✅ **No aplica** | DB está vacía (sin tablas), `synchronize=true` aún no se ejecutó |
+| 2. Quitar columna TypeORM extraction_results         | 🔴 Pendiente     |                                                                  |
+| 2b. Quitar columna TypeORM token_calls               | 🔴 Pendiente     | **descubierto en verificación**                                  |
+| 3. Quitar campo del entity de dominio                | 🔴 Pendiente     |                                                                  |
+| 4. Cambiar contrato de extracción                    | 🔴 Pendiente     |                                                                  |
+| 5. Quitar text del evento upstream + refactor parser | 🔴 Pendiente     |                                                                  |
+| 6. Tests de compliance                               | 🔴 Pendiente     |                                                                  |
 
 **Verificación DB** (completada): `docker exec onchain-bot-postgres-dev
-psql -U alpha_meta_token_scanner -d alpha_meta_token_scanner -c "\dt"` →
+psql -U onchain_bot -d onchain_bot -c "\dt"` →
 "Did not find any relations." → DB vacía. El fix es preventivo: el problema se
 materializa el primer día que se active `DATABASE_ENABLED=true` con `synchronize=true`
 (`apps/backend/src/shared/common/config/app.config.ts:260`).

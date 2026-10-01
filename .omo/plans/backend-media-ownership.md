@@ -26,12 +26,12 @@ Your next move: approve, o pide revisión Momus. Full execution detail follows b
 - Limpieza one-time verificada de `/opt/onchain-bot/apps/backend/uploads/crypto-news/media/` (122 MB / 507 ficheros, solo lo que ingestion-telegram aún conserva).
 - Doc `docs/deployment/media-ownership.md` con tabla de propiedad explícita (news → ingestion-telegram, ads → backend).
 - Specs Jest que prueban crecimiento cero, retry re-descarga, y fallo cuando ingestion ya janitoreó.
-- Mensajes del stub `StubCryptoNewsMediaDownloader` renombrados `ingestion-service` → `ingestion-telegram`.
+- Mensajes del stub `StubFeedMediaDownloader` renombrados `ingestion-service` → `ingestion-telegram`.
 
 ### Must NOT have (guardrails, anti-slop, scope boundaries)
 
-- NO tocar ingestion-telegram (sus `uploads` + janitor 72h `CryptoNewsRetentionCleanupScheduler`, lock `9_421_373` se quedan).
-- NO cambiar ownership ni lógica de `crypto-news-ads-library/` (propiedad del backend: `local-ad-media-storage.adapter`, `ad-media-path-builder`); ni `sync-ad-images.sh`.
+- NO tocar ingestion-telegram (sus `uploads` + janitor 72h `FeedRetentionCleanupScheduler`, lock `9_421_373` se quedan).
+- NO cambiar ownership ni lógica de `feed-ads-library/` (propiedad del backend: `local-ad-media-storage.adapter`, `ad-media-path-builder`); ni `sync-ad-images.sh`.
 - NO cambiar el modo de ingesta (SSE/polling) ni flags (`USE_SSE_INGESTION`, `USE_SSE_CRYPTO_NEWS`, `matchingEnabled`, `llmEnabled`, `publishingEnabled`).
 - NO restore automático de media ni backup de `uploads/crypto-news/media/` (caché re-descargable, T8 2026-09-16).
 - NO TTL-janitor propio en backend (alternativa A descartada); NO `as any` / `@ts-ignore`; NO borrar specs para pasar.
@@ -94,7 +94,7 @@ Your next move: approve, o pide revisión Momus. Full execution detail follows b
      Commit: N
 
 - [x] 3. Stub rename ingestion-service → ingestion-telegram
-     What to do / Must NOT do: En `shared-ingestion.module.ts` cambiar los dos mensajes de `StubCryptoNewsMediaDownloader` (:36-51) de `migrated to ingestion-service` a `migrated to ingestion-telegram`; actualizar comentarios Phase 5 (:24-33) igual. NO cambiar lógica DI; NO tocar adapters.
+     What to do / Must NOT do: En `shared-ingestion.module.ts` cambiar los dos mensajes de `StubFeedMediaDownloader` (:36-51) de `migrated to ingestion-service` a `migrated to ingestion-telegram`; actualizar comentarios Phase 5 (:24-33) igual. NO cambiar lógica DI; NO tocar adapters.
      Parallelization: Wave 1 | Blocked by: — | Blocks: —
      References (executor has NO interview context - be exhaustive): `apps/backend/src/telegram/ingestion/shared/shared-ingestion.module.ts:24-52`
      Acceptance criteria (agent-executable): `rg -n "ingestion-service" apps/backend/src/telegram/ingestion/shared/shared-ingestion.module.ts` cero hits; `npx tsc --noEmit -p apps/backend/tsconfig.json` verde
@@ -107,7 +107,7 @@ Your next move: approve, o pide revisión Momus. Full execution detail follows b
      References (executor has NO interview context - be exhaustive): `apps/backend/src/telegram/crypto-news-publisher/application/handlers/process-next-queued-article.use-case.spec.ts`; `apps/backend/src/telegram/crypto-news-publisher/application/handlers/process-next-queued-article.use-case.ts:372-510`
      Acceptance criteria (agent-executable): `npm test -- process-next-queued-article.use-case.spec` verde (incluye los 3 casos nuevos por nombre)
      QA scenarios (name the exact tool + invocation): happy + failure cubiertos como casos (a)(b)(c) arriba. Evidence `.omo/evidence/task-4-backend-media-ownership.log`
-     Commit: Y | `fix(crypto-news-publisher): tmp-download-and-delete media cache`
+     Commit: Y | `fix(feed-publisher): tmp-download-and-delete media cache`
 
 - [x] 5. Doc docs/deployment/media-ownership.md
      What to do / Must NOT do: Crear doc corto con la tabla de propiedad (news → ingestion-telegram, ads → backend), qué NO respaldar (`crypto-news/media/` caché), y punteros a janitor 72h + `INGESTION_TELEGRAM_URL`. NO mover ficheros; NO tocar runbooks existentes.

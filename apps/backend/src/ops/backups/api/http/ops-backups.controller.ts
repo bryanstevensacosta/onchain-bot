@@ -3,7 +3,7 @@ import {
   BackupsStatusService,
   type BackupConfigView,
   type BackupStatusView,
-} from '../../application/backups-status.service';
+} from '@/ops/backups/application/backups-status.service';
 
 /**
  * Read-only ops view of the prod-backend rolling backups (unguarded public

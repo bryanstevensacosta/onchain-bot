@@ -1,3 +1,8 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/threads/ (Tramo 2, todo 8 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add threads logic in apps/feed-publisher/src/threads/ instead.
+ */
 import { Controller, Get, ParseBoolPipe, Query } from '@nestjs/common';
 import { ThreadsKeywordRepository } from 'threads/publisher/application/ports/threads-keyword.repository';
 import { ThreadsBlacklistPhraseRepository } from 'threads/publisher/application/ports/threads-blacklist-phrase.repository';
@@ -47,7 +52,7 @@ export interface ThreadsPhraseEntry {
  *  - GET /search        Search phrases by text across both tables
  *  - GET /conflict-check  Check if a phrase would conflict with existing entries
  */
-@Controller('threads-publisher/phrases')
+@Controller(['threads-publisher/phrases', 'feed-threads-publisher/phrases'])
 export class ThreadsPhrasesController {
   public constructor(
     private readonly keywordRepo: ThreadsKeywordRepository,

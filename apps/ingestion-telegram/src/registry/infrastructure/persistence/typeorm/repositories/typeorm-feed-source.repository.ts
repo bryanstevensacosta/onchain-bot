@@ -13,12 +13,14 @@ export interface ActiveFeedSource {
 
 export interface ActiveFeedSourceWithType extends ActiveFeedSource {
   readonly type: TelegramFeedSourceType;
+  /** P57: explicit user/bot rows are skipped by the subscribe filter. */
+  readonly entityKind: string | null;
 }
 
 /**
  * Repository for querying the unified `telegram_feed_sources` catalog.
  *
- * Mirrors `CryptoNewsSourceRepository` semantics EXACTLY:
+ * Mirrors `FeedSourceRepository` semantics EXACTLY:
  * - queries fail-open (`[]` / `null` / `false`) on DB error — never crash
  *   the ingestion loop;
  * - `findAllActive` projects `select: [channelId, title]` and filters
@@ -92,7 +94,7 @@ export class TelegramFeedSourceRepository {
           lifecycleStatus: 'ACTIVE',
           isActive: true,
         },
-        select: ['channelId', 'title', 'type'],
+        select: ['channelId', 'title', 'type', 'entityKind'],
       });
 
       this.logger.log(
@@ -103,6 +105,7 @@ export class TelegramFeedSourceRepository {
         channelId: s.channelId,
         title: s.title,
         type: s.type,
+        entityKind: s.entityKind ?? null,
       }));
     } catch (error) {
       this.logger.error(
@@ -191,9 +194,7 @@ export class TelegramFeedSourceRepository {
   ): Promise<TelegramFeedSourceEntity> {
     try {
       const saved = await this.repo.save(source);
-      this.logger.log(
-        `Saved feed source: ${saved.channelId} (${saved.title})`,
-      );
+      this.logger.log(`Saved feed source: ${saved.channelId} (${saved.title})`);
       return saved;
     } catch (error) {
       this.logger.error(
@@ -217,6 +218,7 @@ export class TelegramFeedSourceRepository {
     title: string,
     handle?: string,
     type: TelegramFeedSourceType = 'crypto-news',
+    meta?: { entityKind?: string | null; isBot?: boolean | null },
   ): TelegramFeedSourceEntity {
     const source = this.repo.create({
       channelId,
@@ -226,6 +228,8 @@ export class TelegramFeedSourceRepository {
       isActive: true,
       lifecycleStatus: 'ACTIVE',
       lastIngestedAt: null,
+      entityKind: meta?.entityKind ?? null,
+      isBot: meta?.isBot ?? null,
     });
     return source;
   }

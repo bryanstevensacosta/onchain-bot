@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { CommandContext, CommandHandler } from '../command-handler';
-import { MessageFormatterAdapter } from '../../../infrastructure/telegram/message-formatter.adapter';
-import { TelegramBotClient } from '../../../infrastructure/telegram/bot-client';
+import { MessageFormatterAdapter } from '@/telegram/chain-dexter-bot/infrastructure/telegram/message-formatter.adapter';
+import { TelegramBotClient } from '@/telegram/chain-dexter-bot/infrastructure/telegram/bot-client';
 import { TokenScanPipeline } from '../token-scan.pipeline';
 import { ResolvedToken } from '../resolved-token';
 
@@ -28,6 +28,7 @@ function toFormatterInput(token: ResolvedToken) {
   };
 }
 
+/** @deprecated Moved to dexter-onchain-bot (`commands/`) via the telegram-bots-gateway (todo 6); removed at cutover (gateway todo 7). Do not extend. */
 @Injectable()
 export class ZCompactScanHandler implements CommandHandler {
   public readonly name = 'z';

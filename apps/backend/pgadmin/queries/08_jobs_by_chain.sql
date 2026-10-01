@@ -1,5 +1,5 @@
 -- =====================================================================
--- alpha-meta-token-scanner :: Jobs by Chain & Status
+-- onchain-bot :: Jobs by Chain & Status
 -- =====================================================================
 -- Distribución de jobs agrupados por chain y estado.
 -- =====================================================================

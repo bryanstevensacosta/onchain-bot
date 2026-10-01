@@ -31,7 +31,7 @@ describe('parseMessageEntities (string-vs-array reader fallback)', () => {
 
 describe('FeedController (feed message reads + stats)', () => {
   const messageRepo: any = {
-    findRecent: jest.fn(),
+    findRecentPaged: jest.fn(),
     findByChannelId: jest.fn(),
     count: jest.fn(),
   };
@@ -58,11 +58,15 @@ describe('FeedController (feed message reads + stats)', () => {
   }
 
   it('getRecentMessages exposes formattingEntities + type passthrough', async () => {
-    messageRepo.findRecent.mockResolvedValue([feedRow()]);
+    messageRepo.findRecentPaged.mockResolvedValue({
+      rows: [feedRow()],
+      nextCursor: null,
+    });
 
     const res = await controller.getRecentMessages(50);
 
     expect(res.count).toBe(1);
+    expect(res.nextCursor).toBeNull();
     expect(res.data[0].formattingEntities).toEqual([
       { type: 'url', offset: 0, length: 10 },
     ]);
@@ -71,38 +75,66 @@ describe('FeedController (feed message reads + stats)', () => {
   });
 
   it('getRecentMessages without type passes undefined (mixed, legacy behavior)', async () => {
-    messageRepo.findRecent.mockResolvedValue([feedRow()]);
+    messageRepo.findRecentPaged.mockResolvedValue({
+      rows: [feedRow()],
+      nextCursor: null,
+    });
 
     await controller.getRecentMessages(50);
 
-    expect(messageRepo.findRecent).toHaveBeenCalledWith(50, undefined);
+    expect(messageRepo.findRecentPaged).toHaveBeenCalledWith(
+      50,
+      undefined,
+      undefined,
+    );
   });
 
   it('getRecentMessages with type=kol filters to kol only', async () => {
-    messageRepo.findRecent.mockResolvedValue([feedRow({ type: 'kol' })]);
+    messageRepo.findRecentPaged.mockResolvedValue({
+      rows: [feedRow({ type: 'kol' })],
+      nextCursor: null,
+    });
 
     const res = await controller.getRecentMessages(50, 'kol');
 
-    expect(messageRepo.findRecent).toHaveBeenCalledWith(50, 'kol');
+    expect(messageRepo.findRecentPaged).toHaveBeenCalledWith(
+      50,
+      'kol',
+      undefined,
+    );
     expect(res.count).toBe(1);
     expect(res.data[0].type).toBe('kol');
   });
 
   it('getRecentMessages with type=crypto-news filters to news only', async () => {
-    messageRepo.findRecent.mockResolvedValue([feedRow()]);
+    messageRepo.findRecentPaged.mockResolvedValue({
+      rows: [feedRow()],
+      nextCursor: null,
+    });
 
     const res = await controller.getRecentMessages(50, 'crypto-news');
 
-    expect(messageRepo.findRecent).toHaveBeenCalledWith(50, 'crypto-news');
+    expect(messageRepo.findRecentPaged).toHaveBeenCalledWith(
+      50,
+      'crypto-news',
+      undefined,
+    );
     expect(res.data[0].type).toBe('crypto-news');
   });
 
   it('getRecentMessages caps limit at 200 AFTER type filtering', async () => {
-    messageRepo.findRecent.mockResolvedValue([]);
+    messageRepo.findRecentPaged.mockResolvedValue({
+      rows: [],
+      nextCursor: null,
+    });
 
     await controller.getRecentMessages(9999, 'crypto-news');
 
-    expect(messageRepo.findRecent).toHaveBeenCalledWith(200, 'crypto-news');
+    expect(messageRepo.findRecentPaged).toHaveBeenCalledWith(
+      200,
+      'crypto-news',
+      undefined,
+    );
   });
 
   it('getRecentMessages rejects invalid type with 400', async () => {
@@ -112,13 +144,14 @@ describe('FeedController (feed message reads + stats)', () => {
     await expect(controller.getRecentMessages(50, 'kol-news')).rejects.toThrow(
       'type must be one of kol, crypto-news',
     );
-    expect(messageRepo.findRecent).not.toHaveBeenCalled();
+    expect(messageRepo.findRecentPaged).not.toHaveBeenCalled();
   });
 
   it("getRecentMessages maps '' entities rows to []", async () => {
-    messageRepo.findRecent.mockResolvedValue([
-      feedRow({ messageEntities: '' }),
-    ]);
+    messageRepo.findRecentPaged.mockResolvedValue({
+      rows: [feedRow({ messageEntities: '' })],
+      nextCursor: null,
+    });
 
     const res = await controller.getRecentMessages(50);
 

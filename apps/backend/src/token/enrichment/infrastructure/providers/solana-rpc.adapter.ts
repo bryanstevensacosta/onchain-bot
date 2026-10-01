@@ -4,7 +4,7 @@ import {
   MarketData,
   MarketDataProviderPort,
 } from 'token/enrichment/domain/ports/market-data-provider.port';
-import { SolanaRpcService } from 'data-provider/solana-rpc/solana-rpc.service';
+import { SolanaRpcService } from '../../../../../../market-data/src/provider/infrastructure/solana-rpc/solana-rpc.service';
 
 @Injectable()
 export class SolanaRpcAdapter extends MarketDataProviderPort {

@@ -2,7 +2,7 @@
 
 ## TL;DR (For humans)
 
-**What you'll get:** The "Source Channel IDs" text field in the Blacklist Phrase modal will be replaced by a multi-select dropdown showing all available crypto-news sources — same component Keywords already uses.
+**What you'll get:** The "Source Channel IDs" text field in the Blacklist Phrase modal will be replaced by a multi-select dropdown showing all available feed sources — same component Keywords already uses.
 
 **Why this approach:** The `SourceMultiSelect` component already exists and is battle-tested in Keywords. Zero new UI code, zero backend changes — just swap the input.
 
@@ -81,10 +81,10 @@ Wave 1: single todo (only one file changes meaningfully)
   1. MUST NOT: change backend, API hooks, keywords, SourceMultiSelect component, or add any CSS
      Parallelization: Wave 1 | Blocked by: — | Blocks: —
      References (executor has NO interview context - be exhaustive):
-  - Target file: `apps/frontend/src/features/crypto-news-publisher/ui/blacklist-manager.tsx:1-427` (the full file)
-  - SourceMultiSelect component: `apps/frontend/src/features/crypto-news-publisher/ui/source-multi-select.tsx:13-110` (accepts `ids: string[]`, `onChange: (ids: string[]) => void`, `sourceOptions`, `disabled`)
-  - Keywords usage reference: `apps/frontend/src/features/crypto-news-publisher/ui/keywords-section.tsx:77` (`const sourceOptions = sources ?? [];`) and `:200-205` (`<SourceMultiSelect ids={newSourceChannelIds} onChange={setNewSourceChannelIds} sourceOptions={sourceOptions} disabled={createMut.isPending} />`)
-  - `sources` is fetched at: `blacklist-manager.tsx:183` (`const { data: sources } = useCryptoNewsSources()`)
+  - Target file: `apps/frontend/src/features/feed-publisher/ui/blacklist-manager.tsx:1-427` (the full file)
+  - SourceMultiSelect component: `apps/frontend/src/features/feed-publisher/ui/source-multi-select.tsx:13-110` (accepts `ids: string[]`, `onChange: (ids: string[]) => void`, `sourceOptions`, `disabled`)
+  - Keywords usage reference: `apps/frontend/src/features/feed-publisher/ui/keywords-section.tsx:77` (`const sourceOptions = sources ?? [];`) and `:200-205` (`<SourceMultiSelect ids={newSourceChannelIds} onChange={setNewSourceChannelIds} sourceOptions={sourceOptions} disabled={createMut.isPending} />`)
+  - `sources` is fetched at: `blacklist-manager.tsx:183` (`const { data: sources } = useFeedSources()`)
   - Frontend tests: `npm run test:frontend` (Vitest)
     Acceptance criteria (agent-executable):
   - `npm run test:frontend` passes

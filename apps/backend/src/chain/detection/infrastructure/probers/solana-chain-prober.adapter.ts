@@ -4,7 +4,7 @@ import {
   ChainProberPort,
   ProbeResult,
 } from 'chain/detection/domain/ports/chain-prober.port';
-import { SolanaRpcService } from 'data-provider/solana-rpc/solana-rpc.service';
+import { SolanaRpcService } from '../../../../../../market-data/src/provider/infrastructure/solana-rpc/solana-rpc.service';
 
 @Injectable()
 export class SolanaChainProberAdapter extends ChainProberPort {

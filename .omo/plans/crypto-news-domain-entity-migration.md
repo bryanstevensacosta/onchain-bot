@@ -22,13 +22,13 @@ All 9 phases of Strategy 1 (Pure DTO) have been successfully completed:
 
 **Final State:**
 
-- Backend has ZERO duplicate crypto-news entities
+- Backend has ZERO duplicate feed entities
 - Backend uses DTOs only (no entity dependencies)
 - All tests pass (1969 backend tests green)
 - TypeScript compiles with zero errors
 - Documentation reflects new architecture
 
-**Spec Reference:** `.kiro/specs/crypto-news-entity-cleanup/`
+**Spec Reference:** `.kiro/specs/feed-entity-cleanup/`
 
 ---
 

@@ -1,4 +1,4 @@
-# Git Branch Governance — Alpha Meta Token Scanner
+# Git Branch Governance — Onchain Bot
 
 **Version:** 2.0  
 **Date:** 2026-08-29  

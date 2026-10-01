@@ -1,3 +1,8 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/queue/ + apps/feed-publisher/src/llm/ + apps/feed-publisher/src/keywords/ (Tramo 2, todos 3+4+5 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add queue/llm/keywords logic in apps/feed-publisher/src/{queue,llm,keywords}/ instead.
+ */
 import { Logger } from '@nestjs/common';
 import { request as httpsRequest } from 'node:https';
 import type { SendResult } from 'telegram/shared';
@@ -10,6 +15,12 @@ import type { SendResult } from 'telegram/shared';
  * `https` module — no external HTTP client dependency needed.
  *
  * Composed manually by `BotApiCryptoNewsPublisherAdapter` (not @Injectable).
+ *
+ * @deprecated Transport moves to the telegram-bots-gateway (todo 5):
+ * feed-publisher `GatewaySendClient` → `POST /api/bots/:id/send`
+ * (gateway owns the Bot API transport + global quota + 429 backoff).
+ * Backend legacy copy; removed at the global cutover (gateway todo 7).
+ * Do not extend.
  */
 export class BotApiHttpClient {
   constructor(

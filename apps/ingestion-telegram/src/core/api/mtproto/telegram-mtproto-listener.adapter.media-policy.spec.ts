@@ -41,9 +41,9 @@ async function primeChannelCache(
 ): Promise<void> {
   await (
     adapter as unknown as {
-      refreshCryptoNewsChannelCache: () => Promise<void>;
+      refreshFeedChannelCache: () => Promise<void>;
     }
-  ).refreshCryptoNewsChannelCache();
+  ).refreshFeedChannelCache();
 }
 
 function transformMessage(
@@ -117,12 +117,12 @@ describe('TelegramMtprotoListenerAdapter media policy (item 9: KOL never downloa
     }
   });
 
-  it('crypto-news message WITH media triggers exactly 1 download (same payload, only type differs)', async () => {
+  it('feed message WITH media triggers exactly 1 download (same payload, only type differs)', async () => {
     const downloaded = [
       {
         type: 'photo',
         index: 0,
-        filePath: '/uploads/feed/media/x.jpg',
+        filePath: '/uploads/feed-media/x.jpg',
         mimeType: 'image/jpeg',
         fileSize: 1234,
       },

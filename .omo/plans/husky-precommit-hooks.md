@@ -239,7 +239,7 @@ Wave 3: Verify all hooks + docs check (sequential — depends on all configs + h
      Must NOT: no incluir build, lint, ni type-check aquí (ya cubiertos en pre-commit y CI)
      Parallelization: Wave 2 | Blocked by: 1, 2 | Blocks: 7
      References:
-  - `package.json:20` (script test: `npm run test -w @alpha-meta-token-scanner/backend --if-present && npm run test -w @alpha-meta-token-scanner/frontend --if-present`)
+  - `package.json:20` (script test: `npm run test -w @onchain-bot/backend --if-present && npm run test -w @onchain-bot/frontend --if-present`)
   - Backend tests: Jest con `--forceExit --testTimeout=30s` (~306 tests)
   - Frontend tests: Vitest run
     Acceptance criteria (agent-executable):
@@ -266,7 +266,7 @@ Wave 3: Verify all hooks + docs check (sequential — depends on all configs + h
     //   L0 = Proyecto root
     //   L1 = App (backend, frontend)
     //   L2 = Bounded Context (telegram, token, kol, ...) ← STOP level
-    //   L3 = Sub-BC (vip-calls, chain-dexter-bot, crypto-news, ...)
+    //   L3 = Sub-BC (vip-calls, chain-dexter-bot, feed, ...)
     //   L4+ = Módulo interno (shared, ingestion, ...)
     //
     // Regla: al cambiar un archivo, se reportan todos los AGENTS.md

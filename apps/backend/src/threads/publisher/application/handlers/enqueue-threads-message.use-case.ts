@@ -1,3 +1,8 @@
+/**
+ * @deprecated Moved to apps/feed-publisher/src/threads/ (Tramo 2, todo 8 + P18 companion).
+ * Backend legacy copy; stays wired for dual-run and is removed at cutover (todo 11).
+ * Do not extend — add threads logic in apps/feed-publisher/src/threads/ instead.
+ */
 import { Injectable, Logger } from '@nestjs/common';
 import { isBlockingFailureReason } from 'shared/deduplication/domain/constants/blocking-failure-reasons';
 import { ThreadsQueueEntry } from 'threads/publisher/domain/entities/threads-queue-entry.entity';
@@ -86,10 +91,7 @@ export class EnqueueThreadsMessageUseCase {
       message.messageId,
     );
     if (duplicate !== null) {
-      if (
-        duplicate.status === 'PENDING' ||
-        duplicate.status === 'PUBLISHED'
-      ) {
+      if (duplicate.status === 'PENDING' || duplicate.status === 'PUBLISHED') {
         this.logger.debug(
           `message ${message.channelId}:${message.messageId} already ${duplicate.status} — skipping`,
         );

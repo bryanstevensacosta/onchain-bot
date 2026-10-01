@@ -1,5 +1,5 @@
 -- =====================================================================
--- alpha-meta-token-scanner :: Score Evolution (last 24h)
+-- onchain-bot :: Score Evolution (last 24h)
 -- =====================================================================
 -- Cuántos scores se han generado por hora en las últimas 24h.
 -- =====================================================================

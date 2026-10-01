@@ -1,3 +1,29 @@
+// Register tsconfig paths BEFORE any imports (runtime: tsc emits
+// alias specifiers like 'feed-media/...' verbatim; node cannot resolve
+// them without this — mirrors apps/backend/src/main.ts pattern).
+// __dirname is dist/src/, paths resolve relative to it.
+import { register } from 'tsconfig-paths';
+
+register({
+  baseUrl: __dirname,
+  paths: {
+    '@/*': ['*'],
+    'shared/kernel/*': ['shared/kernel/*'],
+    'shared/common/*': ['shared/common/*'],
+    'shared/*': ['shared/*'],
+    'registry/*': ['registry/*'],
+    'feed/*': ['feed/*'],
+    'retention/*': ['retention/*'],
+    'core/*': ['core/*'],
+    'metadata/*': ['metadata/*'],
+    'debug/*': ['debug/*'],
+    'stream/*': ['stream/*'],
+    'feed-media/*': ['feed-media/*'],
+    'health/*': ['health/*'],
+    'src/*': ['*'],
+  },
+});
+
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, type INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -80,6 +106,17 @@ async function bootstrap() {
   // Canonical port reader (gap 12): INGESTION_PORT > INGESTION_API_PORT
   // (deprecated) > PORT (deprecated) > 3031. Single source in app.config.
   const port = resolveIngestionPort();
+
+  // sec1 M2: trust proxy ONLY when explicitly enabled (TRUST_PROXY=true).
+  // Lets Express + the rate limiter honor x-forwarded-for-first; default
+  // OFF so untrusted clients cannot spoof their rate-limit identity.
+  if (process.env.TRUST_PROXY === 'true') {
+    const server = app.getHttpAdapter().getInstance() as {
+      set?: (key: string, value: unknown) => void;
+    };
+    server.set?.('trust proxy', 1);
+  }
+
   setupFeedDocs(app);
   await app.listen(port);
 

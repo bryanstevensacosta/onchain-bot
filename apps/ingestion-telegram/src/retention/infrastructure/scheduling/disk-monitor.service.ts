@@ -23,7 +23,7 @@ export const DISK_WARN_THRESHOLD_PERCENT = 80;
 export const DISK_CRITICAL_THRESHOLD_PERCENT = 90;
 
 /**
- * DiskMonitorService — disk-pressure probe for the crypto-news janitor.
+ * DiskMonitorService — disk-pressure probe for the feed janitor.
  *
  * - `getDiskUsage()` reads `fs.statfs(uploadsRoot)` and returns percent
  *   used (0-100).
@@ -32,7 +32,7 @@ export const DISK_CRITICAL_THRESHOLD_PERCENT = 90;
  *   continue.
  *
  * Uploads root resolution mirrors
- * `CryptoNewsRetentionCleanupScheduler.cleanupOrphanFiles()`:
+ * `FeedRetentionCleanupScheduler.cleanupOrphanFiles()`:
  * `app.uploads.root` ?? `app.uploadsRoot` ?? `'uploads'`.
  */
 @Injectable()

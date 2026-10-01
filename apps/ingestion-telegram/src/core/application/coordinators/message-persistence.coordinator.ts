@@ -1,15 +1,18 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { StreamService } from 'stream/application/services/stream.service';
 import { DeduplicationService } from 'core/application/services/deduplication.service';
 import { LastSeenManager } from 'core/infrastructure/services/last-seen-manager.service';
 import { TelegramFeedMessageRepository } from 'feed/infrastructure/persistence/typeorm/repositories/telegram-feed-message.repository';
+import { TelegramFeedSourceRepository } from 'registry/infrastructure/persistence/typeorm/repositories/typeorm-feed-source.repository';
 import { TelegramFeedMessageEntity } from 'feed/infrastructure/persistence/typeorm/entities/telegram-feed-message.entity';
 import { TelegramFeedMessageMediaEntity } from 'feed/infrastructure/persistence/typeorm/entities/telegram-feed-message-media.entity';
 import type {
   MessagePayload,
   MediaPayload,
 } from 'core/domain/types/message-payload';
+import { kolAvatarUrlFor, sourceUrlFor } from 'src/avatar/avatar.constants';
+import { MetadataRepository } from 'metadata/metadata.repository';
 import { randomUUID } from 'crypto';
 
 /**
@@ -77,8 +80,10 @@ export class MessagePersistenceCoordinator {
     private readonly streamService: StreamService,
     private readonly deduplicationService: DeduplicationService,
     private readonly lastSeenManager: LastSeenManager,
-    private readonly cryptoNewsMessageRepo: TelegramFeedMessageRepository,
+    private readonly feedMessageRepo: TelegramFeedMessageRepository,
     private readonly config: ConfigService,
+    @Optional() private readonly sources?: TelegramFeedSourceRepository,
+    @Optional() private readonly metadata?: MetadataRepository,
   ) {
     // Load API base URL from config (e.g., "http://localhost:3031")
     const appConfig = this.config.get('app');
@@ -126,8 +131,11 @@ export class MessagePersistenceCoordinator {
       await this.persistFeedMessage(raw, messageType);
 
       // Per ADR adr-kol-raw-text.md (Q1-B): payload.text carries raw text for
-      // BOTH types (KOL text no longer stripped).
-      const payload = this.transformToPayload(raw, messageType);
+      // BOTH types (KOL text no longer stripped). P57 enriches the frame
+      // with the source row's handle/avatarUrl/sourceUrl (read-only,
+      // fail-open — enrichment never gates the broadcast).
+      const enrichment = await this.resolveSourceEnrichment(raw.peerId);
+      const payload = this.transformToPayload(raw, messageType, enrichment);
 
       // Per Requirement 9.1: Structured logging for incoming messages
       this.logger.log({
@@ -178,7 +186,7 @@ export class MessagePersistenceCoordinator {
    * This is the SINGLE SOURCE OF TRUTH - backends query via HTTP API, NO replication.
    *
    * Per policy C2: KOL rows persist content RAW with NO media rows and NO
-   * download (the media gate lives in the adapter: isCryptoNewsChannel branch).
+   * download (the media gate lives in the adapter: isFeedChannel branch).
    *
    * Idempotency: Skip if message already exists (duplicate ingestion check).
    *
@@ -191,11 +199,10 @@ export class MessagePersistenceCoordinator {
   ): Promise<void> {
     try {
       // Check for duplicate (idempotency)
-      const existing =
-        await this.cryptoNewsMessageRepo.findByChannelAndMessageId(
-          raw.peerId,
-          raw.messageId,
-        );
+      const existing = await this.feedMessageRepo.findByChannelAndMessageId(
+        raw.peerId,
+        raw.messageId,
+      );
 
       if (existing) {
         this.logger.debug(
@@ -226,8 +233,8 @@ export class MessagePersistenceCoordinator {
         : null;
       messageEntity.groupedId = raw.groupedId?.toString() ?? null;
 
-      // Media rows ONLY for crypto-news (policy C2: KOL persists no media).
-      // The adapter gate (isCryptoNewsChannel) already skips KOL downloads,
+      // Media rows ONLY for feed (policy C2: KOL persists no media).
+      // The adapter gate (isFeedChannel) already skips KOL downloads,
       // so raw.media is expected empty for kol; this branch is defense-in-depth.
       messageEntity.media =
         messageType === 'crypto-news'
@@ -246,7 +253,7 @@ export class MessagePersistenceCoordinator {
           : [];
 
       // Save to database (media rows saved automatically via cascade)
-      await this.cryptoNewsMessageRepo.save(messageEntity);
+      await this.feedMessageRepo.save(messageEntity);
 
       this.logger.log(
         `Persisted ${messageType} message: ${raw.peerId}:${raw.messageId} (${messageEntity.media.length} media)`,
@@ -261,6 +268,52 @@ export class MessagePersistenceCoordinator {
   }
 
   /**
+   * Read-only source-row lookup for SSE enrichment (central todo 12, P57;
+   * P58: metadata-first, registry mirror as fallback).
+   *
+   * Identity is OWNED by `metadata/` and referenced by id — this lookup
+   * holds no local copy of handle/photo. Fail-open by design: unknown
+   * channels and DB trouble resolve to nulls (the frame still broadcasts
+   * with `handle: null` + a servable `avatarUrl`). Never writes, never
+   * throws past this boundary.
+   */
+  private async resolveSourceEnrichment(channelId: string): Promise<{
+    handle: string | null;
+    sourceUrl: string | null;
+  }> {
+    if (this.metadata) {
+      try {
+        const meta = await this.metadata.findByChannelId(channelId);
+        if (meta) {
+          const handle = meta.handle ?? null;
+          return { handle, sourceUrl: sourceUrlFor(handle) };
+        }
+      } catch (error) {
+        this.logger.warn(
+          `SSE metadata lookup failed for ${channelId} (${error instanceof Error ? error.message : String(error)}) — falling back to registry mirror`,
+        );
+      }
+    }
+    if (!this.sources) {
+      return { handle: null, sourceUrl: null };
+    }
+    try {
+      const row = await this.sources.findByChannelId(channelId);
+      if (!row) {
+        return { handle: null, sourceUrl: null };
+      }
+      const handle = row.handle ?? null;
+      const storedUrl = (row as { url?: string | null }).url ?? null;
+      return { handle, sourceUrl: storedUrl ?? sourceUrlFor(handle) };
+    } catch (error) {
+      this.logger.warn(
+        `SSE enrichment lookup failed for ${channelId} (${error instanceof Error ? error.message : String(error)}) — broadcasting unenriched`,
+      );
+      return { handle: null, sourceUrl: null };
+    }
+  }
+
+  /**
    * Transform TelegramRawMessage to MessagePayload
    *
    * Per ADR adr-kol-raw-text.md (Q1-B): text carried for BOTH types.
@@ -268,11 +321,16 @@ export class MessagePersistenceCoordinator {
    *
    * @param raw - Raw message from MTProto listener
    * @param messageType - Message type discriminator
+   * @param enrichment - Source display fields (handle/sourceUrl; avatarUrl derives from peerId)
    * @returns SSE-safe payload (text included for BOTH types)
    */
   private transformToPayload(
     raw: TelegramRawMessage,
     messageType: 'kol' | 'crypto-news',
+    enrichment: { handle: string | null; sourceUrl: string | null } = {
+      handle: null,
+      sourceUrl: null,
+    },
   ): MessagePayload {
     // REDACTED (Q1-B): log shape only — raw text NEVER hits disk logs.
     this.logger.debug(
@@ -291,6 +349,11 @@ export class MessagePersistenceCoordinator {
       messageType,
       // Q1-B: raw text carried for BOTH types (missing → '').
       text: raw.text ?? '',
+      // P57: source display enrichments (additive — consumers must ignore
+      // unknown fields; routing keys on messageType only).
+      handle: enrichment.handle,
+      avatarUrl: kolAvatarUrlFor(raw.peerId),
+      sourceUrl: enrichment.sourceUrl,
     };
 
     // REDACTED (Q1-B): log shape only.

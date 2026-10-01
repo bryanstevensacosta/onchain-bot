@@ -1,10 +1,10 @@
 # Recipe — Extraer el Core a un Nuevo Repositorio
 
-> Receta paso a paso para clonar los 14 BCs del core desde el repo actual de `alpha-meta-token-scanner` a un nuevo repositorio `spydefi-core` (o el nombre que decidas). El objetivo: dos repos separados, motor idéntico, y cero deuda técnica cruzada.
+> Receta paso a paso para clonar los 14 BCs del core desde el repo actual de `onchain-bot` a un nuevo repositorio `spydefi-core` (o el nombre que decidas). El objetivo: dos repos separados, motor idéntico, y cero deuda técnica cruzada.
 
 ## Prerrequisitos
 
-- Acceso al repo `alpha-meta-token-scanner`.
+- Acceso al repo `onchain-bot`.
 - Permisos para crear un repo nuevo en el proveedor Git que uses.
 - Node 20+, npm 10+.
 - Conocimiento de la convención de BCs descrita en [`08-file-structure.md`](08-file-structure.md).
@@ -31,7 +31,7 @@ npm init -y
 
 ## Paso 2 — Copiar configuración base del proyecto
 
-Copia desde `alpha-meta-token-scanner`:
+Copia desde `onchain-bot`:
 
 - `package.json` (luego ajusta `name`, `version`, `description`).
 - `tsconfig.json` + `tsconfig.build.json`.
@@ -53,28 +53,29 @@ Renombra en `package.json`:
 
 ## Paso 3 — Copiar esta carpeta `docs/`
 
-Copia **toda** la carpeta `docs/spydefi/arch/` de `alpha-meta-token-scanner` a la raíz del nuevo repo como `docs/arch/`:
+Copia **toda** la carpeta `docs/spydefi/arch/` de `onchain-bot` a la raíz del nuevo repo como `docs/arch/`:
 
 ```bash
-cp -R ../alpha-meta-token-scanner/apps/backend/docs/spydefi/arch ./docs/arch
+cp -R ../onchain-bot/apps/backend/docs/spydefi/arch ./docs/arch
 ```
 
 Añade también el `README-BC-GUIDE.md` (es el que rige cómo escribir los READMEs de los BCs):
 
 ```bash
 mkdir -p docs/proyect
-cp ../alpha-meta-token-scanner/apps/backend/docs/proyect/README-BC-GUIDE.md ./docs/proyect/README-BC-GUIDE.md
+cp ../onchain-bot/apps/backend/docs/proyect/README-BC-GUIDE.md ./docs/proyect/README-BC-GUIDE.md
 ```
 
 ## Paso 4 — Copiar `src/shared/`
 
-`shared` no es un BC, es el núcleo transversal. Cópialo **entero** desde `alpha-meta-token-scanner/apps/backend/src/shared/`:
+`shared` no es un BC, es el núcleo transversal. Cópialo **entero** desde `onchain-bot/apps/backend/src/shared/`:
 
 ```bash
-cp -R ../alpha-meta-token-scanner/apps/backend/src/shared ./src/shared
+cp -R ../onchain-bot/apps/backend/src/shared ./src/shared
 ```
 
 Verifica que existe:
+
 - `src/shared/domain/aggregate-root.ts`
 - `src/shared/domain/entity.ts`
 - `src/shared/domain/value-object.ts`
@@ -90,31 +91,31 @@ Ejecuta desde la raíz del nuevo repo:
 
 ```bash
 # Telegram
-cp -R ../alpha-meta-token-scanner/apps/backend/src/telegram/ingestion  ./src/telegram/ingestion
-cp -R ../alpha-meta-token-scanner/apps/backend/src/telegram/publishing ./src/telegram/publishing
+cp -R ../onchain-bot/apps/backend/src/telegram/ingestion  ./src/telegram/ingestion
+cp -R ../onchain-bot/apps/backend/src/telegram/publishing ./src/telegram/publishing
 
 # Token
-cp -R ../alpha-meta-token-scanner/apps/backend/src/token/intake/extraction       ./src/token/intake/extraction
-cp -R ../alpha-meta-token-scanner/apps/backend/src/token/intake/parsing          ./src/token/intake/parsing
-cp -R ../alpha-meta-token-scanner/apps/backend/src/token/normalization           ./src/token/normalization
-cp -R ../alpha-meta-token-scanner/apps/backend/src/token/market-data/enrichment  ./src/token/market-data/enrichment
-cp -R ../alpha-meta-token-scanner/apps/backend/src/token/classification          ./src/token/classification
-cp -R ../alpha-meta-token-scanner/apps/backend/src/token/scoring                 ./src/token/scoring
-cp -R ../alpha-meta-token-scanner/apps/backend/src/token/honeypot                ./src/token/honeypot
-cp -R ../alpha-meta-token-scanner/apps/backend/src/token/token-gating/filters    ./src/token/token-gating/filters
-cp -R ../alpha-meta-token-scanner/apps/backend/src/token/call-tracking           ./src/token/call-tracking
-cp -R ../alpha-meta-token-scanner/apps/backend/src/token/channel-reputation      ./src/token/channel-reputation
+cp -R ../onchain-bot/apps/backend/src/token/intake/extraction       ./src/token/intake/extraction
+cp -R ../onchain-bot/apps/backend/src/token/intake/parsing          ./src/token/intake/parsing
+cp -R ../onchain-bot/apps/backend/src/token/normalization           ./src/token/normalization
+cp -R ../onchain-bot/apps/backend/src/token/market-data/enrichment  ./src/token/market-data/enrichment
+cp -R ../onchain-bot/apps/backend/src/token/classification          ./src/token/classification
+cp -R ../onchain-bot/apps/backend/src/token/scoring                 ./src/token/scoring
+cp -R ../onchain-bot/apps/backend/src/token/honeypot                ./src/token/honeypot
+cp -R ../onchain-bot/apps/backend/src/token/token-gating/filters    ./src/token/token-gating/filters
+cp -R ../onchain-bot/apps/backend/src/token/call-tracking           ./src/token/call-tracking
+cp -R ../onchain-bot/apps/backend/src/token/channel-reputation      ./src/token/channel-reputation
 
 # Chain
-cp -R ../alpha-meta-token-scanner/apps/backend/src/chain/detection ./src/chain/detection
-cp -R ../alpha-meta-token-scanner/apps/backend/src/chain/registry  ./src/chain/registry
+cp -R ../onchain-bot/apps/backend/src/chain/detection ./src/chain/detection
+cp -R ../onchain-bot/apps/backend/src/chain/registry  ./src/chain/registry
 ```
 
 > **No copies** `src/token/identity/` salvo que forme parte del core (verifica con `ls`). Si existe y solo se usa en producto, déjalo fuera.
 
 ## Paso 6 — Reescribir `src/app.module.ts`
 
-Toma el `app.module.ts` de `alpha-meta-token-scanner/apps/backend/src/app.module.ts` y:
+Toma el `app.module.ts` de `onchain-bot/apps/backend/src/app.module.ts` y:
 
 1. Elimina los imports y módulos que correspondan a producto (si los hay).
 2. Asegúrate de que solo estén los **14 BCs** del core listados en [`12-spydefi-core-overview.md`](12-spydefi-core-overview.md).
@@ -147,8 +148,17 @@ import { ChannelReputationModule } from 'token/channel-reputation/channel-reputa
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, envFilePath: ['.env'], load: [appConfig] }),
-    EventEmitterModule.forRoot({ global: true, wildcard: false, delimiter: '.', maxListeners: 32 }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: ['.env'],
+      load: [appConfig],
+    }),
+    EventEmitterModule.forRoot({
+      global: true,
+      wildcard: false,
+      delimiter: '.',
+      maxListeners: 32,
+    }),
     ScheduleModule.forRoot(),
     DatabaseModule.forRootFromEnv(),
     TelegramIngestionModule,
@@ -209,7 +219,7 @@ Algunos archivos del core mencionan el nombre del proyecto. Búscalos y renómbr
 
 ```bash
 # desde la raíz del nuevo repo
-grep -rl "alpha-meta-token-scanner" src/ | xargs sed -i '' 's/alpha-meta-token-scanner/spydefi-core/g'
+grep -rl "onchain-bot" src/ | xargs sed -i '' 's/onchain-bot/spydefi-core/g'
 grep -rl "AlphaMetaTokenScanner" src/ | xargs sed -i '' 's/AlphaMetaTokenScanner/SpydefiCore/g'
 grep -rl "AlphaMetaTokenScanner" src/ | xargs sed -i '' 's/AlphaMetaTokenScanner/SpyDefiCore/g'
 ```
@@ -278,8 +288,8 @@ Este repo contiene los 14 Bounded Contexts del pipeline `ca` (contract analysis)
 
 \`\`\`bash
 npm install
-cp .env.example .env  # editar valores
-docker compose up -d  # si usas Postgres
+cp .env.example .env # editar valores
+docker compose up -d # si usas Postgres
 npm run start:dev
 \`\`\`
 
@@ -293,10 +303,10 @@ npm run start:dev
 
 \`\`\`
 src/
-├── telegram/         # ingestion, publishing
-├── token/            # intake, normalization, market-data, classification, scoring, honeypot, token-gating, call-tracking, channel-reputation
-├── chain/            # detection, registry
-└── shared/           # DDD primitives, errors, config
+├── telegram/ # ingestion, publishing
+├── token/ # intake, normalization, market-data, classification, scoring, honeypot, token-gating, call-tracking, channel-reputation
+├── chain/ # detection, registry
+└── shared/ # DDD primitives, errors, config
 \`\`\`
 ```
 
@@ -352,7 +362,7 @@ A partir de aquí:
 - [ ] 14 BCs copiados.
 - [ ] `src/app.module.ts` reescrito con solo los 14 BCs.
 - [ ] Aliases `paths` en `tsconfig.json` y `jest.moduleNameMapper` ajustados.
-- [ ] Referencias a `alpha-meta-token-scanner` renombradas.
+- [ ] Referencias a `onchain-bot` renombradas.
 - [ ] `.env.example` creado.
 - [ ] `AppController` mínimo (`/health`).
 - [ ] `README.md` del nuevo repo escrito.

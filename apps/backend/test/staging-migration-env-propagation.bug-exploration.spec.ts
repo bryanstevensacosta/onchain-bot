@@ -172,7 +172,7 @@ describe('Staging Migration Environment Propagation - Bug Condition', () => {
    *
    * Probe: `SELECT 1` via psql with a short timeout (<=10s) against the same
    * defaults the compiled data-source falls back to in local
-   * (`localhost:5432` / `alpha_meta_token_scanner`, see `data-source.ts:35-39`;
+   * (`localhost:5432` / `onchain_bot`, see `data-source.ts:35-39`;
    * the CLI only reads `.env`, never `.env.staging`).
    * NOTE: `pg_isready` alone is NOT a sufficient probe — it reports "accepting
    * connections" even when the datadir is read-only; the query-level `SELECT 1`
@@ -191,8 +191,8 @@ describe('Staging Migration Environment Propagation - Bug Condition', () => {
     // ARRANGE - pre-flight probe (query-level, short timeout, no migration run)
     const probeHost = process.env.POSTGRES_HOST ?? 'localhost';
     const probePort = process.env.POSTGRES_PORT ?? '5432';
-    const probeUser = process.env.POSTGRES_USER ?? 'alpha_meta_token_scanner';
-    const probeDb = process.env.POSTGRES_DB ?? 'alpha_meta_token_scanner';
+    const probeUser = process.env.POSTGRES_USER ?? 'onchain_bot';
+    const probeDb = process.env.POSTGRES_DB ?? 'onchain_bot';
     let databaseLive = false;
     try {
       execSync(
@@ -204,8 +204,7 @@ describe('Staging Migration Environment Propagation - Bug Condition', () => {
           timeout: 8000,
           env: {
             ...stagingEnv(),
-            PGPASSWORD:
-              process.env.POSTGRES_PASSWORD ?? 'alpha_meta_token_scanner',
+            PGPASSWORD: process.env.POSTGRES_PASSWORD ?? 'onchain_bot',
           },
         },
       );

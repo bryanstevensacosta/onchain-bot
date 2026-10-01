@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { Logger } from '@nestjs/common';
 import { TelegramSseListenerAdapter } from './telegram-sse-listener.adapter';
-import { TelegramRawMessage } from '../../domain/ports/telegram-listener.port';
+import { TelegramRawMessage } from '@/telegram/ingestion/shared/domain/ports/telegram-listener.port';
 import { ProcessCryptoNewsMessageHandler } from 'telegram/crypto-news-integration/application/handlers/process-crypto-news-message.handler';
 
 /**

@@ -1,5 +1,5 @@
 -- =====================================================================
--- alpha-meta-token-scanner :: Recent Evaluation Errors
+-- onchain-bot :: Recent Evaluation Errors
 -- =====================================================================
 -- Últimos errores registrados en jobs de evaluación.
 -- =====================================================================

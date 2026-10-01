@@ -232,8 +232,8 @@ Your next move: **approve** the plan to proceed, or request a high-accuracy revi
   export class TelegramMediaDownloadService {
     constructor(
       private readonly floodWaitHandler: FloodWaitHandlerService,
-      @Inject(forwardRef(() => CryptoNewsMediaDownloader))
-      private readonly mediaDownloader: CryptoNewsMediaDownloader,
+      @Inject(forwardRef(() => FeedMediaDownloader))
+      private readonly mediaDownloader: FeedMediaDownloader,
       private readonly peerResolver: TelegramPeerResolver,
       private readonly clientManager: TelegramClientManager,
     ) {}
@@ -264,7 +264,7 @@ Your next move: **approve** the plan to proceed, or request a high-accuracy revi
   ```
 
   Must NOT: Change the download/retry logic at all — moving it, not changing behavior.
-  Must NOT: Remove the `forwardRef(() => CryptoNewsMediaDownloader)` — circular dep exists.
+  Must NOT: Remove the `forwardRef(() => FeedMediaDownloader)` — circular dep exists.
 
   Parallelization: Wave 3 | Blocked by: T3, T4 | Blocks: T8
   References: `telegram-mtproto-listener.adapter.ts:475-623`
