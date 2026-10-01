@@ -1,6 +1,6 @@
 import { MigrateBotsToGatewayUseCase } from './migrate-bots-to-gateway.use-case';
-import { GatewayBotMappingService } from '@/telegram/infrastructure/gateway/gateway-bot-mapping.service';
-import { GatewayHmacSigner } from '@/telegram/infrastructure/gateway/gateway-hmac-signer.service';
+import { GatewayBotMappingService } from '@/gateway/infrastructure/gateway/gateway-bot-mapping.service';
+import { GatewayHmacSigner } from '@/gateway/infrastructure/gateway/gateway-hmac-signer.service';
 
 function mockFetchOnce(payload: unknown, ok = true, status = 200): jest.Mock {
   const fn = jest.fn().mockResolvedValue({

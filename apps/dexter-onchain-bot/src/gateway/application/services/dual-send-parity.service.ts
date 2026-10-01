@@ -1,5 +1,5 @@
 import { ConflictException, Injectable } from '@nestjs/common';
-import type { DexterGatewaySendResult } from '@/telegram/domain/ports/bots-gateway-sender.port';
+import type { DexterGatewaySendResult } from '@/gateway/domain/ports/bots-gateway-sender.port';
 
 export interface DexterSendOutcome {
   readonly ok: boolean;

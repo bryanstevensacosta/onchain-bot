@@ -3,7 +3,7 @@ import type {
   CommandContext,
   CommandHandler,
 } from '@/commands/domain/ports/command-handler.port';
-import { TelegramBotClient } from '@/telegram/infrastructure/telegram/bot-client';
+import { TelegramBotClient } from '@/gateway/infrastructure/telegram/bot-client';
 import { TokenScanPipeline } from '@/scan/application/pipeline/token-scan.pipeline';
 import { VALID_TIMEFRAMES } from './c-token-chart.handler';
 import { TemplateRendererService } from '@/placeholders/application/template-renderer.service';

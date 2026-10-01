@@ -11,7 +11,7 @@ import {
 import { timingSafeEqual } from 'node:crypto';
 import { DexterBotConfigService } from '@/settings/infrastructure/config/bot.config';
 import { CommandRouterService } from '@/commands/application/router/command-router.service';
-import type { TelegramUpdate } from '@/telegram/domain/ports/telegram.port';
+import type { TelegramUpdate } from '@/gateway/domain/ports/telegram.port';
 
 /**
  * Gateway fan-out ingress (telegram-bots-gateway todo 6).

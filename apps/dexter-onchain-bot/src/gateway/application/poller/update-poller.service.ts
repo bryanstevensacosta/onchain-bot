@@ -9,7 +9,7 @@ import { CommandRouterService } from '@/commands/application/router/command-rout
 import {
   TelegramBotClient,
   TelegramUpdate,
-} from '@/telegram/infrastructure/telegram/bot-client';
+} from '@/gateway/infrastructure/telegram/bot-client';
 
 /**
  * Update poller (moved from backend chain-dexter-bot

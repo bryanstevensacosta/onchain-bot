@@ -1,7 +1,7 @@
 import { CommandRouterService } from './command-router.service';
 import { DEFAULT_CHAT_SETTINGS } from '@/settings/domain/chat-settings';
 import { extractForwardCandidates } from '@/scan/domain/extractor/forward-extractor';
-import type { TelegramUpdate } from '@/telegram/domain/ports/telegram.port';
+import type { TelegramUpdate } from '@/gateway/domain/ports/telegram.port';
 import { BareAddressHandler } from '../handlers/bare-address.handler';
 import { MessageTemplate } from '@/templates/domain/message-template.entity';
 import type { TemplateCommand } from '@/placeholders/domain/placeholder-registry';

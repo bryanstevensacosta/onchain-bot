@@ -1,5 +1,5 @@
-import { DexterBotBindingService } from '@/telegram/application/dexter-bot-binding.service';
-import { GatewayBotMappingService } from '@/telegram/infrastructure/gateway/gateway-bot-mapping.service';
+import { DexterBotBindingService } from '@/gateway/application/dexter-bot-binding.service';
+import { GatewayBotMappingService } from '@/gateway/infrastructure/gateway/gateway-bot-mapping.service';
 
 function mockFetchOnce(payload: unknown, ok = true, status = 200): jest.Mock {
   const fn = jest.fn().mockResolvedValue({

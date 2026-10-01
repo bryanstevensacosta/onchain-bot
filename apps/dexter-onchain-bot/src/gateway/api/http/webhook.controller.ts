@@ -13,7 +13,7 @@ import type { Request } from 'express';
 import { DexterBotConfigService } from '@/settings/infrastructure/config/bot.config';
 import { CommandRouterService } from '@/commands/application/router/command-router.service';
 import { UserRateLimiter } from '@/commands/application/rate-limit/user-rate-limiter';
-import type { TelegramUpdate } from '@/telegram/domain/ports/telegram.port';
+import type { TelegramUpdate } from '@/gateway/domain/ports/telegram.port';
 
 /**
  * Webhook controller (moved from backend chain-dexter-bot
@@ -21,7 +21,7 @@ import type { TelegramUpdate } from '@/telegram/domain/ports/telegram.port';
  *
  * @deprecated Direct ingress retires at the global cutover (gateway todo 7):
  * prefer the gateway fan-out target `POST /dexter/ingress`
- * (`apps/dexter-onchain-bot/src/telegram/api/http/ingress.controller.ts`,
+ * (`apps/dexter-onchain-bot/src/gateway/api/http/ingress.controller.ts`,
  * telegram-bots-gateway todo 3/6). Stays live for the dual leg only.
  * Do not extend.
  *

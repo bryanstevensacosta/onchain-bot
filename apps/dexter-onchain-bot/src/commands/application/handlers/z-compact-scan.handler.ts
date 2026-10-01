@@ -4,7 +4,7 @@ import type {
   CommandHandler,
 } from '@/commands/domain/ports/command-handler.port';
 import { MessageFormatterAdapter } from '@/scan/infrastructure/formatter/message-formatter';
-import { TelegramBotClient } from '@/telegram/infrastructure/telegram/bot-client';
+import { TelegramBotClient } from '@/gateway/infrastructure/telegram/bot-client';
 import { TokenScanPipeline } from '@/scan/application/pipeline/token-scan.pipeline';
 import type { ResolvedToken } from '@/scan/domain/ports/scan-pipeline.port';
 import { TemplateRendererService } from '@/placeholders/application/template-renderer.service';

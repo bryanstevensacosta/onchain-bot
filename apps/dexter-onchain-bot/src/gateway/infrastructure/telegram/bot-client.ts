@@ -6,13 +6,13 @@ import { randomUUID } from 'node:crypto';
 import { DexterBotConfigService } from '@/settings/infrastructure/config/bot.config';
 import { GatewaySendClient } from '../gateway/gateway-send-client.service';
 import { GatewayBotMappingService } from '../gateway/gateway-bot-mapping.service';
-import { DualSendParityService } from '@/telegram/application/services/dual-send-parity.service';
+import { DualSendParityService } from '@/gateway/application/services/dual-send-parity.service';
 import type {
   SendMessageOptions,
   TelegramResponse,
   TelegramUpdate,
   TelegramUser,
-} from '@/telegram/domain/ports/telegram.port';
+} from '@/gateway/domain/ports/telegram.port';
 
 export type {
   InlineKeyboardButton,
@@ -24,7 +24,7 @@ export type {
   TelegramResponse,
   TelegramUpdate,
   TelegramUser,
-} from '@/telegram/domain/ports/telegram.port';
+} from '@/gateway/domain/ports/telegram.port';
 
 /**
  * Telegram Bot API types + client.

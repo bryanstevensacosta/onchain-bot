@@ -1,6 +1,6 @@
 import { TelegramBotClient } from './bot-client';
 import { GatewayBotMappingService } from '../gateway/gateway-bot-mapping.service';
-import { DualSendParityService } from '@/telegram/application/services/dual-send-parity.service';
+import { DualSendParityService } from '@/gateway/application/services/dual-send-parity.service';
 
 function makeClient(opts: {
   botVaultId?: string;

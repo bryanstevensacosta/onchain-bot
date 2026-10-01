@@ -1,26 +1,26 @@
 import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { DexterBotConfigService } from './settings/infrastructure/config/bot.config';
-import { TelegramBotClient } from './telegram/infrastructure/telegram/bot-client';
-import { TradeButtonRegistry } from './telegram/infrastructure/keyboard/trade-button-registry';
-import { InlineKeyboardBuilder } from './telegram/infrastructure/keyboard/inline-keyboard.builder';
+import { TelegramBotClient } from './gateway/infrastructure/telegram/bot-client';
+import { TradeButtonRegistry } from './gateway/infrastructure/keyboard/trade-button-registry';
+import { InlineKeyboardBuilder } from './gateway/infrastructure/keyboard/inline-keyboard.builder';
 import { MessageFormatterAdapter } from './scan/infrastructure/formatter/message-formatter';
 import { MarketDataClient } from './scan/infrastructure/market-data/market-data.client';
 import { TokenScanPipeline } from './scan/application/pipeline/token-scan.pipeline';
 import { SCAN_PIPELINE } from './scan/domain/ports/scan-pipeline.port';
-import { DexterController } from './telegram/api/http/dexter.controller';
-import { DexterWebhookController } from './telegram/api/http/webhook.controller';
-import { UpdatePollerService } from './telegram/application/poller/update-poller.service';
-import { DualSendParityService } from './telegram/application/services/dual-send-parity.service';
-import { MigrateBotsToGatewayUseCase } from './telegram/application/use-cases/migrate-bots-to-gateway.use-case';
-import { DexterBotBindingService } from './telegram/application/dexter-bot-binding.service';
-import { GatewayHmacSigner } from './telegram/infrastructure/gateway/gateway-hmac-signer.service';
-import { GatewayBotMappingService } from './telegram/infrastructure/gateway/gateway-bot-mapping.service';
-import { GatewaySendClient } from './telegram/infrastructure/gateway/gateway-send-client.service';
-import { BotsGatewaySenderPort } from './telegram/domain/ports/bots-gateway-sender.port';
-import { GatewayMigrationController } from './telegram/api/http/gateway-migration.controller';
-import { DexterBotBindingController } from './telegram/api/http/bot-binding.controller';
-import { DexterIngressController } from './telegram/api/http/ingress.controller';
+import { DexterController } from './gateway/api/http/dexter.controller';
+import { DexterWebhookController } from './gateway/api/http/webhook.controller';
+import { UpdatePollerService } from './gateway/application/poller/update-poller.service';
+import { DualSendParityService } from './gateway/application/services/dual-send-parity.service';
+import { MigrateBotsToGatewayUseCase } from './gateway/application/use-cases/migrate-bots-to-gateway.use-case';
+import { DexterBotBindingService } from './gateway/application/dexter-bot-binding.service';
+import { GatewayHmacSigner } from './gateway/infrastructure/gateway/gateway-hmac-signer.service';
+import { GatewayBotMappingService } from './gateway/infrastructure/gateway/gateway-bot-mapping.service';
+import { GatewaySendClient } from './gateway/infrastructure/gateway/gateway-send-client.service';
+import { BotsGatewaySenderPort } from './gateway/domain/ports/bots-gateway-sender.port';
+import { GatewayMigrationController } from './gateway/api/http/gateway-migration.controller';
+import { DexterBotBindingController } from './gateway/api/http/bot-binding.controller';
+import { DexterIngressController } from './gateway/api/http/ingress.controller';
 import { DisplayMapsController } from './templates/api/http/display-maps.controller';
 import { TemplatePreviewController } from './templates/api/http/template-preview.controller';
 import { PlaceholdersController } from './placeholders/api/http/placeholders.controller';
@@ -72,13 +72,13 @@ export { SCAN_PIPELINE };
  * DexterModule (Tramo 3, todo 13 — hexagonal composition root, P13).
  *
  * Single wiring module over four hexagonal sub-BCs (folders, not nested
- * Nest modules — commands ⇄ telegram depend on each other through the
+ * Nest modules — commands ⇄ gateway depend on each other through the
  * router, so a single composition root avoids forwardRef cycles):
  *
  * - commands/ (domain ports + application router/handlers/context/rate-limit)
  * - scan/ (domain detector/extractor/ports + application pipeline +
  *   infrastructure market-data/formatter)
- * - telegram/ (domain telegram port + application poller + api
+ * - gateway/ (domain telegram port + application poller + api
  *   webhook/lookup + infrastructure client/keyboard/registry)
  * - settings/ (domain chat-settings + application service +
  *   infrastructure config/in-memory repos)

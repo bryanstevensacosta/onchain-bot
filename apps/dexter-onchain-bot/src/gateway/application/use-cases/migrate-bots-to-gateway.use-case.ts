@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DexterBotConfigService } from '@/settings/infrastructure/config/bot.config';
-import { GatewayHmacSigner } from '@/telegram/infrastructure/gateway/gateway-hmac-signer.service';
-import { GatewayBotMappingService } from '@/telegram/infrastructure/gateway/gateway-bot-mapping.service';
+import { GatewayHmacSigner } from '@/gateway/infrastructure/gateway/gateway-hmac-signer.service';
+import { GatewayBotMappingService } from '@/gateway/infrastructure/gateway/gateway-bot-mapping.service';
 
 export interface DexterGatewayMigrationResult {
   readonly migrated: Array<{

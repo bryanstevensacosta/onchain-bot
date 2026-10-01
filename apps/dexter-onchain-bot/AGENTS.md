@@ -51,7 +51,7 @@ cd apps/dexter-onchain-bot && DEXTER_PORT=4060 npm run start:dev
 src/
 ├── main.ts                     # bootstrap() — DEXTER_PORT ?? 4060, host 0.0.0.0 default, ValidationPipe
 ├── app.module.ts               # Config (.env.dev > .env) + Health + Dexter
-├── dexter.module.ts            # single composition root (see MODULES; avoids commands ⇄ telegram forwardRef cycles)
+├── dexter.module.ts            # single composition root (see MODULES; avoids commands ⇄ gateway forwardRef cycles)
 ├── health/                     # GET /api/health -> { status: 'ok', service }
 ├── commands/                   # router + handlers (slash + bare fallback)
 │   ├── domain/ports/command-handler.port.ts # CommandHandler/CommandContext types
@@ -69,7 +69,7 @@ src/
 │   └── infrastructure/
 │       ├── market-data/market-data.client.ts # NEW — GET /api/market-data/snapshot + GET /api/v1/chains/detect (chain-detect hint; resolveAny first-hit sweep REMOVED — silent-guess path, replaced by the pipeline collect-all)
 │       └── formatter/message-formatter.ts    # full/compact cards, 4096 cap (moved)
-├── telegram/                   # poller + webhook + ingress + client + keyboard + registry
+├── gateway/                    # poller + webhook + ingress + client + keyboard + registry
 │   ├── domain/ports/telegram.port.ts # Bot API shapes (updates, messages, keyboards, responses)
 │   ├── domain/ports/bots-gateway-sender.port.ts # vault-id-only send port (todo 6, no token crosses)
 │   ├── application/poller/update-poller.service.ts # polling ingress (active only in polling mode)
@@ -104,16 +104,16 @@ Root files: `package.json` (`@onchain-bot/dexter-onchain-bot`), `nest-cli.json`,
 
 `DexterModule` (single composition-root module over the 4 sub-BC
 folders — deliberately NOT one Nest module per sub-BC: the poller and
-webhook in telegram depend on the router in commands, while the
+webhook in gateway depend on the router in commands, while the
 handlers in commands depend on the client/keyboards/registry in
-telegram, so nested modules would need `forwardRef` cycles for zero
+gateway, so nested modules would need `forwardRef` cycles for zero
 behavioral gain; per-BC modules remain future work):
 
 - settings/: `DexterBotConfigService` (global via `ConfigModule`) +
   `InMemoryChatGroupRepository` / `InMemoryChatSettingsRepository`
   behind `CHAT_GROUP_REPOSITORY` / `CHAT_SETTINGS_REPOSITORY` symbols →
   `ChatSettingsService` → commands' `ContextResolverService`.
-- telegram/: `DexterWebhookController` (webhook) +
+- gateway/: `DexterWebhookController` (webhook) +
   `UpdatePollerService` (polling; drops `deleteWebhook` first,
   offset-tracked loop) + `TelegramBotClient` + `TradeButtonRegistry` +
   `InlineKeyboardBuilder` + `DexterController` (native HTTP lookup).
@@ -187,8 +187,8 @@ dexter is now gateway-ONLY and owns its scan-card template.
   when another app holds it; records local `dexter` → vault mapping)
   → `POST /api/dexter-bots/unbind` (release; edit = unlink + relink).
   Creation stays on `POST /api/dexter-bots/migrate-to-gateway` (env
-  token → vault). New: `telegram/application/
-dexter-bot-binding.service.ts` + `telegram/api/http/
+  token → vault). New: `gateway/application/
+dexter-bot-binding.service.ts` + `gateway/api/http/
 bot-binding.controller.ts` (wired in `DexterModule`). Frontend
   `/dexter` carries the bind UI (`DexterBotBindingSection`: create +
   inventory list + link/unlink, `ENDPOINTS.dexter`, same-origin
@@ -226,7 +226,7 @@ NO cutover in this todo (adversarial: any divergence blocks cutover via
   direct Bot API only (deprecated); `dual` = gateway + direct, compare
   via `DualSendParityService`, return the direct leg; `gateway` =
   gateway vault id only, fail-closed (cutover rehearsal, proven live).
-- **New code** (`src/telegram/`, all inside this app): `domain/ports/
+- **New code** (`src/gateway/` — `src/telegram/` at todo-6 time, renamed todo 12 — all inside this app): `domain/ports/
 bots-gateway-sender.port.ts` (token never crosses — vault `botId`
   only) + `infrastructure/gateway/` (`gateway-hmac-signer` — canonical
   `METHOD\npath\nts\nnonce\nsha256(rawBody)`, flat env
@@ -309,28 +309,28 @@ Todo 13 moved every spec with its source — counts unchanged (±0);
 todo 6 added 10 suites / 35 tests (±0 since); bare-address added
 3 suites / 14 tests:
 
-| Spec                                                                      | Covers                                                                                                                       |
-| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `scan/domain/detector/address-detector.spec.ts`                           | solana/evm/bare recognition, ordered deduped extraction                                                                      |
-| `scan/application/pipeline/token-scan-bare-address.spec.ts`               | bare solana/EVM via detect, detect-down sweep fallback, multi-chain ambiguous → null, garbage invalid, explicit chain intact |
-| `scan/application/pipeline/token-scan-supply.spec.ts`                     | supply passthrough (client → token), null-supply resolve + N/A card, FDV + supply lines rendered                             |
-| `scan/infrastructure/market-data/market-data-client-detect.spec.ts`       | detect-chain hit, non-ok → null, fetch throw → null (never throws)                                                           |
-| `telegram/api/http/dexter-controller-bare.spec.ts`                        | resolved card, ambiguous candidates, invalid, not-found, missing-param explicit shapes                                       |
-| `scan/domain/extractor/forward-extractor.spec.ts`                         | forward-ok (address + exchange), forward-empty, blank                                                                        |
-| `commands/application/rate-limit/user-rate-limiter.spec.ts`               | per-user budget + independence                                                                                               |
-| `commands/application/handlers/start-ca.spec.ts`                          | /start rewritten (lookup, /ca, no publish/channel words); /ca card + usage + explicit unresolvable                           |
-| `commands/application/router/command-router-bare-forward.spec.ts`         | bare scan, forward-ok scan, forward-empty reply, unknown slash                                                               |
-| `commands/application/handlers/settings.spec.ts`                          | /settings render, /tb on/off                                                                                                 |
-| `telegram/infrastructure/gateway/gateway-hmac-signer.service.spec.ts`     | canonical sign/verify, tamper + wrong-secret reject, keyless `{}`                                                            |
-| `telegram/infrastructure/gateway/gateway-bot-mapping.service.spec.ts`     | local→vault map + unmapped fallback                                                                                          |
-| `telegram/infrastructure/gateway/gateway-send-client.service.spec.ts`     | message post + chunking + empty/keyboard/401 fail-closed, no token in body/URL                                               |
-| `telegram/infrastructure/gateway/send-mode.spec.ts`                       | mode parsing, dual default                                                                                                   |
-| `telegram/application/services/dual-send-parity.service.spec.ts`          | outcome agreement, ok-mismatch → 409 gate, skipped never diverged                                                            |
-| `telegram/application/use-cases/migrate-bots-to-gateway.use-case.spec.ts` | vault register + map, missing-token + duplicate + 403 paths                                                                  |
-| `telegram/api/http/gateway-migration.controller.spec.ts`                  | 201 labels/ids-only shape                                                                                                    |
-| `telegram/api/http/ingress.controller.spec.ts`                            | fan-out dispatch + secret rejects + error-ack + unsigned dev                                                                 |
-| `telegram/infrastructure/telegram/bot-client-dual-send.spec.ts`           | dual/direct/gateway routing, vault resolution, keyboard skip, divergence gate                                                |
-| `telegram/dual-send-secret-scan.spec.ts`                                  | vault-ids-only bodies, no console.\*, no direct token reads                                                                  |
+| Spec                                                                     | Covers                                                                                                                       |
+| ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| `scan/domain/detector/address-detector.spec.ts`                          | solana/evm/bare recognition, ordered deduped extraction                                                                      |
+| `scan/application/pipeline/token-scan-bare-address.spec.ts`              | bare solana/EVM via detect, detect-down sweep fallback, multi-chain ambiguous → null, garbage invalid, explicit chain intact |
+| `scan/application/pipeline/token-scan-supply.spec.ts`                    | supply passthrough (client → token), null-supply resolve + N/A card, FDV + supply lines rendered                             |
+| `scan/infrastructure/market-data/market-data-client-detect.spec.ts`      | detect-chain hit, non-ok → null, fetch throw → null (never throws)                                                           |
+| `gateway/api/http/dexter-controller-bare.spec.ts`                        | resolved card, ambiguous candidates, invalid, not-found, missing-param explicit shapes                                       |
+| `scan/domain/extractor/forward-extractor.spec.ts`                        | forward-ok (address + exchange), forward-empty, blank                                                                        |
+| `commands/application/rate-limit/user-rate-limiter.spec.ts`              | per-user budget + independence                                                                                               |
+| `commands/application/handlers/start-ca.spec.ts`                         | /start rewritten (lookup, /ca, no publish/channel words); /ca card + usage + explicit unresolvable                           |
+| `commands/application/router/command-router-bare-forward.spec.ts`        | bare scan, forward-ok scan, forward-empty reply, unknown slash                                                               |
+| `commands/application/handlers/settings.spec.ts`                         | /settings render, /tb on/off                                                                                                 |
+| `gateway/infrastructure/gateway/gateway-hmac-signer.service.spec.ts`     | canonical sign/verify, tamper + wrong-secret reject, keyless `{}`                                                            |
+| `gateway/infrastructure/gateway/gateway-bot-mapping.service.spec.ts`     | local→vault map + unmapped fallback                                                                                          |
+| `gateway/infrastructure/gateway/gateway-send-client.service.spec.ts`     | message post + chunking + empty/keyboard/401 fail-closed, no token in body/URL                                               |
+| `gateway/infrastructure/gateway/send-mode.spec.ts`                       | mode parsing, dual default                                                                                                   |
+| `gateway/application/services/dual-send-parity.service.spec.ts`          | outcome agreement, ok-mismatch → 409 gate, skipped never diverged                                                            |
+| `gateway/application/use-cases/migrate-bots-to-gateway.use-case.spec.ts` | vault register + map, missing-token + duplicate + 403 paths                                                                  |
+| `gateway/api/http/gateway-migration.controller.spec.ts`                  | 201 labels/ids-only shape                                                                                                    |
+| `gateway/api/http/ingress.controller.spec.ts`                            | fan-out dispatch + secret rejects + error-ack + unsigned dev                                                                 |
+| `gateway/infrastructure/telegram/bot-client-dual-send.spec.ts`           | dual/direct/gateway routing, vault resolution, keyboard skip, divergence gate                                                |
+| `gateway/dual-send-secret-scan.spec.ts`                                  | vault-ids-only bodies, no console.\*, no direct token reads                                                                  |
 
 ## GAPS
 
@@ -366,13 +366,13 @@ todo 6 added 10 suites / 35 tests (±0 since); bare-address added
   boot `:4060` route diff empty (4 routes + spot curls identical).
 - Todo 13 (hexagonal split, no behavior change): flat `src/dexter/`
   (lift-and-shift from todo 9) split into `commands/` (router+handlers),
-  `scan/` (pipeline+detector+extractor), `telegram/`
+  `scan/` (pipeline+detector+extractor), `gateway/`
   (poller/webhook/client/keyboard/registry), `settings/` — each with
   `domain/` ports, `application/` use-cases/services, `infrastructure/`
   adapters (+ `api/` HTTP where it owns routes). Two new domain ports:
   `scan/domain/ports/scan-pipeline.port.ts` (`ScanPipeline` +
   `ResolvedToken` + `ChainIdentifier`, decoupled from the telegram
-  `ChainId`) and `telegram/domain/ports/telegram.port.ts` (Bot API
+  `ChainId`) and `gateway/domain/ports/telegram.port.ts` (Bot API
   shapes; the client re-exports them). `DexterModule` stays the single
   composition root (no nested Nest modules — commands ⇄ telegram
   would `forwardRef`-cycle). Verified: jest 6/20 (±0), `tsc --noEmit`
@@ -386,6 +386,15 @@ todo 6 added 10 suites / 35 tests (±0 since); bare-address added
 - `/c` + `/cc` link DexScreener directly (pool-address field dropped —
   snapshots carry no pool detail).
 - Affiliate tags rebranded `dexter-*` (were `chaindexter`).
+- Todo 12 (rename, zero behavior): `src/telegram/` → `src/gateway/`
+  via `git mv` (transport centralization: poller + webhook + ingress +
+  Bot API client + keyboards + registry are all gateway transport, so
+  the folder now says what it is). `TelegramBotClient` class name,
+  `telegram.port.ts` filename, and `infrastructure/telegram/` Bot API
+  subfolder stay (legitimate Telegram names — only the BC root moved);
+  all `@/telegram/` + `./telegram/` imports re-pointed, zero logic
+  touched. Verified: `@/telegram/` grep 0, tsc + jest + build green,
+  boot route diff empty.
 - No root `dev:dexter` script: task constraint (read-only outside the
   app dir) wins over the setup checklist — documented here instead.
 

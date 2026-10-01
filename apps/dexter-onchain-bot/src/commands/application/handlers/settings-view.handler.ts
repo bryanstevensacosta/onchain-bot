@@ -3,7 +3,7 @@ import type {
   CommandContext,
   CommandHandler,
 } from '@/commands/domain/ports/command-handler.port';
-import { TelegramBotClient } from '@/telegram/infrastructure/telegram/bot-client';
+import { TelegramBotClient } from '@/gateway/infrastructure/telegram/bot-client';
 
 /**
  * /settings — chat config view (inherited from backend chain-dexter-bot

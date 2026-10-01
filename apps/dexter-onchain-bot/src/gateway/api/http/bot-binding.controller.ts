@@ -7,7 +7,7 @@ import {
   Post,
 } from '@nestjs/common';
 import { IsNotEmpty, IsString } from 'class-validator';
-import { DexterBotBindingService } from '@/telegram/application/dexter-bot-binding.service';
+import { DexterBotBindingService } from '@/gateway/application/dexter-bot-binding.service';
 
 export class BindFromInventoryDto {
   @IsString()
