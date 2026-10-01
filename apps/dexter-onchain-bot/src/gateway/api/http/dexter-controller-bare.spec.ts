@@ -1,4 +1,6 @@
 import { DexterController } from './dexter.controller';
+import { TemplateRendererService } from '@/placeholders/application/template-renderer.service';
+import { MessageTemplate } from '@/templates/domain/message-template.entity';
 import type { ResolvedToken } from '@/scan/domain/ports/scan-pipeline.port';
 
 const SOL = 'So11111111111111111111111111111111111111112';
@@ -23,7 +25,11 @@ const TOKEN: ResolvedToken = {
   source: 'market-data-http',
 };
 
-function makeController(outcome: unknown) {
+function makeController(
+  outcome: unknown,
+  templates?: unknown,
+  renderer?: unknown,
+) {
   const pipeline = { resolveDetailed: async () => outcome };
   const formatter = {
     format: () => 'CARD',
@@ -33,8 +39,19 @@ function makeController(outcome: unknown) {
       parseMode: 'MarkdownV2',
     }),
   };
-  return new DexterController(pipeline as never, formatter as never);
+  return new DexterController(
+    pipeline as never,
+    formatter as never,
+    templates as never,
+    renderer as never,
+  );
 }
+
+const ACTIVE_CA = MessageTemplate.create({
+  command: 'ca',
+  name: 'full-dexter-v1',
+  bodyMarkdown: '$${{symbol}} | {{name}}',
+});
 
 describe('DexterController bare-address lookup (explicit errors, no silent guess)', () => {
   it('returns the card for a resolved bare address', async () => {
@@ -44,6 +61,7 @@ describe('DexterController bare-address lookup (explicit errors, no silent guess
     expect(body['text']).toBe('CARD');
     expect(body['scanCard']).toBe('SCAN-CARD');
     expect(body['scanCardParseMode']).toBe('MarkdownV2');
+    expect(body['templateUsed']).toBeNull();
   });
 
   it('names every candidate when the address is ambiguous', async () => {
@@ -83,5 +101,60 @@ describe('DexterController bare-address lookup (explicit errors, no silent guess
     const controller = makeController({ status: 'not-found', address: '' });
     const body = (await controller.getToken('')) as Record<string, unknown>;
     expect(body).toEqual({ error: 'Address required' });
+  });
+
+  it('renders the active ca template with templateUsed when it renders cleanly', async () => {
+    const templates = {
+      findActiveByCommand: async () => ACTIVE_CA,
+    };
+    const controller = makeController(
+      { status: 'resolved', token: TOKEN },
+      templates,
+      new TemplateRendererService(),
+    );
+    const body = (await controller.getToken(SOL)) as Record<string, unknown>;
+    expect(body['text']).toContain('TKN');
+    expect(body['templateUsed']).toEqual({
+      command: 'ca',
+      name: 'full-dexter-v1',
+      version: ACTIVE_CA.version,
+    });
+    expect(body['scanCard']).toBe('SCAN-CARD');
+  });
+
+  it('returns the legacy shape with templateUsed null when no ca template is active', async () => {
+    const templates = {
+      findActiveByCommand: async () => null,
+    };
+    const controller = makeController(
+      { status: 'resolved', token: TOKEN },
+      templates,
+      new TemplateRendererService(),
+    );
+    const body = (await controller.getToken(SOL)) as Record<string, unknown>;
+    expect(body['text']).toBe('CARD');
+    expect(body['scanCard']).toBe('SCAN-CARD');
+    expect(body['scanCardParseMode']).toBe('MarkdownV2');
+    expect(body['templateUsed']).toBeNull();
+  });
+
+  it('falls back to the legacy shape with templateUsed null when render throws', async () => {
+    const templates = {
+      findActiveByCommand: async () => ACTIVE_CA,
+    };
+    const renderer = {
+      render: () => {
+        throw new Error('boom');
+      },
+    };
+    const controller = makeController(
+      { status: 'resolved', token: TOKEN },
+      templates,
+      renderer,
+    );
+    const body = (await controller.getToken(SOL)) as Record<string, unknown>;
+    expect(body['text']).toBe('CARD');
+    expect(body['scanCard']).toBe('SCAN-CARD');
+    expect(body['templateUsed']).toBeNull();
   });
 });

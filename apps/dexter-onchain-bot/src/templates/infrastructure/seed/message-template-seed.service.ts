@@ -1,10 +1,11 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { MessageTemplate } from '@/templates/domain/message-template.entity';
 import type { MessageTemplateCommand } from '@/templates/domain/message-template.validators';
 import {
   MESSAGE_TEMPLATE_REPOSITORY,
   type MessageTemplateRepository,
 } from '@/templates/domain/ports/message-template.repository';
+import { DisplayResolverService } from '@/templates/application/display-resolver.service';
 import { MessageTemplateDuplicateError } from '@/templates/infrastructure/persistence/message-template.errors';
 import {
   isKnownPlaceholder,
@@ -122,6 +123,12 @@ const extractPlaceholderKeys = (body: string): string[] => {
  * - Runs in `onApplicationBootstrap` ONLY when
  *   `DEXTER_SEED_TEMPLATES=true` (unset/empty defaults to true in dev;
  *   explicit `'false'` skips silently with a log line).
+ * - Ends with `DisplayResolverService.refresh()` (todo 13): the SAME
+ *   hook awaits seed-then-refresh, so no second hook can race it (Nest
+ *   runs same-module bootstrap hooks concurrently — a separate warmup
+ *   hook double-ran the seed with noisy duplicate errors, proven live).
+ *   The resolver is `@Optional()` so direct spec construction
+ *   (`new MessageTemplateSeedService(repo)`) keeps compiling.
  * - A seed body that fails placeholder validation does NOT crash boot:
  *   it is logged (error) and skipped, the rest still seed.
  * - DisplayMap rows are NOT seeded here (operator/API concern — the
@@ -134,6 +141,8 @@ export class MessageTemplateSeedService {
   public constructor(
     @Inject(MESSAGE_TEMPLATE_REPOSITORY)
     private readonly templates: MessageTemplateRepository,
+    @Optional()
+    private readonly displays?: DisplayResolverService,
   ) {}
 
   public static isSeedEnabled(): boolean {
@@ -155,6 +164,10 @@ export class MessageTemplateSeedService {
     this.logger.log(
       `template seed done: created=${result.created} skipped=${result.skipped} activeEnsured=${result.activeEnsured}`,
     );
+    await this.displays?.refresh();
+    if (this.displays) {
+      this.logger.log('display-resolver cache warmed (seed-then-refresh)');
+    }
   }
 
   /**

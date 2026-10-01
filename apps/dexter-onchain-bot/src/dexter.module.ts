@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
+import { DataSource } from 'typeorm';
+import { isDatabaseEnabled } from './shared/database/database.module';
 import { DexterBotConfigService } from './settings/infrastructure/config/bot.config';
 import { TelegramBotClient } from './gateway/infrastructure/telegram/bot-client';
 import { TradeButtonRegistry } from './gateway/infrastructure/keyboard/trade-button-registry';
@@ -28,12 +30,17 @@ import {
   PreviewTemplateUseCase,
   type PreviewScanPipeline,
 } from './templates/application/preview-template.use-case';
-import { TemplateRendererService } from './placeholders/application/template-renderer.service';
+import {
+  DISPLAY_RESOLVER,
+  TemplateRendererService,
+} from './placeholders/application/template-renderer.service';
 import { MessageTemplatesController } from './templates/api/http/message-templates.controller';
 import { DisplayResolverService } from './templates/application/display-resolver.service';
 import { DisplayMapRepository } from './templates/domain/ports/display-map.repository';
 import { InMemoryDisplayMapRepository } from './templates/infrastructure/persistence/in-memory/in-memory-display-map.repository';
+import { TypeOrmDisplayMapRepository } from './templates/infrastructure/persistence/typeorm/repositories/typeorm-display-map.repository';
 import { InMemoryMessageTemplateRepository } from './templates/infrastructure/persistence/in-memory/in-memory-message-template.repository';
+import { TypeOrmMessageTemplateRepository } from './templates/infrastructure/persistence/typeorm/repositories/typeorm-message-template.repository';
 import { MessageTemplateSeedService } from './templates/infrastructure/seed/message-template-seed.service';
 import {
   MESSAGE_TEMPLATE_REPOSITORY,
@@ -67,6 +74,39 @@ import type {
 export const CHAT_GROUP_REPOSITORY = Symbol('CHAT_GROUP_REPOSITORY');
 export const CHAT_SETTINGS_REPOSITORY = Symbol('CHAT_SETTINGS_REPOSITORY');
 export { SCAN_PIPELINE };
+
+function requireDataSourceOrThrow(): never {
+  throw new Error(
+    '[dexter-db] DATABASE_ENABLED=true but no DataSource is initialized — ' +
+      'DatabaseModule did not connect (check DATABASE_URL and that postgres is reachable).',
+  );
+}
+
+function resolveDisplayMapRepository(
+  memory: InMemoryDisplayMapRepository,
+  dataSource?: DataSource,
+): DisplayMapRepository {
+  if (!isDatabaseEnabled()) {
+    return memory;
+  }
+  if (!dataSource) {
+    return requireDataSourceOrThrow();
+  }
+  return new TypeOrmDisplayMapRepository(dataSource);
+}
+
+function resolveMessageTemplateRepository(
+  memory: InMemoryMessageTemplateRepository,
+  dataSource?: DataSource,
+): MessageTemplateRepository {
+  if (!isDatabaseEnabled()) {
+    return memory;
+  }
+  if (!dataSource) {
+    return requireDataSourceOrThrow();
+  }
+  return new TypeOrmMessageTemplateRepository(dataSource);
+}
 
 /**
  * DexterModule (Tramo 3, todo 13 — hexagonal composition root, P13).
@@ -252,23 +292,57 @@ export { SCAN_PIPELINE };
       ],
     },
     UpdatePollerService,
-    // todo 8 minimal display wiring (in-memory repo + resolver so the
-    // controller's refresh() works; todo 13 adds the TypeORM switch).
+    // todo 13 final persistence switch (TypeORM when DATABASE_ENABLED=true,
+    // in-memory otherwise). Same `useExisting`-equivalent shape as the
+    // interim todos 6/8 bindings, but resolved through a factory: the
+    // TypeORM adapters need `DataSource` (only present when
+    // `DatabaseModule.forRootFromEnv()` initialized TypeORM), so they are
+    // constructed inside the factory instead of being listed as class
+    // providers (a class provider would crash boot in in-memory mode
+    // asking for a missing DataSource). `DataSource` injects as
+    // `{token, optional:true}`; enabled-but-absent fails boot FAST with a
+    // readable error (no hang). Single shared instance per token either way.
     InMemoryDisplayMapRepository,
     {
       provide: DisplayMapRepository,
-      useExisting: InMemoryDisplayMapRepository,
+      useFactory: (
+        memory: InMemoryDisplayMapRepository,
+        dataSource?: DataSource,
+      ): DisplayMapRepository =>
+        resolveDisplayMapRepository(memory, dataSource),
+      inject: [
+        InMemoryDisplayMapRepository,
+        { token: DataSource, optional: true },
+      ],
     },
     DisplayResolverService,
-    // todo 6 minimal templates wiring (in-memory repo behind the symbol
-    // token; todo 13 adds the TypeORM switch + DISPLAY_RESOLVER binding).
+    // The renderer is constructed resolver-less (`@Optional()` ctor) but
+    // this binding wires its `DISPLAY_RESOLVER` slot to the live
+    // `DisplayResolverService` — so `{{chainDisplay}}` renders real mapped
+    // values over HTTP (in BOTH modes; in-memory starts with an empty
+    // catalog → `""` until rows are created via the API, no reboot needed
+    // thanks to refresh-on-write + the boot warmup below).
+    {
+      provide: DISPLAY_RESOLVER,
+      useExisting: DisplayResolverService,
+    },
     InMemoryMessageTemplateRepository,
     {
       provide: MESSAGE_TEMPLATE_REPOSITORY,
-      useExisting: InMemoryMessageTemplateRepository,
+      useFactory: (
+        memory: InMemoryMessageTemplateRepository,
+        dataSource?: DataSource,
+      ): MessageTemplateRepository =>
+        resolveMessageTemplateRepository(memory, dataSource),
+      inject: [
+        InMemoryMessageTemplateRepository,
+        { token: DataSource, optional: true },
+      ],
     },
-    // todo 9 minimal seed wiring (idempotent catalog seed on bootstrap;
-    // DisplayMap rows are operator/API-owned — templates only here).
+    // todo 9 seed (idempotent catalog seed on bootstrap + trailing
+    // DisplayResolverService.refresh() in the SAME hook — explicit
+    // seed-then-refresh, no second hook to race. DisplayMap rows stay
+    // operator/API-owned — templates only here).
     MessageTemplateSeedService,
     // todo 7 preview wiring (same in-memory bindings as todos 6/8; the
     // use-case takes the interface port, so useFactory carries the
