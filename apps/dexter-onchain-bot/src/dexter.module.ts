@@ -22,9 +22,22 @@ import { GatewayMigrationController } from './telegram/api/http/gateway-migratio
 import { DexterBotBindingController } from './telegram/api/http/bot-binding.controller';
 import { DexterIngressController } from './telegram/api/http/ingress.controller';
 import { DisplayMapsController } from './templates/api/http/display-maps.controller';
+import { TemplatePreviewController } from './templates/api/http/template-preview.controller';
+import { PlaceholdersController } from './placeholders/api/http/placeholders.controller';
+import {
+  PreviewTemplateUseCase,
+  type PreviewScanPipeline,
+} from './templates/application/preview-template.use-case';
+import { TemplateRendererService } from './placeholders/application/template-renderer.service';
+import { MessageTemplatesController } from './templates/api/http/message-templates.controller';
 import { DisplayResolverService } from './templates/application/display-resolver.service';
 import { DisplayMapRepository } from './templates/domain/ports/display-map.repository';
 import { InMemoryDisplayMapRepository } from './templates/infrastructure/persistence/in-memory/in-memory-display-map.repository';
+import { InMemoryMessageTemplateRepository } from './templates/infrastructure/persistence/in-memory/in-memory-message-template.repository';
+import {
+  MESSAGE_TEMPLATE_REPOSITORY,
+  type MessageTemplateRepository,
+} from './templates/domain/ports/message-template.repository';
 import {
   InMemoryChatGroupRepository,
   InMemoryChatSettingsRepository,
@@ -100,6 +113,14 @@ export { SCAN_PIPELINE };
     // the full templates/placeholders wiring (TypeORM switch,
     // DISPLAY_RESOLVER binding, seed) lands in todo 13.
     DisplayMapsController,
+    // todo 6 (dexter-message-templates): message-templates CRUD + activate.
+    // Additive only — the TypeORM switch behind MESSAGE_TEMPLATE_REPOSITORY
+    // lands in todo 13 (same useExisting shape as the display-maps pair).
+    MessageTemplatesController,
+    // todo 7 (dexter-message-templates): dry-run preview + placeholder
+    // catalog. Additive only — same in-memory bindings as todos 6/8.
+    TemplatePreviewController,
+    PlaceholdersController,
   ],
   providers: [
     DexterBotConfigService,
@@ -238,6 +259,33 @@ export { SCAN_PIPELINE };
       useExisting: InMemoryDisplayMapRepository,
     },
     DisplayResolverService,
+    // todo 6 minimal templates wiring (in-memory repo behind the symbol
+    // token; todo 13 adds the TypeORM switch + DISPLAY_RESOLVER binding).
+    InMemoryMessageTemplateRepository,
+    {
+      provide: MESSAGE_TEMPLATE_REPOSITORY,
+      useExisting: InMemoryMessageTemplateRepository,
+    },
+    // todo 7 preview wiring (same in-memory bindings as todos 6/8; the
+    // use-case takes the interface port, so useFactory carries the
+    // explicit inject array — same shape as ChatSettingsService above).
+    TemplateRendererService,
+    {
+      provide: PreviewTemplateUseCase,
+      useFactory: (
+        pipeline: PreviewScanPipeline,
+        templates: MessageTemplateRepository,
+        renderer: TemplateRendererService,
+        displays: DisplayResolverService,
+      ): PreviewTemplateUseCase =>
+        new PreviewTemplateUseCase(pipeline, templates, renderer, displays),
+      inject: [
+        SCAN_PIPELINE,
+        MESSAGE_TEMPLATE_REPOSITORY,
+        TemplateRendererService,
+        DisplayResolverService,
+      ],
+    },
   ],
   exports: [
     DexterBotConfigService,
