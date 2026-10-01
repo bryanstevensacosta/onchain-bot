@@ -29,6 +29,21 @@ interface GatewayRequest {
   gatewayClient?: GatewayClientBinding;
 }
 
+// Header/JSON values arrive as unknown. String() would render objects as
+// "[object Object]", so narrow scalars explicitly instead.
+function headerValue(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value))
+    return value.map((item) => headerValue(item)).join(',');
+  if (
+    typeof value === 'number' ||
+    typeof value === 'boolean' ||
+    typeof value === 'bigint'
+  )
+    return String(value);
+  return '';
+}
+
 /**
  * Service-to-service auth guard (todo 2).
  *
@@ -56,24 +71,33 @@ export class ServiceAuthGuard implements CanActivate {
   public canActivate(context: ExecutionContext): boolean {
     if (this.registry.isKeyless()) return true;
     const required =
-      this.reflector.get<ClientScope>(REQUIRE_SCOPE_KEY, context.getHandler()) ??
+      this.reflector.get<ClientScope>(
+        REQUIRE_SCOPE_KEY,
+        context.getHandler(),
+      ) ??
       this.reflector.get<ClientScope>(REQUIRE_SCOPE_KEY, context.getClass());
     if (!required) return true;
 
     const req = context.switchToHttp().getRequest<GatewayRequest>();
     const headers = req.headers ?? {};
-    const clientId = String(headers['x-api-key'] ?? '');
-    const timestamp = String(headers['x-timestamp'] ?? '');
-    const nonce = String(headers['x-nonce'] ?? '');
-    const signature = String(headers['x-signature'] ?? '');
+    const clientId = headerValue(headers['x-api-key']);
+    const timestamp = headerValue(headers['x-timestamp']);
+    const nonce = headerValue(headers['x-nonce']);
+    const signature = headerValue(headers['x-signature']);
 
     const cred = this.registry.findById(clientId);
     if (!cred) throw new UnauthorizedException('invalid client credentials');
 
     const ts = Number(timestamp);
     const nowSec = Math.floor(Date.now() / 1000);
-    if (!timestamp || !Number.isFinite(ts) || Math.abs(nowSec - ts) > this.skewSec) {
-      throw new UnauthorizedException('request timestamp outside allowed window');
+    if (
+      !timestamp ||
+      !Number.isFinite(ts) ||
+      Math.abs(nowSec - ts) > this.skewSec
+    ) {
+      throw new UnauthorizedException(
+        'request timestamp outside allowed window',
+      );
     }
     if (!nonce || nonce.length < 8) {
       throw new UnauthorizedException('invalid nonce');
