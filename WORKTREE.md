@@ -68,7 +68,7 @@ un worktree nuevo cuando el scope no encaja en ninguno existente.
   2. `apps/frontend/src/pages/dexter/`
   3. `apps/frontend/src/shared/api/dexter-base.ts`
 - **Scope OUT**: feed, kol, ingestion-telegram, deploy.
-- **Estado**: activo.
+- **Estado**: archivada (PR #253 mergeado a dev 2026-10-02 como e631d59; worktree retirado + rama eliminada).
 - **Cuándo reusar**: si el cambio toca el bot chart dexter (comandos `/x` `/z` `/c`,
   scans, charts, trade buttons, página dexter) → **reusar** este worktree,
   no crear uno nuevo (regla reuso-primero).
