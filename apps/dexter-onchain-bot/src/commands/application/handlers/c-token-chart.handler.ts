@@ -1,16 +1,40 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import type {
   CommandContext,
   CommandHandler,
 } from '@/commands/domain/ports/command-handler.port';
-import { TelegramBotClient } from '@/telegram/infrastructure/telegram/bot-client';
+import { TelegramBotClient } from '@/gateway/infrastructure/telegram/bot-client';
 import { TokenScanPipeline } from '@/scan/application/pipeline/token-scan.pipeline';
+import { TemplateRendererService } from '@/placeholders/application/template-renderer.service';
+import {
+  MESSAGE_TEMPLATE_REPOSITORY,
+  type MessageTemplateRepository,
+} from '@/templates/domain/ports/message-template.repository';
 
-const VALID_TIMEFRAMES = new Set(['1m', '5m', '15m', '1h', '4h', '1d', '1w']);
+export const VALID_TIMEFRAMES = new Set([
+  '1m',
+  '5m',
+  '15m',
+  '1h',
+  '4h',
+  '1d',
+  '1w',
+]);
 
 /**
  * /c — scan + chart link (inherited from backend chain-dexter-bot
  * `c-token-chart.handler.ts`, re-pointed at market-data HTTP).
+ *
+ * Template-first (todo 11, dexter-message-templates): `{{timeframe}}`
+ * is validated against `VALID_TIMEFRAMES` BEFORE resolve/render (an
+ * invalid timeframe answers the hardcoded `⚠️ Timeframe inválido`
+ * text without touching any template); the active `c` template
+ * (`c/chart-v1` seed) renders MarkdownV2 with `{ ...token, timeframe }`
+ * (`{{timeframe}}` is optional at render — a body without it renders
+ * fine). `{{chainDisplay}}` resolves to `""` until todo 13 binds
+ * `DISPLAY_RESOLVER` (resolver-less interim, same as todo 10).
+ * Usage/timeframe-invalid/unresolvable strings stay hardcoded (v1
+ * closed enum: no templates for errors).
  */
 @Injectable()
 export class CTokenChartHandler implements CommandHandler {
@@ -19,6 +43,9 @@ export class CTokenChartHandler implements CommandHandler {
   public constructor(
     private readonly pipeline: TokenScanPipeline,
     private readonly bot: TelegramBotClient,
+    @Inject(MESSAGE_TEMPLATE_REPOSITORY)
+    private readonly templates: MessageTemplateRepository,
+    private readonly renderer: TemplateRendererService,
   ) {}
 
   public async handle(args: string[], context: CommandContext): Promise<void> {
@@ -49,14 +76,37 @@ export class CTokenChartHandler implements CommandHandler {
       return;
     }
 
+    const active = await this.templates.findActiveByCommand('c');
+    if (active) {
+      let text: string;
+      try {
+        text = this.renderer.render(
+          active.bodyMarkdown,
+          { ...token, timeframe: tf },
+          'c',
+        ).text;
+      } catch (error) {
+        await this.bot.sendMessage(
+          context.chatId,
+          `❌ Error al renderizar la plantilla activa (c/${active.name}): ${(error as Error).message}`,
+        );
+        return;
+      }
+      // gateway SendDto sin reply_markup: link en texto
+      await this.bot.sendMessage(context.chatId, text, {
+        parse_mode: 'MarkdownV2',
+      });
+      return;
+    }
+
+    // No active `c` template: built-in link-only card (legacy Markdown,
+    // keyboards abandoned — see gateway SendDto note above).
     const chartUrl = `https://dexscreener.com/${token.chain}/${token.address}`;
 
     const text = `💊 *${token.symbol}* | ${token.name}\n\n📈 Chart (${tf}): ${chartUrl}`;
+    // gateway SendDto sin reply_markup: link en texto
     await this.bot.sendMessage(context.chatId, text, {
       parse_mode: 'Markdown',
-      reply_markup: {
-        inline_keyboard: [[{ text: '📈 Open Chart', url: chartUrl }]],
-      },
     });
   }
 }

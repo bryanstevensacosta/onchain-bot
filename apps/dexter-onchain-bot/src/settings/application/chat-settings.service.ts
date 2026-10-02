@@ -12,7 +12,7 @@ import { InMemoryChatSettingsRepository } from '../infrastructure/repositories/i
 import {
   TradeButtonRegistry,
   TradeButtonCode,
-} from '@/telegram/infrastructure/keyboard/trade-button-registry';
+} from '@/gateway/infrastructure/keyboard/trade-button-registry';
 
 export interface ChatSettingsContext {
   readonly group: ChatGroup;

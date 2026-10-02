@@ -3,7 +3,7 @@ import type {
   CommandHandler,
   CommandContext,
 } from '@/commands/domain/ports/command-handler.port';
-import { TelegramBotClient } from '@/telegram/infrastructure/telegram/bot-client';
+import { TelegramBotClient } from '@/gateway/infrastructure/telegram/bot-client';
 
 /**
  * /start — REWRITTEN for dexter-onchain-bot (Tramo 3, todo 9, P13).

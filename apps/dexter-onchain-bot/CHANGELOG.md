@@ -13,6 +13,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Message templates v1 (todos 1-13, `feat:`):** every command card
+  (`ca`/`x`/`z`/`c`/`cc`/bare) renders from a DB-backed template
+  (MarkdownV2, `{{double-brace}}` syntax, `{%` rejected; 22 base + 6
+  derived placeholder keys + `timeframe`) with exactly 1 active
+  template per command (partial unique index + in-memory guard; closed
+  v1 command enum). Keyboards abandoned on `c`/`cc` — chart-link-only
+  text cards (no `reply_markup` until gateway todo 7). Management via
+  HTTP API only (`POST /api/dexter/templates`, template-preview,
+  `/api/dexter/display-maps` CRUD, placeholders catalog — no
+  Telegram-side template editing in v1). Seed: 7 templates / 6
+  commands (`DEXTER_SEED_TEMPLATES`, vacuum-fill activation, per-seed
+  fault isolation). DisplayMap rename: `EmojiMap` → `DisplayMap`
+  (`{{chainDisplay}}`, `DISPLAY_RESOLVER`, route
+  `/api/dexter/display-maps`, pure-rename migration). Transport
+  rename: `src/telegram/` → `src/gateway/` (zero behavior). `GET
+/dexter/token` exposes `templateUsed: { command, name, version } |
+null` (error shapes unchanged). Verified: 40 suites / 288 tests
+  green, `tsc --noEmit` clean, double boot
+  (`DATABASE_ENABLED=false` in-memory + `true` TypeORM).
+  `src/templates/` = Dexter bot message templates, NOT the future
+  frontend-feed `templates` rename. (feat/mega-refactor-tramos)
+
 - **Exclusive gateway bot + bind-from-inventory API:** dexter binds its
   bot FROM the gateway inventory (never by pasting a token here):
   `GET /api/dexter-bots/inventory` (vault bots + availability),

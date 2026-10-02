@@ -8,13 +8,13 @@ services:
     environment:
       POSTGRES_USER: onchain_bot
       POSTGRES_PASSWORD: onchain_bot
-      POSTGRES_DB: dexter_db
+      POSTGRES_DB: onchain_bot_dexter
     ports:
       - '5440:5432'
     volumes:
       - dexter-postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U onchain_bot -d dexter_db']
+      test: ['CMD-SHELL', 'pg_isready -U onchain_bot -d onchain_bot_dexter']
       interval: 10s
       timeout: 5s
       retries: 5

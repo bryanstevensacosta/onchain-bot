@@ -7,9 +7,9 @@ import type {
 import type {
   TelegramBotClient,
   TelegramUpdate,
-} from '@/telegram/infrastructure/telegram/bot-client';
+} from '@/gateway/infrastructure/telegram/bot-client';
 import type { ChatSettingsService } from '@/settings/application/chat-settings.service';
-import type { InlineKeyboardBuilder } from '@/telegram/infrastructure/keyboard/inline-keyboard.builder';
+import type { InlineKeyboardBuilder } from '@/gateway/infrastructure/keyboard/inline-keyboard.builder';
 import type { UserRateLimiter } from '../rate-limit/user-rate-limiter';
 import type { BareAddressHandler } from '../handlers/bare-address.handler';
 

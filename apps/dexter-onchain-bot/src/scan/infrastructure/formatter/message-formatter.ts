@@ -21,8 +21,98 @@ export interface ScanCardMessage {
  */
 @Injectable()
 export class MessageFormatterAdapter {
-  private static readonly MAX_LENGTH = 4096;
-  private static readonly TRUNCATION_MARKER = '\n\n… (truncated)';
+  public static readonly MAX_LENGTH = 4096;
+  public static readonly TRUNCATION_MARKER = '\n\n… (truncated)';
+
+  /**
+   * Public static surface reused by `placeholders/` TemplateRenderer
+   * (todo 4, dexter-message-templates). Pure delegation over the
+   * private helpers below — zero behavior change for existing cards.
+   */
+  public static escapeV2Text(text: string): string {
+    return MessageFormatterAdapter.escapeV2(text);
+  }
+
+  public static truncateText(
+    text: string,
+    maxLength = MessageFormatterAdapter.MAX_LENGTH,
+  ): string {
+    if (text.length <= maxLength) return text;
+    const marker = MessageFormatterAdapter.TRUNCATION_MARKER;
+    const budget = maxLength - marker.length;
+    if (budget <= 0) return marker.slice(0, maxLength);
+
+    let cutAt = text.lastIndexOf('\n', budget);
+    if (cutAt < budget * 0.6) {
+      cutAt = text.lastIndexOf(' ', budget);
+    }
+    if (cutAt < budget * 0.4) {
+      cutAt = budget;
+    }
+    return text.slice(0, cutAt).trimEnd() + marker;
+  }
+
+  public static enforceLengthText(text: string): FormattedTokenMessage {
+    const limit = MessageFormatterAdapter.MAX_LENGTH;
+    if (text.length <= limit) {
+      return { text, truncated: false };
+    }
+    return {
+      text: MessageFormatterAdapter.truncateText(text, limit),
+      truncated: true,
+    };
+  }
+
+  public static formatMoneyText(value: number | null): string {
+    if (value === null || value === undefined) return 'N/A';
+    if (value >= 1_000_000_000)
+      return `$${(value / 1_000_000_000).toFixed(2)}B`;
+    if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`;
+    if (value >= 1_000) return `$${(value / 1_000).toFixed(2)}K`;
+    return `$${value.toFixed(2)}`;
+  }
+
+  public static formatNumberText(value: number | null): string {
+    if (value === null || value === undefined) return 'N/A';
+    if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+    if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+    return value.toLocaleString();
+  }
+
+  public static formatPercentText(value: number | null): string {
+    if (value === null || value === undefined) return 'N/A';
+    const sign = value >= 0 ? '+' : '';
+    return `${sign}${value.toFixed(2)}%`;
+  }
+
+  public static formatDevLine(tokenInfo: ResolvedToken): string {
+    const esc = MessageFormatterAdapter.escapeV2;
+    const pct = tokenInfo.devPctSupply;
+    const wallets = tokenInfo.devWallets ?? [];
+    if (pct === null && wallets.length === 0) return 'Dev N/A';
+    const pctLabel = pct === null ? 'N/A' : `${pct.toFixed(2)}%`;
+    const top = wallets.slice(0, 2).map((w) => {
+      const short =
+        w.wallet.length > 10
+          ? `${w.wallet.slice(0, 4)}…${w.wallet.slice(-4)}`
+          : w.wallet;
+      return short;
+    });
+    const walletsLabel =
+      top.length > 0 ? ` \\(${top.map(esc).join(', ')}\\)` : '';
+    return `Dev ${esc(pctLabel)}${walletsLabel}`;
+  }
+
+  public static buildScanUrl(
+    venue: 'dexscreener' | 'geckoterminal',
+    chain: string,
+    address: string,
+  ): string {
+    if (venue === 'dexscreener') {
+      return `https://dexscreener.com/${chain}/${address}`;
+    }
+    return `https://www.geckoterminal.com/${chain}/pools/${address}`;
+  }
 
   public formatTokenScan(
     tokenInfo: ResolvedToken,
@@ -108,11 +198,11 @@ export class MessageFormatterAdapter {
     venue: 'dexscreener' | 'geckoterminal',
     tokenInfo: ResolvedToken,
   ): string {
-    const address = tokenInfo.address;
-    if (venue === 'dexscreener') {
-      return `https://dexscreener.com/${tokenInfo.chain}/${address}`;
-    }
-    return `https://www.geckoterminal.com/${tokenInfo.chain}/pools/${address}`;
+    return MessageFormatterAdapter.buildScanUrl(
+      venue,
+      tokenInfo.chain,
+      tokenInfo.address,
+    );
   }
 
   private formatMoneyV2(value: number | null): string {
@@ -128,21 +218,7 @@ export class MessageFormatterAdapter {
   }
 
   private formatDevV2(tokenInfo: ResolvedToken): string {
-    const esc = MessageFormatterAdapter.escapeV2;
-    const pct = tokenInfo.devPctSupply;
-    const wallets = tokenInfo.devWallets ?? [];
-    if (pct === null && wallets.length === 0) return 'Dev N/A';
-    const pctLabel = pct === null ? 'N/A' : `${pct.toFixed(2)}%`;
-    const top = wallets.slice(0, 2).map((w) => {
-      const short =
-        w.wallet.length > 10
-          ? `${w.wallet.slice(0, 4)}…${w.wallet.slice(-4)}`
-          : w.wallet;
-      return short;
-    });
-    const walletsLabel =
-      top.length > 0 ? ` \\(${top.map(esc).join(', ')}\\)` : '';
-    return `Dev ${esc(pctLabel)}${walletsLabel}`;
+    return MessageFormatterAdapter.formatDevLine(tokenInfo);
   }
 
   public escapeMarkdown(text: string): string {
@@ -159,21 +235,7 @@ export class MessageFormatterAdapter {
     text: string,
     maxLength = MessageFormatterAdapter.MAX_LENGTH,
   ): string {
-    if (text.length <= maxLength) return text;
-    const budget = maxLength - MessageFormatterAdapter.TRUNCATION_MARKER.length;
-    if (budget <= 0)
-      return MessageFormatterAdapter.TRUNCATION_MARKER.slice(0, maxLength);
-
-    let cutAt = text.lastIndexOf('\n', budget);
-    if (cutAt < budget * 0.6) {
-      cutAt = text.lastIndexOf(' ', budget);
-    }
-    if (cutAt < budget * 0.4) {
-      cutAt = budget;
-    }
-    return (
-      text.slice(0, cutAt).trimEnd() + MessageFormatterAdapter.TRUNCATION_MARKER
-    );
+    return MessageFormatterAdapter.truncateText(text, maxLength);
   }
 
   private formatFull(tokenInfo: ResolvedToken): string {
@@ -218,33 +280,19 @@ ${devSection}`;
   }
 
   private enforceLength(text: string): FormattedTokenMessage {
-    const limit = MessageFormatterAdapter.MAX_LENGTH;
-    if (text.length <= limit) {
-      return { text, truncated: false };
-    }
-    return { text: this.truncate(text, limit), truncated: true };
+    return MessageFormatterAdapter.enforceLengthText(text);
   }
 
   private formatNumber(value: number | null): string {
-    if (value === null || value === undefined) return 'N/A';
-    if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-    if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
-    return value.toLocaleString();
+    return MessageFormatterAdapter.formatNumberText(value);
   }
 
   private formatMoney(value: number | null): string {
-    if (value === null || value === undefined) return 'N/A';
-    if (value >= 1_000_000_000)
-      return `$${(value / 1_000_000_000).toFixed(2)}B`;
-    if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`;
-    if (value >= 1_000) return `$${(value / 1_000).toFixed(2)}K`;
-    return `$${value.toFixed(2)}`;
+    return MessageFormatterAdapter.formatMoneyText(value);
   }
 
   private formatPercent(value: number | null): string {
-    if (value === null || value === undefined) return 'N/A';
-    const sign = value >= 0 ? '+' : '';
-    return `${sign}${value.toFixed(2)}%`;
+    return MessageFormatterAdapter.formatPercentText(value);
   }
 
   private formatDevSection(tokenInfo: ResolvedToken): string {

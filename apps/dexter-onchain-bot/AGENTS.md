@@ -51,7 +51,7 @@ cd apps/dexter-onchain-bot && DEXTER_PORT=4060 npm run start:dev
 src/
 ├── main.ts                     # bootstrap() — DEXTER_PORT ?? 4060, host 0.0.0.0 default, ValidationPipe
 ├── app.module.ts               # Config (.env.dev > .env) + Health + Dexter
-├── dexter.module.ts            # single composition root (see MODULES; avoids commands ⇄ telegram forwardRef cycles)
+├── dexter.module.ts            # single composition root (see MODULES; avoids commands ⇄ gateway forwardRef cycles)
 ├── health/                     # GET /api/health -> { status: 'ok', service }
 ├── commands/                   # router + handlers (slash + bare fallback)
 │   ├── domain/ports/command-handler.port.ts # CommandHandler/CommandContext types
@@ -69,7 +69,7 @@ src/
 │   └── infrastructure/
 │       ├── market-data/market-data.client.ts # NEW — GET /api/market-data/snapshot + GET /api/v1/chains/detect (chain-detect hint; resolveAny first-hit sweep REMOVED — silent-guess path, replaced by the pipeline collect-all)
 │       └── formatter/message-formatter.ts    # full/compact cards, 4096 cap (moved)
-├── telegram/                   # poller + webhook + ingress + client + keyboard + registry
+├── gateway/                    # poller + webhook + ingress + client + keyboard + registry
 │   ├── domain/ports/telegram.port.ts # Bot API shapes (updates, messages, keyboards, responses)
 │   ├── domain/ports/bots-gateway-sender.port.ts # vault-id-only send port (todo 6, no token crosses)
 │   ├── application/poller/update-poller.service.ts # polling ingress (active only in polling mode)
@@ -86,6 +86,17 @@ src/
 │       └── keyboard/
 │           ├── trade-button-registry.ts # 8 buttons (affiliate tags rebranded dexter-*)
 │           └── inline-keyboard.builder.ts # scan + trade-button keyboards
+├── templates/                  # message templates + display maps (MarkdownV2, {{double-brace}})
+│   ├── domain/                 # MessageTemplate + DisplayMap entities/validators + repo ports (closed v1 command enum)
+│   ├── application/            # DisplayResolverService (DISPLAY_RESOLVER) + PreviewTemplateUseCase
+│   ├── infrastructure/
+│   │   ├── persistence/        # TypeORM + in-memory repos (MESSAGE_TEMPLATE_REPOSITORY symbol, DisplayMapRepository token)
+│   │   └── seed/message-template-seed.service.ts # seeds 7 templates/6 commands (ca/x/z/c/cc/bare)
+│   └── api/http/               # message-templates + template-preview + display-maps controllers (management via HTTP API only)
+├── placeholders/               # renderer + registry ({{key}} only, {% rejected)
+│   ├── domain/placeholder-registry.ts # 22 base + 6 derived keys + per-command whitelist
+│   ├── application/template-renderer.service.ts # TemplateRendererService (DISPLAY_RESOLVER-backed)
+│   └── api/http/placeholders.controller.ts # placeholder catalog reference
 └── settings/                   # chat config + bot config
     ├── domain/chat-settings.ts # settings model + repo ports + defaults (TypeORM NOT moved)
     ├── application/chat-settings.service.ts # getOrCreate/update/toggle (in-memory wired)
@@ -102,18 +113,18 @@ Root files: `package.json` (`@onchain-bot/dexter-onchain-bot`), `nest-cli.json`,
 
 ## MODULES
 
-`DexterModule` (single composition-root module over the 4 sub-BC
+`DexterModule` (single composition-root module over the 6 sub-BC
 folders — deliberately NOT one Nest module per sub-BC: the poller and
-webhook in telegram depend on the router in commands, while the
+webhook in gateway depend on the router in commands, while the
 handlers in commands depend on the client/keyboards/registry in
-telegram, so nested modules would need `forwardRef` cycles for zero
+gateway, so nested modules would need `forwardRef` cycles for zero
 behavioral gain; per-BC modules remain future work):
 
 - settings/: `DexterBotConfigService` (global via `ConfigModule`) +
   `InMemoryChatGroupRepository` / `InMemoryChatSettingsRepository`
   behind `CHAT_GROUP_REPOSITORY` / `CHAT_SETTINGS_REPOSITORY` symbols →
   `ChatSettingsService` → commands' `ContextResolverService`.
-- telegram/: `DexterWebhookController` (webhook) +
+- gateway/: `DexterWebhookController` (webhook) +
   `UpdatePollerService` (polling; drops `deleteWebhook` first,
   offset-tracked loop) + `TelegramBotClient` + `TradeButtonRegistry` +
   `InlineKeyboardBuilder` + `DexterController` (native HTTP lookup).
@@ -123,6 +134,26 @@ behavioral gain; per-BC modules remain future work):
   token, now defined in the scan domain port and re-exported by
   `DexterModule`; `TokenScanPipeline` alias) → `MessageFormatterAdapter`
   - scan domain detector/extractor (pure functions).
+- templates/ + placeholders/: `MESSAGE_TEMPLATE_REPOSITORY` symbol →
+  `TypeOrmMessageTemplateRepository` (`DATABASE_ENABLED=true`, own
+  `DataSource`) or the shared `InMemoryMessageTemplateRepository`
+  (`false`); `DisplayMapRepository` (abstract-class token, own token) →
+  TypeORM/in-memory pair the same way; `DISPLAY_RESOLVER` →
+  `DisplayResolverService` (`useExisting`, both modes — in-memory
+  starts with an EMPTY display catalog so `{{chainDisplay}}` renders
+  `""` until rows arrive via API, no reboot needed) +
+  `TemplateRendererService` + `PreviewTemplateUseCase` +
+  `MessageTemplateSeedService`. Seed runs `runOnce()` then `refresh()`
+  in ONE `onApplicationBootstrap` (same-module hooks run
+  concurrently — never split seed/warmup). No `forwardRef` anywhere
+  (single root holds); every class-token ctor param carries an
+  explicit `@Inject(X)` (import-elision guard, see TS CONVENTIONS).
+- `DexterController GET /dexter/token?address=` also returns
+  `templateUsed: { command, name, version } | null` (active `ca`
+  template + clean render → rendered `text`; otherwise legacy
+  text/scanCard + null; ambiguous/invalid/not-found shapes
+  byte-identical, no `templateUsed` key). `POST /dexter/health`
+  untouched.
 
 Commands: `/start` (rewritten: lookup info + usage, zero publish words),
 `/ca` (new: full card), `/x` full, `/z` compact, `/c` chart+scan, `/cc`
@@ -131,26 +162,40 @@ chart-only, `/tb` trade-button config (+ `tb:toggle:` callbacks), `/help`,
 through `BareAddressHandler`: first extracted contract is scanned;
 text with no contract gets the "no veo ningún contrato" reply.
 
+> Message templates note (todos 1-13, DONE 2026-10-01): all command
+> cards (`ca`/`x`/`z`/`c`/`cc`/bare) render from DB templates in
+> MarkdownV2 with `{{double-brace}}` syntax (`{%` rejected; 22 base +
+> 6 derived keys + `timeframe`), exactly 1 active template per command
+> (partial unique index + in-memory guard). Keyboards abandoned on
+> `c`/`cc` — chart-link-only text cards (no `reply_markup` until
+> gateway todo 7 covers it; gateway `SendDto` has none). Management
+> via HTTP API only (`POST /api/dexter/templates`,
+> `/api/dexter/display-maps` CRUD, preview endpoints — no
+> Telegram-side template editing in v1). Live precedent:
+> feed-publisher prompt-templates (controller-first validation, 409
+> guards). DISAMBIGUATION: `src/templates/` = Dexter bot message
+> templates, NOT the future frontend-feed `templates` rename.
+
 ## ENV INVENTORY
 
-| Variable                                                                     | Default                                 | Meaning                                                                       |
-| ---------------------------------------------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------------- |
-| `DEXTER_ENABLED`                                                             | `false`                                 | master switch                                                                 |
-| `DEXTER_PORT` / `DEXTER_HOST`                                                | `4060` / `0.0.0.0`                      | bind (triplet 4060/4061/4062; dev may pin 127.0.0.1)                          |
-| `DEXTER_BOT_TOKEN`                                                           | `''`                                    | lookup bot token (wins over legacy — direct-leg credential only since todo 6) |
-| `CHAIN_DEXTER_BOT_TOKEN`                                                     | `''`                                    | legacy fallback (deprecated, honored)                                         |
-| `DEXTER_BOT_VAULT_ID`                                                        | `''`                                    | gateway vault id for this bot (todo 6; set by hand after migration)           |
-| `DEXTER_SEND_MODE`                                                           | `dual`                                  | `direct` (deprecated) \| `dual` (both legs + parity) \| `gateway` (cutover)   |
-| `BOTS_GATEWAY_URL` / `BOTS_GATEWAY_CLIENT_ID` / `BOTS_GATEWAY_CLIENT_SECRET` | `http://localhost:4070` / `''` / `''`   | gateway base + HMAC client (empty = keyless/unsigned dev)                     |
-| `DEXTER_INGRESS_SECRET`                                                      | `null`                                  | shared secret for `POST /dexter/ingress` (empty = unsigned dev)               |
-| `DEXTER_WEBHOOK_SECRET/URL`                                                  | —                                       | webhook auth + registration                                                   |
-| `DEXTER_INGEST_MODE`                                                         | `polling`                               | `webhook` (staging/prod) or `polling` (dev)                                   |
-| `DEXTER_POLLING_INTERVAL_MS`                                                 | `1000`                                  | poller cadence (min 100)                                                      |
-| `MARKET_DATA_URL` / `MARKET_DATA_API_KEY` / `MARKET_DATA_TIMEOUT_MS`         | `http://localhost:4000` / `''` / `2000` | ONLY market-data source                                                       |
-| `DEXTER_RATE_LIMIT_PER_USER`                                                 | `30`                                    | per-user commands per 60 s                                                    |
-| `DEXTER_DEFAULT_TRADE_BUTTONS`                                               | `DEX,PHO,TRO`                           | default button set                                                            |
-| `DATABASE_URL`                                                               | `…/onchain_bot_dexter`                  | RESERVED (v1 is in-memory; no TypeORM wired)                                  |
-| `REDIS_URL`                                                                  | `…/6387/0`                              | RESERVED (limiter is in-process)                                              |
+| Variable                                                                     | Default                                 | Meaning                                                                                                               |
+| ---------------------------------------------------------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `DEXTER_ENABLED`                                                             | `false`                                 | master switch                                                                                                         |
+| `DEXTER_PORT` / `DEXTER_HOST`                                                | `4060` / `0.0.0.0`                      | bind (triplet 4060/4061/4062; dev may pin 127.0.0.1)                                                                  |
+| `DEXTER_BOT_TOKEN`                                                           | `''`                                    | lookup bot token (wins over legacy — direct-leg credential only since todo 6)                                         |
+| `CHAIN_DEXTER_BOT_TOKEN`                                                     | `''`                                    | legacy fallback (deprecated, honored)                                                                                 |
+| `DEXTER_BOT_VAULT_ID`                                                        | `''`                                    | gateway vault id for this bot (todo 6; set by hand after migration)                                                   |
+| `DEXTER_SEND_MODE`                                                           | `dual`                                  | `direct` (deprecated) \| `dual` (both legs + parity) \| `gateway` (cutover)                                           |
+| `BOTS_GATEWAY_URL` / `BOTS_GATEWAY_CLIENT_ID` / `BOTS_GATEWAY_CLIENT_SECRET` | `http://localhost:4070` / `''` / `''`   | gateway base + HMAC client (empty = keyless/unsigned dev)                                                             |
+| `DEXTER_INGRESS_SECRET`                                                      | `null`                                  | shared secret for `POST /dexter/ingress` (empty = unsigned dev)                                                       |
+| `DEXTER_WEBHOOK_SECRET/URL`                                                  | —                                       | webhook auth + registration                                                                                           |
+| `DEXTER_INGEST_MODE`                                                         | `polling`                               | `webhook` (staging/prod) or `polling` (dev)                                                                           |
+| `DEXTER_POLLING_INTERVAL_MS`                                                 | `1000`                                  | poller cadence (min 100)                                                                                              |
+| `MARKET_DATA_URL` / `MARKET_DATA_API_KEY` / `MARKET_DATA_TIMEOUT_MS`         | `http://localhost:4000` / `''` / `2000` | ONLY market-data source                                                                                               |
+| `DEXTER_RATE_LIMIT_PER_USER`                                                 | `30`                                    | per-user commands per 60 s                                                                                            |
+| `DEXTER_DEFAULT_TRADE_BUTTONS`                                               | `DEX,PHO,TRO`                           | default button set                                                                                                    |
+| `DATABASE_URL`                                                               | `…/onchain_bot_dexter`                  | templates/display repos: TypeORM when `DATABASE_ENABLED=true`, in-memory when `false` (chat settings still in-memory) |
+| `REDIS_URL`                                                                  | `…/6387/0`                              | RESERVED (limiter is in-process)                                                                                      |
 
 ## PORTS
 
@@ -187,8 +232,8 @@ dexter is now gateway-ONLY and owns its scan-card template.
   when another app holds it; records local `dexter` → vault mapping)
   → `POST /api/dexter-bots/unbind` (release; edit = unlink + relink).
   Creation stays on `POST /api/dexter-bots/migrate-to-gateway` (env
-  token → vault). New: `telegram/application/
-dexter-bot-binding.service.ts` + `telegram/api/http/
+  token → vault). New: `gateway/application/
+dexter-bot-binding.service.ts` + `gateway/api/http/
 bot-binding.controller.ts` (wired in `DexterModule`). Frontend
   `/dexter` carries the bind UI (`DexterBotBindingSection`: create +
   inventory list + link/unlink, `ENDPOINTS.dexter`, same-origin
@@ -226,7 +271,7 @@ NO cutover in this todo (adversarial: any divergence blocks cutover via
   direct Bot API only (deprecated); `dual` = gateway + direct, compare
   via `DualSendParityService`, return the direct leg; `gateway` =
   gateway vault id only, fail-closed (cutover rehearsal, proven live).
-- **New code** (`src/telegram/`, all inside this app): `domain/ports/
+- **New code** (`src/gateway/` — `src/telegram/` at todo-6 time, renamed todo 12 — all inside this app): `domain/ports/
 bots-gateway-sender.port.ts` (token never crosses — vault `botId`
   only) + `infrastructure/gateway/` (`gateway-hmac-signer` — canonical
   `METHOD\npath\nts\nnonce\nsha256(rawBody)`, flat env
@@ -309,28 +354,28 @@ Todo 13 moved every spec with its source — counts unchanged (±0);
 todo 6 added 10 suites / 35 tests (±0 since); bare-address added
 3 suites / 14 tests:
 
-| Spec                                                                      | Covers                                                                                                                       |
-| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `scan/domain/detector/address-detector.spec.ts`                           | solana/evm/bare recognition, ordered deduped extraction                                                                      |
-| `scan/application/pipeline/token-scan-bare-address.spec.ts`               | bare solana/EVM via detect, detect-down sweep fallback, multi-chain ambiguous → null, garbage invalid, explicit chain intact |
-| `scan/application/pipeline/token-scan-supply.spec.ts`                     | supply passthrough (client → token), null-supply resolve + N/A card, FDV + supply lines rendered                             |
-| `scan/infrastructure/market-data/market-data-client-detect.spec.ts`       | detect-chain hit, non-ok → null, fetch throw → null (never throws)                                                           |
-| `telegram/api/http/dexter-controller-bare.spec.ts`                        | resolved card, ambiguous candidates, invalid, not-found, missing-param explicit shapes                                       |
-| `scan/domain/extractor/forward-extractor.spec.ts`                         | forward-ok (address + exchange), forward-empty, blank                                                                        |
-| `commands/application/rate-limit/user-rate-limiter.spec.ts`               | per-user budget + independence                                                                                               |
-| `commands/application/handlers/start-ca.spec.ts`                          | /start rewritten (lookup, /ca, no publish/channel words); /ca card + usage + explicit unresolvable                           |
-| `commands/application/router/command-router-bare-forward.spec.ts`         | bare scan, forward-ok scan, forward-empty reply, unknown slash                                                               |
-| `commands/application/handlers/settings.spec.ts`                          | /settings render, /tb on/off                                                                                                 |
-| `telegram/infrastructure/gateway/gateway-hmac-signer.service.spec.ts`     | canonical sign/verify, tamper + wrong-secret reject, keyless `{}`                                                            |
-| `telegram/infrastructure/gateway/gateway-bot-mapping.service.spec.ts`     | local→vault map + unmapped fallback                                                                                          |
-| `telegram/infrastructure/gateway/gateway-send-client.service.spec.ts`     | message post + chunking + empty/keyboard/401 fail-closed, no token in body/URL                                               |
-| `telegram/infrastructure/gateway/send-mode.spec.ts`                       | mode parsing, dual default                                                                                                   |
-| `telegram/application/services/dual-send-parity.service.spec.ts`          | outcome agreement, ok-mismatch → 409 gate, skipped never diverged                                                            |
-| `telegram/application/use-cases/migrate-bots-to-gateway.use-case.spec.ts` | vault register + map, missing-token + duplicate + 403 paths                                                                  |
-| `telegram/api/http/gateway-migration.controller.spec.ts`                  | 201 labels/ids-only shape                                                                                                    |
-| `telegram/api/http/ingress.controller.spec.ts`                            | fan-out dispatch + secret rejects + error-ack + unsigned dev                                                                 |
-| `telegram/infrastructure/telegram/bot-client-dual-send.spec.ts`           | dual/direct/gateway routing, vault resolution, keyboard skip, divergence gate                                                |
-| `telegram/dual-send-secret-scan.spec.ts`                                  | vault-ids-only bodies, no console.\*, no direct token reads                                                                  |
+| Spec                                                                     | Covers                                                                                                                       |
+| ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| `scan/domain/detector/address-detector.spec.ts`                          | solana/evm/bare recognition, ordered deduped extraction                                                                      |
+| `scan/application/pipeline/token-scan-bare-address.spec.ts`              | bare solana/EVM via detect, detect-down sweep fallback, multi-chain ambiguous → null, garbage invalid, explicit chain intact |
+| `scan/application/pipeline/token-scan-supply.spec.ts`                    | supply passthrough (client → token), null-supply resolve + N/A card, FDV + supply lines rendered                             |
+| `scan/infrastructure/market-data/market-data-client-detect.spec.ts`      | detect-chain hit, non-ok → null, fetch throw → null (never throws)                                                           |
+| `gateway/api/http/dexter-controller-bare.spec.ts`                        | resolved card, ambiguous candidates, invalid, not-found, missing-param explicit shapes                                       |
+| `scan/domain/extractor/forward-extractor.spec.ts`                        | forward-ok (address + exchange), forward-empty, blank                                                                        |
+| `commands/application/rate-limit/user-rate-limiter.spec.ts`              | per-user budget + independence                                                                                               |
+| `commands/application/handlers/start-ca.spec.ts`                         | /start rewritten (lookup, /ca, no publish/channel words); /ca card + usage + explicit unresolvable                           |
+| `commands/application/router/command-router-bare-forward.spec.ts`        | bare scan, forward-ok scan, forward-empty reply, unknown slash                                                               |
+| `commands/application/handlers/settings.spec.ts`                         | /settings render, /tb on/off                                                                                                 |
+| `gateway/infrastructure/gateway/gateway-hmac-signer.service.spec.ts`     | canonical sign/verify, tamper + wrong-secret reject, keyless `{}`                                                            |
+| `gateway/infrastructure/gateway/gateway-bot-mapping.service.spec.ts`     | local→vault map + unmapped fallback                                                                                          |
+| `gateway/infrastructure/gateway/gateway-send-client.service.spec.ts`     | message post + chunking + empty/keyboard/401 fail-closed, no token in body/URL                                               |
+| `gateway/infrastructure/gateway/send-mode.spec.ts`                       | mode parsing, dual default                                                                                                   |
+| `gateway/application/services/dual-send-parity.service.spec.ts`          | outcome agreement, ok-mismatch → 409 gate, skipped never diverged                                                            |
+| `gateway/application/use-cases/migrate-bots-to-gateway.use-case.spec.ts` | vault register + map, missing-token + duplicate + 403 paths                                                                  |
+| `gateway/api/http/gateway-migration.controller.spec.ts`                  | 201 labels/ids-only shape                                                                                                    |
+| `gateway/api/http/ingress.controller.spec.ts`                            | fan-out dispatch + secret rejects + error-ack + unsigned dev                                                                 |
+| `gateway/infrastructure/telegram/bot-client-dual-send.spec.ts`           | dual/direct/gateway routing, vault resolution, keyboard skip, divergence gate                                                |
+| `gateway/dual-send-secret-scan.spec.ts`                                  | vault-ids-only bodies, no console.\*, no direct token reads                                                                  |
 
 ## GAPS
 
@@ -366,13 +411,13 @@ todo 6 added 10 suites / 35 tests (±0 since); bare-address added
   boot `:4060` route diff empty (4 routes + spot curls identical).
 - Todo 13 (hexagonal split, no behavior change): flat `src/dexter/`
   (lift-and-shift from todo 9) split into `commands/` (router+handlers),
-  `scan/` (pipeline+detector+extractor), `telegram/`
+  `scan/` (pipeline+detector+extractor), `gateway/`
   (poller/webhook/client/keyboard/registry), `settings/` — each with
   `domain/` ports, `application/` use-cases/services, `infrastructure/`
   adapters (+ `api/` HTTP where it owns routes). Two new domain ports:
   `scan/domain/ports/scan-pipeline.port.ts` (`ScanPipeline` +
   `ResolvedToken` + `ChainIdentifier`, decoupled from the telegram
-  `ChainId`) and `telegram/domain/ports/telegram.port.ts` (Bot API
+  `ChainId`) and `gateway/domain/ports/telegram.port.ts` (Bot API
   shapes; the client re-exports them). `DexterModule` stays the single
   composition root (no nested Nest modules — commands ⇄ telegram
   would `forwardRef`-cycle). Verified: jest 6/20 (±0), `tsc --noEmit`
@@ -386,8 +431,33 @@ todo 6 added 10 suites / 35 tests (±0 since); bare-address added
 - `/c` + `/cc` link DexScreener directly (pool-address field dropped —
   snapshots carry no pool detail).
 - Affiliate tags rebranded `dexter-*` (were `chaindexter`).
+- Todo 12 (rename, zero behavior): `src/telegram/` → `src/gateway/`
+  via `git mv` (transport centralization: poller + webhook + ingress +
+  Bot API client + keyboards + registry are all gateway transport, so
+  the folder now says what it is). `TelegramBotClient` class name,
+  `telegram.port.ts` filename, and `infrastructure/telegram/` Bot API
+  subfolder stay (legitimate Telegram names — only the BC root moved);
+  all `@/telegram/` + `./telegram/` imports re-pointed, zero logic
+  touched. Verified: `@/telegram/` grep 0, tsc + jest + build green,
+  boot route diff empty.
 - No root `dev:dexter` script: task constraint (read-only outside the
   app dir) wins over the setup checklist — documented here instead.
+- Message templates (todos 1-13, DONE 2026-10-01): `src/templates/`
+  (domain entities + ports, TypeORM + in-memory repos behind a
+  `DATABASE_ENABLED` factory-switch, 3 migrations pending, seed 7
+  templates/6 commands) + `src/placeholders/` (registry +
+  `TemplateRendererService`) wired in `DexterModule`
+  (`MESSAGE_TEMPLATE_REPOSITORY`, `DisplayMapRepository`,
+  `DISPLAY_RESOLVER` → `DisplayResolverService` useExisting);
+  seed-then-refresh in a single `onApplicationBootstrap`; commands
+  served by templates (`ca`/`x`/`z`/`c`/`cc`/bare, keyboards
+  abandoned — chart-link-only); closed v1 command enum; EmojiMap →
+  DisplayMap rename (`{{chainDisplay}}`, route
+  `/api/dexter/display-maps`); `GET /dexter/token` exposes
+  `templateUsed`. Verified: jest 40/288 green, `tsc --noEmit` clean,
+  double boot (`false` in-memory + `true` TypeORM) with
+  display-via-API-no-reboot. `src/templates/` = Dexter bot message
+  templates, NOT the future frontend-feed `templates` rename.
 
 ## NOTES
 

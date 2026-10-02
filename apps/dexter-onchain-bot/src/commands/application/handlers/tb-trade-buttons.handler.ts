@@ -3,10 +3,10 @@ import type {
   CommandContext,
   CommandHandler,
 } from '@/commands/domain/ports/command-handler.port';
-import { InlineKeyboardBuilder } from '@/telegram/infrastructure/keyboard/inline-keyboard.builder';
-import { TelegramBotClient } from '@/telegram/infrastructure/telegram/bot-client';
+import { InlineKeyboardBuilder } from '@/gateway/infrastructure/keyboard/inline-keyboard.builder';
+import { TelegramBotClient } from '@/gateway/infrastructure/telegram/bot-client';
 import { ChatSettingsService } from '@/settings/application/chat-settings.service';
-import { TradeButtonRegistry } from '@/telegram/infrastructure/keyboard/trade-button-registry';
+import { TradeButtonRegistry } from '@/gateway/infrastructure/keyboard/trade-button-registry';
 
 /**
  * /tb — trade-button settings (inherited from backend chain-dexter-bot
