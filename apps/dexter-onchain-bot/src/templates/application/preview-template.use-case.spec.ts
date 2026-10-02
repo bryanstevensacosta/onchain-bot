@@ -337,6 +337,97 @@ describe('PreviewTemplateUseCase (todo 7 dry-run preview)', () => {
     expect(output).toEqual({ error: 'Token not found', address: SOL_ADDRESS });
   });
 
+  it('token snapshot renders identical text to the address path (pipeline skipped)', async () => {
+    const { useCase, pipeline } = await setup();
+    const spy = (pipeline as { resolveDetailed: jest.Mock }).resolveDetailed;
+    const viaAddress = await useCase.execute({
+      draft: { command: 'ca', bodyMarkdown: BODY },
+      address: SOL_ADDRESS,
+    });
+    expect(isResult(viaAddress)).toBe(true);
+    expect(spy).toHaveBeenCalledTimes(1);
+    spy.mockClear();
+    const viaToken = await useCase.execute({
+      draft: { command: 'ca', bodyMarkdown: BODY },
+      token: TOKEN,
+    });
+    expect(isResult(viaToken)).toBe(true);
+    if (!isResult(viaAddress) || !isResult(viaToken)) {
+      throw new Error('expected rendered results');
+    }
+    expect(viaToken.text).toBe(viaAddress.text);
+    expect(viaToken.placeholdersUsed).toEqual(viaAddress.placeholdersUsed);
+    expect(viaToken.token).toEqual(TOKEN);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('address + token together → 400 strict XOR; neither → 400', async () => {
+    const { useCase, pipeline } = await setup();
+    const spy = (pipeline as { resolveDetailed: jest.Mock }).resolveDetailed;
+    expect(
+      await statusOf(() =>
+        useCase.execute({
+          draft: { command: 'ca', bodyMarkdown: BODY },
+          address: SOL_ADDRESS,
+          token: TOKEN,
+        }),
+      ),
+    ).toBe(400);
+    expect(spy).not.toHaveBeenCalled();
+    const neither = (await responseOf(() =>
+      useCase.execute({ draft: { command: 'ca', bodyMarkdown: BODY } }),
+    )) as { error: string };
+    expect(neither.error).toContain('address must be a non-empty string');
+  });
+
+  it('non-object token → 400; token missing symbol → 400', async () => {
+    const { useCase } = await setup();
+    expect(
+      await statusOf(() =>
+        useCase.execute({
+          draft: { command: 'ca', bodyMarkdown: BODY },
+          token: 'not-a-token' as unknown as ResolvedToken,
+        }),
+      ),
+    ).toBe(400);
+    const { symbol: _dropped, ...partial } = TOKEN;
+    expect(
+      await statusOf(() =>
+        useCase.execute({
+          draft: { command: 'ca', bodyMarkdown: BODY },
+          token: partial as ResolvedToken,
+        }),
+      ),
+    ).toBe(400);
+  });
+
+  it('success carries token; unresolved shapes carry no token field', async () => {
+    const { useCase } = await setup();
+    const ok = await useCase.execute({
+      draft: { command: 'ca', bodyMarkdown: BODY },
+      address: SOL_ADDRESS,
+    });
+    expect(isResult(ok)).toBe(true);
+    if (!isResult(ok)) {
+      throw new Error('expected a rendered result');
+    }
+    expect(ok.token).toEqual(expect.objectContaining({ address: SOL_ADDRESS, symbol: 'SOL' }));
+    const failing = await setup({
+      resolveDetailed: jest.fn(
+        async (address: string): Promise<ResolveOutcome> => ({
+          status: 'not-found',
+          address,
+        }),
+      ),
+    });
+    const output = await failing.useCase.execute({
+      draft: { command: 'ca', bodyMarkdown: BODY },
+      address: SOL_ADDRESS,
+    });
+    expect(output).toEqual({ error: 'Token not found', address: SOL_ADDRESS });
+    expect('token' in (output as unknown as Record<string, unknown>)).toBe(false);
+  });
+
   it('preview files never reference the bot sender (zero-send construction guard)', () => {
     for (const relative of [
       'preview-template.use-case.ts',
