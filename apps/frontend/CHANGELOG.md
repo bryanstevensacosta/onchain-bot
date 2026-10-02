@@ -6,6 +6,28 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ### Added
 
+- Dexter template-management data layer (Wave 1 Lane A, no UI yet):
+  new `entities/dexter/` slice (`model/types.ts`:
+  `MessageTemplateView`/`DisplayMapView`/`PlaceholdersView`/
+  `PreviewTemplateBody`/`PreviewTemplateOutput`, wire field `display`
+  NOT `emoji`, derived key `{{chainDisplay}}`;
+  `api/dexter-queries.ts` fetchers for templates CRUD + activate +
+  preview, placeholders catalog, display-maps CRUD with `dexterKeys`
+  factory; hooks `useDexterTemplates`/`useDexterTemplate`/
+  `useCreateTemplate`/`useUpdateTemplate`/`useDeleteTemplate`/
+  `useActivateTemplate` + `usePlaceholders`/`useDisplayMaps`/
+  `useCreateDisplayMap`/`useUpdateDisplayMap`/`useDeleteDisplayMap` +
+  `usePreviewTemplate` (mutation, no polling)) + `ENDPOINTS.dexter`
+  template routes via `dexterPath` same-origin `/dexter-api` prefix
+  (vite dev → `:4060`) + `/dexter-api/` nginx locations in BOTH confs
+  (prefix stripped, lazy-DNS; staging upstream
+  `onchain-bot-dexter-staging:4060` live, prod upstream
+  `onchain-bot-dexter:4060` planned — prod 502s until dexter
+  deploys). No page/widget consumes these hooks yet:
+  template-management UI is pending (Lane B). Tests:
+  `entities/dexter/api/dexter-queries.test.ts`.
+  (feat/dexter-frontend)
+
 - New `FRONTEND.md` plain-language guide: describes every dashboard screen
   in non-technical words (what each screen is for, what it shows, what you
   can do there), with routes and data sources as the only technical detail.
