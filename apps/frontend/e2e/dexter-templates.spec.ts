@@ -85,6 +85,54 @@ async function mockDexter(page: Page, opts: { down?: boolean } = {}) {
       return json(rows.map(view));
     }
 
+    // Create: duplicate (command, name) → 409, else append (stateful mock).
+    if (path === '/api/dexter/templates' && method === 'POST') {
+      const body = JSON.parse(route.request().postData() ?? '{}') as {
+        command: string;
+        name: string;
+        bodyMarkdown: string;
+      };
+      const dupe = templates.some(
+        (t) => t.command === body.command && t.name === body.name,
+      );
+      if (dupe) {
+        return json(
+          {
+            message: {
+              error: `A template with name ${body.name} already exists for command ${body.command}`,
+            },
+            statusCode: 409,
+          },
+          409,
+        );
+      }
+      const row: TemplateRow = {
+        id: `tpl-${body.command}-9`,
+        command: body.command,
+        name: body.name,
+        bodyMarkdown: body.bodyMarkdown,
+        isActive: false,
+        version: 1,
+      };
+      templates.push(row);
+      return json(view(row));
+    }
+
+    // Update: rename + body with version++ per change (stateful mock).
+    const updateMatch = path.match(/^\/api\/dexter\/templates\/([^/]+)$/);
+    if (updateMatch && method === 'PATCH') {
+      const target = templates.find((t) => t.id === updateMatch[1]);
+      if (!target) return json({ message: 'not found' }, 404);
+      const body = JSON.parse(route.request().postData() ?? '{}') as {
+        name?: string;
+        bodyMarkdown?: string;
+      };
+      if (body.name !== undefined) target.name = body.name;
+      if (body.bodyMarkdown !== undefined) target.bodyMarkdown = body.bodyMarkdown;
+      target.version += 1;
+      return json(view(target));
+    }
+
     // Activate: transactional switch + version++ (stateful mock).
     const activateMatch = path.match(
       /^\/api\/dexter\/templates\/([^/]+)\/activate$/,
@@ -333,5 +381,57 @@ test.describe('dexter templates (Wave 1, Lane B)', () => {
     await page.waitForTimeout(1500);
     await expect(liveResult).toContainText('second live body');
     await expect(liveResult).not.toContainText('first live body');
+  });
+
+  test('live editor save-as-new appears in the templates list', async ({
+    page,
+  }) => {
+    await mockDexter(page);
+    await page.goto('/dexter');
+    await expect(page.getByTestId('dexter-live-section')).toBeVisible();
+
+    await page.getByTestId('dexter-live-save-name').fill('live-saved-v1');
+    await page.getByTestId('dexter-live-save').click();
+    await expect(
+      page.getByTestId('dexter-template-row-tpl-ca-9'),
+    ).toContainText('live-saved-v1');
+    await expect(page.getByTestId('dexter-live-editing')).toContainText(
+      'live-saved-v1',
+    );
+  });
+
+  test('live editor pick → edit → save-back bumps the version', async ({
+    page,
+  }) => {
+    await mockDexter(page);
+    await page.goto('/dexter');
+    await expect(page.getByTestId('dexter-live-section')).toBeVisible();
+
+    await page
+      .getByTestId('dexter-live-template-picker')
+      .selectOption('tpl-ca-2');
+    await expect(page.getByTestId('dexter-live-editing')).toContainText(
+      'Editing compact-rick-v1 (v1)',
+    );
+    await page.getByTestId('dexter-live-editor').fill('edited live body');
+    await page.getByTestId('dexter-live-save').click();
+    await expect(page.getByTestId('dexter-live-editing')).toContainText(
+      '(v2)',
+    );
+  });
+
+  test('live editor detach returns to a free draft', async ({ page }) => {
+    await mockDexter(page);
+    await page.goto('/dexter');
+    await expect(page.getByTestId('dexter-live-section')).toBeVisible();
+
+    await page
+      .getByTestId('dexter-live-template-picker')
+      .selectOption('tpl-ca-2');
+    await expect(page.getByTestId('dexter-live-editing')).toBeVisible();
+    await page.getByTestId('dexter-live-detach').click();
+    await expect(
+      page.getByTestId('dexter-live-editing'),
+    ).not.toBeVisible();
   });
 });

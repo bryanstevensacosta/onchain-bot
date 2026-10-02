@@ -68,6 +68,26 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
   `dexter-templates.spec.ts` (load→type→stable render, stale-discard).
   (feat/dexter-frontend)
 
+- Dexter live-editor save flow sharing the CRUD persistence (no
+  duplication): extracted the create/edit modal from
+  `TemplatesSection` into shared `TemplateFormModal`
+  (`pages/dexter/template-form-modal.tsx`, same fields/validations/
+  mutations, zero visible change); `LiveEditorSection` gains a template
+  picker (`dexter-live-template-picker` over `useDexterTemplates(command)`
+  — selecting loads body+command into the draft, `dexter-live-editing`
+  state + Detach back to a free draft) and an explicit-only Save button
+  (`dexter-live-save`: linked + name unchanged → `useUpdateTemplate`
+  PATCH body, version++; free draft or renamed link →
+  `useCreateTemplate` POST with the name input; 409/400 via
+  `englishMutationError`, refresh via the hooks' existing global
+  invalidation; no new validation logic, no autosave). English strings,
+  `dexter-live-*` testids. Tests: `live-editor-section.test.tsx`
+  (save-new/save-back/detach/rename/409) +
+  `template-form-modal.test.tsx` (shared submit paths + raw-source
+  no-duplication guard) + 3 mocked e2e in `dexter-templates.spec.ts`
+  (save-as-new appears in list, save-back bumps version, detach).
+  (feat/dexter-frontend)
+
 - New `FRONTEND.md` plain-language guide: describes every dashboard screen
   in non-technical words (what each screen is for, what it shows, what you
   can do there), with routes and data sources as the only technical detail.

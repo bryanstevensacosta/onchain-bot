@@ -14,11 +14,15 @@ vi.mock('@/entities/dexter', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/entities/dexter')>();
   return {
     ...actual,
+    useDexterTemplates: vi.fn(),
+    useCreateTemplate: vi.fn(),
+    useUpdateTemplate: vi.fn(),
     usePreviewTemplate: vi.fn(),
     previewDexterTemplate: vi.fn(),
   };
 });
 
+import { HttpError } from '@/shared/api/http-client';
 import * as dexter from '@/entities/dexter';
 import { LiveEditorSection } from './live-editor-section';
 
@@ -30,6 +34,17 @@ const hookMock = () =>
   vi.mocked(dexter.usePreviewTemplate) as unknown as ReturnType<typeof vi.fn>;
 
 const TOKEN = { address: 'So1111', chain: 'solana', symbol: 'BONK' };
+
+const TPL_CA = {
+  id: 'tpl-ca-1',
+  command: 'ca',
+  name: 'full-dexter-v1',
+  bodyMarkdown: '*{{symbol}}* | {{name}}',
+  isActive: true,
+  version: 2,
+  createdAt: '2026-10-01T00:00:00.000Z',
+  updatedAt: '2026-10-01T00:00:00.000Z',
+};
 
 const LOAD_OUTPUT = {
   text: '*BONK* | Bonk',
@@ -52,6 +67,39 @@ function idleHook(mutateAsync: ReturnType<typeof vi.fn>) {
   };
 }
 
+function idleMutation(overrides: Record<string, unknown> = {}) {
+  return {
+    mutate: vi.fn(),
+    mutateAsync: vi.fn(),
+    isPending: false,
+    isError: false,
+    error: null,
+    reset: vi.fn(),
+    data: undefined,
+    ...overrides,
+  };
+}
+
+function mockSaveHappy() {
+  vi.mocked(dexter.useDexterTemplates).mockReturnValue({
+    data: [TPL_CA],
+    isPending: false,
+    isError: false,
+  } as unknown as ReturnType<typeof dexter.useDexterTemplates>);
+  vi.mocked(dexter.useCreateTemplate).mockReturnValue(
+    idleMutation() as unknown as ReturnType<typeof dexter.useCreateTemplate>,
+  );
+  vi.mocked(dexter.useUpdateTemplate).mockReturnValue(
+    idleMutation() as unknown as ReturnType<typeof dexter.useUpdateTemplate>,
+  );
+}
+
+function pickTemplate() {
+  fireEvent.change(screen.getByTestId('dexter-live-template-picker'), {
+    target: { value: 'tpl-ca-1' },
+  });
+}
+
 function renderEditor() {
   return render(<LiveEditorSection />);
 }
@@ -65,6 +113,7 @@ function loadAddress() {
 
 beforeEach(() => {
   vi.useFakeTimers();
+  mockSaveHappy();
 });
 
 afterEach(() => {
@@ -243,5 +292,147 @@ describe('LiveEditorSection', () => {
     });
     await act(async () => {});
     expect(previewMock()).not.toHaveBeenCalled();
+  });
+
+  it('saves a free draft as a new template and links the result', async () => {
+    const mutateAsync = vi.fn().mockResolvedValue(LOAD_OUTPUT);
+    hookMock().mockReturnValue(idleHook(mutateAsync));
+    const created = { ...TPL_CA, id: 'tpl-ca-9', name: 'live-saved-v1' };
+    const createMutate = vi.fn(
+      (
+        _body: unknown,
+        opts?: { onSuccess?: (view: typeof created) => void },
+      ) => {
+        opts?.onSuccess?.(created);
+      },
+    );
+    vi.mocked(dexter.useCreateTemplate).mockReturnValue(
+      idleMutation({
+        mutate: createMutate,
+      }) as unknown as ReturnType<typeof dexter.useCreateTemplate>,
+    );
+    renderEditor();
+
+    expect(screen.queryByTestId('dexter-live-editing')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByTestId('dexter-live-save-name'), {
+      target: { value: 'live-saved-v1' },
+    });
+    fireEvent.click(screen.getByTestId('dexter-live-save'));
+
+    expect(createMutate).toHaveBeenCalledTimes(1);
+    expect(createMutate.mock.calls[0][0]).toEqual({
+      command: 'ca',
+      name: 'live-saved-v1',
+      bodyMarkdown: expect.any(String),
+    });
+    expect(
+      vi.mocked(dexter.useUpdateTemplate).mock.results[0]?.value.mutate,
+    ).not.toHaveBeenCalled();
+    await act(async () => {});
+  });
+
+  it('picks a template into the draft and saves the body back', async () => {
+    const mutateAsync = vi.fn().mockResolvedValue(LOAD_OUTPUT);
+    hookMock().mockReturnValue(idleHook(mutateAsync));
+    renderEditor();
+
+    pickTemplate();
+    expect(screen.getByTestId('dexter-live-editing')).toHaveTextContent(
+      'Editing full-dexter-v1 (v2)',
+    );
+    expect(
+      (screen.getByTestId('dexter-live-editor') as HTMLTextAreaElement).value,
+    ).toBe('*{{symbol}}* | {{name}}');
+    expect(
+      (screen.getByTestId('dexter-live-save-name') as HTMLInputElement).value,
+    ).toBe('full-dexter-v1');
+
+    fireEvent.change(screen.getByTestId('dexter-live-editor'), {
+      target: { value: 'edited body {{symbol}}' },
+    });
+    fireEvent.click(screen.getByTestId('dexter-live-save'));
+
+    const updateMutate = vi.mocked(dexter.useUpdateTemplate).mock.results[0]
+      ?.value.mutate as ReturnType<typeof vi.fn>;
+    expect(updateMutate).toHaveBeenCalledTimes(1);
+    expect(updateMutate.mock.calls[0][0]).toEqual({
+      id: 'tpl-ca-1',
+      body: { bodyMarkdown: 'edited body {{symbol}}' },
+    });
+    expect(
+      vi.mocked(dexter.useCreateTemplate).mock.results[0]?.value.mutate,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('detaches back to a free draft — the next save creates', async () => {
+    const mutateAsync = vi.fn().mockResolvedValue(LOAD_OUTPUT);
+    hookMock().mockReturnValue(idleHook(mutateAsync));
+    renderEditor();
+
+    pickTemplate();
+    expect(screen.getByTestId('dexter-live-editing')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('dexter-live-detach'));
+    expect(screen.queryByTestId('dexter-live-editing')).not.toBeInTheDocument();
+    expect(
+      (screen.getByTestId('dexter-live-template-picker') as HTMLSelectElement)
+        .value,
+    ).toBe('');
+
+    fireEvent.change(screen.getByTestId('dexter-live-save-name'), {
+      target: { value: 'detached-new-v1' },
+    });
+    fireEvent.click(screen.getByTestId('dexter-live-save'));
+    expect(
+      vi.mocked(dexter.useCreateTemplate).mock.results[0]?.value.mutate,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'detached-new-v1' }),
+      expect.anything(),
+    );
+    expect(
+      vi.mocked(dexter.useUpdateTemplate).mock.results[0]?.value.mutate,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('renaming a linked template saves as new instead of patching', async () => {
+    const mutateAsync = vi.fn().mockResolvedValue(LOAD_OUTPUT);
+    hookMock().mockReturnValue(idleHook(mutateAsync));
+    renderEditor();
+
+    pickTemplate();
+    fireEvent.change(screen.getByTestId('dexter-live-save-name'), {
+      target: { value: 'renamed-copy-v1' },
+    });
+    fireEvent.click(screen.getByTestId('dexter-live-save'));
+    expect(
+      vi.mocked(dexter.useCreateTemplate).mock.results[0]?.value.mutate,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'renamed-copy-v1' }),
+      expect.anything(),
+    );
+    expect(
+      vi.mocked(dexter.useUpdateTemplate).mock.results[0]?.value.mutate,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('surfaces the 409 duplicate message on save-as-new', async () => {
+    const mutateAsync = vi.fn().mockResolvedValue(LOAD_OUTPUT);
+    hookMock().mockReturnValue(idleHook(mutateAsync));
+    const body = JSON.stringify({
+      message: {
+        error: 'A template with name dup-v1 already exists for command ca',
+      },
+      statusCode: 409,
+    });
+    vi.mocked(dexter.useCreateTemplate).mockReturnValue(
+      idleMutation({
+        isError: true,
+        error: new HttpError(409, body, 'POST → 409'),
+      }) as unknown as ReturnType<typeof dexter.useCreateTemplate>,
+    );
+    renderEditor();
+
+    expect(screen.getByTestId('dexter-live-save-error')).toHaveTextContent(
+      'already exists',
+    );
   });
 });

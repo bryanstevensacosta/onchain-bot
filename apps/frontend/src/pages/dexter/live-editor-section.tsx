@@ -2,7 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import {
   isPreviewUnresolved,
   previewDexterTemplate,
+  useCreateTemplate,
+  useDexterTemplates,
   usePreviewTemplate,
+  useUpdateTemplate,
+  type MessageTemplateView,
 } from '@/entities/dexter';
 import type {
   PreviewTemplateOutput,
@@ -41,8 +45,14 @@ function isAbortError(err: unknown): boolean {
  * re-sends `{ draft, token }` WITHOUT `address` (debounced 400 ms, the
  * in-flight request aborted, stale responses discarded by sequence id).
  * The backend is the only render truth — the browser never substitutes
- * placeholders. Drafts are never persisted (no save button; saving stays
- * in the templates CRUD flow).
+ * placeholders.
+ *
+ * Save reuses the shared CRUD mutations (`useCreateTemplate` /
+ * `useUpdateTemplate` — the same hooks `TemplateFormModal` uses, no
+ * second implementation): a linked template whose name is unchanged
+ * PATCHes the body back (version++); a free draft — or a renamed link —
+ * POSTs as a new template. Backend owns all validation (409/400 surface
+ * via `englishMutationError`); there is no autosave, only the button.
  */
 export function LiveEditorSection() {
   const [command, setCommand] = useState<string>('ca');
@@ -56,6 +66,79 @@ export function LiveEditorSection() {
   const [livePending, setLivePending] = useState(false);
 
   const resolve = usePreviewTemplate();
+
+  // Same CRUD mutations as TemplateFormModal — no second implementation.
+  const templateList = useDexterTemplates(command);
+  const createTemplate = useCreateTemplate();
+  const updateTemplate = useUpdateTemplate();
+  const [linkedId, setLinkedId] = useState<string | null>(null);
+  const [saveName, setSaveName] = useState('');
+  const templateRows: ReadonlyArray<MessageTemplateView> = Array.isArray(
+    templateList.data,
+  )
+    ? templateList.data
+    : [];
+  const linked: MessageTemplateView | null =
+    linkedId !== null
+      ? (templateRows.find((t) => t.id === linkedId) ?? null)
+      : null;
+
+  const pickTemplate = (id: string) => {
+    createTemplate.reset();
+    updateTemplate.reset();
+    if (id === '') {
+      setLinkedId(null);
+      return;
+    }
+    const target = templateRows.find((t) => t.id === id);
+    if (!target) return;
+    setLinkedId(target.id);
+    setCommand(target.command);
+    setBodyText(target.bodyMarkdown);
+    setSaveName(target.name);
+  };
+
+  const detach = () => {
+    createTemplate.reset();
+    updateTemplate.reset();
+    setLinkedId(null);
+  };
+
+  // Linked + name unchanged → PATCH body; otherwise POST as new.
+  const isSaveBack =
+    linked !== null &&
+    saveName.trim() !== '' &&
+    saveName.trim() === linked.name;
+  const savePending = createTemplate.isPending || updateTemplate.isPending;
+  const save = () => {
+    if (savePending || bodyText.trim() === '') return;
+    if (isSaveBack && linked !== null) {
+      updateTemplate.mutate({
+        id: linked.id,
+        body: { bodyMarkdown: bodyText },
+      });
+    } else {
+      if (saveName.trim() === '') return;
+      createTemplate.mutate(
+        { command, name: saveName.trim(), bodyMarkdown: bodyText },
+        {
+          onSuccess: (created) => {
+            setLinkedId(created.id);
+            setSaveName(created.name);
+          },
+        },
+      );
+    }
+  };
+  const saveErrorText = createTemplate.isError
+    ? englishMutationError(createTemplate.error)
+    : updateTemplate.isError
+      ? englishMutationError(updateTemplate.error)
+      : null;
+  const saveDisabled =
+    savePending ||
+    bodyText.trim() === '' ||
+    (!isSaveBack && saveName.trim() === '');
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -164,7 +247,8 @@ export function LiveEditorSection() {
         <h2 className="text-sm font-bold text-slate-100">Live editor</h2>
         <p className="text-xs text-slate-500 mt-1">
           Load token data once, then type — the preview re-renders from the
-          frozen snapshot without re-resolving. Drafts are never saved here.
+          frozen snapshot without re-resolving. Pick a template to edit it here,
+          or save the draft as a new template.
         </p>
 
         <div className="grid gap-2 mt-2">
@@ -233,6 +317,73 @@ export function LiveEditorSection() {
             onChange={(e) => setBodyText(e.target.value)}
           />
         </label>
+
+        <div className="mt-2 space-y-2 border-t border-slate-800 pt-2">
+          <label className="block text-xs text-slate-400">
+            Template
+            <select
+              data-testid="dexter-live-template-picker"
+              className="mt-1 w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs font-mono text-slate-100"
+              value={linked?.id ?? ''}
+              onChange={(e) => pickTemplate(e.target.value)}
+            >
+              <option value="">Free draft</option>
+              {templateRows.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} (v{t.version}
+                  {t.isActive ? ', active' : ''})
+                </option>
+              ))}
+            </select>
+          </label>
+          {linked !== null && (
+            <div
+              data-testid="dexter-live-editing"
+              className="flex flex-wrap items-center gap-2 text-xs text-slate-300"
+            >
+              <span>
+                Editing {linked.name} (v{linked.version})
+              </span>
+              <Button
+                size="sm"
+                variant="secondary"
+                data-testid="dexter-live-detach"
+                onClick={detach}
+              >
+                Detach
+              </Button>
+            </div>
+          )}
+          <label className="block text-xs text-slate-400">
+            Name (for save as new)
+            <input
+              data-testid="dexter-live-save-name"
+              className="mt-1 w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm font-mono text-slate-100"
+              placeholder="new-template-name"
+              value={saveName}
+              onChange={(e) => setSaveName(e.target.value)}
+              disabled={savePending}
+            />
+          </label>
+          <div>
+            <Button
+              size="sm"
+              data-testid="dexter-live-save"
+              disabled={saveDisabled}
+              onClick={save}
+            >
+              {savePending ? 'Saving…' : 'Save'}
+            </Button>
+          </div>
+          {saveErrorText !== null && (
+            <div
+              data-testid="dexter-live-save-error"
+              className="text-xs text-red-400"
+            >
+              {saveErrorText}
+            </div>
+          )}
+        </div>
 
         {livePending && (
           <div
