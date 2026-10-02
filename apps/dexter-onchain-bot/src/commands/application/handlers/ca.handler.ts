@@ -1,14 +1,25 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import type {
   CommandContext,
   CommandHandler,
 } from '@/commands/domain/ports/command-handler.port';
-import { InlineKeyboardBuilder } from '@/telegram/infrastructure/keyboard/inline-keyboard.builder';
+import { InlineKeyboardBuilder } from '@/gateway/infrastructure/keyboard/inline-keyboard.builder';
 import { MessageFormatterAdapter } from '@/scan/infrastructure/formatter/message-formatter';
-import { TelegramBotClient } from '@/telegram/infrastructure/telegram/bot-client';
-import { TradeButtonRegistry } from '@/telegram/infrastructure/keyboard/trade-button-registry';
+import { TelegramBotClient } from '@/gateway/infrastructure/telegram/bot-client';
+import { TradeButtonRegistry } from '@/gateway/infrastructure/keyboard/trade-button-registry';
 import { TokenScanPipeline } from '@/scan/application/pipeline/token-scan.pipeline';
 import type { ScanPipeline } from '@/scan/domain/ports/scan-pipeline.port';
+import {
+  MESSAGE_TEMPLATE_REPOSITORY,
+  type MessageTemplateRepository,
+} from '@/templates/domain/ports/message-template.repository';
+import {
+  TemplateRendererService,
+  type TemplateValues,
+} from '@/placeholders/application/template-renderer.service';
+import type { TemplateCommand } from '@/placeholders/domain/placeholder-registry';
+
+const sendFullScanLogger = new Logger('sendFullScan');
 
 /**
  * Shared full-scan sender: resolves via market-data HTTP ONLY and
@@ -28,6 +39,9 @@ export async function sendFullScan(
   registry: TradeButtonRegistry,
   keyboards: InlineKeyboardBuilder,
   bot: TelegramBotClient,
+  templates?: MessageTemplateRepository | null,
+  renderer?: TemplateRendererService | null,
+  templateCommands?: readonly TemplateCommand[],
 ): Promise<void> {
   void registry;
   void keyboards;
@@ -45,6 +59,56 @@ export async function sendFullScan(
       { parse_mode: 'MarkdownV2' },
     );
     return;
+  }
+
+  // todo 10 (dexter-message-templates): active-template render with
+  // built-in fallback. The lookup chain defaults to the handler's own
+  // command (ca/x never cross-render); bare passes ['bare', 'ca'].
+  // The renderer is wired resolver-less until todo 13 binds
+  // DISPLAY_RESOLVER, so {{chainDisplay}} renders "" meanwhile
+  // (accepted interim — handlers render with whatever the wired
+  // renderer resolves). No timeframe for these commands.
+  const lookup: readonly TemplateCommand[] = templateCommands ?? [
+    command as TemplateCommand,
+  ];
+  if (templates && renderer) {
+    let active: Awaited<
+      ReturnType<MessageTemplateRepository['findActiveByCommand']>
+    > = null;
+    try {
+      for (const cmd of lookup) {
+        active = await templates.findActiveByCommand(cmd);
+        if (active) break;
+      }
+    } catch (err) {
+      sendFullScanLogger.warn(
+        `Template lookup failed (${lookup.join('→')}): ${err instanceof Error ? err.message : 'unknown'} — falling back to built-in card`,
+      );
+      active = null;
+    }
+    if (active) {
+      try {
+        const values: TemplateValues = { ...token };
+        const rendered = renderer.render(
+          active.bodyMarkdown,
+          values,
+          active.command,
+        );
+        await bot.sendMessage(context.chatId, rendered.text, {
+          parse_mode: 'MarkdownV2',
+        });
+      } catch (err) {
+        const detail = err instanceof Error ? err.message : 'unknown';
+        sendFullScanLogger.error(
+          `Template render failed (${active.command}/${active.name}): ${detail}`,
+        );
+        await bot.sendMessage(
+          context.chatId,
+          `⚠️ La plantilla activa de /${active.command} (${active.name}) tiene un error y no se pudo generar la tarjeta. Detalle: ${detail}. Avisá a un administrador para corregirla.`,
+        );
+      }
+      return;
+    }
   }
 
   const card = formatter.formatScanCard(token);
@@ -67,6 +131,12 @@ export class CaScanHandler implements CommandHandler {
     private readonly registry: TradeButtonRegistry,
     private readonly keyboards: InlineKeyboardBuilder,
     private readonly bot: TelegramBotClient,
+    @Inject(MESSAGE_TEMPLATE_REPOSITORY)
+    @Optional()
+    private readonly templates?: MessageTemplateRepository | null,
+    @Inject(TemplateRendererService)
+    @Optional()
+    private readonly renderer?: TemplateRendererService | null,
   ) {}
 
   public async handle(args: string[], context: CommandContext): Promise<void> {
@@ -79,6 +149,9 @@ export class CaScanHandler implements CommandHandler {
       this.registry,
       this.keyboards,
       this.bot,
+      this.templates ?? null,
+      this.renderer ?? null,
+      ['ca'],
     );
   }
 }

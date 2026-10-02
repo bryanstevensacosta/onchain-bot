@@ -84,8 +84,9 @@ services:
       # Host mapping 4061:4060 below.
       DEXTER_PORT: 4060
       # DB name onchain_bot_dexter_staging per central plan C-DB-01
-      # (staging `<base>_<app>_staging`); reserved for future
-      # persistence (v1 runs on in-memory chat settings).
+      # (staging `<base>_<app>_staging`); TypeORM wired since
+      # dexter-message-templates todo 1 (DATABASE_ENABLED=true).
+      DATABASE_ENABLED: true
       DATABASE_URL: postgres://${POSTGRES_USER:-onchain_bot}:${POSTGRES_PASSWORD:-onchain_bot}@postgres:5432/${POSTGRES_DB:-onchain_bot_dexter_staging}
       DATABASE_SYNCHRONIZE: false
       REDIS_URL: ${DEXTER_REDIS_URL:-redis://redis:6379/2}

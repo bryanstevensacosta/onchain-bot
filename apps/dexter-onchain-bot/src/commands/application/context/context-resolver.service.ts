@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { CommandContext } from '@/commands/domain/ports/command-handler.port';
 import type { ChatGroupRepository } from '@/settings/domain/chat-settings';
 import { ChatSettingsService } from '@/settings/application/chat-settings.service';
-import type { TelegramUpdate } from '@/telegram/infrastructure/telegram/bot-client';
+import type { TelegramUpdate } from '@/gateway/infrastructure/telegram/bot-client';
 
 /**
  * Context resolver (moved from backend chain-dexter-bot
