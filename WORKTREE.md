@@ -12,6 +12,7 @@
 | ------------- | -------------------- | ----- | ---------------------------- | ------------------------------------------------------------ | ----------------------------------------------- | ------------------- | ------------------- | ------ |
 | frontend-feed | `feat/feed-frontend` | `dev` | `../onchain-bot-feat-feed`   | Vite `:5184` (principal `:5173`), backend compartido `:3030` | trabajar `/feed` frontend sin rozar `/kol`      | ver § frontend-feed | ver § frontend-feed | activo |
 | dexter-bot    | `feat/dexter-bot`    | `dev` | `../onchain-bot-feat-dexter` | N/A (modo solo-editar, sin servidores)                       | trabajar el bot chart dexter sin rozar feed/kol | ver § dexter-bot    | ver § dexter-bot    | activo |
+| kol           | `feat/kol`           | `dev` | `../onchain-bot-feat-kol`    | N/A (modo solo-editar, sin servidores)                       | concepto kol global sin rozar feed/dexter       | ver § kol           | ver § kol           | activo |
 
 ## frontend-feed
 
@@ -53,10 +54,6 @@ un worktree nuevo cuando el scope no encaja en ninguno existente.
    commitear/stash primero, nunca `--force` sin instrucción explícita) + `git worktree prune`.
 6. Archivar: en el principal `dev`, marcar esta sección como `estado: archivada`.
 
-### Cómo añadir el próximo (reservado)
-
-- `feat/kol-frontend` → `../onchain-bot-feat-kol` → `:5185` (reservado, no creado).
-
 ## dexter-bot
 
 - **Propósito**: trabajar el bot chart dexter sin rozar feed/kol.
@@ -83,6 +80,42 @@ un worktree nuevo cuando el scope no encaja en ninguno existente.
 3. Verificar `gh pr view` + checks CI verdes (GOVERNANCE.md: 1 aprobación + CI + hilos resueltos).
 4. **Dejar el PR abierto para merge humano** (nunca mergear solo).
 5. Limpieza: `git worktree remove ../onchain-bot-feat-dexter` (exige árbol limpio —
+   commitear/stash primero, nunca `--force` sin instrucción explícita) + `git worktree prune`.
+6. Archivar: en el principal `dev`, marcar esta sección como `estado: archivada`.
+
+## kol
+
+- **Propósito**: concepto kol global sin rozar feed/dexter.
+- **Rama**: `feat/kol` (NUEVA, creada con `-b` desde `dev`).
+- **Base**: `dev`.
+- **Path**: `../onchain-bot-feat-kol`.
+- **Puertos**: N/A — modo solo-editar, sin servidores (decisión del owner).
+  No se levanta ni backend ni Vite en este worktree; no se copian `.env`
+  y no se toca el Vite `:5184` del worktree feed ni ningún otro puerto.
+- **Scope IN** (concepto kol global):
+  1. `apps/backend/src/kol/` (identity+reputation+source+stats)
+  2. `apps/backend/src/telegram-kol/`
+  3. `apps/kol-calls/`
+  4. `apps/kol-calls-publisher/`
+  5. `apps/frontend/src/pages/kols/`
+  6. `apps/frontend/src/widgets/kol-leaderboard/`
+  7. `apps/frontend/src/features/kol-score-formula/`
+  8. `apps/frontend/src/entities/kol/`
+  9. `apps/frontend/src/entities/kol-reputation/`
+- **Scope OUT**: feed, dexter, ingestion-telegram, deploy.
+- **Estado**: activo.
+- **Cuándo reusar**: si el cambio toca el concepto kol global (identity, reputation,
+  source, stats, telegram-kol, kol-calls, kol-calls-publisher, páginas/widgets/
+  features/entities kol) → **reusar** este worktree,
+  no crear uno nuevo (regla reuso-primero).
+
+### Cierre-PR (kol)
+
+1. Desde el worktree: `git push -u origin feat/kol`.
+2. `gh pr create --base dev --head feat/kol --title 'feat(kol): <resumen>' --body 'Worktree: ../onchain-bot-feat-kol. Registry: WORKTREE.md ## kol'`.
+3. Verificar `gh pr view` + checks CI verdes (GOVERNANCE.md: 1 aprobación + CI + hilos resueltos).
+4. **Dejar el PR abierto para merge humano** (nunca mergear solo).
+5. Limpieza: `git worktree remove ../onchain-bot-feat-kol` (exige árbol limpio —
    commitear/stash primero, nunca `--force` sin instrucción explícita) + `git worktree prune`.
 6. Archivar: en el principal `dev`, marcar esta sección como `estado: archivada`.
 
