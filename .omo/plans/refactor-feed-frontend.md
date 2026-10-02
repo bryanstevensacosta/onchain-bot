@@ -137,6 +137,10 @@ Docs (todos 0–5): ya commiteados (`da788e7f` registry, `4c297552` specs+plan).
 
 Reglas: 1 round = 1 PR; PR describe superficie + dual-state + rollback; `main`/`master` nunca directo; `dev`→`master` por squash-PR (GOVERNANCE.md); cada PR cita su apéndice (A1–A10/B8–B12) y su evidence log.
 
+## Retención (orden del dueño 2026-10-01)
+
+Al final del plan NO eliminar el worktree `/Users/bryanstevens/dev/onchain-bot-feat-feed` ni la rama `feat/feed-frontend` hasta que el dueño complete sus pruebas manuales y lo autorice explícitamente. El worker no corre `git worktree remove` ni borra ramas en ningún todo/F.
+
 ## Success criteria
 
 - `overview.md` describe el 100% de lo montado en `/feed` sin una sola propuesta futura.
