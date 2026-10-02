@@ -94,7 +94,7 @@ un worktree nuevo cuando el scope no encaja en ninguno existente.
   y no se toca el Vite `:5184` del worktree feed ni ningún otro puerto.
 - **Scope IN** (concepto kol global):
   1. `apps/backend/src/kol/` (identity+reputation+source+stats)
-  2. `apps/backend/src/telegram-kol/`
+  2. `apps/backend/src/telegram/ingestion/kol/`
   3. `apps/kol-calls/`
   4. `apps/kol-calls-publisher/`
   5. `apps/frontend/src/pages/kols/`
@@ -105,7 +105,7 @@ un worktree nuevo cuando el scope no encaja en ninguno existente.
 - **Scope OUT**: feed, dexter, ingestion-telegram, deploy.
 - **Estado**: activo.
 - **Cuándo reusar**: si el cambio toca el concepto kol global (identity, reputation,
-  source, stats, telegram-kol, kol-calls, kol-calls-publisher, páginas/widgets/
+  source, stats, telegram/ingestion/kol, kol-calls, kol-calls-publisher, páginas/widgets/
   features/entities kol) → **reusar** este worktree,
   no crear uno nuevo (regla reuso-primero).
 
