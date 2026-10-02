@@ -46,12 +46,61 @@ export interface PlaceholdersView {
   readonly placeholders: ReadonlyArray<PlaceholderInfo>;
 }
 
+/**
+ * TYPE-ONLY mirror of the backend `ResolvedToken`
+ * (`apps/dexter-onchain-bot/src/scan/domain/ports/scan-pipeline.port.ts`).
+ * Required core `address/chain/symbol` (backend 400s otherwise); every
+ * other field is optional/nullable (renderer tolerates absent keys as
+ * N/A/`""`) so partial snapshots stay JSON-safe. Primitives only — echo
+ * the object back verbatim, no (de)serializers needed.
+ */
+export interface DevWalletSnapshot {
+  readonly wallet: string;
+  readonly holdAmount: number | null;
+  readonly percentOfSupply: number | null;
+  readonly pnlUsd: number | null;
+  readonly tag: string | null;
+  readonly probable?: boolean;
+}
+
+export interface ResolvedTokenSnapshot {
+  readonly address: string;
+  readonly chain: string;
+  readonly symbol: string;
+  readonly name?: string | null;
+  readonly marketCapUsd?: number | null;
+  readonly fdvUsd?: number | null;
+  readonly priceUsd?: number | null;
+  readonly priceChange24h?: number | null;
+  readonly liquidityUsd?: number | null;
+  readonly lockedLiquidityPercent?: number | null;
+  readonly burnedPercent?: number | null;
+  readonly volume24hUsd?: number | null;
+  readonly holders?: number | null;
+  readonly top10HolderPercent?: number | null;
+  readonly top20HolderPercent?: number | null;
+  readonly totalSupply?: number | null;
+  readonly circulatingSupply?: number | null;
+  readonly maxSupply?: number | null;
+  readonly devWallets?: ReadonlyArray<DevWalletSnapshot> | null;
+  readonly devPctSupply?: number | null;
+  readonly poolAddress?: string | null;
+  readonly source?: string;
+}
+
 export interface PreviewResult {
   readonly text: string;
   readonly truncated: boolean;
   readonly parseMode: 'MarkdownV2';
   readonly placeholdersUsed: ReadonlyArray<string>;
   readonly unknown: ReadonlyArray<string>;
+  /**
+   * Frozen token snapshot (live-editor contract, additive): present on
+   * success responses that resolved via `address`, absent on unresolved
+   * shapes. Echo it back verbatim as `token` (WITHOUT `address`) to
+   * re-render without re-resolving.
+   */
+  readonly token?: ResolvedTokenSnapshot;
 }
 
 /** Pipeline error shapes, propagated verbatim (same bodies as `GET /dexter/token`). */
@@ -92,13 +141,15 @@ export interface PreviewDraftBody {
 }
 
 /**
- * Preview request: `templateId` XOR `draft` + `address`
- * (+ `timeframe` for c/cc only). Both/neither → 400.
+ * Preview request: `templateId` XOR `draft` AND `address` XOR `token`.
+ * Both/neither of either pair → 400. Unresolved shapes carry NO token.
+ * Live-editor hot path: `{ draft, token }` WITHOUT `address`.
  */
 export interface PreviewTemplateBody {
   readonly templateId?: string;
   readonly draft?: PreviewDraftBody;
-  readonly address: string;
+  readonly address?: string;
+  readonly token?: ResolvedTokenSnapshot;
   readonly timeframe?: string;
 }
 

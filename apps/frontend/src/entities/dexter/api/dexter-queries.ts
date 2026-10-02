@@ -89,10 +89,12 @@ export async function activateDexterTemplate(
 
 export async function previewDexterTemplate(
   body: PreviewTemplateBody,
+  signal?: AbortSignal,
 ): Promise<PreviewTemplateOutput> {
   return httpPost<PreviewTemplateBody, PreviewTemplateOutput>(
     ENDPOINTS.dexter.templatePreview,
     body,
+    signal,
   );
 }
 

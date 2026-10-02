@@ -61,7 +61,7 @@ function view(row: TemplateRow) {
 
 async function mockDexter(page: Page, opts: { down?: boolean } = {}) {
   const templates = seedTemplates();
-  await page.route('**/dexter-api/**', (route: Route) => {
+  await page.route('**/dexter-api/**', async (route: Route) => {
     const url = new URL(route.request().url());
     const path = url.pathname.replace(/^\/dexter-api/, '');
     const method = route.request().method();
@@ -99,12 +99,14 @@ async function mockDexter(page: Page, opts: { down?: boolean } = {}) {
       return json(view(target));
     }
 
-    // Preview: templateId XOR draft + address (+ timeframe c/cc only).
+    // Preview: templateId XOR draft + address XOR token (+ timeframe c/cc only).
+    let liveCalls = 0;
     if (path === '/api/dexter/templates/preview' && method === 'POST') {
       const body = JSON.parse(route.request().postData() ?? '{}') as {
         templateId?: string;
         draft?: { command: string; bodyMarkdown: string };
         address?: string;
+        token?: { address: string; chain: string; symbol: string };
         timeframe?: string;
       };
       const hasId = body.templateId !== undefined;
@@ -114,6 +116,19 @@ async function mockDexter(page: Page, opts: { down?: boolean } = {}) {
           {
             message: {
               error: 'provide exactly one of templateId or draft',
+            },
+            statusCode: 400,
+          },
+          400,
+        );
+      }
+      const hasAddress = body.address !== undefined;
+      const hasToken = body.token !== undefined;
+      if (hasAddress === hasToken) {
+        return json(
+          {
+            message: {
+              error: 'provide exactly one of address or token',
             },
             statusCode: 400,
           },
@@ -141,12 +156,30 @@ async function mockDexter(page: Page, opts: { down?: boolean } = {}) {
           400,
         );
       }
+      // Token path: frozen snapshot, pipeline skipped — same text shape.
+      if (hasToken) {
+        liveCalls += 1;
+        const delayMs = liveCalls === 1 ? 900 : 100;
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        return json({
+          text: `LIVE:${body.draft?.bodyMarkdown ?? ''}`,
+          truncated: false,
+          parseMode: 'MarkdownV2',
+          placeholdersUsed: ['symbol'],
+          unknown: [],
+        });
+      }
       return json({
         text: `*BONK* | Bonk — ${command}\n\`${body.address ?? ''}\``,
         truncated: true,
         parseMode: 'MarkdownV2',
         placeholdersUsed: ['symbol', 'name'],
         unknown: [],
+        token: {
+          address: body.address ?? '',
+          chain: 'solana',
+          symbol: 'BONK',
+        },
       });
     }
 
@@ -254,5 +287,51 @@ test.describe('dexter templates (Wave 1, Lane B)', () => {
     await expect(page.getByTestId('dexter-templates-empty')).toBeVisible();
     await expect(page.getByTestId('dexter-placeholders-empty')).toBeVisible();
     await expect(page.getByTestId('dexter-display-empty')).toBeVisible();
+  });
+
+  test('live editor loads once then re-renders stably while typing', async ({
+    page,
+  }) => {
+    await mockDexter(page);
+    await page.goto('/dexter');
+    await expect(page.getByTestId('dexter-live-section')).toBeVisible();
+    await page
+      .getByTestId('dexter-live-address')
+      .fill('So11111111111111111111111111111111111111112');
+    await page.getByTestId('dexter-live-load').click();
+    const liveResult = page.getByTestId('dexter-live-result');
+    await expect(liveResult).toContainText('BONK');
+    await expect(
+      page.getByTestId('dexter-live-placeholders'),
+    ).toContainText('symbol');
+
+    await page.getByTestId('dexter-live-editor').fill('hello live body');
+    await expect(liveResult).toContainText('hello live body', {
+      timeout: 10000,
+    });
+    await expect(liveResult).not.toContainText('BONK');
+  });
+
+  test('live editor discards the stale response', async ({ page }) => {
+    await mockDexter(page);
+    await page.goto('/dexter');
+    await page
+      .getByTestId('dexter-live-address')
+      .fill('So11111111111111111111111111111111111111112');
+    await page.getByTestId('dexter-live-load').click();
+    const liveResult = page.getByTestId('dexter-live-result');
+    await expect(liveResult).toContainText('BONK');
+
+    // First keystroke burst fires a slow render; the second burst fires a
+    // fast one that must win even though the slow response lands later.
+    await page.getByTestId('dexter-live-editor').fill('first live body');
+    await page.waitForTimeout(700);
+    await page.getByTestId('dexter-live-editor').fill('second live body');
+    await expect(liveResult).toContainText('second live body', {
+      timeout: 10000,
+    });
+    await page.waitForTimeout(1500);
+    await expect(liveResult).toContainText('second live body');
+    await expect(liveResult).not.toContainText('first live body');
   });
 });

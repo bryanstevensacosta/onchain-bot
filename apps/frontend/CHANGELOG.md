@@ -45,6 +45,29 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
   API-down empty states).
   (feat/dexter-frontend)
 
+- Dexter live template editor with frozen snapshot (Wave 1 follow-up,
+  frontend lane; backend contract already live): new `LiveEditorSection`
+  (`pages/dexter/live-editor-section.tsx`, wired below `PreviewSection`
+  in `index.tsx`) — split Markdown textarea with `{{placeholders}}` on
+  top + `RenderMarkdownV2` result below, address input + `Load data`
+  button (one `{draft, address}` resolve via `usePreviewTemplate`,
+  freezes the returned `token`), debounced keystroke re-renders
+  (`LIVE_EDITOR_DEBOUNCE_MS` 400 ms) sending `{draft, token}` WITHOUT
+  address through `previewDexterTemplate` (per-fire `AbortController`
+  cancel + sequence-id stale discard; address/command edits invalidate
+  the snapshot with a re-load hint); `placeholdersUsed` chips +
+  `truncated` badge + unresolved states; English strings, `dexter-live-*`
+  testids, no save button (drafts never persisted). Additive-only
+  entity delta: TYPE-ONLY `ResolvedTokenSnapshot` mirror of backend
+  `ResolvedToken` (required `address/chain/symbol`, rest
+  optional/nullable, JSON-safe primitives) as `PreviewTemplateBody.token`
+  (making `address` optional) + `PreviewResult.token`;
+  `previewDexterTemplate(body, signal?)` forwards to `httpPost` (new
+  optional signal param, backward compatible). Tests:
+  `live-editor-section.test.tsx` (5 tests) + 2 mocked e2e cases in
+  `dexter-templates.spec.ts` (load→type→stable render, stale-discard).
+  (feat/dexter-frontend)
+
 - New `FRONTEND.md` plain-language guide: describes every dashboard screen
   in non-technical words (what each screen is for, what it shows, what you
   can do there), with routes and data sources as the only technical detail.

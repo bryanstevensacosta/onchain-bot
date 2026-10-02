@@ -109,7 +109,24 @@ describe('dexter-queries URL pinning', () => {
     expect(mockedHttpPost).toHaveBeenCalledWith(
       '/dexter-api/api/dexter/templates/preview',
       body,
+      undefined,
     );
+  });
+
+  it('previewDexterTemplate forwards token + signal without address (live-editor hot path)', async () => {
+    mockedHttpPost.mockResolvedValue({ text: 'hi' });
+    const controller = new AbortController();
+    const body = {
+      draft: { command: 'ca', bodyMarkdown: '{{symbol}}' },
+      token: { address: 'So1111', chain: 'solana', symbol: 'BONK' },
+    };
+    await previewDexterTemplate(body, controller.signal);
+    expect(mockedHttpPost).toHaveBeenCalledWith(
+      '/dexter-api/api/dexter/templates/preview',
+      body,
+      controller.signal,
+    );
+    expect(body).not.toHaveProperty('address');
   });
 
   it('fetchPlaceholders hits the per-command catalog route', async () => {

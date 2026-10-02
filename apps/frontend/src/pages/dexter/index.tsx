@@ -12,6 +12,7 @@ import { ScanSearchModal } from './scan-search-modal';
 import { useRecentScans } from './use-recent-scans';
 import { TemplatesSection } from './templates-section';
 import { PreviewSection } from './preview-section';
+import { LiveEditorSection } from './live-editor-section';
 import { PlaceholdersSection } from './placeholders-section';
 import { DisplayMapsSection } from './display-maps-section';
 
@@ -229,6 +230,7 @@ export function DexterPage() {
       />
       <TemplatesSection onPreview={(id) => setPreviewSeed(id)} />
       <PreviewSection seedTemplateId={previewSeed} />
+      <LiveEditorSection />
       <PlaceholdersSection />
       <DisplayMapsSection />
     </div>
