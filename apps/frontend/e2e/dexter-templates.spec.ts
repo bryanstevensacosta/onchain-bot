@@ -177,7 +177,7 @@ test.describe('dexter templates (Wave 1, Lane B)', () => {
     ).toBeVisible();
     await expect(
       page.getByTestId('dexter-template-active-tpl-ca-1'),
-    ).toContainText('activa');
+    ).toContainText('active');
 
     // tpl-ca-2 is idle while tpl-ca-1 is active → confirm step first.
     await page.getByTestId('dexter-template-activate-tpl-ca-2').click();
@@ -187,10 +187,10 @@ test.describe('dexter templates (Wave 1, Lane B)', () => {
     await page.getByTestId('dexter-template-activate-confirm-tpl-ca-2').click();
     await expect(
       page.getByTestId('dexter-template-active-tpl-ca-2'),
-    ).toContainText('activa');
+    ).toContainText('active');
     await expect(
       page.getByTestId('dexter-template-row-tpl-ca-1'),
-    ).not.toContainText('activa');
+    ).not.toContainText('active');
   });
 
   test('preview by-id renders Markdown + chips + truncated badge', async ({
@@ -208,7 +208,7 @@ test.describe('dexter templates (Wave 1, Lane B)', () => {
     await expect(result).toBeVisible();
     await expect(result).toContainText('BONK');
     await expect(result).toContainText('symbol');
-    await expect(result).toContainText('truncado');
+    await expect(result).toContainText('truncated');
   });
 
   test('unresolvable address shows the unresolved state', async ({ page }) => {
@@ -232,7 +232,7 @@ test.describe('dexter templates (Wave 1, Lane B)', () => {
     await expect(page.getByTestId('dexter-preview-timeframe')).toBeDisabled();
     await page.getByTestId('dexter-preview-command').selectOption('c');
     await expect(page.getByTestId('dexter-preview-timeframe')).toBeEnabled();
-    await expect(page.getByText(/Válidos: 1m, 5m, 15m/)).toBeVisible();
+    await expect(page.getByText(/Valid: 1m, 5m, 15m/)).toBeVisible();
   });
 
   test('placeholders + display-maps render', async ({ page }) => {

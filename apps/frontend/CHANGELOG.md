@@ -35,10 +35,10 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
   row action), `PreviewSection` (active/id/draft modes, `isPreviewUnresolved()`
   narrowing, copy + `truncado` badge), `PlaceholdersSection` (read-only
   catalog), `DisplayMapsSection` (CRUD) + tokenized MarkdownV2 renderer
-  (`shared/lib/render-markdown-v2.tsx`, React rebuild, never
+  ( `shared/lib/render-markdown-v2.tsx`, React rebuild, never
   `dangerouslySetInnerHTML`, XSS-safe) + `dexter-template-helpers.ts`
-  (command enum, timeframe hint, HttpError-to-Spanish mapper).
-  Spanish strings, `dexter-*` testids, API-down empty states (never
+  (command enum, timeframe hint, HttpError-to-English mapper).
+  English strings, `dexter-*` testids, API-down empty states (never
   crashes). Tests: `e2e/dexter-templates.spec.ts` (6 tests con
   `/dexter-api/**` mockeados: list + activate, preview render,
   unresolved state, timeframe gating, placeholders + display-maps,
@@ -56,6 +56,17 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
   (feat/mega-refactor-tramos)
 
 ### Changed
+
+- Dexter page English pass (owner override of the repo's Spanish-UI
+  convention — dexter page only): all user-visible strings in
+  `pages/dexter/` translated to operator English (templates / preview /
+  placeholders / display-maps sections, create/edit/delete/activate
+  modals + confirms, 409/400 inline errors, empty / loading states,
+  filter inputs, Yes/No badges, tooltips); `spanishMutationError`
+  renamed to `englishMutationError` (+ all imports). Testids
+  `dexter-*` unchanged. Tests updated (`templates-section.test.tsx`,
+  `scan-search-modal.test.tsx`, `e2e/dexter-templates.spec.ts`).
+  (feat/dexter-frontend)
 
 - Manage Sessions moved into the Overview tab (breaking UI change):
   `widgets/feed-sessions/ui/manage-session-modal.tsx` deleted; its

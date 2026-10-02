@@ -11,7 +11,7 @@ import { Badge, Button, Card, Modal } from '@/shared/ui';
 import { RenderMarkdownV2 } from '@/shared/lib/render-markdown-v2';
 import {
   DEXTER_COMMANDS,
-  spanishMutationError,
+  englishMutationError,
 } from './dexter-template-helpers';
 
 interface TemplatesSectionProps {
@@ -70,14 +70,14 @@ function TemplateFormModal({
     <Modal
       isOpen
       onClose={close}
-      title={isCreate ? 'Crear plantilla' : 'Editar plantilla'}
+      title={isCreate ? 'Create template' : 'Edit template'}
       closeOnBackdropClick={!pending}
       closeOnEscape={!pending}
     >
       <div className="space-y-3">
         {isCreate && (
           <label className="block text-xs text-slate-400">
-            Comando
+            Command
             <select
               data-testid="dexter-template-form-command"
               className="mt-1 w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm text-slate-100"
@@ -94,7 +94,7 @@ function TemplateFormModal({
           </label>
         )}
         <label className="block text-xs text-slate-400">
-          Nombre
+          Name
           <input
             data-testid="dexter-template-form-name"
             className="mt-1 w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm font-mono text-slate-100"
@@ -104,7 +104,7 @@ function TemplateFormModal({
           />
         </label>
         <label className="block text-xs text-slate-400">
-          Cuerpo (MarkdownV2)
+          Body (MarkdownV2)
           <textarea
             data-testid="dexter-template-form-body"
             className="mt-1 w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm font-mono text-slate-100"
@@ -119,7 +119,7 @@ function TemplateFormModal({
             data-testid="dexter-template-form-error"
             className="text-xs text-red-400"
           >
-            {spanishMutationError(mutation.error)}
+            {englishMutationError(mutation.error)}
           </div>
         )}
         <div className="flex gap-2">
@@ -129,7 +129,7 @@ function TemplateFormModal({
             disabled={pending || name.trim() === '' || body.trim() === ''}
             onClick={submit}
           >
-            {pending ? 'Guardando…' : 'Confirmar'}
+            {pending ? 'Saving…' : 'Confirm'}
           </Button>
           <Button
             size="sm"
@@ -138,7 +138,7 @@ function TemplateFormModal({
             disabled={pending}
             onClick={close}
           >
-            Cancelar
+            Cancel
           </Button>
         </div>
       </div>
@@ -182,13 +182,13 @@ function TemplateRow({
         <span className="font-mono text-slate-200">{template.name}</span>
         {template.isActive && (
           <span data-testid={`dexter-template-active-${template.id}`}>
-            <Badge tone="green">activa</Badge>
+            <Badge tone="green">active</Badge>
           </span>
         )}
         <Badge tone="gray">v{template.version}</Badge>
       </div>
       <details className="text-xs text-slate-500">
-        <summary className="cursor-pointer">Vista previa del cuerpo</summary>
+        <summary className="cursor-pointer">Body preview</summary>
         <div
           data-testid={`dexter-template-body-${template.id}`}
           className="mt-1 max-h-32 overflow-y-auto bg-slate-950 border border-slate-800 rounded p-2 text-slate-300"
@@ -202,7 +202,7 @@ function TemplateRow({
           variant="secondary"
           onClick={() => onPreview(template.id)}
         >
-          Vista previa
+          Preview
         </Button>
         {!template.isActive && confirm !== 'activate' && (
           <Button
@@ -213,19 +213,19 @@ function TemplateRow({
               needsActivateConfirm ? setConfirm('activate') : doActivate()
             }
           >
-            Activar
+            Activate
           </Button>
         )}
         {confirm === 'activate' && (
           <span className="flex gap-2 items-center text-xs text-slate-400">
-            Otra plantilla está activa — ¿cambiar?
+            Another template is active — switch?
             <Button
               size="sm"
               data-testid={`dexter-template-activate-confirm-${template.id}`}
               disabled={pending}
               onClick={doActivate}
             >
-              Confirmar
+              Confirm
             </Button>
             <Button
               size="sm"
@@ -236,7 +236,7 @@ function TemplateRow({
                 setConfirm(null);
               }}
             >
-              Cancelar
+              Cancel
             </Button>
           </span>
         )}
@@ -249,12 +249,12 @@ function TemplateRow({
             disabled={pending}
             onClick={() => setConfirm('delete')}
           >
-            Borrar
+            Delete
           </Button>
         )}
         {confirm === 'delete' && (
           <span className="flex gap-2 items-center text-xs text-slate-400">
-            ¿Borrar esta plantilla?
+            Delete this template?
             <Button
               size="sm"
               variant="danger"
@@ -262,7 +262,7 @@ function TemplateRow({
               disabled={pending}
               onClick={doDelete}
             >
-              Confirmar
+              Confirm
             </Button>
             <Button
               size="sm"
@@ -273,7 +273,7 @@ function TemplateRow({
                 setConfirm(null);
               }}
             >
-              Cancelar
+              Cancel
             </Button>
           </span>
         )}
@@ -283,7 +283,7 @@ function TemplateRow({
           data-testid={`dexter-template-row-error-${template.id}`}
           className="text-xs text-red-400"
         >
-          {spanishMutationError(activate.error ?? remove.error)}
+          {englishMutationError(activate.error ?? remove.error)}
         </div>
       )}
     </li>
@@ -300,7 +300,7 @@ function TemplateEditButton({ template }: { template: MessageTemplateView }) {
         data-testid={`dexter-template-edit-${template.id}`}
         onClick={() => setOpen(true)}
       >
-        Editar
+        Edit
       </Button>
       {open && (
         <TemplateFormModal
@@ -324,7 +324,7 @@ export function TemplatesSection({ onPreview }: TemplatesSectionProps) {
   return (
     <Card>
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="text-sm font-bold text-slate-100">Plantillas</h2>
+        <h2 className="text-sm font-bold text-slate-100">Templates</h2>
         <select
           data-testid="dexter-template-command"
           className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs font-mono text-slate-100"
@@ -342,7 +342,7 @@ export function TemplatesSection({ onPreview }: TemplatesSectionProps) {
           data-testid="dexter-template-create"
           onClick={() => setModalOpen(true)}
         >
-          Crear
+          Create
         </Button>
       </div>
       {templates.isPending && (
@@ -350,7 +350,7 @@ export function TemplatesSection({ onPreview }: TemplatesSectionProps) {
           data-testid="dexter-templates-loading"
           className="text-xs text-slate-500 mt-2"
         >
-          Cargando…
+          Loading…
         </div>
       )}
       {templates.isError && (
@@ -358,7 +358,7 @@ export function TemplatesSection({ onPreview }: TemplatesSectionProps) {
           data-testid="dexter-templates-empty"
           className="text-xs text-slate-500 mt-2"
         >
-          Plantillas no disponibles — ¿está levantado el servicio dexter?
+          Templates unavailable — is the dexter service up?
         </div>
       )}
       {templates.data && rows.length === 0 && (
@@ -366,7 +366,7 @@ export function TemplatesSection({ onPreview }: TemplatesSectionProps) {
           data-testid="dexter-templates-empty"
           className="text-xs text-slate-500 mt-2"
         >
-          Sin plantillas
+          No templates
         </div>
       )}
       {templates.data && rows.length > 0 && (

@@ -11,7 +11,7 @@ import {
   DEXTER_COMMANDS,
   DEXTER_TIMEFRAMES,
   TIMEFRAME_COMMANDS,
-  spanishMutationError,
+  englishMutationError,
 } from './dexter-template-helpers';
 
 type PreviewMode = 'active' | 'id' | 'draft';
@@ -29,7 +29,7 @@ export function PreviewSection({
   const [timeframe, setTimeframe] = useState('');
   const [copied, setCopied] = useState(false);
 
-  // The TemplatesSection "Vista previa" button seeds a by-id preview.
+  // The TemplatesSection "Preview" button seeds a by-id preview.
   useEffect(() => {
     if (seedTemplateId !== null) {
       setMode('id');
@@ -108,7 +108,7 @@ export function PreviewSection({
 
   return (
     <Card>
-      <h2 className="text-sm font-bold text-slate-100">Vista previa</h2>
+      <h2 className="text-sm font-bold text-slate-100">Preview</h2>
       <div className="flex flex-wrap gap-2 mt-2" role="radiogroup">
         <Button
           size="sm"
@@ -116,7 +116,7 @@ export function PreviewSection({
           data-testid="dexter-preview-mode-active"
           onClick={() => setMode('active')}
         >
-          Activa por comando
+          Active by command
         </Button>
         <Button
           size="sm"
@@ -124,7 +124,7 @@ export function PreviewSection({
           data-testid="dexter-preview-mode-id"
           onClick={() => setMode('id')}
         >
-          Por id
+          By id
         </Button>
         <Button
           size="sm"
@@ -132,14 +132,14 @@ export function PreviewSection({
           data-testid="dexter-preview-mode-draft"
           onClick={() => setMode('draft')}
         >
-          Borrador libre
+          Free draft
         </Button>
       </div>
 
       <div className="grid gap-2 mt-2">
         {(mode === 'active' || mode === 'draft') && (
           <label className="block text-xs text-slate-400">
-            Comando
+            Command
             <select
               data-testid="dexter-preview-command"
               className="mt-1 w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs font-mono text-slate-100"
@@ -156,7 +156,7 @@ export function PreviewSection({
         )}
         {mode === 'id' && (
           <label className="block text-xs text-slate-400">
-            Id de plantilla
+            Template id
             <input
               data-testid="dexter-preview-template-id"
               className="mt-1 w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm font-mono text-slate-100"
@@ -167,7 +167,7 @@ export function PreviewSection({
         )}
         {mode === 'draft' && (
           <label className="block text-xs text-slate-400">
-            Borrador (MarkdownV2)
+            Draft (MarkdownV2)
             <textarea
               data-testid="dexter-preview-draft"
               className="mt-1 w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm font-mono text-slate-100"
@@ -178,7 +178,7 @@ export function PreviewSection({
           </label>
         )}
         <label className="block text-xs text-slate-400">
-          Dirección
+          Address
           <input
             data-testid="dexter-preview-address"
             className="mt-1 w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm font-mono text-slate-100"
@@ -188,7 +188,7 @@ export function PreviewSection({
           />
         </label>
         <label className="block text-xs text-slate-400">
-          Timeframe (solo c/cc)
+          Timeframe (c/cc only)
           <input
             data-testid="dexter-preview-timeframe"
             className="mt-1 w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm font-mono text-slate-100 disabled:opacity-50"
@@ -198,7 +198,7 @@ export function PreviewSection({
             onChange={(e) => setTimeframe(e.target.value)}
           />
           <span className="text-slate-500">
-            Válidos: {DEXTER_TIMEFRAMES.join(', ')} (solo c/cc)
+            Valid: {DEXTER_TIMEFRAMES.join(', ')} (c/cc only)
           </span>
         </label>
         <div>
@@ -208,7 +208,7 @@ export function PreviewSection({
             disabled={!canSubmit}
             onClick={submit}
           >
-            {preview.isPending ? 'Generando…' : 'Generar vista previa'}
+            {preview.isPending ? 'Generating…' : 'Generate preview'}
           </Button>
         </div>
       </div>
@@ -220,7 +220,7 @@ export function PreviewSection({
             data-testid="dexter-preview-no-active"
             className="text-xs text-slate-500 mt-2"
           >
-            Sin plantilla activa para este comando
+            No active template for this command
           </div>
         )}
 
@@ -229,7 +229,7 @@ export function PreviewSection({
           data-testid="dexter-preview-error"
           className="text-xs text-red-400 mt-2"
         >
-          {spanishMutationError(preview.error)}
+          {englishMutationError(preview.error)}
         </div>
       )}
 
@@ -239,7 +239,7 @@ export function PreviewSection({
             <RenderMarkdownV2 body={result.text} />
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {result.truncated && <Badge tone="yellow">truncado</Badge>}
+            {result.truncated && <Badge tone="yellow">truncated</Badge>}
             {result.placeholdersUsed.map((key) => (
               <Badge key={key} tone="blue">
                 {key}
@@ -251,7 +251,7 @@ export function PreviewSection({
               data-testid="dexter-preview-copy"
               onClick={() => void copyResult(result.text)}
             >
-              {copied ? 'Copiado' : 'Copiar'}
+              {copied ? 'Copied' : 'Copy'}
             </Button>
           </div>
         </div>
@@ -263,7 +263,7 @@ export function PreviewSection({
           className="text-xs text-amber-300 mt-2 space-y-1"
         >
           <div>
-            Sin resolución para {result.address}: {result.error}
+            No resolution for {result.address}: {result.error}
           </div>
           {(result.candidates ?? []).length > 0 && (
             <div className="flex flex-wrap gap-1">

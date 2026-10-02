@@ -29,7 +29,7 @@ interface ExtractedError {
  */
 export function extractDexterErrorBody(err: unknown): ExtractedError {
   const fallback =
-    err instanceof Error ? err.message : 'Error inesperado del servicio dexter';
+    err instanceof Error ? err.message : 'Unexpected dexter service error';
   if (!(err instanceof HttpError)) {
     return { error: fallback, valid: [] };
   }
@@ -68,46 +68,46 @@ export function extractDexterErrorBody(err: unknown): ExtractedError {
 }
 
 /**
- * Map a mutation failure to a Spanish operator message. 409 (duplicate /
+ * Map a mutation failure to an English operator message. 409 (duplicate /
  * active / last) and 400 (unknown placeholder + `valid` list, immutable
  * command, XOR, timeframe) get distinct messages; anything else falls
  * back to the raw backend text.
  */
-export function spanishMutationError(err: unknown): string {
+export function englishMutationError(err: unknown): string {
   const { error, valid } = extractDexterErrorBody(err);
   const status = err instanceof HttpError ? err.status : 0;
 
   if (/already exists/i.test(error)) {
-    return 'Ya existe una plantilla con ese nombre en este comando.';
+    return 'A template with that name already exists for this command.';
   }
   if (/is active/i.test(error)) {
-    return 'No se puede borrar: la plantilla está activa. Activa otra del mismo comando primero.';
+    return 'Cannot delete: the template is active. Activate another template of the same command first.';
   }
   if (/last template/i.test(error)) {
-    return 'No se puede borrar: es la última plantilla del comando. Crea un reemplazo primero.';
+    return 'Cannot delete: it is the last template of the command. Create a replacement first.';
   }
   if (/Unknown placeholder/i.test(error)) {
     const match = error.match(/\{\{(\w+)\}\}/);
-    const hint = valid.length > 0 ? ` Válidos: ${valid.join(', ')}.` : '';
-    return `Placeholder desconocido${match ? ` {{${match[1]}}}` : ''}.${hint}`;
+    const hint = valid.length > 0 ? ` Valid: ${valid.join(', ')}.` : '';
+    return `Unknown placeholder${match ? ` {{${match[1]}}}` : ''}.${hint}`;
   }
   if (/immutable/i.test(error)) {
-    return 'El comando es inmutable (borra y recrea para mover de comando).';
+    return 'Command is immutable (delete and recreate to move commands).';
   }
   if (/exactly one of templateId or draft/i.test(error)) {
-    return 'Elige una plantilla o un borrador, no ambas cosas (ni ninguna).';
+    return 'Pick a template or a draft, not both (nor neither).';
   }
   if (/timeframe is only valid/i.test(error)) {
-    return 'El timeframe solo vale para plantillas c/cc.';
+    return 'Timeframe is only valid for c/cc templates.';
   }
   if (/Invalid timeframe/i.test(error)) {
-    const hint = valid.length > 0 ? ` Válidos: ${valid.join(', ')}.` : '';
-    return `Timeframe inválido.${hint}`;
+    const hint = valid.length > 0 ? ` Valid: ${valid.join(', ')}.` : '';
+    return `Invalid timeframe.${hint}`;
   }
   if (/not found/i.test(error)) {
-    return 'No encontrado — ¿lo borró otro operador? Recarga la lista.';
+    return 'Not found — did another operator delete it? Reload the list.';
   }
-  if (status === 409) return `Conflicto con el servicio dexter: ${error}`;
-  if (status === 400) return `Petición rechazada: ${error}`;
+  if (status === 409) return `Dexter service conflict: ${error}`;
+  if (status === 400) return `Request rejected: ${error}`;
   return error;
 }

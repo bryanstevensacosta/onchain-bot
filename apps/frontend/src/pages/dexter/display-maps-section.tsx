@@ -7,7 +7,7 @@ import {
   type DisplayMapView,
 } from '@/entities/dexter';
 import { Button, Card, Modal } from '@/shared/ui';
-import { spanishMutationError } from './dexter-template-helpers';
+import { englishMutationError } from './dexter-template-helpers';
 
 type ModalMode =
   | { kind: 'closed' }
@@ -59,14 +59,14 @@ function DisplayMapFormModal({
     <Modal
       isOpen
       onClose={close}
-      title={isCreate ? 'Crear display-map' : 'Editar display-map'}
+      title={isCreate ? 'Create display-map' : 'Edit display-map'}
       closeOnBackdropClick={!pending}
       closeOnEscape={!pending}
     >
       <div className="space-y-3">
         {isCreate && (
           <label className="block text-xs text-slate-400">
-            Placeholder (inmutable tras crear)
+            Placeholder (immutable after create)
             <input
               data-testid="dexter-display-form-key"
               className="mt-1 w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm font-mono text-slate-100"
@@ -77,7 +77,7 @@ function DisplayMapFormModal({
           </label>
         )}
         <label className="block text-xs text-slate-400">
-          Valor coincidente
+          Match value
           <input
             data-testid="dexter-display-form-match"
             className="mt-1 w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm font-mono text-slate-100"
@@ -101,7 +101,7 @@ function DisplayMapFormModal({
             data-testid="dexter-display-form-error"
             className="text-xs text-red-400"
           >
-            {spanishMutationError(mutation.error)}
+            {englishMutationError(mutation.error)}
           </div>
         )}
         <div className="flex gap-2">
@@ -113,7 +113,7 @@ function DisplayMapFormModal({
             }
             onClick={submit}
           >
-            {pending ? 'Guardando…' : 'Confirmar'}
+            {pending ? 'Saving…' : 'Confirm'}
           </Button>
           <Button
             size="sm"
@@ -122,7 +122,7 @@ function DisplayMapFormModal({
             disabled={pending}
             onClick={close}
           >
-            Cancelar
+            Cancel
           </Button>
         </div>
       </div>
@@ -155,7 +155,7 @@ function DisplayMapRow({ row }: { row: DisplayMapView }) {
           data-testid={`dexter-display-edit-${row.id}`}
           onClick={() => setModal({ kind: 'edit', row })}
         >
-          Editar
+          Edit
         </Button>
         {!confirmDelete && (
           <Button
@@ -165,12 +165,12 @@ function DisplayMapRow({ row }: { row: DisplayMapView }) {
             disabled={remove.isPending}
             onClick={() => setConfirmDelete(true)}
           >
-            Borrar
+            Delete
           </Button>
         )}
         {confirmDelete && (
           <span className="flex gap-2 items-center text-xs text-slate-400">
-            ¿Borrar esta fila?
+            Delete this row?
             <Button
               size="sm"
               variant="danger"
@@ -182,7 +182,7 @@ function DisplayMapRow({ row }: { row: DisplayMapView }) {
                 })
               }
             >
-              Confirmar
+              Confirm
             </Button>
             <Button
               size="sm"
@@ -193,7 +193,7 @@ function DisplayMapRow({ row }: { row: DisplayMapView }) {
                 setConfirmDelete(false);
               }}
             >
-              Cancelar
+              Cancel
             </Button>
           </span>
         )}
@@ -203,7 +203,7 @@ function DisplayMapRow({ row }: { row: DisplayMapView }) {
           data-testid={`dexter-display-row-error-${row.id}`}
           className="text-xs text-red-400"
         >
-          {spanishMutationError(remove.error)}
+          {englishMutationError(remove.error)}
         </div>
       )}
       {modal.kind === 'edit' && (
@@ -225,11 +225,11 @@ export function DisplayMapsSection() {
   return (
     <Card>
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="text-sm font-bold text-slate-100">Display-maps</h2>
+        <h2 className="text-sm font-bold text-slate-100">Display maps</h2>
         <input
           data-testid="dexter-display-filter"
           className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs font-mono text-slate-100"
-          placeholder="Filtrar por placeholderKey"
+          placeholder="Filter by placeholderKey"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
         />
@@ -238,7 +238,7 @@ export function DisplayMapsSection() {
           data-testid="dexter-display-create"
           onClick={() => setModalOpen(true)}
         >
-          Crear
+          Create
         </Button>
       </div>
       {maps.isPending && (
@@ -246,7 +246,7 @@ export function DisplayMapsSection() {
           data-testid="dexter-display-loading"
           className="text-xs text-slate-500 mt-2"
         >
-          Cargando…
+          Loading…
         </div>
       )}
       {maps.isError && (
@@ -254,7 +254,7 @@ export function DisplayMapsSection() {
           data-testid="dexter-display-empty"
           className="text-xs text-slate-500 mt-2"
         >
-          Display-maps no disponibles — ¿está levantado el servicio dexter?
+          Display maps unavailable — is the dexter service up?
         </div>
       )}
       {maps.data && rows.length === 0 && (
@@ -262,7 +262,7 @@ export function DisplayMapsSection() {
           data-testid="dexter-display-empty"
           className="text-xs text-slate-500 mt-2"
         >
-          Sin display-maps
+          No display maps
         </div>
       )}
       {maps.data && rows.length > 0 && (

@@ -32,7 +32,7 @@ export function PlaceholdersSection() {
           data-testid="dexter-placeholders-loading"
           className="text-xs text-slate-500 mt-2"
         >
-          Cargando…
+          Loading…
         </div>
       )}
       {placeholders.isError && (
@@ -40,7 +40,7 @@ export function PlaceholdersSection() {
           data-testid="dexter-placeholders-empty"
           className="text-xs text-slate-500 mt-2"
         >
-          Placeholders no disponibles — ¿está levantado el servicio dexter?
+          Placeholders unavailable — is the dexter service up?
         </div>
       )}
       {placeholders.data && rows.length === 0 && (
@@ -48,7 +48,7 @@ export function PlaceholdersSection() {
           data-testid="dexter-placeholders-empty"
           className="text-xs text-slate-500 mt-2"
         >
-          Sin placeholders
+          No placeholders
         </div>
       )}
       {placeholders.data && rows.length > 0 && (
@@ -58,10 +58,10 @@ export function PlaceholdersSection() {
         >
           <thead>
             <tr className="text-left text-slate-500">
-              <th className="py-1 pr-2">Clave</th>
-              <th className="py-1 pr-2">Tipo</th>
-              <th className="py-1 pr-2">Nulable</th>
-              <th className="py-1">Ejemplo</th>
+              <th className="py-1 pr-2">Key</th>
+              <th className="py-1 pr-2">Type</th>
+              <th className="py-1 pr-2">Nullable</th>
+              <th className="py-1">Example</th>
             </tr>
           </thead>
           <tbody>
@@ -75,7 +75,7 @@ export function PlaceholdersSection() {
                 <td className="py-1 pr-2 text-slate-400">{p.type}</td>
                 <td className="py-1 pr-2">
                   <Badge tone={p.nullable ? 'yellow' : 'gray'}>
-                    {p.nullable ? 'sí' : 'no'}
+                    {p.nullable ? 'Yes' : 'No'}
                   </Badge>
                 </td>
                 <td className="py-1 text-slate-400">

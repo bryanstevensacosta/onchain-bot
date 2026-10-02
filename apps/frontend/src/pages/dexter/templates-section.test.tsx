@@ -149,7 +149,7 @@ describe('DexterPage template management (Lane B)', () => {
     expect(screen.getByTestId('dexter-template-row-tpl-2')).toBeInTheDocument();
     expect(
       screen.getByTestId('dexter-template-active-tpl-1'),
-    ).toHaveTextContent('activa');
+    ).toHaveTextContent('active');
     expect(screen.getByTestId('dexter-template-row-tpl-1')).toHaveTextContent(
       'v3',
     );
@@ -164,7 +164,7 @@ describe('DexterPage template management (Lane B)', () => {
     } as unknown as ReturnType<typeof dexter.useDexterTemplates>);
     renderPage();
     expect(screen.getByTestId('dexter-templates-empty')).toHaveTextContent(
-      'Sin plantillas',
+      'No templates',
     );
   });
 
@@ -187,7 +187,7 @@ describe('DexterPage template management (Lane B)', () => {
     } as unknown as ReturnType<typeof dexter.useDisplayMaps>);
     renderPage();
     const empties = screen.getAllByText(
-      /no disponibles — ¿está levantado el servicio dexter\?/,
+      /unavailable — is the dexter service up\?/,
     );
     expect(empties.length).toBeGreaterThanOrEqual(3);
   });
@@ -211,7 +211,7 @@ describe('DexterPage template management (Lane B)', () => {
     ).toHaveBeenCalledWith('tpl-2', expect.anything());
   });
 
-  it('surfaces the 409 activo message inline on delete', () => {
+  it('surfaces the 409 active message inline on delete', () => {
     mockAllHappy();
     const body = JSON.stringify({
       message: {
@@ -231,10 +231,10 @@ describe('DexterPage template management (Lane B)', () => {
     fireEvent.click(screen.getByTestId('dexter-template-delete-confirm-tpl-1'));
     expect(
       screen.getByTestId('dexter-template-row-error-tpl-1'),
-    ).toHaveTextContent('está activa');
+    ).toHaveTextContent('is active');
   });
 
-  it('surfaces the 409 último message inline on delete', () => {
+  it('surfaces the 409 last message inline on delete', () => {
     mockAllHappy();
     const body = JSON.stringify({
       message: {
@@ -254,7 +254,7 @@ describe('DexterPage template management (Lane B)', () => {
     fireEvent.click(screen.getByTestId('dexter-template-delete-confirm-tpl-1'));
     expect(
       screen.getByTestId('dexter-template-row-error-tpl-1'),
-    ).toHaveTextContent('última plantilla');
+    ).toHaveTextContent('last template');
   });
 
   it('renders the preview result with chips + truncated badge + XSS-as-text', () => {
@@ -274,7 +274,7 @@ describe('DexterPage template management (Lane B)', () => {
     const result = screen.getByTestId('dexter-preview-result');
     expect(result).toHaveTextContent('BONK');
     expect(result).toHaveTextContent('symbol');
-    expect(result).toHaveTextContent('truncado');
+    expect(result).toHaveTextContent('truncated');
     // Attack markup renders as text, never as elements.
     expect(result.querySelector('script')).toBeNull();
     expect(result).toHaveTextContent('<script>alert(1)</script>');
@@ -316,7 +316,7 @@ describe('DexterPage template management (Lane B)', () => {
         .disabled,
     ).toBe(false);
     expect(
-      screen.getByText(/Válidos: 1m, 5m, 15m, 1h, 4h, 1d, 1w/),
+      screen.getByText(/Valid: 1m, 5m, 15m, 1h, 4h, 1d, 1w/),
     ).toBeInTheDocument();
   });
 
@@ -336,7 +336,7 @@ describe('DexterPage template management (Lane B)', () => {
     );
   });
 
-  it('seeds a by-id preview from the template row Vista previa button', () => {
+  it('seeds a by-id preview from the template row Preview button', () => {
     mockAllHappy();
     renderPage();
     const row = screen.getByTestId('dexter-template-row-tpl-2');

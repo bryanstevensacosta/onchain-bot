@@ -87,7 +87,7 @@ function DexterBotBindingSection() {
           data-testid="dexter-bot-loading"
           className="text-xs text-slate-500 mt-2"
         >
-          Cargando…
+          Loading…
         </div>
       )}
       {inventory.isError && (
