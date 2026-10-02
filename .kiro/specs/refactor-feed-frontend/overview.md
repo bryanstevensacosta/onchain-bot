@@ -81,7 +81,7 @@ Nombres legacy vigentes: hooks aún `useProfile*`, keys duales `feedSessionKeys`
 | Ads, rotation-config, media library                                                                               | scheduling-posts   | `/scheduling-api/*` (strip prefijo)                                                                                                                                                                                                                                                                                                                  | `:4080`      |
 | Realtime / socket                                                                                                 | backend WS         | `/socket.io` (ws)                                                                                                                                                                                                                                                                                                                                    | `:3030`      |
 
-Nota staging/prod: tripletes `:3040/:3041/:3042` (feed-publisher), `:4080/:4081/:4082` (scheduling-posts), `:3031/:3032/:3033` (ingestion por env) (dev :3031 / prod :3032 / staging-twin :3033); `/feed-api` y `/scheduling-api` sin bloque nginx en prod (solo dev).
+Nota staging/prod: tripletes `:3040/:3041/:3042` (feed-publisher), `:4080/:4081/:4082` (scheduling-posts), `:3031/:3032/:3033` (ingestion por env) (dev :3031 / prod :3032 / staging :3033); `/feed-api` y `/scheduling-api` sin bloque nginx en prod (solo dev).
 
 ## 7. Vecinos (una línea cada uno, NO inventariados)
 
