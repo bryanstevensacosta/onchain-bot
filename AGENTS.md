@@ -5,7 +5,7 @@
 
 ## OVERVIEW
 
-**Onchain Bot** — monorepo, 3 apps: NestJS alpha-call pipeline (`apps/backend`, :3030) + per-env Telegram ingestion (`apps/ingestion-telegram`, same image per env — dev :3031, staging twin host :3033, prod host :3032 — SSE fan-out) + React/Vite dashboard (`apps/frontend`, :5173). Private, UNLICENSED. Node 22+ required, CI runs Node 24. TypeScript 5.9 (root) / 5.7 (backends).
+**Onchain Bot** — monorepo, 3 apps: NestJS alpha-call pipeline (`apps/backend`, :3030) + per-env Telegram ingestion (`apps/ingestion-telegram`, same image per env — dev :3031, staging host :3033, prod host :3032 — SSE fan-out) + React/Vite dashboard (`apps/frontend`, :5173). Private, UNLICENSED. Node 22+ required, CI runs Node 24. TypeScript 5.9 (root) / 5.7 (backends).
 
 Per-app docs (verified, authoritative over this file for details): `apps/backend/AGENTS.md`, `apps/ingestion-telegram/AGENTS.md`, `apps/frontend/AGENTS.md`. Sub-BC `AGENTS.md` files were consolidated into `apps/backend/AGENTS.md` on 2026-09-04 (7 files migrated + deleted).
 
@@ -16,7 +16,7 @@ Per-app docs (verified, authoritative over this file for details): `apps/backend
 ```
                     ┌──────────────────────────────────────────────┐
                     │  ingestion-telegram PER ENV (same image):     │
-                    │  dev local :3031 · staging twin host :3033   │
+                    │  dev local :3031 · staging host :3033        │
                     │  → container :3031 · prod host :3032         │
                     │  → container :3031                          │
                     │                                               │
@@ -26,7 +26,7 @@ Per-app docs (verified, authoritative over this file for details): `apps/backend
                     │    (triple never shared across envs)         │
                     │  ✓ DB lógica propia por servidor Postgres:    │
                     │    <base>_ingestion (dev local una, Oracle    │
-                    │    una prod + una staging twin:              │
+                    │    una prod + una staging:                   │
                     │    onchain_bot_staging_ingestion)│
                     │  ✓ Tablas propias: crypto_news_sources,       │
                     │    crypto_news_messages, crypto_news_         │
@@ -48,7 +48,7 @@ Per-app docs (verified, authoritative over this file for details): `apps/backend
           ┌───────▼──────┐  ┌─────▼──────┐  ┌─────▼──────┐
           │ Backend Dev   │  │ Backend     │  │ Backend    │
           │ (local)       │  │ Staging     │  │ Production │
-          │ → ingestion   │  │ → twin      │  │ → prod     │
+          │ → ingestion   │  │ → staging   │  │ → prod     │
           │   :3031       │  │   :3033     │  │   :3032    │
           │ NO feed│  │ NO crypto-  │  │ NO crypto- │
           │ DB tables     │  │ news tables │  │ news tables│
@@ -61,20 +61,20 @@ Per-app docs (verified, authoritative over this file for details): `apps/backend
           └───────────────┘  └─────────────┘  └────────────┘
                ↑                  ↑                  ↑
                │                  │                  │
-          dev ingestion     staging twin      prod ingestion
+          dev ingestion     staging           prod ingestion
           (:3031)           (:3033)           (:3032)
           (cada frontend consulta SU ingestion por env)
 ```
 
 **INVARIANTS (DO NOT VIOLATE)**:
 
-1. **Un ingestion-telegram por env (1:1 con su backend)** — `docker-compose.ingestion.yml` (prod, host `:3032`→container `:3031`) + `docker-compose.staging-ingestion.yml` (twin, project `onchain-bot-staging-ingestion`, host `:3033`→container `:3031`) + dev local (`:3031`). Misma imagen, triple y DB distintas. El singleton multi-env está retirado (2026-09-22)
-2. **Una triple MTProto por env, jamás compartida** — cada instancia tiene SU triple (`INGESTION_TELEGRAM_MTPROTO_API_ID/_API_HASH/_SESSION` en SU `.env`: prod `.env.production`, staging `.env.staging` con la vieja cuenta de dev, local `.env` con la cuenta nueva). Mapa sin secretos: prod=cuenta actual, staging=vieja-dev, local=nueva (3-4 canales). Dos instancias con la misma triple causan `AUTH_KEY_DUPLICATED`. Pre-boot: triple-inequality assert por hashes (ver runbook twin)
-3. **Una DB de ingestion por env (`<base>_ingestion`)** — TARGET names tras el rename: dev local `onchain_bot_ingestion`, Oracle prod `onchain_bot_ingestion` + Oracle staging `onchain_bot_staging_ingestion` (permitida desde per-env 2026-09-22; antes prohibida). Estado live: las DBs Oracle conservan el nombre pre-rename hasta que ejecute el runbook (.omo/runbooks/rename-onchain-bot-db.md, fase 3). Tablas `crypto_news_sources`, `crypto_news_messages`, `crypto_news_message_media` viven SOLO en la DB de SU env desde el split 2026-09-08 (antes existían también en el backend; migración `1860000000001-DropIngestionOwnedFeedTables`). El twin arranca VACÍO (sin seed, sin mirror prod)
+1. **Un ingestion-telegram por env (1:1 con su backend)** — `docker-compose.ingestion.yml` (prod, host `:3032`→container `:3031`) + `docker-compose.staging-ingestion.yml` (staging, project `onchain-bot-staging-ingestion`, host `:3033`→container `:3031`) + dev local (`:3031`). Misma imagen, triple y DB distintas. El singleton multi-env está retirado (2026-09-22)
+2. **Una triple MTProto por env, jamás compartida** — cada instancia tiene SU triple (`INGESTION_TELEGRAM_MTPROTO_API_ID/_API_HASH/_SESSION` en SU `.env`: prod `.env.production`, staging `.env.staging` con la vieja cuenta de dev, local `.env` con la cuenta nueva). Mapa sin secretos: prod=cuenta actual, staging=vieja-dev, local=nueva (3-4 canales). Dos instancias con la misma triple causan `AUTH_KEY_DUPLICATED`. Pre-boot: triple-inequality assert por hashes (ver docs/deployment/staging-twin-runbook.md)
+3. **Una DB de ingestion por env (`<base>_ingestion`)** — TARGET names tras el rename: dev local `onchain_bot_ingestion`, Oracle prod `onchain_bot_ingestion` + Oracle staging `onchain_bot_staging_ingestion` (permitida desde per-env 2026-09-22; antes prohibida). Estado live: las DBs Oracle conservan el nombre pre-rename hasta que ejecute el runbook (.omo/runbooks/rename-onchain-bot-db.md, fase 3). Tablas `crypto_news_sources`, `crypto_news_messages`, `crypto_news_message_media` viven SOLO en la DB de SU env desde el split 2026-09-08 (antes existían también en el backend; migración `1860000000001-DropIngestionOwnedFeedTables`). Staging arranca VACÍO (sin seed, sin mirror prod)
 4. **Ingestion-telegram es el owner de media** — descarga archivos a `uploads/crypto-news/media/` y los sirve vía `GET /api/media/*`
 5. **Backends NO escriben feed** — staging/prod solo LEEN vía HTTP API del ingestion-telegram (no réplican tablas ni datos)
 6. **Frontend consume directamente del ingestion-telegram** — `GET /api/feed/messages` apunta al puerto 3032 (no proxy vía backend)
-7. **NO definir ingestion-telegram en `docker-compose.staging.yml` ni `.prod.yml`** — un compose por env: `docker-compose.ingestion.yml` (prod standalone) + `docker-compose.staging-ingestion.yml` (twin)
+7. **NO definir ingestion-telegram en `docker-compose.staging.yml` ni `.prod.yml`** — un compose por env: `docker-compose.ingestion.yml` (prod standalone) + `docker-compose.staging-ingestion.yml` (staging)
 8. **Retención 24h de messages + media en ingestion** — janitor `FeedRetentionCleanupScheduler` (ingestion-telegram, lock `9_421_373`, reloj `ingested_at`); 24h por invariante del plan (reducido de 72h por decisión del operador 2026-09-28). Valor efectivo en prod 24h por decisión (el backend prod limpiaba media con 24h; ver dossier task-10 §4)
 
 **Rationale** (per-env 2026-09-22 — cada env es dueño de sus datos):
@@ -83,7 +83,7 @@ Per-app docs (verified, authoritative over this file for details): `apps/backend
 - ✅ **Aislamiento real**: staging experimenta (canales, filtros, retention) sin rozar prod
 - ✅ **Escalabilidad**: agregar un env = un compose + una triple + una DB `<base>_ingestion`
 - ✅ **Separación de responsabilidades**: ingestion-telegram maneja MTProto + storage, backends manejan lógica de negocio (scoring, publishing, etc.)
-- ✅ **Misma imagen en todos lados**: el borrado SSE y los fixes se validan en el twin antes de prod
+- ✅ **Misma imagen en todos lados**: el borrado SSE y los fixes se validan en staging antes de prod
 
 **Data Flow (Crypto-News — Opción A: Filter on-Read)**:
 
@@ -98,7 +98,7 @@ ingestion-telegram:
 Backend (staging/prod) — OPCIÓN A (filter on-read):
     1. EnqueueMatchingCronScheduler (cron every minute):
        a. Fetch RAW messages: FeedIngestionClient → GET su-ingestion/api/feed/messages?limit=50
-          (prod `:3032`, staging twin `:3033`, dev `:3031` — cada backend lee SU ingestion)
+          (prod `:3032`, staging `:3033`, dev `:3031` — cada backend lee SU ingestion)
        b. Filter + match: FilteredFeedService:
           - Load per-channel ContentFilterService rules (regex transforms)
           - Apply filters to title + content (on-read, NO persist)
@@ -107,7 +107,7 @@ Backend (staging/prod) — OPCIÓN A (filter on-read):
        c. Enqueue matched messages: EnqueueMatchingMessageUseCase → publisher queue (cap 36)
     2. PublisherCronScheduler (every minute): drain queue → LLM → Bot API publish
 Frontend (cada env contra SU ingestion — ver `apps/frontend/AGENTS.md` §PROXY):
-    1. Consulta directo a su ingestion (`:3031` dev, `:3033` twin staging, `:3032` prod): GET /api/feed/messages?limit=50 (RAW content)
+    1. Consulta directo a su ingestion (`:3031` dev, `:3033` staging, `:3032` prod): GET /api/feed/messages?limit=50 (RAW content)
     2. Renderiza mensajes SIN filtros (display mode)
     3. Media se carga de: http://su-ingestion/api/media/{channelId}/{messageId}/{index}
 ```
@@ -127,7 +127,7 @@ Frontend (cada env contra SU ingestion — ver `apps/frontend/AGENTS.md` §PROXY
 .
 ├── apps/
 │   ├── backend/             # NestJS 11 — DDD/Hexagonal, 22 wired modules (NOT 19)
-│   ├── ingestion-telegram/   # NestJS 11 — per-env MTProto session → SSE (dev :3031, staging twin host :3033, prod host :3032)
+│   ├── ingestion-telegram/   # NestJS 11 — per-env MTProto session → SSE (dev :3031, staging host :3033, prod host :3032)
 │   └── frontend/            # React 18 + Vite 5 — FSD dashboard (:5173)
 ├── scripts/                 # 28 files: sync-*, backup-db.sh, cleanup-ports.mjs, check-docs-staleness.mjs,
 │                            # audit-enrichment-apis.js, deploy.sh, diagnose-*, validate-session-migration.sh…
@@ -307,11 +307,11 @@ Source: `apps/backend/docs/spydefi/arch/09-anti-patterns.md` — project-level r
 
 ### Ingestion-Telegram (CRITICAL — Architecture Invariants)
 
-- **UN ingestion-telegram por env (1:1 con su backend)** — dev `:3031`, staging twin host `:3033`→container `:3031` (`docker-compose.staging-ingestion.yml`), prod host `:3032`→container `:3031` (`docker-compose.ingestion.yml`). Misma imagen, jamás dos instancias con la misma triple
+- **UN ingestion-telegram por env (1:1 con su backend)** — dev `:3031`, staging host `:3033`→container `:3031` (`docker-compose.staging-ingestion.yml`), prod host `:3032`→container `:3031` (`docker-compose.ingestion.yml`). Misma imagen, jamás dos instancias con la misma triple
 - **NEVER duplicate MTProto credentials across envs** — una triple por env (`INGESTION_TELEGRAM_MTPROTO_*` en el `.env` de SU instancia); duplicarlas causa `AUTH_KEY_DUPLICATED`. Mapa: prod=cuenta actual, staging=vieja-dev, local=nueva
 - **NEVER define ingestion-telegram in `docker-compose.staging.yml` or `.prod.yml`** — un compose por env (ver invariante #7)
 - **NEVER create feed tables in the backend** — cada env lee SU ingestion vía HTTP API (sin réplicas, sin tablas duplicadas)
-- **Backend MUST consume via SSE its own ingestion** — `INGESTION_TELEGRAM_URL`: dev `http://localhost:3031`, staging twin `http://onchain-bot-ingestion-telegram-staging:3031`, prod `http://onchain-bot-ingestion-telegram:3031` (host `:3032`; Tailscale `cryptoganster.tailf01c61.ts.net:3032` — live on Oracle since 2026-09-10, ex-DO (suspended 2026-09-10) was `100.84.4.28` — twin `:3033`)
+- **Backend MUST consume via SSE its own ingestion** — `INGESTION_TELEGRAM_URL`: dev `http://localhost:3031`, staging `http://onchain-bot-ingestion-telegram-staging:3031`, prod `http://onchain-bot-ingestion-telegram:3031` (host `:3032`; Tailscale `cryptoganster.tailf01c61.ts.net:3032` — live on Oracle since 2026-09-10, ex-DO (suspended 2026-09-10) was `100.84.4.28` — staging `:3033`)
 - **Staging/production backends filter client-side** — cada ingestion emite SUS canales, su backend filtra lo que necesita
 
 ### Shared-kernel contracts (handle with care)
@@ -324,7 +324,7 @@ Source: `apps/backend/docs/spydefi/arch/09-anti-patterns.md` — project-level r
 
 - **DDD inside NestJS.** Explicit `AggregateRoot`/`Entity`/`ValueObject`/`DomainEvent` base classes in backend `shared/kernel/`.
 - **13-provider adapter pattern** under backend `data-provider/` (NOT 15) + `core/` port. Raw axios, silent nulls, consumer-side caching.
-- **Per-env MTProto ingestion**: one session per ingestion-telegram instance (dev/staging-twin/prod, same image) → SSE to ITS backend. MTProto creds live ONLY in each instance's own `.env` (`INGESTION_TELEGRAM_MTPROTO_*`), never shared.
+- **Per-env MTProto ingestion**: one session per ingestion-telegram instance (dev/staging/prod, same image) → SSE to ITS backend. MTProto creds live ONLY in each instance's own `.env` (`INGESTION_TELEGRAM_MTPROTO_*`), never shared.
 - **Event-driven pipeline with named events** (`<bc>.<aggregate>.<action>`): `extraction.candidates.extracted`, `parsing.call.parsed`, `normalization.call.normalized`, `enrichment.token.enriched` (+`.failed`), `classification.token.classified`, `scoring.token.scored`, `vip-call.approval.approved|rejected` (NOT `filters.token.*` — ghost name, see backend gap 20), `honeypot.analysis.completed`, `publishing.telegram.published|failed`.
 - **FSD on frontend, DDD on backend** — strict layer rules in both. See per-app AGENTS.md files.
 
@@ -384,13 +384,13 @@ npm run docker:down
 Prod (`:3030/:5173/:5432/:6379`) and staging (`:3031/:4173/:5433/:6380`) occupy the
 standard ports, so dev runs fully shifted and NEVER shares DBs with them:
 
-| Service      | Binds to                    | Notes                                                                                                                              |
-| ------------ | --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| backend      | `:3040`                     | `apps/backend/.env.dev` (gitignored), `PORT=3040`                                                                                  |
-| frontend     | `:5183`                     | `apps/frontend/.env.development` (gitignored), vite `--port 5183`                                                                  |
-| postgres dev | `:5434`                     | `onchain-bot-postgres-dev` (`POSTGRES_PORT=5434 docker compose up`)                                                                |
-| redis dev    | `:6381`                     | `onchain-bot-redis-dev` (`REDIS_PORT=6381 …`)                                                                                      |
-| ingestion    | per-env `:3031/:3032/:3033` | Dev local `:3031` · staging twin `:3033` · prod `:3032` — cada env oye SU ingestion (1:1), nunca una 2ª sesión con la misma triple |
+| Service      | Binds to                    | Notes                                                                                                                         |
+| ------------ | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| backend      | `:3040`                     | `apps/backend/.env.dev` (gitignored), `PORT=3040`                                                                             |
+| frontend     | `:5183`                     | `apps/frontend/.env.development` (gitignored), vite `--port 5183`                                                             |
+| postgres dev | `:5434`                     | `onchain-bot-postgres-dev` (`POSTGRES_PORT=5434 docker compose up`)                                                           |
+| redis dev    | `:6381`                     | `onchain-bot-redis-dev` (`REDIS_PORT=6381 …`)                                                                                 |
+| ingestion    | per-env `:3031/:3032/:3033` | Dev local `:3031` · staging `:3033` · prod `:3032` — cada env oye SU ingestion (1:1), nunca una 2ª sesión con la misma triple |
 
 `.env.dev` uses DUMMY keys/tokens/channels (validator Tier-1 requires non-empty;
 providers degrade to null, publishers fail 401 without posting anything real).
@@ -407,7 +407,7 @@ Therefore:
   `pkill -f` / `pgrep -f` match prod/staging container processes too (this already
   killed a live prod backend once; `unless-stopped` revived it, no outage, but
   do not repeat). Track dev PIDs in `/tmp/dev-pids.txt` at start time.
-- **Distinguish twins by cwd/user**: dev = `ubuntu`, cwd `/data/repos/onchain-bot/apps/backend`;
+- **Distinguish instances by cwd/user**: dev = `ubuntu`, cwd `/data/repos/onchain-bot/apps/backend`;
   prod/staging = `opc`, cwd `/app` (container). Verify with
   `readlink /proc/<pid>/cwd` before any kill. `$$`-exclusion loops are NOT
   sufficient (they only protect your own shell).
@@ -546,7 +546,7 @@ Telegram MTProto ──► ingestion-telegram :3031 ──SSE /api/ingestion/str
 
 - Backend↔ingestion heartbeat: SSE `health:ping` 30 s; backend backoff 1 s→30 s; no replay (lossy by design).
 - Media: ingestion-telegram owns `uploads/`; backend reads via HTTP (`INGESTION_TELEGRAM_URL`) or read-only volume in compose.
-- Ports: each ingestion listens `:3031` in dev and inside its container; Oracle host maps prod `127.0.0.1:3032` → `:3031` and staging twin `127.0.0.1:3033` → `:3031` (host ports avoid the clash with staging backend on `:3031`).
+- Ports: each ingestion listens `:3031` in dev and inside its container; Oracle host maps prod `127.0.0.1:3032` → `:3031` and staging `127.0.0.1:3033` → `:3031` (host ports avoid the clash with staging backend on `:3031`).
 - Channels: KOL identity lives in backend DB (`telegram-kol/identity`, polled by ingestion-telegram); feed sources/messages/media live in the ingestion DB (`<base>_ingestion`, owned by ingestion-telegram since split 2026-09-08).
 
 ## BACKEND PIPELINE (alpha-call path + opaque news path)
