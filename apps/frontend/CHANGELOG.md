@@ -28,6 +28,23 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
   `entities/dexter/api/dexter-queries.test.ts`.
   (feat/dexter-frontend)
 
+- Dexter template-management UI (Wave 1 Lane B, consumes Lane A hooks,
+  no entity changes): four sections below binding+scan on `/dexter`
+  (`pages/dexter/`, `previewSeed: string | null` wiring in `index.tsx`):
+  `TemplatesSection` (per-command CRUD + activate + "Vista previa"
+  row action), `PreviewSection` (active/id/draft modes, `isPreviewUnresolved()`
+  narrowing, copy + `truncado` badge), `PlaceholdersSection` (read-only
+  catalog), `DisplayMapsSection` (CRUD) + tokenized MarkdownV2 renderer
+  (`shared/lib/render-markdown-v2.tsx`, React rebuild, never
+  `dangerouslySetInnerHTML`, XSS-safe) + `dexter-template-helpers.ts`
+  (command enum, timeframe hint, HttpError-to-Spanish mapper).
+  Spanish strings, `dexter-*` testids, API-down empty states (never
+  crashes). Tests: `e2e/dexter-templates.spec.ts` (6 tests con
+  `/dexter-api/**` mockeados: list + activate, preview render,
+  unresolved state, timeframe gating, placeholders + display-maps,
+  API-down empty states).
+  (feat/dexter-frontend)
+
 - New `FRONTEND.md` plain-language guide: describes every dashboard screen
   in non-technical words (what each screen is for, what it shows, what you
   can do there), with routes and data sources as the only technical detail.

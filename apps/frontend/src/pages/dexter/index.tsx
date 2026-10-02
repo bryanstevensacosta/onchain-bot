@@ -10,6 +10,10 @@ import {
 } from './scan-views';
 import { ScanSearchModal } from './scan-search-modal';
 import { useRecentScans } from './use-recent-scans';
+import { TemplatesSection } from './templates-section';
+import { PreviewSection } from './preview-section';
+import { PlaceholdersSection } from './placeholders-section';
+import { DisplayMapsSection } from './display-maps-section';
 
 export { parseDexterInput };
 export type { ParsedScan };
@@ -152,6 +156,7 @@ export function DexterPage() {
   const [scan, setScan] = useState<ParsedScan | null>(null);
   const [parseError, setParseError] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [previewSeed, setPreviewSeed] = useState<string | null>(null);
   const { recent, addRecent, clearRecent } = useRecentScans();
 
   const runSearch = (raw: string) => {
@@ -222,6 +227,10 @@ export function DexterPage() {
         onSelectRecent={runSearch}
         onClearRecent={clearRecent}
       />
+      <TemplatesSection onPreview={(id) => setPreviewSeed(id)} />
+      <PreviewSection seedTemplateId={previewSeed} />
+      <PlaceholdersSection />
+      <DisplayMapsSection />
     </div>
   );
 }
