@@ -42,6 +42,25 @@ export interface ParsedDatabaseUrl {
 }
 
 /**
+ * Redacts a DATABASE_URL for safe inclusion in error messages / logs.
+ * Never echoes the raw string (it may contain USER:PASSWORD).
+ * On total garbage emits `postgres://<unparseable>` without echoing raw.
+ */
+export function redactDatabaseUrl(raw: string): string {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return 'postgres://<unparseable>';
+  }
+  const scheme = url.protocol === 'postgresql:' ? 'postgresql' : 'postgres';
+  const host = url.hostname || '<unknown-host>';
+  const port = url.port ? `:${url.port}` : '';
+  const db = url.pathname && url.pathname !== '/' ? url.pathname : '';
+  return `${scheme}://***@${host}${port}${db}`;
+}
+
+/**
  * Parses DATABASE_URL or throws a human-readable error (fail-fast at
  * boot/CLI time — never let TypeORM hang on a garbage URL).
  */
@@ -51,27 +70,27 @@ export function parseDatabaseUrlOrThrow(raw: string): ParsedDatabaseUrl {
     url = new URL(raw);
   } catch {
     throw new Error(
-      `[dexter-db] Invalid DATABASE_URL ${JSON.stringify(raw)}: not a valid postgres URL. ` +
+      `[dexter-db] Invalid DATABASE_URL ${redactDatabaseUrl(raw)}: not a valid postgres URL. ` +
         `Expected shape: postgres://USER:PASSWORD@HOST:PORT/onchain_bot_dexter`,
     );
   }
   if (url.protocol !== 'postgres:' && url.protocol !== 'postgresql:') {
     throw new Error(
       `[dexter-db] Invalid DATABASE_URL protocol ${JSON.stringify(url.protocol)}: ` +
-        `expected "postgres:" (got ${JSON.stringify(raw)}).`,
+        `expected "postgres:" (got ${redactDatabaseUrl(raw)}).`,
     );
   }
   const database = url.pathname.replace(/^\//, '');
   if (!database) {
     throw new Error(
-      `[dexter-db] Invalid DATABASE_URL ${JSON.stringify(raw)}: missing database name in path. ` +
+      `[dexter-db] Invalid DATABASE_URL ${redactDatabaseUrl(raw)}: missing database name in path. ` +
         `Expected shape: postgres://USER:PASSWORD@HOST:PORT/onchain_bot_dexter`,
     );
   }
   const port = url.port ? Number(url.port) : 5432;
   if (!Number.isInteger(port) || port <= 0 || port > 65535) {
     throw new Error(
-      `[dexter-db] Invalid DATABASE_URL port ${JSON.stringify(url.port)} in ${JSON.stringify(raw)}.`,
+      `[dexter-db] Invalid DATABASE_URL port ${JSON.stringify(url.port)} in ${redactDatabaseUrl(raw)}.`,
     );
   }
   return {

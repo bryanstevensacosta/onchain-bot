@@ -4,6 +4,7 @@ import {
   isDatabaseEnabled,
   isProductionLikeEnvironment,
   parseDatabaseUrlOrThrow,
+  redactDatabaseUrl,
   resolveDatabaseUrl,
 } from './database.module';
 import { DEXTER_PERSISTED_ENTITIES } from './entities';
@@ -76,6 +77,61 @@ describe('DatabaseModule wiring seam (todo 1 foundation)', () => {
       expect(() =>
         parseDatabaseUrlOrThrow('postgres://localhost:5432/'),
       ).toThrow(/missing database name/);
+    });
+
+    it('redacts to postgres://<unparseable> on total garbage (no raw echo)', () => {
+      expect(redactDatabaseUrl('not-a-url')).toBe(
+        'postgres://<unparseable>',
+      );
+      expect(redactDatabaseUrl('%%%')).toBe('postgres://<unparseable>');
+      expect(redactDatabaseUrl('')).toBe('postgres://<unparseable>');
+    });
+
+    it('never leaks USER:PASSWORD in thrown messages (F2-M1)', () => {
+      const secret = 's3cret-pw-xyz';
+      // Total garbage → unparseable marker, no raw echo, no secret.
+      let garbageMessage = '';
+      try {
+        parseDatabaseUrlOrThrow(`utter garbage user:${secret}@stuff`);
+      } catch (err) {
+        garbageMessage = (err as Error).message;
+      }
+      expect(garbageMessage).not.toBe('');
+      expect(garbageMessage).not.toContain(secret);
+      expect(garbageMessage).toContain('postgres://<unparseable>');
+      // Parseable-but-invalid URLs → redacted host form with ***, no secret.
+      const badUrls = [
+        // wrong protocol → protocol keyword kept, password redacted
+        `http://alice:${secret}@localhost:5432/db`,
+        // missing database name → keyword kept, password redacted
+        `postgres://alice:${secret}@localhost:5432/`,
+        // bad port → port keyword kept, password redacted
+        `postgres://alice:${secret}@localhost:0/db`,
+      ];
+      for (const bad of badUrls) {
+        let message = '';
+        try {
+          parseDatabaseUrlOrThrow(bad);
+        } catch (err) {
+          message = (err as Error).message;
+        }
+        expect(message).not.toBe('');
+        expect(message).not.toContain(secret);
+        expect(message).not.toContain(`alice:${secret}`);
+        expect(message).toContain('***');
+      }
+      // Keywords survive redaction on the redacted paths.
+      expect(() =>
+        parseDatabaseUrlOrThrow(`http://alice:${secret}@localhost:5432/db`),
+      ).toThrow(/protocol/);
+      expect(() =>
+        parseDatabaseUrlOrThrow(`postgres://alice:${secret}@localhost:5432/`),
+      ).toThrow(/missing database name/);
+      expect(() =>
+        parseDatabaseUrlOrThrow(
+          `postgres://alice:${secret}@localhost:0/db`,
+        ),
+      ).toThrow(/port/);
     });
   });
 
