@@ -4,7 +4,10 @@ import { DisplayMap } from '@/templates/domain/display-map.entity';
 import { DisplayMapDuplicateError } from '@/templates/domain/display-map.validators';
 import { DisplayMapRepository } from '@/templates/domain/ports/display-map.repository';
 import { DisplayMapOrmEntity } from '../display-map.orm-entity';
-import { toDisplayMapDomain, toDisplayMapRow } from '../mappers/display-map.mapper';
+import {
+  toDisplayMapDomain,
+  toDisplayMapRow,
+} from '../mappers/display-map.mapper';
 
 /**
  * TypeORM `DisplayMapRepository` (display-catalog rename). Live binding
@@ -29,7 +32,9 @@ export class TypeOrmDisplayMapRepository extends DisplayMapRepository {
     return rows.map(toDisplayMapDomain);
   }
 
-  public async findByKey(placeholderKey: string): Promise<readonly DisplayMap[]> {
+  public async findByKey(
+    placeholderKey: string,
+  ): Promise<readonly DisplayMap[]> {
     const rows = await this.rows().find({
       where: { placeholderKey: placeholderKey.trim() },
       order: { matchValue: 'ASC' },

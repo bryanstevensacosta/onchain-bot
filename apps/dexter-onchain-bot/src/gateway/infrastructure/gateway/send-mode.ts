@@ -9,6 +9,8 @@
  */
 export type DexterSendMode = 'direct' | 'dual' | 'gateway';
 
-export function resolveDexterSendMode(raw: string | undefined): DexterSendMode {
+export function resolveDexterSendMode(
+  _raw: string | undefined,
+): DexterSendMode {
   return 'gateway';
 }

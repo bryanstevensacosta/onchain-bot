@@ -84,10 +84,10 @@ export const validateBodyMarkdown = (raw: unknown): string => {
     fail('MessageTemplate bodyMarkdown cannot be empty');
   }
   if (text.length > MAX_BODY_LENGTH) {
-    fail(
-      `MessageTemplate bodyMarkdown exceeds max length ${MAX_BODY_LENGTH}`,
-      { length: text.length, max: MAX_BODY_LENGTH },
-    );
+    fail(`MessageTemplate bodyMarkdown exceeds max length ${MAX_BODY_LENGTH}`, {
+      length: text.length,
+      max: MAX_BODY_LENGTH,
+    });
   }
   return text;
 };

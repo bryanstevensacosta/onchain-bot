@@ -78,9 +78,9 @@ export default tseslint.config(
     // All other rules keep backend parity.
     files: [
       '**/src/scan/infrastructure/formatter/message-formatter.ts',
-      '**/src/telegram/application/use-cases/migrate-bots-to-gateway.use-case.spec.ts',
-      '**/src/telegram/dual-send-secret-scan.spec.ts',
-      '**/src/telegram/infrastructure/gateway/gateway-send-client.service.spec.ts',
+      '**/src/gateway/application/use-cases/migrate-bots-to-gateway.use-case.spec.ts',
+      '**/src/gateway/dual-send-secret-scan.spec.ts',
+      '**/src/gateway/infrastructure/gateway/gateway-send-client.service.spec.ts',
     ],
     rules: {
       '@typescript-eslint/unbound-method': 'warn',

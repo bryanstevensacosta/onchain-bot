@@ -26,13 +26,17 @@ describe('typeorm message-template repository (stubbed datasource)', () => {
 
   const rowsReturning = (rows: MessageTemplateOrmEntity[]) => ({
     find: jest.fn().mockResolvedValue(rows),
-    findOne: jest.fn().mockImplementation(
-      async ({ where }: { where: Record<string, unknown> }) =>
-        rows.find((row) =>
-          Object.entries(where).every(([key, value]) => row[key] === value),
-        ) ?? null,
-    ),
-    save: jest.fn().mockImplementation(async (row: MessageTemplateOrmEntity) => row),
+    findOne: jest
+      .fn()
+      .mockImplementation(
+        async ({ where }: { where: Record<string, unknown> }) =>
+          rows.find((row) =>
+            Object.entries(where).every(([key, value]) => row[key] === value),
+          ) ?? null,
+      ),
+    save: jest
+      .fn()
+      .mockImplementation(async (row: MessageTemplateOrmEntity) => row),
     delete: jest
       .fn()
       .mockResolvedValue({ affected: 1, raw: undefined, generatedMaps: [] }),
@@ -67,18 +71,15 @@ describe('typeorm message-template repository (stubbed datasource)', () => {
   });
 
   it('unique violation (23505, incl. driverError-only shape) maps to a domain error', async () => {
-    const direct = new QueryFailedError(
-      'INSERT ...',
-      undefined,
-      { code: '23505' } as unknown as Error,
-    );
+    const direct = new QueryFailedError('INSERT ...', undefined, {
+      code: '23505',
+    } as unknown as Error);
     // QueryFailedError flattens driver props onto itself; simulate a driver
     // that only exposes the code via `.driverError` (fallback branch).
-    const viaDriverOnly = new QueryFailedError(
-      'INSERT ...',
-      undefined,
-      { code: '23505', detail: 'x' } as unknown as Error,
-    );
+    const viaDriverOnly = new QueryFailedError('INSERT ...', undefined, {
+      code: '23505',
+      detail: 'x',
+    } as unknown as Error);
     delete (viaDriverOnly as { code?: unknown }).code;
     for (const failure of [direct, viaDriverOnly]) {
       const api = rowsReturning([]);

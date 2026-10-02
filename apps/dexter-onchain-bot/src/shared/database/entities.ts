@@ -13,7 +13,6 @@ import { MessageTemplateOrmEntity } from '../../templates/infrastructure/persist
  * (`typeorm-ts-node-commonjs`) cannot resolve `@/` (or any tsconfig
  * paths); `@/` stays the convention everywhere the CLI never loads.
  */
-export const DEXTER_PERSISTED_ENTITIES: Function[] = [
-  DisplayMapOrmEntity,
-  MessageTemplateOrmEntity,
-];
+export const DEXTER_PERSISTED_ENTITIES: Array<
+  new (...args: never[]) => object
+> = [DisplayMapOrmEntity, MessageTemplateOrmEntity];

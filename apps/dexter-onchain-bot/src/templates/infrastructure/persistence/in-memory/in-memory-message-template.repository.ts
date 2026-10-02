@@ -17,9 +17,7 @@ import { MessageTemplateDuplicateError } from '../message-template.errors';
  *   while another of the same command is active throws).
  */
 @Injectable()
-export class InMemoryMessageTemplateRepository
-  implements MessageTemplateRepository
-{
+export class InMemoryMessageTemplateRepository implements MessageTemplateRepository {
   private readonly store = new Map<string, MessageTemplate>();
 
   public async findAll(): Promise<ReadonlyArray<MessageTemplate>> {

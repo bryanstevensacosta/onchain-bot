@@ -22,9 +22,7 @@ const statusOf = async (run: () => Promise<unknown>): Promise<number> => {
   throw new Error('expected the call to throw');
 };
 
-const responseOf = async (
-  run: () => Promise<unknown>,
-): Promise<unknown> => {
+const responseOf = async (run: () => Promise<unknown>): Promise<unknown> => {
   try {
     await run();
   } catch (error) {
@@ -150,7 +148,7 @@ describe('DisplayMapsController (todo 8 display catalog)', () => {
     expect(body.valid).toContain('chain');
   });
 
-  it("POST empty display → 400 (and oversize matchValue → 400)", async () => {
+  it('POST empty display → 400 (and oversize matchValue → 400)', async () => {
     const { controller } = setup();
     await expect(
       controller.create({

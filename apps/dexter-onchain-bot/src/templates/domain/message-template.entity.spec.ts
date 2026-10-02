@@ -67,15 +67,18 @@ describe('message-template entity (todo 2 domain)', () => {
     [undefined, 'missing command'],
     [null, 'null command'],
     [42, 'non-string command'],
-  ])('rejects out-of-enum command %p (%s)', (command: unknown, _why: string) => {
-    expect(() =>
-      MessageTemplate.create({
-        command: command as never,
-        name: 'tpl',
-        bodyMarkdown: BODY,
-      }),
-    ).toThrow(MessageTemplateValidationError);
-  });
+  ])(
+    'rejects out-of-enum command %p (%s)',
+    (command: unknown, _why: string) => {
+      expect(() =>
+        MessageTemplate.create({
+          command: command as never,
+          name: 'tpl',
+          bodyMarkdown: BODY,
+        }),
+      ).toThrow(MessageTemplateValidationError);
+    },
+  );
 
   it.each([
     ['', 'empty name'],
@@ -240,9 +243,7 @@ describe('message-template validators (100% branch cover)', () => {
     [{}, 'object'],
     ['start', 'out-of-enum string'],
   ])('validateCommand rejects %p (%s)', (raw: unknown, _why: string) => {
-    expect(() => validateCommand(raw)).toThrow(
-      MessageTemplateValidationError,
-    );
+    expect(() => validateCommand(raw)).toThrow(MessageTemplateValidationError);
   });
 
   it.each([...VALID_COMMANDS])('validateCommand accepts %p', (command) => {
@@ -265,9 +266,10 @@ describe('message-template validators (100% branch cover)', () => {
       fail('expected oversize name to throw');
     } catch (error) {
       expect(error).toBeInstanceOf(MessageTemplateValidationError);
-      expect(
-        (error as MessageTemplateValidationError).details,
-      ).toMatchObject({ length: 101, max: 100 });
+      expect((error as MessageTemplateValidationError).details).toMatchObject({
+        length: 101,
+        max: 100,
+      });
     }
   });
 
@@ -288,9 +290,10 @@ describe('message-template validators (100% branch cover)', () => {
       fail('expected oversize body to throw');
     } catch (error) {
       expect(error).toBeInstanceOf(MessageTemplateValidationError);
-      expect(
-        (error as MessageTemplateValidationError).details,
-      ).toMatchObject({ length: 4001, max: 4000 });
+      expect((error as MessageTemplateValidationError).details).toMatchObject({
+        length: 4001,
+        max: 4000,
+      });
     }
   });
 

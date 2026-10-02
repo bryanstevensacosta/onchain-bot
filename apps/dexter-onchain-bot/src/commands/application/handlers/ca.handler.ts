@@ -68,8 +68,9 @@ export async function sendFullScan(
   // DISPLAY_RESOLVER, so {{chainDisplay}} renders "" meanwhile
   // (accepted interim — handlers render with whatever the wired
   // renderer resolves). No timeframe for these commands.
-  const lookup: readonly TemplateCommand[] =
-    templateCommands ?? [command as TemplateCommand];
+  const lookup: readonly TemplateCommand[] = templateCommands ?? [
+    command as TemplateCommand,
+  ];
   if (templates && renderer) {
     let active: Awaited<
       ReturnType<MessageTemplateRepository['findActiveByCommand']>

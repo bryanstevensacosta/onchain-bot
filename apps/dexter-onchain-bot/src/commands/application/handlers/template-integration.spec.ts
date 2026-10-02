@@ -118,8 +118,8 @@ describe('template integration across /ca /x + bare (todo 10)', () => {
       makeRepo(
         { ca: active('ca', 'full-dexter-v1', 'CA-CARD ${{symbol}}') },
         seen,
-      ) as never,
-      renderer() as never,
+      ),
+      renderer(),
     );
     await handler.handle([SOL], makeContext());
     expect(bot.sent).toHaveLength(1);
@@ -137,8 +137,8 @@ describe('template integration across /ca /x + bare (todo 10)', () => {
       {} as never,
       {} as never,
       bot as never,
-      makeRepo({}) as never,
-      renderer() as never,
+      makeRepo({}),
+      renderer(),
     );
     await handler.handle([SOL], makeContext());
     expect(bot.sent).toHaveLength(1);
@@ -155,8 +155,8 @@ describe('template integration across /ca /x + bare (todo 10)', () => {
       bot as never,
       makeRepo({
         ca: active('ca', 'broken-v1', 'oops {{xxx}}'),
-      }) as never,
-      renderer() as never,
+      }),
+      renderer(),
     );
     await expect(handler.handle([SOL], makeContext())).resolves.toBeUndefined();
     expect(bot.sent).toHaveLength(1);
@@ -178,8 +178,8 @@ describe('template integration across /ca /x + bare (todo 10)', () => {
           x: active('x', 'full-dexter-v1', 'X-CARD ${{symbol}}'),
         },
         seen,
-      ) as never,
-      renderer() as never,
+      ),
+      renderer(),
     );
     await handler.handle([SOL], makeContext());
     expect(bot.sent).toHaveLength(1);
@@ -195,8 +195,8 @@ describe('template integration across /ca /x + bare (todo 10)', () => {
       {} as never,
       {} as never,
       bot as never,
-      makeRepo({}) as never,
-      renderer() as never,
+      makeRepo({}),
+      renderer(),
     );
     await handler.handle([SOL], makeContext());
     expect(bot.sent).toHaveLength(1);
@@ -218,8 +218,8 @@ describe('template integration across /ca /x + bare (todo 10)', () => {
           ca: active('ca', 'full-dexter-v1', 'CA-CARD ${{symbol}}'),
         },
         seen,
-      ) as never,
-      renderer() as never,
+      ),
+      renderer(),
     );
     await handler.handleText(SOL, makeContext());
     expect(bot.sent).toHaveLength(1);
@@ -239,8 +239,8 @@ describe('template integration across /ca /x + bare (todo 10)', () => {
       makeRepo(
         { ca: active('ca', 'full-dexter-v1', 'CA-CARD ${{symbol}}') },
         seen,
-      ) as never,
-      renderer() as never,
+      ),
+      renderer(),
     );
     await handler.handleText(`mira esto ${SOL} en jupiter`, makeContext());
     expect(bot.sent).toHaveLength(1);
@@ -257,8 +257,8 @@ describe('template integration across /ca /x + bare (todo 10)', () => {
       {} as never,
       {} as never,
       bot as never,
-      makeRepo({}, seen) as never,
-      renderer() as never,
+      makeRepo({}, seen),
+      renderer(),
     );
     await handler.handleText(SOL, makeContext());
     expect(bot.sent).toHaveLength(1);

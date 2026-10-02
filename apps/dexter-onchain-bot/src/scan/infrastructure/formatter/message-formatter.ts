@@ -57,7 +57,10 @@ export class MessageFormatterAdapter {
     if (text.length <= limit) {
       return { text, truncated: false };
     }
-    return { text: MessageFormatterAdapter.truncateText(text, limit), truncated: true };
+    return {
+      text: MessageFormatterAdapter.truncateText(text, limit),
+      truncated: true,
+    };
   }
 
   public static formatMoneyText(value: number | null): string {

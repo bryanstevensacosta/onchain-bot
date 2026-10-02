@@ -20,10 +20,7 @@ export interface PlaceholderDescriptor {
  * the shared formatters with `N/A` on null; `derived` keys are
  * renderer-computed; `url` keys travel raw).
  */
-const PLACEHOLDER_META: Record<
-  string,
-  Omit<PlaceholderDescriptor, 'key'>
-> = {
+const PLACEHOLDER_META: Record<string, Omit<PlaceholderDescriptor, 'key'>> = {
   symbol: { type: 'string', nullable: false, example: 'SOL' },
   name: { type: 'string', nullable: false, example: 'Solana' },
   chain: { type: 'string', nullable: false, example: 'solana' },

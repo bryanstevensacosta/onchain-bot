@@ -190,7 +190,8 @@ export class MessageTemplatesController {
   ): Promise<MessageTemplateView> {
     if (dto.command !== undefined) {
       throw new BadRequestException({
-        error: 'MessageTemplate command is immutable (delete + recreate to move commands)',
+        error:
+          'MessageTemplate command is immutable (delete + recreate to move commands)',
       });
     }
     const existing = await this.templates.findById(id);
@@ -254,9 +255,7 @@ export class MessageTemplatesController {
   }
 
   @Post(':id/activate')
-  public async activate(
-    @Param('id') id: string,
-  ): Promise<MessageTemplateView> {
+  public async activate(@Param('id') id: string): Promise<MessageTemplateView> {
     const existing = await this.templates.findById(id);
     if (!existing) {
       throw new NotFoundException(`MessageTemplate ${id} not found`);
@@ -289,17 +288,13 @@ export class MessageTemplatesController {
       }
       const fresh = await this.templates.findById(target.id);
       if (!fresh) {
-        throw new NotFoundException(
-          `MessageTemplate ${target.id} not found`,
-        );
+        throw new NotFoundException(`MessageTemplate ${target.id} not found`);
       }
       return this.doActivate(fresh);
     }
   }
 
-  private async doActivate(
-    target: MessageTemplate,
-  ): Promise<MessageTemplate> {
+  private async doActivate(target: MessageTemplate): Promise<MessageTemplate> {
     const siblings = await this.templates.findByCommand(target.command);
     for (const sibling of siblings) {
       if (sibling.id !== target.id && sibling.isActive) {
@@ -340,9 +335,7 @@ export class MessageTemplatesController {
         }
         const row = await rows.findOne({ where: { id: target.id } });
         if (!row) {
-          throw new NotFoundException(
-            `MessageTemplate ${target.id} not found`,
-          );
+          throw new NotFoundException(`MessageTemplate ${target.id} not found`);
         }
         const domain = toMessageTemplateDomain(row);
         domain.activate();
@@ -374,9 +367,7 @@ export class MessageTemplatesController {
         }
         const row = await rows.findOne({ where: { id: target.id } });
         if (!row) {
-          throw new NotFoundException(
-            `MessageTemplate ${target.id} not found`,
-          );
+          throw new NotFoundException(`MessageTemplate ${target.id} not found`);
         }
         const domain = toMessageTemplateDomain(row);
         domain.activate();
@@ -387,7 +378,7 @@ export class MessageTemplatesController {
     }
   }
 
-  private static toBadRequest(error: unknown, command: unknown): Error {
+  private static toBadRequest(error: unknown, _command: unknown): Error {
     if (error instanceof MessageTemplateValidationError) {
       if (/command/.test(error.message)) {
         return new BadRequestException({

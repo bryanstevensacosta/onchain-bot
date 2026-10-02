@@ -92,9 +92,9 @@ describe('DisplayMap entity', () => {
   it('rejects empty and overlong display', () => {
     expect(() => validateDisplay('')).toThrow(DisplayMapValidationError);
     expect(() => validateDisplay('   ')).toThrow(DisplayMapValidationError);
-    expect(() =>
-      validateDisplay('x'.repeat(MAX_DISPLAY_LENGTH + 1)),
-    ).toThrow(DisplayMapValidationError);
+    expect(() => validateDisplay('x'.repeat(MAX_DISPLAY_LENGTH + 1))).toThrow(
+      DisplayMapValidationError,
+    );
     expect(validateDisplay('x'.repeat(MAX_DISPLAY_LENGTH))).toHaveLength(
       MAX_DISPLAY_LENGTH,
     );

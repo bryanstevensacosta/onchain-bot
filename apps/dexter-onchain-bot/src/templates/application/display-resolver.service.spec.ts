@@ -62,7 +62,9 @@ describe('DisplayResolverService', () => {
   });
 
   it('returns "" before any refresh (empty cache)', () => {
-    const resolver = new DisplayResolverService(new InMemoryDisplayMapRepository());
+    const resolver = new DisplayResolverService(
+      new InMemoryDisplayMapRepository(),
+    );
     expect(resolver.resolve('chain', 'solana')).toBe('');
   });
 

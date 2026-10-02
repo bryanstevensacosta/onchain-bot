@@ -26,9 +26,7 @@ import {
  * only (never `import type` on the injected `DataSource`).
  */
 @Injectable()
-export class TypeOrmMessageTemplateRepository
-  implements MessageTemplateRepository
-{
+export class TypeOrmMessageTemplateRepository implements MessageTemplateRepository {
   public constructor(private readonly dataSource: DataSource) {
     // Value import keeps design:paramtypes metadata (dexter AGENTS.md rule).
   }

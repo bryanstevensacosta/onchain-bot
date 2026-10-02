@@ -73,7 +73,7 @@ export const validatePlaceholderKey = (raw: unknown): string => {
   if (trimmed.length === 0) {
     fail('DisplayMap placeholderKey cannot be empty');
   }
-  if (!(DISPLAY_PLACEHOLDER_KEYS as readonly string[]).includes(trimmed)) {
+  if (!DISPLAY_PLACEHOLDER_KEYS.includes(trimmed)) {
     fail(
       `DisplayMap placeholderKey must be one of: ${DISPLAY_PLACEHOLDER_KEYS.join(', ')}`,
       { placeholderKey: raw },

@@ -121,11 +121,9 @@ export class PreviewTemplateUseCase {
     let command: TemplateCommand;
     let body: string;
     if (hasTemplate) {
-      const template = await this.templates.findById(templateId as string);
+      const template = await this.templates.findById(templateId);
       if (!template) {
-        throw new NotFoundException(
-          `MessageTemplate ${templateId as string} not found`,
-        );
+        throw new NotFoundException(`MessageTemplate ${templateId} not found`);
       }
       command = template.command;
       body = template.bodyMarkdown;
@@ -165,9 +163,7 @@ export class PreviewTemplateUseCase {
 
     const values: TemplateValues = {
       ...outcome.token,
-      ...(input.timeframe !== undefined
-        ? { timeframe: input.timeframe }
-        : {}),
+      ...(input.timeframe !== undefined ? { timeframe: input.timeframe } : {}),
     };
     try {
       const rendered = this.renderer.render(body, values, command);

@@ -162,8 +162,8 @@ describe('CommandRouter bare-address + template integration (todo 10)', () => {
       {} as never,
       {} as never,
       bot as never,
-      makeRepo(actives) as never,
-      new TemplateRendererService() as never,
+      makeRepo(actives),
+      new TemplateRendererService(),
     );
     const contextResolver = {
       resolve: async () => ({
@@ -182,7 +182,7 @@ describe('CommandRouter bare-address + template integration (todo 10)', () => {
       { toggleTradeButton: async () => ({}) } as never,
       { buildScanKeyboard: () => ({ inline_keyboard: [] }) } as never,
       { isAllowed: () => true },
-      fallback as never,
+      fallback,
     );
     return { bot, router };
   }

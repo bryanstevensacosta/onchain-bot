@@ -73,9 +73,7 @@ const statusOf = async (run: () => Promise<unknown>): Promise<number> => {
   throw new Error('expected the call to throw');
 };
 
-const responseOf = async (
-  run: () => Promise<unknown>,
-): Promise<unknown> => {
+const responseOf = async (run: () => Promise<unknown>): Promise<unknown> => {
   try {
     await run();
   } catch (error) {
@@ -122,12 +120,8 @@ const setup = async (
   };
 };
 
-const isResult = (
-  output: unknown,
-): output is PreviewTemplateResult =>
-  typeof output === 'object' &&
-  output !== null &&
-  'parseMode' in output;
+const isResult = (output: unknown): output is PreviewTemplateResult =>
+  typeof output === 'object' && output !== null && 'parseMode' in output;
 
 describe('PreviewTemplateUseCase (todo 7 dry-run preview)', () => {
   it('previews by templateId with the Solana fixture (MarkdownV2, $SYM)', async () => {
@@ -291,7 +285,8 @@ describe('PreviewTemplateUseCase (todo 7 dry-run preview)', () => {
         async (address: string): Promise<ResolveOutcome> => ({
           status: 'invalid',
           address,
-          reason: 'unrecognized address format (expected 0x + 40 hex for EVM or base58 32-44 chars for Solana)',
+          reason:
+            'unrecognized address format (expected 0x + 40 hex for EVM or base58 32-44 chars for Solana)',
         }),
       ),
     });
@@ -348,10 +343,7 @@ describe('PreviewTemplateUseCase (todo 7 dry-run preview)', () => {
       '../api/http/template-preview.controller.ts',
       '../../placeholders/api/http/placeholders.controller.ts',
     ]) {
-      const source = readFileSync(
-        join(__dirname, relative),
-        'utf8',
-      );
+      const source = readFileSync(join(__dirname, relative), 'utf8');
       expect(source).not.toMatch(/TelegramBotClient/);
       expect(source).not.toMatch(/sendMessage/);
     }

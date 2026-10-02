@@ -41,9 +41,7 @@ export class UnknownPlaceholder extends Error {
   public readonly valid: string[];
 
   public constructor(key: string, validList: string[]) {
-    super(
-      `Unknown placeholder {{${key}}} (valid: [${validList.join(', ')}])`,
-    );
+    super(`Unknown placeholder {{${key}}} (valid: [${validList.join(', ')}])`);
     this.name = 'UnknownPlaceholder';
     this.key = key;
     this.valid = [...validList];
@@ -126,11 +124,10 @@ export class TemplateRendererService {
     command: TemplateCommand = 'ca',
   ): RenderResult {
     if (body.includes('{%') || body.includes('{{#')) {
-      throw new UnsupportedTemplateSyntax(
-        body.includes('{%') ? '{%' : '{{#',
-      );
+      throw new UnsupportedTemplateSyntax(body.includes('{%') ? '{%' : '{{#');
     }
-    const valid: string[] = PLACEHOLDERS_BY_COMMAND[command] ?? placeholdersFor(command);
+    const valid: string[] =
+      PLACEHOLDERS_BY_COMMAND[command] ?? placeholdersFor(command);
     const used: string[] = [];
     const substituted = body.replace(
       PLACEHOLDER_PATTERN,
@@ -142,7 +139,8 @@ export class TemplateRendererService {
         return this.resolveValue(key, values);
       },
     );
-    const cleaned = TemplateRendererService.cleanupDanglingSeparators(substituted);
+    const cleaned =
+      TemplateRendererService.cleanupDanglingSeparators(substituted);
     const capped = MessageFormatterAdapter.enforceLengthText(cleaned);
     return {
       text: capped.text,
@@ -158,32 +156,39 @@ export class TemplateRendererService {
   }
 
   private resolveValue(key: string, values: TemplateValues): string {
-    const esc = MessageFormatterAdapter.escapeV2Text;
-    if ((MONEY_KEYS as readonly string[]).includes(key)) {
+    const esc = (text: string): string =>
+      MessageFormatterAdapter.escapeV2Text(text);
+    if (MONEY_KEYS.includes(key)) {
       return esc(
         MessageFormatterAdapter.formatMoneyText(
           (values as Record<string, number | null>)[key] ?? null,
         ),
       );
     }
-    if ((NUMBER_KEYS as readonly string[]).includes(key)) {
+    if (NUMBER_KEYS.includes(key)) {
       return esc(
         MessageFormatterAdapter.formatNumberText(
           (values as Record<string, number | null>)[key] ?? null,
         ),
       );
     }
-    if ((PERCENT_KEYS as readonly string[]).includes(key)) {
+    if (PERCENT_KEYS.includes(key)) {
       return esc(
         MessageFormatterAdapter.formatPercentText(
           (values as Record<string, number | null>)[key] ?? null,
         ),
       );
     }
-    if ((RAW_STRING_KEYS as readonly string[]).includes(key)) {
-      const raw = (values as Record<string, unknown>)[key];
-      if (raw === null || raw === undefined || raw === '') return 'N/A';
-      return esc(String(raw));
+    if (RAW_STRING_KEYS.includes(key)) {
+      const raw: unknown = (values as Record<string, unknown>)[key];
+      if (typeof raw === 'string') {
+        if (raw === '') return 'N/A';
+        return esc(raw);
+      }
+      if (typeof raw === 'number' || typeof raw === 'boolean') {
+        return esc(String(raw));
+      }
+      return 'N/A';
     }
     switch (key) {
       case 'devWallets': {
@@ -196,7 +201,10 @@ export class TemplateRendererService {
         return MessageFormatterAdapter.formatDevLine(values as ResolvedToken);
       }
       case 'chainDisplay': {
-        return this.displayResolver?.resolve('chain', String(values.chain ?? '')) ?? '';
+        return (
+          this.displayResolver?.resolve('chain', String(values.chain ?? '')) ??
+          ''
+        );
       }
       case 'dexscreenerUrl': {
         if (!values.address) return '';
@@ -217,8 +225,16 @@ export class TemplateRendererService {
       case 'scanLinks': {
         if (!values.address) return '';
         const chain = String(values.chain ?? 'unknown');
-        const dex = MessageFormatterAdapter.buildScanUrl('dexscreener', chain, values.address);
-        const gecko = MessageFormatterAdapter.buildScanUrl('geckoterminal', chain, values.address);
+        const dex = MessageFormatterAdapter.buildScanUrl(
+          'dexscreener',
+          chain,
+          values.address,
+        );
+        const gecko = MessageFormatterAdapter.buildScanUrl(
+          'geckoterminal',
+          chain,
+          values.address,
+        );
         return `[DexScreener](${dex}) \\| [GeckoTerminal](${gecko})`;
       }
       case 'tradeHint': {

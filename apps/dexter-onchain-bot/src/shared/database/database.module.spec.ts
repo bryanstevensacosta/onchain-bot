@@ -47,7 +47,7 @@ describe('DatabaseModule wiring seam (todo 1 foundation)', () => {
       [undefined, false],
     ])('NODE_ENV=%s → %s', (nodeEnv, expected) => {
       if (nodeEnv === undefined) delete process.env.NODE_ENV;
-      else process.env.NODE_ENV = nodeEnv as string;
+      else process.env.NODE_ENV = nodeEnv;
       expect(isProductionLikeEnvironment()).toBe(expected);
     });
   });
@@ -80,9 +80,7 @@ describe('DatabaseModule wiring seam (todo 1 foundation)', () => {
     });
 
     it('redacts to postgres://<unparseable> on total garbage (no raw echo)', () => {
-      expect(redactDatabaseUrl('not-a-url')).toBe(
-        'postgres://<unparseable>',
-      );
+      expect(redactDatabaseUrl('not-a-url')).toBe('postgres://<unparseable>');
       expect(redactDatabaseUrl('%%%')).toBe('postgres://<unparseable>');
       expect(redactDatabaseUrl('')).toBe('postgres://<unparseable>');
     });
@@ -128,9 +126,7 @@ describe('DatabaseModule wiring seam (todo 1 foundation)', () => {
         parseDatabaseUrlOrThrow(`postgres://alice:${secret}@localhost:5432/`),
       ).toThrow(/missing database name/);
       expect(() =>
-        parseDatabaseUrlOrThrow(
-          `postgres://alice:${secret}@localhost:0/db`,
-        ),
+        parseDatabaseUrlOrThrow(`postgres://alice:${secret}@localhost:0/db`),
       ).toThrow(/port/);
     });
   });

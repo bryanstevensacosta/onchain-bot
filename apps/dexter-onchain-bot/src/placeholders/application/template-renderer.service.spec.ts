@@ -96,7 +96,12 @@ describe('TemplateRendererService (todo 4 closed semantics)', () => {
     expect(out.truncated).toBe(false);
     expect(out.text.length).toBeLessThanOrEqual(TEMPLATE_MAX_LENGTH);
     expect(out.placeholdersUsed).toEqual(
-      expect.arrayContaining(['symbol', 'chainDisplay', 'devLine', 'scanLinks']),
+      expect.arrayContaining([
+        'symbol',
+        'chainDisplay',
+        'devLine',
+        'scanLinks',
+      ]),
     );
   });
 
@@ -130,10 +135,18 @@ describe('TemplateRendererService (todo 4 closed semantics)', () => {
 
   it('escapes each value exactly once (. and () get one backslash; $ passes raw per shared escapeV2)', () => {
     const renderer = new TemplateRendererService(stubResolver(''));
-    const out = renderer.render('{{symbol}}', { ...TOKEN, symbol: 'A.B (C)' }, 'ca');
+    const out = renderer.render(
+      '{{symbol}}',
+      { ...TOKEN, symbol: 'A.B (C)' },
+      'ca',
+    );
     expect(out.text).toBe('A\\.B \\(C\\)');
     expect(out.text).not.toContain('\\\\');
-    const money = renderer.render('{{priceUsd}}', { ...TOKEN, priceUsd: 164.32 }, 'ca');
+    const money = renderer.render(
+      '{{priceUsd}}',
+      { ...TOKEN, priceUsd: 164.32 },
+      'ca',
+    );
     expect(money.text).toBe('$164\\.32');
     expect(money.text).not.toContain('\\\\');
   });
@@ -163,18 +176,22 @@ describe('TemplateRendererService (todo 4 closed semantics)', () => {
     );
     expect(okC.text).toContain('1h');
     expect(okC.text).toContain('dexscreener.com');
-    const okCc = renderer.render('{{timeframe}}', { ...TOKEN, timeframe: '4h' }, 'cc');
+    const okCc = renderer.render(
+      '{{timeframe}}',
+      { ...TOKEN, timeframe: '4h' },
+      'cc',
+    );
     expect(okCc.text).toBe('4h');
   });
 
   it('throws on conditionals/loops/filters syntax', () => {
     const renderer = new TemplateRendererService(stubResolver(''));
-    expect(() => renderer.render('{{#if symbol}}x{{/if}}', TOKEN, 'ca')).toThrow(
-      UnsupportedTemplateSyntax,
-    );
-    expect(() => renderer.render('{% if x %}y{% endif %}', TOKEN, 'ca')).toThrow(
-      UnsupportedTemplateSyntax,
-    );
+    expect(() =>
+      renderer.render('{{#if symbol}}x{{/if}}', TOKEN, 'ca'),
+    ).toThrow(UnsupportedTemplateSyntax);
+    expect(() =>
+      renderer.render('{% if x %}y{% endif %}', TOKEN, 'ca'),
+    ).toThrow(UnsupportedTemplateSyntax);
   });
 
   it('cleans dangling separators left by empty derived values', () => {
@@ -194,7 +211,7 @@ describe('TemplateRendererService (todo 4 closed semantics)', () => {
   it('fuzzes 50 bodies with unknown keys: every error carries the valid list', () => {
     const commands: TemplateCommand[] = ['ca', 'x', 'z', 'c', 'cc', 'bare'];
     for (let i = 0; i < 50; i += 1) {
-      const command = commands[i % commands.length] as TemplateCommand;
+      const command = commands[i % commands.length];
       const expected = placeholdersFor(command);
       const renderer = new TemplateRendererService(stubResolver('🟣'));
       let caught: unknown;

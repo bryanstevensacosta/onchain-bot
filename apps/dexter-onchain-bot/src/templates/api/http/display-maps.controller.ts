@@ -73,9 +73,7 @@ export class DisplayMapsController {
   ): Promise<readonly DisplayMapView[]> {
     if (placeholderKey !== undefined) {
       const key = placeholderKey.trim();
-      if (
-        !(DISPLAY_PLACEHOLDER_KEYS as readonly string[]).includes(key)
-      ) {
+      if (!DISPLAY_PLACEHOLDER_KEYS.includes(key)) {
         throw new BadRequestException({
           error: `Unknown placeholderKey ${JSON.stringify(placeholderKey)}`,
           valid: [...DISPLAY_PLACEHOLDER_KEYS],

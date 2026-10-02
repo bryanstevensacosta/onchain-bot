@@ -24,7 +24,9 @@ export class InMemoryDisplayMapRepository extends DisplayMapRepository {
     );
   }
 
-  public async findByKey(placeholderKey: string): Promise<readonly DisplayMap[]> {
+  public async findByKey(
+    placeholderKey: string,
+  ): Promise<readonly DisplayMap[]> {
     const key = placeholderKey.trim();
     return [...this.store.values()]
       .filter((map) => map.placeholderKey === key)

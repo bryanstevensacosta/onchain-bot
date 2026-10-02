@@ -226,8 +226,8 @@ describe('/ca template integration (todo 10: active render + built-in fallback)'
       {} as never,
       {} as never,
       bot as never,
-      repo as never,
-      new TemplateRendererService() as never,
+      repo,
+      new TemplateRendererService(),
     );
     await handler.handle([SOL], makeContext());
     expect(bot.sent).toHaveLength(1);
@@ -246,8 +246,8 @@ describe('/ca template integration (todo 10: active render + built-in fallback)'
       {} as never,
       {} as never,
       bot as never,
-      repo as never,
-      new TemplateRendererService() as never,
+      repo,
+      new TemplateRendererService(),
     );
     await handler.handle([SOL], makeContext());
     expect(bot.sent).toHaveLength(1);
@@ -270,8 +270,8 @@ describe('/ca template integration (todo 10: active render + built-in fallback)'
       {} as never,
       {} as never,
       bot as never,
-      repo as never,
-      new TemplateRendererService() as never,
+      repo,
+      new TemplateRendererService(),
     );
     await expect(handler.handle([SOL], makeContext())).resolves.toBeUndefined();
     expect(bot.sent).toHaveLength(1);

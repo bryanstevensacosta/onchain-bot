@@ -1,8 +1,5 @@
 import { ZCompactScanHandler } from './z-compact-scan.handler';
-import {
-  CTokenChartHandler,
-  VALID_TIMEFRAMES,
-} from './c-token-chart.handler';
+import { CTokenChartHandler, VALID_TIMEFRAMES } from './c-token-chart.handler';
 import { CcChartOnlyHandler } from './cc-chart-only.handler';
 import type { CommandContext } from '@/commands/domain/ports/command-handler.port';
 import { DEFAULT_CHAT_SETTINGS } from '@/settings/domain/chat-settings';
@@ -173,9 +170,7 @@ describe('/c with an active chart template', () => {
     await handler.handle([SOL, '1h'], makeContext());
     expect(bot.sent).toHaveLength(1);
     expect(bot.sent[0].text).toContain('1h');
-    expect(bot.sent[0].text).toContain(
-      `https://dexscreener.com/solana/${SOL}`,
-    );
+    expect(bot.sent[0].text).toContain(`https://dexscreener.com/solana/${SOL}`);
     expect(bot.sent[0].options).toMatchObject({ parse_mode: 'MarkdownV2' });
     expect(bot.sent[0].options ?? {}).not.toHaveProperty('reply_markup');
   });
@@ -222,9 +217,7 @@ describe('/c with an active chart template', () => {
     );
     await handler.handle([SOL], makeContext());
     expect(bot.sent).toHaveLength(1);
-    expect(bot.sent[0].text).toContain(
-      `https://dexscreener.com/solana/${SOL}`,
-    );
+    expect(bot.sent[0].text).toContain(`https://dexscreener.com/solana/${SOL}`);
     expect(bot.sent[0].text).not.toContain('{{');
   });
 });
@@ -245,9 +238,7 @@ describe('/cc with an active chart-only template', () => {
     await handler.handle([SOL, '4h'], makeContext());
     expect(bot.sent).toHaveLength(1);
     expect(bot.sent[0].text).toContain('4h');
-    expect(bot.sent[0].text).toContain(
-      `https://dexscreener.com/solana/${SOL}`,
-    );
+    expect(bot.sent[0].text).toContain(`https://dexscreener.com/solana/${SOL}`);
     expect(bot.sent[0].options).toMatchObject({ parse_mode: 'MarkdownV2' });
     expect(bot.sent[0].options ?? {}).not.toHaveProperty('reply_markup');
   });

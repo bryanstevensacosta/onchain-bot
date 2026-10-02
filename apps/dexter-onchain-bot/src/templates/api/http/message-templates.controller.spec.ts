@@ -20,9 +20,7 @@ const statusOf = async (run: () => Promise<unknown>): Promise<number> => {
   throw new Error('expected the call to throw');
 };
 
-const responseOf = async (
-  run: () => Promise<unknown>,
-): Promise<unknown> => {
+const responseOf = async (run: () => Promise<unknown>): Promise<unknown> => {
   try {
     await run();
   } catch (error) {
