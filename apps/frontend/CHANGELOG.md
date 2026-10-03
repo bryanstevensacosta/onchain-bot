@@ -100,6 +100,15 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ### Changed
 
+- Dexter templates without a visible version (owner decision: display
+  without action = noise): the `v1/v2/...` badge is gone from template
+  rows, the live-editor picker options, and the live-editor editing
+  line; the `version` field stays in `MessageTemplateView`/hooks and in
+  the backend (traceability via `templateUsed`). Tests updated
+  (`templates-section.test.tsx`, `live-editor-section.test.tsx`,
+  `e2e/dexter-templates.spec.ts`).
+  (feat/dexter-frontend)
+
 - Dexter page English pass (owner override of the repo's Spanish-UI
   convention — dexter page only): all user-visible strings in
   `pages/dexter/` translated to operator English (templates / preview /

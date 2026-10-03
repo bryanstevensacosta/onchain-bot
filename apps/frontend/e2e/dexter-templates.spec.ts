@@ -400,7 +400,7 @@ test.describe('dexter templates (Wave 1, Lane B)', () => {
     );
   });
 
-  test('live editor pick → edit → save-back bumps the version', async ({
+  test('live editor pick → edit → save-back persists without a version badge', async ({
     page,
   }) => {
     await mockDexter(page);
@@ -411,12 +411,18 @@ test.describe('dexter templates (Wave 1, Lane B)', () => {
       .getByTestId('dexter-live-template-picker')
       .selectOption('tpl-ca-2');
     await expect(page.getByTestId('dexter-live-editing')).toContainText(
-      'Editing compact-rick-v1 (v1)',
+      'Editing compact-rick-v1',
+    );
+    await expect(page.getByTestId('dexter-live-editing')).not.toContainText(
+      '(v',
     );
     await page.getByTestId('dexter-live-editor').fill('edited live body');
     await page.getByTestId('dexter-live-save').click();
     await expect(page.getByTestId('dexter-live-editing')).toContainText(
-      '(v2)',
+      'Editing compact-rick-v1',
+    );
+    await expect(page.getByTestId('dexter-live-editing')).not.toContainText(
+      '(v',
     );
   });
 

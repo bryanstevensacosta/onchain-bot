@@ -330,8 +330,8 @@ export function LiveEditorSection() {
               <option value="">Free draft</option>
               {templateRows.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {t.name} (v{t.version}
-                  {t.isActive ? ', active' : ''})
+                  {t.name}
+                  {t.isActive ? ' (active)' : ''}
                 </option>
               ))}
             </select>
@@ -341,9 +341,7 @@ export function LiveEditorSection() {
               data-testid="dexter-live-editing"
               className="flex flex-wrap items-center gap-2 text-xs text-slate-300"
             >
-              <span>
-                Editing {linked.name} (v{linked.version})
-              </span>
+              <span>Editing {linked.name}</span>
               <Button
                 size="sm"
                 variant="secondary"

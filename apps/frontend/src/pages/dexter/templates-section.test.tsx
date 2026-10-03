@@ -141,7 +141,7 @@ function mockAllHappy() {
 }
 
 describe('DexterPage template management (Lane B)', () => {
-  it('mounts the template list with active badge + version', () => {
+  it('mounts the template list with the active badge and no version badge', () => {
     mockAllHappy();
     renderPage();
     expect(screen.getByTestId('dexter-templates-list')).toBeInTheDocument();
@@ -150,9 +150,9 @@ describe('DexterPage template management (Lane B)', () => {
     expect(
       screen.getByTestId('dexter-template-active-tpl-1'),
     ).toHaveTextContent('active');
-    expect(screen.getByTestId('dexter-template-row-tpl-1')).toHaveTextContent(
-      'v3',
-    );
+    expect(
+      screen.getByTestId('dexter-template-row-tpl-1'),
+    ).not.toHaveTextContent('v3');
   });
 
   it('shows the empty state when the command has no templates', () => {

@@ -56,7 +56,6 @@ function TemplateRow({
             <Badge tone="green">active</Badge>
           </span>
         )}
-        <Badge tone="gray">v{template.version}</Badge>
       </div>
       <details className="text-xs text-slate-500">
         <summary className="cursor-pointer">Body preview</summary>

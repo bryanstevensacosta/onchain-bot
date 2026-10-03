@@ -338,7 +338,7 @@ describe('LiveEditorSection', () => {
 
     pickTemplate();
     expect(screen.getByTestId('dexter-live-editing')).toHaveTextContent(
-      'Editing full-dexter-v1 (v2)',
+      'Editing full-dexter-v1',
     );
     expect(
       (screen.getByTestId('dexter-live-editor') as HTMLTextAreaElement).value,
