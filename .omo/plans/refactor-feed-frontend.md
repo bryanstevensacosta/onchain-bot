@@ -115,10 +115,10 @@ Your next move: run `$start-work` to execute, or ask for a high-accuracy review 
 
 > Runs in parallel after ALL todos. ALL must APPROVE. Surface results and wait for the user's explicit okay before declaring complete.
 
-- [ ] F1. Plan compliance audit
-- [ ] F2. Code quality review
-- [ ] F3. Real manual QA
-- [ ] F4. Scope fidelity
+- [x] F1. Plan compliance audit (APPROVE 2026-10-02: todos 0–5 en [x], matriz consistente, evidence logs 0–3 existen)
+- [x] F2. Code quality review (APPROVE 2026-10-02: late unificado, fetchers 21, overview exacto)
+- [x] F3. Real manual QA (APPROVE 2026-10-02: 12/6+0/7, árbol limpio, 10-10 test -f en vivo)
+- [x] F4. Scope fidelity (APPROVE 2026-10-02: cero código producto, OOS una línea, cero renames, worktree intacto)
 
 ## Commit strategy
 
