@@ -8,6 +8,7 @@ import { CacheModule } from 'cache/cache.module';
 import { RateLimiterModule } from 'rate-limiter/rate-limiter.module';
 import { GatewayModule } from 'gateway/gateway.module';
 import { SNAPSHOT_QUOTE_PROVIDERS } from 'snapshot/domain/snapshot-quote.types';
+import { LaunchpadDetectorService } from 'provider/launchpad/application/launchpad-detector.service';
 
 const nullFetcher = {
   name: 'dexscreener',
@@ -38,6 +39,8 @@ describe('gateway token snapshot shell (P43)', () => {
     })
       .overrideProvider(SNAPSHOT_QUOTE_PROVIDERS)
       .useValue([nullFetcher])
+      .overrideProvider(LaunchpadDetectorService)
+      .useValue({ detectLaunchpad: async () => null })
       .compile();
     app = module.createNestApplication();
     await app.init();

@@ -97,6 +97,22 @@ const PLACEHOLDER_META: Record<string, Omit<PlaceholderDescriptor, 'key'>> = {
     nullable: false,
     example: 'Dev 1.25% (DevW…1111)',
   },
+  launchpadText: {
+    type: 'derived',
+    nullable: true,
+    example: 'Pump.fun',
+  },
+  launchpadTextLink: {
+    type: 'derived',
+    nullable: true,
+    example: '[Pump.fun](https://pump.fun/coin/…)',
+  },
+  launchpadIcon: { type: 'derived', nullable: true, example: '💊' },
+  launchpadIconLink: {
+    type: 'derived',
+    nullable: true,
+    example: '[💊](https://pump.fun/coin/…)',
+  },
   timeframe: { type: 'string', nullable: true, example: '5m' },
 };
 
@@ -108,8 +124,8 @@ export interface PlaceholdersView {
 /**
  * Placeholder catalog (`GET /api/dexter/placeholders/:command`).
  *
- * Metadata-only read of the closed registry vocabulary: 28 keys for
- * `ca|x|z|bare`, 29 for `c|cc` (`timeframe` ONLY there). No
+ * Metadata-only read of the closed registry vocabulary: 32 keys for
+ * `ca|x|z|bare`, 33 for `c|cc` (`timeframe` ONLY there). No
  * persistence, no pipeline, no sends. Unknown command → 404.
  *
  * v1 sin auth como /dexter/token — same unauthenticated regime as the

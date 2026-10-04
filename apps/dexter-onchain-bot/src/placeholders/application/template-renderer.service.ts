@@ -206,6 +206,31 @@ export class TemplateRendererService {
           ''
         );
       }
+      case 'launchpadText': {
+        return esc(values.launchpad?.name ?? '');
+      }
+      case 'launchpadTextLink': {
+        const launchpad = values.launchpad;
+        if (!launchpad) return '';
+        return `[${esc(launchpad.name)}](${launchpad.url})`;
+      }
+      case 'launchpadIcon': {
+        const launchpad = values.launchpad;
+        if (!launchpad) return '';
+        return (
+          this.displayResolver?.resolve('launchpad', launchpad.id) ?? ''
+        );
+      }
+      case 'launchpadIconLink': {
+        const launchpad = values.launchpad;
+        if (!launchpad) return '';
+        const emoji =
+          this.displayResolver?.resolve('launchpad', launchpad.id) ?? '';
+        if (!emoji) {
+          return `[${esc(launchpad.name)}](${launchpad.url})`;
+        }
+        return `[${emoji}](${launchpad.url})`;
+      }
       case 'dexscreenerUrl': {
         if (!values.address) return '';
         return MessageFormatterAdapter.buildScanUrl(

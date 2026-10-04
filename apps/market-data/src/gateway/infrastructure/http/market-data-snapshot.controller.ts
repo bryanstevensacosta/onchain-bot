@@ -68,6 +68,7 @@ export class MarketDataSnapshotController {
       kind: snap.kind,
       key: snap.key,
       assetId: snap.assetId,
+      launchpad: snap.launchpad,
       status: snap.status,
       providers: snap.providers,
       sources: snap.sources,

@@ -41,6 +41,11 @@ const PLACEHOLDERS = [
   { key: 'chainDisplay', type: 'string', nullable: true, example: '' },
 ];
 
+// dexter-launchpad Lane S fixtures: CHALE (pump-fun origin) + JUP
+// official (team launch, null launchpad per the ratified R1 table).
+const CHALE_MINT = '2o1wthqgEbeLr3Lxv4LtBYHtFTbMK4TmSr9U5RsPpump';
+const JUP_MINT = 'JUPyiwrYJFskUPiHa7hVuNQPiyaPZ3ar1ZkL6vwdB';
+
 const DISPLAY_MAPS = [
   {
     id: 'dm-1',
@@ -128,7 +133,8 @@ async function mockDexter(page: Page, opts: { down?: boolean } = {}) {
         bodyMarkdown?: string;
       };
       if (body.name !== undefined) target.name = body.name;
-      if (body.bodyMarkdown !== undefined) target.bodyMarkdown = body.bodyMarkdown;
+      if (body.bodyMarkdown !== undefined)
+        target.bodyMarkdown = body.bodyMarkdown;
       target.version += 1;
       return json(view(target));
     }
@@ -215,6 +221,40 @@ async function mockDexter(page: Page, opts: { down?: boolean } = {}) {
           parseMode: 'MarkdownV2',
           placeholdersUsed: ['symbol'],
           unknown: [],
+        });
+      }
+      // Launchpad draft path (Lane S): a draft mentioning launchpad keys
+      // resolves to the IconLink shape for CHALE, empty for the JUP
+      // null-fixture (team launch, no launchpad).
+      const draftBody = body.draft?.bodyMarkdown ?? '';
+      if (hasAddress && draftBody.includes('launchpad')) {
+        const tokenBase = {
+          address: body.address ?? '',
+          chain: 'solana',
+          symbol: body.address === JUP_MINT ? 'JUP' : 'CHALE',
+        };
+        if (body.address === JUP_MINT) {
+          return json({
+            text: '',
+            truncated: false,
+            parseMode: 'MarkdownV2',
+            placeholdersUsed: [
+              'launchpadText',
+              'launchpadTextLink',
+              'launchpadIcon',
+              'launchpadIconLink',
+            ],
+            unknown: [],
+            token: tokenBase,
+          });
+        }
+        return json({
+          text: `[💊](https://pump.fun/coin/${CHALE_MINT})`,
+          truncated: false,
+          parseMode: 'MarkdownV2',
+          placeholdersUsed: ['launchpadIconLink'],
+          unknown: [],
+          token: tokenBase,
         });
       }
       return json({
@@ -337,6 +377,46 @@ test.describe('dexter templates (Wave 1, Lane B)', () => {
     await expect(page.getByTestId('dexter-display-empty')).toBeVisible();
   });
 
+  test('launchpad IconLink draft renders the emoji link (Lane S)', async ({
+    page,
+  }) => {
+    await mockDexter(page);
+    await page.goto('/dexter');
+    await page.getByTestId('dexter-preview-mode-draft').click();
+    await page
+      .getByTestId('dexter-preview-draft')
+      .fill('Launchpad: {{launchpadIconLink}}');
+    await page.getByTestId('dexter-preview-address').fill(CHALE_MINT);
+    await page.getByTestId('dexter-preview-submit').click();
+    const result = page.getByTestId('dexter-preview-result');
+    await expect(result).toBeVisible();
+    await expect(result.getByRole('link')).toHaveAttribute(
+      'href',
+      `https://pump.fun/coin/${CHALE_MINT}`,
+    );
+    await expect(result).toContainText('💊');
+    await expect(result).toContainText('launchpadIconLink');
+  });
+
+  test('null launchpad renders empty, card intact (Lane S)', async ({
+    page,
+  }) => {
+    await mockDexter(page);
+    await page.goto('/dexter');
+    await page.getByTestId('dexter-preview-mode-draft').click();
+    await page
+      .getByTestId('dexter-preview-draft')
+      .fill(
+        '{{launchpadText}}|{{launchpadTextLink}}|{{launchpadIcon}}|{{launchpadIconLink}}',
+      );
+    await page.getByTestId('dexter-preview-address').fill(JUP_MINT);
+    await page.getByTestId('dexter-preview-submit').click();
+    const result = page.getByTestId('dexter-preview-result');
+    await expect(result).toBeVisible();
+    await expect(result.getByRole('link')).toHaveCount(0);
+    await expect(result).toContainText('launchpadIconLink');
+  });
+
   test('live editor loads once then re-renders stably while typing', async ({
     page,
   }) => {
@@ -349,9 +429,9 @@ test.describe('dexter templates (Wave 1, Lane B)', () => {
     await page.getByTestId('dexter-live-load').click();
     const liveResult = page.getByTestId('dexter-live-result');
     await expect(liveResult).toContainText('BONK');
-    await expect(
-      page.getByTestId('dexter-live-placeholders'),
-    ).toContainText('symbol');
+    await expect(page.getByTestId('dexter-live-placeholders')).toContainText(
+      'symbol',
+    );
 
     await page.getByTestId('dexter-live-editor').fill('hello live body');
     await expect(liveResult).toContainText('hello live body', {
@@ -436,8 +516,6 @@ test.describe('dexter templates (Wave 1, Lane B)', () => {
       .selectOption('tpl-ca-2');
     await expect(page.getByTestId('dexter-live-editing')).toBeVisible();
     await page.getByTestId('dexter-live-detach').click();
-    await expect(
-      page.getByTestId('dexter-live-editing'),
-    ).not.toBeVisible();
+    await expect(page.getByTestId('dexter-live-editing')).not.toBeVisible();
   });
 });

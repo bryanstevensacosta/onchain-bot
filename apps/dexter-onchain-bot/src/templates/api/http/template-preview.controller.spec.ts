@@ -14,6 +14,18 @@ import { TemplatePreviewController } from './template-preview.controller';
 
 const SOL_ADDRESS = 'So11111111111111111111111111111111111111112';
 
+const CHALE_MINT = '2o1wthqgEbeLr3Lxv4LtBYHtFTbMK4TmSr9U5RsPpump';
+const CHALE_LAUNCHPAD = {
+  id: 'pump-fun',
+  name: 'Pump.fun',
+  url: `https://pump.fun/coin/${CHALE_MINT}`,
+};
+
+const LAUNCHPAD_BODY = [
+  '{{launchpadText}}|{{launchpadTextLink}}',
+  '{{launchpadIcon}}|{{launchpadIconLink}}',
+].join('\n');
+
 const BODY = [
   '{{chainDisplay}} ${{symbol}} | {{name}} — {{chain}}',
   '`{{address}}`',
@@ -85,6 +97,59 @@ const setup = async (): Promise<{
     displays,
   );
   return { controller: new TemplatePreviewController(useCase), templates };
+};
+
+const setupLaunchpad = async (
+  launchpad: typeof CHALE_LAUNCHPAD | null,
+): Promise<{ controller: TemplatePreviewController }> => {
+  const templates = new InMemoryMessageTemplateRepository();
+  const mapRepo = new InMemoryDisplayMapRepository();
+  await mapRepo.save(
+    DisplayMap.create({
+      placeholderKey: 'launchpad',
+      matchValue: 'pump-fun',
+      display: '💊',
+    }),
+  );
+  const displays = new DisplayResolverService(mapRepo);
+  await displays.refresh();
+  const pipeline: PreviewScanPipeline = {
+    resolveDetailed: async (address: string): Promise<ResolveOutcome> => ({
+      status: 'resolved',
+      token: {
+        address,
+        chain: 'solana',
+        symbol: 'CHALE',
+        name: 'Chale',
+        marketCapUsd: 69000,
+        fdvUsd: 69000,
+        priceUsd: 0.000069,
+        priceChange24h: 12.5,
+        liquidityUsd: 30000,
+        lockedLiquidityPercent: null,
+        burnedPercent: null,
+        volume24hUsd: 150000,
+        holders: 1200,
+        top10HolderPercent: 25.0,
+        top20HolderPercent: null,
+        totalSupply: 1000000000,
+        circulatingSupply: 1000000000,
+        maxSupply: null,
+        devWallets: null,
+        devPctSupply: null,
+        poolAddress: null,
+        source: 'market-data-http',
+        launchpad,
+      },
+    }),
+  };
+  const useCase = new PreviewTemplateUseCase(
+    pipeline,
+    templates,
+    new TemplateRendererService(displays),
+    displays,
+  );
+  return { controller: new TemplatePreviewController(useCase) };
 };
 
 describe('TemplatePreviewController (todo 7 preview route)', () => {
@@ -217,5 +282,42 @@ describe('TemplatePreviewController (todo 7 preview route)', () => {
         }),
       ),
     ).toBe(400);
+  });
+
+  it('POST draft with the 4 launchpad keys renders the IconLink (Lane S)', async () => {
+    const { controller } = await setupLaunchpad(CHALE_LAUNCHPAD);
+    const output = await controller.previewTemplate({
+      draft: { command: 'ca', bodyMarkdown: LAUNCHPAD_BODY },
+      address: CHALE_MINT,
+    });
+    if ('text' in output) {
+      expect(output.text).toContain(
+        `[💊](https://pump.fun/coin/${CHALE_MINT})`,
+      );
+      expect(output.placeholdersUsed).toEqual(
+        expect.arrayContaining([
+          'launchpadText',
+          'launchpadTextLink',
+          'launchpadIcon',
+          'launchpadIconLink',
+        ]),
+      );
+    } else {
+      throw new Error('expected a rendered result');
+    }
+  });
+
+  it('POST draft with the 4 launchpad keys renders empty when null (Lane S)', async () => {
+    const { controller } = await setupLaunchpad(null);
+    const output = await controller.previewTemplate({
+      draft: { command: 'ca', bodyMarkdown: LAUNCHPAD_BODY },
+      address: CHALE_MINT,
+    });
+    if ('text' in output) {
+      expect(output.text).not.toContain('💊');
+      expect(output.text).not.toContain('pump.fun');
+    } else {
+      throw new Error('expected a rendered result');
+    }
   });
 });

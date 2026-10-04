@@ -69,5 +69,56 @@ Regla hora exacta: el post programado con hora exacta **salta el delay aleatorio
 - B8 Tabla mkdir/mv: la app se renombra `apps/scheduling-posts` → `apps/publishing-queue` (git mv); dentro: `src/scheduled-posts/` → `src/scheduled/` (nombres de archivos intactos), `src/scheduling/` igual, `src/queue/` (mudado de feed-publisher tal cual), `src/gateway/` (nuevo: absorbe `src/target/` vivo de feed-publisher + `src/telegram/infrastructure/gateway/*`; `src/telegram/` restante se BORRA tras el merge), `src/shared/` + `src/health/` igual.
 - B9 Rutas exactas queue (controladores reales, sin reescritura de prefijo en-app): `QueueController @Controller('api/queue')` con `GET /`, `GET /stats`, `DELETE /:id`; `MatchingConfig` en `feed-publisher/matching` (no `/feed-api`); el cambio de prefijo es solo proxy vite/nginx (`/feed-api/*`→ backend :3040 hoy, `/scheduling-api/*`→ :4080 tras mudar). Frontend alterna `feedPublisherPath()`→`schedulingPath()` en dual.
 - B10 P42 en un párrafo: transporte SOLO vía telegram-bots-gateway (vault botId + HMAC `METHOD path ts once sha256(body)`, nunca tokens en apps); paridad = planeado-vs-gateway en `GET /api/telegram/parity` (nuevo controller en `gateway/`, forma `{total, diverged, records}` estilo scheduling); ledgers = dual-send (feed-publisher) + planned-vs-gateway (publishing-queue); cutover cuando ambos `diverged==0`.
-- B11 DDL: `DeliveryPolicy` vive embebida en `SchedulingConfigOrmEntity` (columnas `telegram_delay_min_ms/_max_ms/_daily_cap/_reset_hour`, `threads_*`, ints ≥0); `PublisherQueueEntry` suma `eta_ms bigint NULL, deadline_at timestamptz NULL, late boolean default false`; migración `17XXXXXXXXXX-DeliveryPolicyAndQueueEta.ts` + backfill `delayMin=delayMax=publishDelayMs, resetHour=dailyResetUtcHour, etaMs/deadlineAt NULL (solo filas nuevas)`; `releaseToPending()` conserva deadline.
+- B11 DDL: `DeliveryPolicy` vive embebida en `SchedulingConfigOrmEntity` (columnas `telegram_delay_min_ms/_max_ms/_daily_cap/_reset_hour`, `threads_*`, ints ≥0); `PublisherQueueEntry` suma `eta_ms bigint NULL, deadline_at timestamptz NULL, late boolean default false`; migración `17XXXXXXXXXX-DeliveryPolicyAndQueueEta.ts` + backfill `delayMin=delayMax=publishDelayMs, resetHour=dailyResetUtcHour, etaMs/deadlineAt NULL (solo filas nuevas)`; `releaseToPending()` conserva deadline. Split ejecutable en FASE-0-0c (0000/0001/0002).
 - B12 `toFeedType()` scope: normaliza `'crypto-news'|'feed'` → `'feed'` (canónico UI); `'kol'` fuera de scope (otro flujo, no tocar); vive en `entities/feed/model/` con tests puros; `useSession*` nuevo en `entities/feed-session/model/use-feed-sessions.ts` + `useProfile*` re-export @deprecated (borrado solo en cutover).
+
+## Apéndices Fase 0 (spikes 0a–0g, 2026-10-02 — pines ejecutables, sin mover código)
+
+### FASE-0-0a — inventario adapters + `git mv` (51/51 `test -f` OK)
+
+- LIVE `src/target/` (12 archivos, dispatcher vivo + pacing + bindings): `target.module.ts`→`gateway/target-gateway.module.ts`, `domain/target-binding.ts`, `application/ports/target-dispatcher.port.ts`, `application/services/target-dispatcher.service.ts`, `application/dispatch/target-queued-article.dispatcher.ts`, `infrastructure/threads/threads-publisher-http-client.ts`, `health/target-health.indicator.ts` + 5 specs guard.
+- LIVE-MERGE `src/telegram/` (15 archivos): `domain/ports/bots-gateway-sender.port.ts`, `message-format.types.ts`, `telegram-publisher.port.ts` (solo tipos), `infrastructure/gateway/{gateway-hmac-signer,gateway-send-client,gateway-bot-mapping,publish-mode}.ts` + 3 specs, `application/services/dual-send-parity.service.ts` + spec.
+- DELETE en cutover (24 archivos, nunca `git mv`): `telegram.module.ts`, bot-api adapters (base, http-client, multipart, mime, read-file, crypto-news, threads) + specs, router, rate-limiter, legacy dispatcher, migration use-case + controller, telegram health, publish-via-gateway.spec, secret-scan, wiring specs.
+- Dest: `mkdir -p apps/publishing-queue/src/gateway/{domain,application/{ports,services,dispatch},infrastructure/{gateway,threads},health}` (app aún no existe; rename separado). Reescribir alias `@/telegram|@/target` → `@/gateway` en el mismo commit del mv.
+- GATE: jamás tocar `apps/kol-calls-publisher/src/telegram/ (kol-calls NO tiene src/telegram/ — verificado ausente)`, `apps/backend/src/telegram/vip-calls/`.
+
+### FASE-0-0b — pines single-writer A3
+
+- (a) `MATCHING_CRON_ENABLED`: `apps/feed-publisher/src/matching/application/scheduling/enqueue-matching-cron.scheduler.ts:71` default true.
+- (b) `QUEUE_CRON_ENABLED` CREA (grep cero hits repo-wide): punto de inserción publisher-cron.scheduler.ts tick() junto al check PUBLISHER_CRON_ENABLED existente, default false en dual.
+- (c) Poll PQ: `GET /api/queue` (`apps/feed-publisher/src/queue/api/http/queue.controller.ts:68` + `:88`, stats `:75`).
+- (d) Probe owner: `apps/feed-publisher/src/queue/domain/ports/publisher-queue.repository.ts:19` (impl in-memory `:28`).
+- (e) TypeORM GAP-1 unwired: `queue.module.ts:57-61` + `:33-34`, orm-entity `:3-9`, mapper `:9`/`:36` (líneas ±5: repo real queue.module.ts header-comment, probe en repository :22-25).
+- (f) `QUEUE_MAX_PENDING` default 36 (`queue-manager.service.ts:36`), `QUEUE_TTL_HOURS` default 24 (`expire-stale-queue-entries.scheduler.ts:24`).
+- Dirección: feed-publisher enqueue ESCRIBE (in-process vía `queue/infrastructure/feed/queue-matched-message.adapter.ts:21-28`), PQ drain LEE por HTTP.
+
+### FASE-0-0c — DDL + migraciones + backfill (A4/A5/A7/B11)
+
+- Formato real: `{13-digit-epoch-future}-{PascalName}.ts` (ej `1870000000000-AddFormattingEntitiesToPublisherQueue.ts`); feed-publisher y scheduling-posts SIN wiring (GAP-1: crear data-source.ts + migrations/ + scripts).
+- A4 `1878000000000-DeliveryPolicyMinMaxResetHour.ts`: +6 columnas (`telegram|threads` × `delay_min|max_ms` bigint + `reset_hour` int); backfill min=max=scalar id=1; resetHour=`dailyResetUtcHour` else 0. Nuevo `scheduling/domain/delivery-policy.ts` (`rollDelayMs/createDeliveryEta/isLate`); `enabled/everyNPosts/minMinutesBetweenAds` congelados en ruta vieja.
+- A5 `1878000000001-QueueEtaDeadline.ts`: +`eta_ms` bigint NULL, +`deadline_at` timestamptz NULL (+índice deadline+status); `late` boolean default false (columna per B11; HOLD lo fija true); `releaseToPending()` conserva deadline; mappers ambos sentidos.
+- A7 `1878000000002-TargetBindingEnabled.ts`: +`enabled` boolean default true; seed telegram binding[0].chatId=targetChannel; global→todos los bindings; backfill policies telegram+threads desde fila id=1.
+
+### FASE-0-0d — paridad + wire + nginx (A2/A6/B10/RISK-1)
+
+- A2: controller parity devuelve `{total,diverged}` (fix: retornar `snapshot()` completo con `records`); ledgers feed dual-send + scheduling planned-vs-gateway; HMAC `METHOD\npath\ntimestamp\nnonce\nsha256(rawBody)`; cutover con ambos `diverged==0`.
+- A6: 8 superficies con file:line (SSE messageType, contentType VO + 5 sites más, `?type=`, prefijos dual `['api/feed','api/crypto-news']`, DB discriminator + backfill, disk `feed-media/` + `ads/`, vite 145-154, gates P10/P32 + regexes nuevas). roots feed-media/ + ads/ verificados; migración de datos de disco = follow-up CREA.
+- B10: bloques nginx `/feed-api/` → `:3042` prod (`-staging:3041`) y `/scheduling-api/` → `:4082` (`-staging:4081`), anclas market-data/socket.io en ambas confs, `nginx -t` + diff. Puertos :3042/:4082 prod y :3041/:4081 staging + bloques exactos = follow-up CREA (nginx.conf/nginx.staging.conf hoy cero hits feed-api/scheduling-api); verificar nombres DNS al desplegar.
+
+### FASE-0-0e — constantes + env (A9/RISK-2)
+
+- `QUEUE_MAX_PENDING`: código 36 (`queue-manager.service.ts:36`) vs env 500 (templates); congelado prod 500, 36 fallback dev.
+- `QUEUE_TTL_HOURS`: 24 código + env (tres templates).
+- `SCHEDULING_TELEGRAM_PUBLISH_DELAY_MS=60000` / `DAILY_CAP=20` (entity :70/:75, templates) (defaults 60000/20 en entity :25-26, no literales); legacy feed-publisher sin lector (no recrear).
+- Sin estado `skipped` en queue (solo contadores locales); BLOCKED-with-ref (`publisher-queue-status.ts:10-16`, `queue/application/use-cases/enqueue-matching-message.use-case.ts:22-28`).
+- Owner NUEVO: `publishing-queue/shared/config`.
+
+### FASE-0-0f — frontend dual (A8/B12/B9/R1/R2/RISK-3/4)
+
+- VERIFICADOS: union `feed-queries.ts:84`, 6 firmas `useProfile*` nominales (useProfiles, useProfileTemplates, useProfileSources, useProfileRecentMessages, useProfileQueue, useProfileLlm + CRUD mirrors en mismo archivo), 9 archivos que referencian use-feed-sessions/useProfile/useSession (feed-page.test, 5 widgets, feed-sessions.test, model, index), 10 crossings `endpoints.ts:249-271`, polls mixtos (30s/15s, solo useProfileQueue 10s), `RotationConfigView` + form (no tocar), `feedSessionKeys` + alias `:495`, 9 suites de riesgo.
+- 0f-CREA: `entities/feed/model/feed-type.ts` (`toFeedType`), alias `useSession*` + barrel, `ENDPOINTS.scheduling.*` paralelos (@deprecated viejos), `formatQueueEta()` en `shared/lib/format.ts` + test, `delivery-policies-api.ts` + `delivery-policy-view.tsx` + ruta `delivery-policies/:target`.
+
+### FASE-0-0g — runbook staging (bloquea CUT)
+
+- FRESH: compose/proyecto/puertos staging, env paths + templates, triple-assert, red external, firewall/socat pre-healthcheck, `up -d` + migraciones lane, gate curl 200 (58 sources live), printenv, seeding refs, pins `:prev`/`:staging-prev`, rollback single-flight, orden code-before-schema, bake frontend, empty-by-design. Droplet probes read-only OK (:3033→3031, health ok, 58 canales).
+- STALE (rewrite en CUT, filename intacto): P31 naming twin→staging, proyecto prod `onchain-bot-ingestion-telegram`, DBs TARGET `onchain_bot[_staging]_ingestion` + fase 3 rename, red prod doble net, retención 24h (no 72h), staging auto-follows master/dev push, refs `deploy-staging.yml (SMOKE_INGESTION_URL; ordering gate ~:437-456, verificar número exacto al reescribir)` + gates `:437-456`, header `alimenta AMBOS` singleton.

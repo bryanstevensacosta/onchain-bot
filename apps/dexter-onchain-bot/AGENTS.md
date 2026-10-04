@@ -133,7 +133,11 @@ behavioral gain; per-BC modules remain future work):
 - scan/: `MarketDataClient` → `TokenScanPipeline` (`SCAN_PIPELINE`
   token, now defined in the scan domain port and re-exported by
   `DexterModule`; `TokenScanPipeline` alias) → `MessageFormatterAdapter`
-  - scan domain detector/extractor (pure functions).
+  - scan domain detector/extractor (pure functions). `MarketDataSnapshot`
+    carries optional `launchpad? {id,name,url}` (shape-checked via
+    `toLaunchpadOrNull`, else null) → `ResolvedToken.launchpad?` (Lane S;
+    renderer derives `launchpadText/TextLink/Icon/IconLink` from it, null
+    → all four `""`).
 - templates/ + placeholders/: `MESSAGE_TEMPLATE_REPOSITORY` symbol →
   `TypeOrmMessageTemplateRepository` (`DATABASE_ENABLED=true`, own
   `DataSource`) or the shared `InMemoryMessageTemplateRepository`
@@ -460,6 +464,16 @@ todo 6 added 10 suites / 35 tests (±0 since); bare-address added
   templates, NOT the future frontend-feed `templates` rename.
 
 ## NOTES
+
+- Origin launchpad (2026-10-04, dexter-launchpad Lane S):
+  `ResolvedToken.launchpad? {id,name,url}` (market-data detector
+  origin, persists through graduation) + 4 derived keys
+  (`launchpadText/TextLink/Icon/IconLink`; IconLink→Link fallback,
+  null → `""`). DisplayMap dimension `launchpad` (emoji only,
+  operator-seeded via API — 22 Wave-1 rows, no hardcoded seeds).
+  Supported table with status flags: ratified R1
+  `.omo/notepads/dexter-launchpad-r1.md` §§1-2 + §8 (source of truth;
+  detector lives in market-data `src/provider/launchpad/`).
 
 - Holders + dev-wallet (2026-09-27, feat/mega-refactor-tramos):
   `ResolvedToken` carries `devWallets[]` + `devPctSupply` (market-data

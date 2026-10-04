@@ -25,6 +25,17 @@ describe('PlaceholdersController (todo 7 placeholder catalog)', () => {
     expect(keys).toContain('chainDisplay');
     expect(keys).not.toContain('chainEmoji');
     expect(keys).not.toContain('timeframe');
+    for (const key of [
+      'launchpadText',
+      'launchpadTextLink',
+      'launchpadIcon',
+      'launchpadIconLink',
+    ]) {
+      expect(keys).toContain(key);
+      const entry = view.placeholders.find((row) => row.key === key);
+      expect(entry?.type).toBe('derived');
+      expect(entry?.example).not.toBe('');
+    }
     for (const entry of view.placeholders) {
       expect(entry.key).toEqual(expect.any(String));
       expect(entry.type).toEqual(expect.any(String));
