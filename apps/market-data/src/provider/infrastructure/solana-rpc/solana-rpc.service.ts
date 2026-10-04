@@ -125,7 +125,7 @@ export class SolanaRpcService extends DataProviderPort {
       );
       if (result === null) continue;
       if (!Array.isArray(result.value)) continue;
-      return result.value;
+      return result.value as ReadonlyArray<SolanaAccountInfoValue | null>;
     }
     return null;
   }
