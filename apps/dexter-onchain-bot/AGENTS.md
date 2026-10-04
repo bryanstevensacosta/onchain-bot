@@ -463,6 +463,8 @@ todo 6 added 10 suites / 35 tests (±0 since); bare-address added
   double boot (`false` in-memory + `true` TypeORM) with
   display-via-API-no-reboot. `src/templates/` = Dexter bot message
   templates, NOT the future frontend-feed `templates` rename.
+  Placeholder catalog contract (plan todo 15): `GET /api/dexter/placeholders/:command`
+  returns entries alphabetically by `key` (registry `placeholdersFor`, locale-free byte order).
 
 ## NOTES
 

@@ -64,4 +64,20 @@ describe('PlaceholdersController (todo 7 placeholder catalog)', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(await statusOf(async () => controller.list('start'))).toBe(404);
   });
+
+  it('returns placeholders alphabetically by key for ca + c (timeframe only c/cc)', () => {
+    const controller = new PlaceholdersController();
+    for (const command of ['ca', 'x'] as const) {
+      const keys = controller.list(command).placeholders.map((e) => e.key);
+      expect(keys).toEqual(
+        [...keys].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)),
+      );
+      expect(keys).not.toContain('timeframe');
+    }
+    const cKeys = controller.list('c').placeholders.map((e) => e.key);
+    expect(cKeys).toEqual(
+      [...cKeys].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)),
+    );
+    expect(cKeys).toContain('timeframe');
+  });
 });

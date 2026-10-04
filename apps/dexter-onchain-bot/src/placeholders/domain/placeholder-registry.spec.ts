@@ -126,4 +126,19 @@ describe('placeholder-registry (todo 4 closed vocabulary)', () => {
       }
     }
   });
+
+  it('returns keys alphabetically (byte order) for ca + c, canonical arrays untouched', () => {
+    const isSorted = (keys: string[]): boolean =>
+      keys.every((key, i) => i === 0 || keys[i - 1] < key);
+    for (const command of ['ca', 'x'] as const) {
+      const keys = placeholdersFor(command);
+      expect(isSorted(keys)).toBe(true);
+      expect(keys).toContain('chainDisplay');
+      expect(keys).not.toContain(TIMEFRAME_PLACEHOLDER);
+    }
+    const chartKeys = placeholdersFor('c');
+    expect(isSorted(chartKeys)).toBe(true);
+    expect(chartKeys).toContain(TIMEFRAME_PLACEHOLDER);
+    expect(PLACEHOLDERS_BY_COMMAND.ca[0]).toBe('symbol');
+  });
 });

@@ -6,10 +6,7 @@ import {
   UnsupportedTemplateSyntax,
 } from '@/placeholders/application/template-renderer.service';
 import type { DisplayResolverPort } from '@/placeholders/application/template-renderer.service';
-import {
-  PLACEHOLDERS_BY_COMMAND,
-  placeholdersFor,
-} from '@/placeholders/domain/placeholder-registry';
+import { PLACEHOLDERS_BY_COMMAND } from '@/placeholders/domain/placeholder-registry';
 import type { TemplateCommand } from '@/placeholders/domain/placeholder-registry';
 
 const TOKEN: ResolvedToken = {
@@ -214,7 +211,10 @@ describe('TemplateRendererService (todo 4 closed semantics)', () => {
     const commands: TemplateCommand[] = ['ca', 'x', 'z', 'c', 'cc', 'bare'];
     for (let i = 0; i < 50; i += 1) {
       const command = commands[i % commands.length];
-      const expected = placeholdersFor(command);
+      // Renderer errors carry the canonical declaration-order list (the
+      // renderer reads PLACEHOLDERS_BY_COMMAND directly; the sorted
+      // catalog contract lives in placeholdersFor, used by the API).
+      const expected = PLACEHOLDERS_BY_COMMAND[command];
       const renderer = new TemplateRendererService(stubResolver('🟣'));
       let caught: unknown;
       try {
