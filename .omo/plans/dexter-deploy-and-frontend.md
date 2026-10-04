@@ -1,0 +1,249 @@
+# dexter-deploy-and-frontend
+
+## Status
+
+- [x] Drafted (2026-10-02)
+- [ ] Approved
+- [ ] Wave 0 — local testing (owner)
+- [ ] Wave 1 — frontend dexter UI
+- [ ] Wave 2 — deploy automation files
+- [ ] Wave 3 — staging rollout (manual tests = plan todo 15)
+- [ ] Wave 4 — prod rollout (HARD owner gate)
+
+## TL;DR (For humans)
+
+**What you'll get:** Tres cosas en orden: (0) un guion de pruebas locales para que verifiques el sistema de templates con tus manos; (1) la página `/dexter` del dashboard con gestión completa (CRUD de templates, preview Markdown, catálogo de placeholders, display-maps) más el proxy nginx que hoy solo existe en dev; (2) deploys automáticos — staging al mergear a `dev`, producción al mergear a `master` — con migraciones, backup y rollback; (3) el rollout a staging con checklist manual y (4) prod solo con tu OK explícito.
+
+**Why this approach:** Espeja los patrones que ya funcionan (deploy.yml/deploy-staging.yml del backend, proxy `/ingestion-api`, UI del feed) en vez de inventar nuevos; las migraciones corren en contenedor `builder` temporal para no tocar el Dockerfile mínimo de prod; la DB de prod va en contenedor propio como todos los demás servicios en Oracle.
+
+**What it will NOT do:** No toca el bot ni sus templates (ya mergeados); no publica nada solo; no corre migraciones en prod sin tu confirmación; no mete secretos en git jamás.
+
+**Effort:** Large (frontend UI + 2 workflows + compose prod + rollouts)
+**Risk:** Medium — staging ya corre (imagen vieja) así que el rollout pisa algo vivo (mitigado: backup + rollback + imagen anterior con digest capturado); prod es verde (cero riesgo de regresión, todo es nuevo)
+**Decisions to sanity-check:** DB prod en contenedor propio `:5448`/`:6395` (verificados libres repo-wide + Oracle) · migraciones vía target `builder` (Dockerfile intacto) · 2 workflows dedicados (sin rozar la chain anti-doble-fuego del backend) · tags `:sha` + flotantes, amd64-only.
+
+Your next move: aprueba (o ajusta) y dime por dónde arrancamos — Wave 0 la haces tú, Waves 1-2 las ejecuta un worker, Waves 3-4 esperan tus gates.
+
+---
+
+## Scope
+
+### Must have
+
+- **Wave 0 — pruebas locales (owner, sin worker):** guion de 10 min en §Wave 0 abajo (boot dexter `:4060`, seed 7/6, CRUD+409s, activate, preview, display-row sin reboot, `/dexter/token` con `templateUsed`, página `/dexter` en `:5173`). Degradación conocida: la sección Bot binding necesita el gateway (`:4070`) — si no lo levantas, solo esa sección falla.
+- **Wave 1 — frontend `/dexter`:** nueva sección de gestión en `pages/dexter/` (o slice `entities/dexter/` + UI en page, FSD estricto): templates CRUD por comando (crear/editar/activar/borrar con mensajes 409 legibles), panel preview (`templateId XOR draft` + address → MarkdownV2 renderizado + `placeholdersUsed`; mini-renderer Markdown→React necesario — no hay precedente, `SchedulingHtmlPreview` es HTML), catálogo `GET placeholders/:command` (solo lectura), display-maps CRUD, vista de activos; `ENDPOINTS.dexter` extendido (`dexterPath('/api/dexter/...')`); hooks TanStack (polling listados, invalidación en mutaciones, empty-states en español, testids `dexter-*`); proxy `/dexter-api/` en `nginx.conf` + `nginx.staging.conf` (upstream dexter `:4061` staging / `:4062` prod, mirror del patrón `/ingestion-api/`); tests Vitest (mounts + CRUD con mocks) + Playwright e2e (`/dexter-api/**` mockeados, patrón `market-data|dexter`).
+- **Wave 2 — automatización de deploy:** `apps/dexter-onchain-bot/docker-compose.prod.yml` NUEVO (postgres `:5448`, redis `:6395`, HTTP `:4062`, DB `onchain_bot_dexter`, `name:` explícito, comentarios DRY-RUN hasta aplicar); `.github/workflows/deploy-dexter-staging.yml` (push `dev`, paths `apps/dexter-onchain-bot/**` + propio workflow; build GHCR `onchain-bot-dexter:sha` + `:staging-latest` amd64; self-hosted `oracle`: backup `pg_dump`, precondition probe SELECT, `migration:run` en one-off `--target builder`, recreate, healthcheck `:4061` con espera, lane rollback manual); `.github/workflows/deploy-dexter-prod.yml` (push `master`, tags `:sha` + `:latest`, DB `onchain_bot_dexter`, healthcheck `:4062`, rollback automático como deploy.yml); doc de secretos requeridos (`.env.staging`/`.env.production`: tokens, gateway client, vault id, ingress secret, PG passwords — valores SOLO en droplet); anti-doble-fuego por paths disjuntos (estos workflows solo poseen `apps/dexter-onchain-bot/**`; pushes mixtos disparan lanes de apps distintas = correcto, no duplicado).
+- **Wave 3 — rollout staging:** backup verificado + digest de imagen anterior capturado → `migration:show` (3 pendientes) → `migration:run` → `migration:show` 0 → pull imagen nueva → recreate → healthcheck → ejecutar plan todo 15 (checklist manual); rollback (`migration:revert` ×3 + imagen anterior) si algo falla, con evidencia.
+- **Wave 4 — rollout prod (HARD gate):** idéntico a Wave 3 contra prod (`:4062`, DB `onchain_bot_dexter`), SOLO con confirmación explícita del owner en ese momento. Nunca automático desde este plan.
+
+### Must NOT have (guardrails, anti-slop, scope boundaries)
+
+- NO cambios al bot, templates, seeds ni renderer (mergeados en #253; bugs que aparezcan van a PR aparte, no se cuelan aquí).
+- NO migraciones en prod sin confirmación explícita del owner (gate duro, ni siquiera con todo verde).
+- NO secretos en git (`.env.staging`/`.env.production` solo existen en el droplet; los templates llevan placeholders).
+- NO tocar `deploy.yml` / `deploy-staging.yml` / `deploy-ingestion.yml` (los nuevos workflows viven aparte para no rozar la chain anti-doble-fuego).
+- NO tocar el Dockerfile de dexter (el one-off `builder` lo evita).
+- NO publicar nada desde el frontend (gestión = CRUD + preview seco; el bot sigue siendo el único que envía).
+- NO `git reset --hard` / `revert --no-commit` / force-push; ramas `feat/*` + PR como siempre.
+
+---
+
+## TODOs
+
+- [ ] 0. Pruebas locales del sistema de templates (owner, manual — guion en §Wave 0; bloquea la implementacion de Waves 1-2 solo por decision, no por dependencia tecnica)
+     What to do / Must NOT do: El owner ejecuta el guion §Wave 0 en su maquina (dexter `:4060` + frontend `:5173`). Si algo no cuadra, se abre fix contra `feat/dexter-bot`-sucesor ANTES de implementar Waves 1-2. Ningun worker interviene.
+     References: `.omo/plans/dexter-message-templates.md` (contratos API), `apps/dexter-onchain-bot/docs/examples-vendored.md` (corpus).
+     Acceptance criteria: checklist §Wave 0 completo con `templateUsed` visible + `🟣` sin reboot.
+     QA scenarios: las del guion. Evidence: nota en el notepad (el worker la pide al arrancar Wave 1).
+     Commit: N.
+- [x] 1. Frontend: gestion de templates + preview + placeholders + display-maps en `/dexter`
+     What to do / Must NOT do: Segun Wave 1 del Scope. FSD estricto (`entities/dexter/` queries+hooks+tipos, UI en `pages/dexter/`); espanol en empty-states; testids `dexter-*`; Vitest + e2e con mocks; nginx dual-conf + vite ya existe (solo anadir locations). NO tocar el scan-over-market-data existente (convive; la card del bot se anade como vista "via Dexter"). NO keyboards nuevos. Value imports donde aplique (frontend no usa DI, N/A).
+     Parallelization: Wave 1 (2-3 workers: UI templates+preview | display-maps+placeholders | proxy+tests-e2e) | Blocked by: nada tecnico (recomendado tras Wave 0) | Blocks: nada (deploy independiente)
+     References: `apps/frontend/src/pages/dexter/index.tsx:1-227` (binding + scan existentes), `apps/frontend/src/shared/api/endpoints.ts:310-318` + `dexter-base.ts`, `apps/frontend/vite.config.ts:160-163` (`/dexter-api` patron), `apps/frontend/nginx.conf` + `nginx.staging.conf` (anadir location mirror `/ingestion-api/`), `apps/frontend/src/widgets/feed-sessions/` (patron CRUD+preview+confirms), `apps/frontend/src/widgets/feed-publisher/ui/*prompt-templates*` (643-lineas, patron formularios template), `apps/dexter-onchain-bot/src/templates/api/http/*.controller.ts` (contratos exactos + shapes 400/409).
+     Acceptance criteria: `npm run build` + `npm test` + `npx playwright test -g dexter` verdes en `apps/frontend/`; `/dexter` muestra templates/preview/placeholders/display-maps contra dexter local `:4060` via `/dexter-api`; nginx locations presentes en ambas confs.
+     QA scenarios: happy (CRUD + activate + preview + display sin reboot desde UI) + failure (409 duplicado, 400 placeholder, XOR, API caida → empty-states), Evidence .omo/evidence/task-dex-frontend-dexter.log
+     Commit: Y | feat(frontend-dexter): gestion templates + preview + proxy nginx
+- [x] 5. Editor live de templates con snapshot congelado (Wave 1 follow-up)
+     What to do / Must NOT do: **Backend** (`apps/dexter-onchain-bot/src/templates/`): `POST /api/dexter/templates/preview` devuelve ADEMAS `token: ResolvedToken` cuando resuelve (ausente en shapes unresolved — contrato aditivo, nada existente cambia) y acepta `token?: ResolvedToken` opcional en el body: si viene `token` (sin `address`), se salta el pipeline y renderiza directo (validar placeholders del body contra el registry igual que siempre; claves ausentes en el snapshot → `N/A`/`""` segun semantica actual). Specs: passthrough del snapshot, precedencia token-sobre-address, unresolved intacto. **Frontend** (`apps/frontend/src/pages/dexter/`): modo editor en `PreviewSection` (o seccion propia si encaja mejor en FSD): split textarea Markdown arriba + `RenderMarkdownV2` abajo; input address + boton "Cargar datos" (una sola resolucion → guarda el `token` devuelto); al escribir, debounce ~400ms + `AbortController` (cancela la anterior; ignorar respuestas stale por id de secuencia) re-enviando `{draft, token}` SIN address; `placeholdersUsed` + badge `truncated` + estados unresolved; todo en INGLES (override owner: pagina dexter en ingles), testids `dexter-live-*`. Vitest (debounce/orden/stale + render) + 1-2 tests e2e en `dexter-templates.spec.ts` (mockeados). NO sustituir placeholders en el navegador (el backend es la unica fuente de verdad del render). NO persistir el draft (sigue siendo preview seco; guardar = flujo CRUD existente).
+     Parallelization: Wave 1 follow-up (1 worker full-stack o 2 lanes: backend-fields | editor-UI) | Blocked by: 1 (hooks, renderer, preview existen) | Blocks: —
+     References: `apps/dexter-onchain-bot/src/templates/application/preview-template.use-case.ts` + `api/http/template-preview.controller.ts` (contrato a extender), `apps/dexter-onchain-bot/src/scan/domain/ports/scan-pipeline.port.ts:31-54` (`ResolvedToken` a serializar), `apps/frontend/src/pages/dexter/preview-section.tsx` + `entities/dexter/model/use-dexter-preview.ts` (base a extender), `apps/frontend/src/shared/lib/render-markdown-v2.tsx` (render ya existente).
+     Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes en AMBOS apps; preview con `token` no llama al pipeline (spec con spy) y devuelve el mismo texto que con `address`; editor escribe→preview se actualiza tras pausa sin parpadeos de datos (e2e + QA visual en `:5186`/`:4069`).
+     QA scenarios: happy (cargar→escribir→ver render estable) + failure (respuesta stale descartada, address invalida, token parcial → N/A). Evidence .omo/evidence/task-fe-live-editor.log
+     Commit: Y | feat(dexter-live-editor): preview con snapshot + editor en vivo (backend: dexter fuera del gate docs, pero anadir entrada CHANGELOG; frontend: AGENTS+CHANGELOG en el MISMO commit por el gate)
+- [x] 6. UI dexter en ingles (Wave 1 follow-up, override del owner a la convencion repo)
+     What to do / Must NOT do: TODO el texto visible de `apps/frontend/src/pages/dexter/*` (secciones templates/preview/placeholders/display-maps, modales crear/editar/confirmar, validaciones, empty-states, tooltips, badges Si/No→Yes/No) + `dexter-template-helpers.ts` (`spanishMutationError` → renombrar a `englishMutationError` con mensajes en ingles + actualizar sus imports) pasa a INGLES. Excepcion documentada a la convencion repo (AGENTS: UI en espanol) SOLO para la pagina dexter — registrar la excepcion en el parrafo DEXTER de `apps/frontend/AGENTS.md`. Actualizar Vitest (`templates-section.test.tsx` y demas asserts de texto) + e2e (`dexter-templates.spec.ts`) al ingles. testids `dexter-*` NO cambian (no son visibles). `RenderMarkdownV2` no tiene strings (nada que traducir). NO tocar logica, hooks, endpoints, backend. Docs gate: AGENTS+CHANGELOG (ingles) en el MISMO commit.
+     Parallelization: Wave 1 follow-up (1 worker) | Blocked by: — (puede ir antes o despues del 5) | Blocks: —
+     References: `apps/frontend/src/pages/dexter/*.tsx` + `dexter-template-helpers.ts` (inventario exacto via grep de literales), `apps/frontend/src/pages/dexter/templates-section.test.tsx`, `apps/frontend/e2e/dexter-templates.spec.ts`.
+     Acceptance criteria: `npx tsc -b` + full `npm test` + e2e dexter verdes; `grep -rn` de marcadores espanoles (Cargando, Sin plantillas, Confirmar, Cancelar, Crear, Editar, Borrar, Filtrar, Ya existe, Válidos, placeholders conocidos) en `pages/dexter/` → 0 hits (lista de excepcion documentada si algun termino tecnico queda); QA visual `:5186`/`:4069` confirma pagina 100% inglesa.
+     QA scenarios: happy (CRUD + preview + errores 409/400 en ingles) + failure (mismos paths). Evidence .omo/evidence/task-fe-english-ui.log
+     Commit: Y | feat(frontend-dexter): pagina dexter en ingles (AGENTS+CHANGELOG en el MISMO commit)
+- [x] 7. Live editor con guardado (Wave 1 follow-up, cierra el puente escribir↔guardar)
+     What to do / Must NOT do: **NO duplicar el CRUD** — reutilizar su capa de persistencia. (1) Extraer el modal crear/editar de `TemplatesSection` a `TemplateFormModal` compartido (mismos campos, validaciones y mutaciones; `TemplatesSection` lo sigue usando sin cambios visibles). (2) `LiveEditorSection` gana: picker de template existente (dropdown por comando → carga body+command al draft, estado visible "editing X" + boton "Detach"/"New" para soltarlo) + boton **Save** (con template cargado → PATCH del body via `useUpdateTemplate`; sin template o con nombre cambiado → POST via `useCreateTemplate` con input de nombre; errores 409/400 via `englishMutationError`; tras guardar, invalidacion global ya existente refresca la lista). Sin modal nuevo salvo reutilizar el extraido. Todo en INGLES, testids `dexter-live-*` (save: `dexter-live-save`, picker: `dexter-live-template-picker`). Vitest (save-new/save-back/detach + mocks) + 1-2 e2e en `dexter-templates.spec.ts` (mockeados: guardar-nuevo aparece en lista, guardar-existente version++). Docs gate: tocar AGENTS+CHANGELOG (lineas del editor) en el MISMO commit. NO nueva logica de validacion (la del backend manda), NO persistencia automatica (solo boton explicito).
+     Parallelization: Wave 1 follow-up (1 worker) | Blocked by: 1, 5, 6 (todos existen) | Blocks: —
+     References: `apps/frontend/src/pages/dexter/templates-section.tsx` (modal a extraer), `live-editor-section.tsx` (base), `entities/dexter/` (`useCreateTemplate`/`useUpdateTemplate` a reutilizar), `dexter-template-helpers.ts` (`englishMutationError`).
+     Acceptance criteria: `npx tsc -b` + full `npm test` + e2e dexter verdes; guardar-nuevo y guardar-existente funcionan contra dexter live `:4069` (QA visual `:5186`); 0 duplicacion de mutaciones/validaciones (un solo `TemplateFormModal`, grep lo prueba).
+     QA scenarios: happy (pick→edit→save-back version++, detach→save-as-new) + failure (409 nombre duplicado al guardar-como-nuevo). Evidence .omo/evidence/task-fe-live-save.log
+     Commit: Y | feat(frontend-dexter): guardado en live editor (AGENTS+CHANGELOG en el MISMO commit)
+- [x] 8. Quitar versionado visible de la UI (Wave 1 follow-up, decision owner: display sin accion = ruido)
+     What to do / Must NOT do: Quitar el badge `v1/v2/...` de las tarjetas de template (y de CUALQUIER otro sitio de `pages/dexter/` donde se muestre `version`: inventariar via grep primero — incluye `templateUsed.version` si se renderiza). El backend NO se toca (`version` sigue existiendo para trazabilidad via `templateUsed`). Actualizar Vitest + e2e que aserten el badge + retocar las lineas de docs (AGENTS/CHANGELOG) que lo mencionen, en el MISMO commit (gate). NO tocar logica, hooks, endpoints, backend.
+     Parallelization: Wave 1 follow-up (1 worker, rapido) | Blocked by: 1, 6 | Blocks: —
+     References: `apps/frontend/src/pages/dexter/templates-section.tsx` (badge), resto de `pages/dexter/*.tsx` (grep `version`), tests + e2e dexter.
+     Acceptance criteria: `npx tsc -b` + full `npm test` + e2e dexter verdes; badge de version en UI → 0 (solo queda en tipos/tests de contrato si aplica); QA visual `:5186` confirma tarjetas limpias.
+     QA scenarios: lista sin badges + activar/borrar siguen igual. Evidence .omo/evidence/task-fe-no-version-badge.log
+     Commit: Y | feat(frontend-dexter): quita badge de version en UI (AGENTS+CHANGELOG en el MISMO commit)
+- [ ] 9. Seed files manuales de display-maps (Wave 1 follow-up, solo a pedido — NADA automatico)
+     What to do / Must NOT do: JSON versionado `src/templates/infrastructure/seed/data/display-maps.seed.json` (29 filas actuales: 7 chain + 22 launchpad, tal cual sembradas en dev) + script `npm run seed:display-maps [--dry-run] [--file=...]` (lee JSON, upsert por clave unica `placeholderKey`+`matchValue`, reporta creadas/saltadas; funciona contra in-memory Y TypeORM via repos existentes). Spec: doble corrida → mismo conteo (idempotencia) + dry-run no escribe. Docs: linea en dexter AGENTS (comando + proposito) — dexter fuera del gate docs pero CHANGELOG si aplica. PROHIBIDO: hook de bootstrap, imports del JSON en runtime, auto-carga de ningun tipo. NO tocar seeds automaticos de templates (siguen como estan).
+     Parallelization: Wave 1 follow-up (1 worker, rapido) | Blocked by: — | Blocks: —
+     References: `src/templates/infrastructure/seed/message-template-seed.service.ts` (patron seed existente), `src/templates/api/http/display-maps.controller.ts` (contrato CRUD a reutilizar o repo directo — decision del worker documentada), `.omo/evidence/task-seed-displaymaps-launchpad.log` (las 29 filas exactas a vendorizar).
+     Acceptance criteria: `npx tsc --noEmit` + `npm test` verdes; en dexter limpio (in-memory vacio): dry-run lista 29 pendientes sin escribir; run real deja 29; 2do run crea 0.
+     QA scenarios: happy + failure (fila duplicada en JSON → 409 tolerado y reportado). Evidence .omo/evidence/task-fe-seed-files.log
+     Commit: Y | feat(dexter-seeds): seed files manuales display-maps
+- [x] 10. Prender DB en dev dexter (Wave 1 follow-up, decision owner: templates/catalogo son trabajo real)
+      What to do / Must NOT do: Postgres local arriba (compose dexter `:5440`, DB `onchain_bot_dexter`; si no existe contenedor, levantarlo del compose — NADA de Oracle/staging/prod). `migration:show` (3 pendientes) → `migration:run` → `show` 0. `.env` (+`.env.dev` si existe — manda `.env.dev`): `DATABASE_ENABLED=true` + `DATABASE_URL` correcta (backup del archivo antes, jamas loguear password: host:puerto/db si). `pm2 restart dexter` (SOLO ese proceso) + healthcheck. Re-sembrar 29 display rows via API (DB vacia) + verificar seed templates 7/6. PRUEBA FINAL: restart de nuevo → filas sobreviven (eso es todo el punto). Chat settings siguen in-memory (fuera de scope). Seeds quedan como backup/bootstrap staging/prod.
+      Parallelization: solo operativo | Blocked by: — | Blocks: —
+      References: `apps/dexter-onchain-bot/docker-compose.yml` (postgres `:5440`), `.env.example` (defaults), `package.json:17` (`migration:*`), `.omo/evidence/task-seed-displaymaps-launchpad.log` (las 29 filas).
+      Acceptance criteria: tras 2do restart: `GET templates` 7/6 + `GET display-maps` 29 + preview funciona.
+      QA scenarios: happy + failure (postgres abajo → error legible, no hang). Evidence .omo/evidence/task-dev-db-on.log
+      Commit: N (solo `.env` gitignored + evidencia; cero codigo)
+- [x] 11. Deep-link del bot: `{{botStartAddressLink}}` + handler de payload en `/start` (Wave 1 follow-up, diseno hibrido white-label)
+      What to do / Must NOT do: **(1) Identidad (hibrida, fail-open, nunca bloquea boot):** nueva var generica `BOT_USERNAME` (sin prefijo DEXTER*: un valor por env, white-label; formato `^[A-Za-z0-9*]{5,}$`, vacio permitido). `BotIdentityService`(nuevo,`settings/`o`gateway/`: resuelve UNA vez en bootstrap con este orden: gateway inventory (bot bindeado — VERIFICAR primero si el inventory expone `username`; si no, saltar con log, NO romper) → Bot API `getMe`directo con`DEXTER*BOT_TOKEN`(un fetch con timeout 5s, token jamas logueado) →`BOT_USERNAME`→`""`. Warn (no error) si `BOT_USERNAME`seteado discrepa del vivo. Sin loops de refresco, sin MTProto/gramjs en dexter (verificado overkill: exige api_id/api_hash + sesion para reemplazar 1 HTTPS GET; dexter es Bot-API-only por diseno). Cache en memoria; re-resolucion solo manual futura (fuera de scope). **(2) Renderer:** clave derivada`botStartAddressLink`(todos los comandos con address):`https://t.me/<username>?start=<address>`(username del servicio, address del token; sin username →`""`; entra a registry + `PLACEHOLDER_META`+ specs). Payload limitado Bot API (64 chars`[A-Za-z0-9*-]`: EVM 42 + Solana 44 caben; degradar a `""`si no cabe — nunca truncar silencioso sin spec). **(3) Handler`/start <payload>`** (`start.handler.ts`): si el texto tras `/start`contiene una address detectable (mismo`address-detector`de bare-address) → resolve + card completa via template activo (reutilizar`sendFullScan`, NO duplicar); si no hay payload o es invalido → comportamiento `/start` actual intacto. Specs: identidad (orden gateway→getMe→env→"", mismatch→warn, sin red→fallback cadena), renderer (con/sin username, payload-largo→`""`), handler (payload valido/invalido/sin payload). Docs: dexter AGENTS (env var + orden + payload) + CHANGELOG. NO Mini App (`startapp`) en v1 (deep-link clasico solo). NO auto-trading ni callbacks nuevos (el link aterriza en scan, nada mas).
+Parallelization: Wave 1 follow-up (1 worker) | Blocked by: 1 (renderer/handlers existen) | Blocks: —
+References: `apps/dexter-onchain-bot/src/commands/application/handlers/start.handler.ts`(actual) +`ca.handler.ts:22-54 sendFullScan`(a reutilizar) +`scan/domain/detector/address-detector.ts`(deteccion) +`settings/infrastructure/config/bot.config.ts`(nueva var) +`.env.example`(documentarla) +`placeholders/`(registry+renderer).
+Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartAddressLink}}`compone la URL exacta con el username resuelto (orden gateway→getMe→env); mismatch env→warn en log; sin red/token/env →`""`sin tumbar boot;`/start <address>`responde card +`/start`solo sigue igual; QA live`:4069` (deep-link render + handler via ingress mock o spec-level).
+      QA scenarios: happy (payload EVM + Solana) + failure (sin username, payload basura, payload >64). Evidence .omo/evidence/task-fe-bot-start-link.log
+      Commit: Y | feat(dexter-botlink): botStartAddressLink + payload en start (docs dexter AGENTS+CHANGELOG)
+- [x] 12. Identidad via profile del vault bindeado (Wave 1 follow-up, reemplaza el skip de inventory)
+      What to do / Must NOT do: En `BotIdentityService`, reemplazar el probe de inventory (siempre-skip: el inventory no expone `username` por diseno — filas desde metadata local, sin llamadas de red) por llamada directa `GET /api/bots/:id/profile` al vault bindeado (vaultId del mapping local existente; endpoint alcance `send`, el que dexter ya tiene — verificado; respuesta incluye `username` exacto). Orden nuevo: profile → getMe → env → `""` (fail-open y warns iguales). Si sin binding/mapping, 403/404 o timeout (5s, reutilizar budget) → cae a getMe sin drama. NO tocar gateway (cero cambios alli — el endpoint ya existe). Specs: profile-resuelve (mock mapping+fetch), profile-403/404→siguiente, profile-username-invalido→siguiente, resto de la cadena intacta (specs existentes verdes). Docs: dexter AGENTS (actualizar orden) + CHANGELOG linea. NO avatar (ignorar el campo; solo `username`).
+      Parallelization: Wave 1 follow-up (1 worker, rapido) | Blocked by: 11 (servicio existe) | Blocks: —
+      References: `src/settings/application/bot-identity.service.ts` (actual) + spec, `src/gateway/infrastructure/gateway/gateway-send-client.service.ts` (cliente HTTP firmado existente — REUTILIZAR su fetch/HMAC si aplica, no nuevo fetch crudo salvo que el cliente no sirva para GET; decision documentada), `apps/telegram-bots-gateway/src/bots/api/http/bots.controller.ts:40-44` (endpoint existente, alcance send verificado).
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; con gateway mock que devuelve profile con username → identidad resuelta sin getMe (spec con spy: getMe NO llamado); sin gateway → cadena vieja intacta; QA live `:4069` (si gateway local `:4070` con bot bindeado responde — si no hay binding local, QA via specs + documentar).
+      QA scenarios: happy (profile resuelve) + failure (403/404/timeout/sin-mapping → fallback). Evidence .omo/evidence/task-fe-bot-profile-source.log
+      Commit: Y | feat(dexter-identity): profile del vault como fuente primaria
+- [x] 13. Politica de formato numerico Rick-parity (Wave 1 follow-up, evidencia examples.md + docs Rick)
+      What to do / Must NOT do: Retocar SOLO `format*Text` en `scan/infrastructure/formatter/message-formatter.ts` (capa presentacion dexter; market-data intacto, mismas keys/placeholders): dinero (fdv/mc/liq/vol/ath) → compacto K/M/B 1-dec-recortado SIN `$` (`23.3K`, `7.9K`); `priceUsd` → adaptativo full SIN `$` (`<1` significativos completos `0.00002434`, `>=1` agrupado max 2 `3,457`) — CORRIGE bug actual `$0.00` en dust; porcentajes → 1-dec-recortado con signo SOLO si negativo (`80%`, `-34.4%`, sin `+` jamas); conteos enteros tal cual; `N/A` intacto. Auditar bodies de seeds que dependian del `$` horneado (mover `$` a texto estatico del body donde el estilo lo pida, o quitarlo estilo Rick — decision por seed documentada; NO toca filas existentes en DBs, solo futuros seeds). Specs: reescribir existentes a la nueva politica + fixtures de evidencia (Rick `[23.3K/80%]`, Proficy `$27.3K`, KOLscope `$30.22K`, Soul `0.0(5)4128`→`0.00004128` plano). Docs: linea dexter AGENTS (politica) + CHANGELOG. NO tocar market-data, registry, keys, pipeline.
+      Parallelization: Wave 1 follow-up (1 worker) | Blocked by: 1 (formatter existe) | Blocks: —
+      References: `scan/infrastructure/formatter/message-formatter.ts:66-102` (actual), `.kiro/specs/feature-dexter/examples.md` (208 lineas, evidencia por bot), `https://docs.rick.bot/features/pricebot` (seccion Reading a token scan), seeds con `$` (grep).
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; fixture Rick renderiza `[23.3K/80%]` + `USD: 0.00002434` + `Liq: 7.9K`; dust ya no da `$0.00`; QA visual `:5186` (preview con seeds) confirma estilo.
+      QA scenarios: happy (tabla evidencia) + failure (null→N/A intacto). Evidence .omo/evidence/task-fe-number-policy.log
+      Commit: Y | feat(dexter-format): politica numerica rick-parity (docs dexter AGENTS+CHANGELOG)
+- [x] 14. Venue line origin-aware: `{{chainName}}` + `{{venue}}` + `{{venueTech}}` + `{{venueLine}}` (Wave 1 follow-up, evidencia Rick + trivials)
+      What to do / Must NOT do: **Fontaneria** (verificado ausente: ni snapshot ni dexter conocen `dexId`): dexscreener provider (ya devuelve `dexId`) → `snapshot.venue?: { dexId: string; labels: string[] } | null` (market-data; coexistir con `launchpad` sin romper) → dexter `MarketDataSnapshot.venue?` + mapping validado (dexId string no-vacio, labels array; si no → `null`) → `ResolvedToken.venue?` (pipeline passthrough validado igual que `launchpad`). **Renderer** 4 claves: `chainName` (display canonico en codigo: solana→Solana, ethereum→Ethereum, bnb→BNB, base→Base, arbitrum→Arbitrum, polygon→Polygon, robinhood→Robinhood, unichain→Unichain; chains fuera de tabla → `""`, jamas crudo); `venue` (launchpad conocido → su `name`; si no → `DexDisplay + labels`, tabla display en codigo estilo Rick `Pancakeswap/V3→"Pancakeswap V3"`, `orca+wp→"Orca WP"`, `uniswap+v4→"Uniswap V4"`, `baseline→"Baseline"`; sin dato → `""`); `venueTech` (SIEMPRE `DexDisplay + labels`, sin override de origen; mismo `""`); `venueLine` (combinada cerrada: origen+tech-distintos → `"<Origin> via <Tech>"`, solo-origen → origen, solo-tech → tech, nada → `""`). **Cleanup**: extender limpieza de separadores a restos de `@` (`"Solana @ "`→`""` cuando venue vacio; misma familia que `•`/`|`). Desviacion deliberada documentada: Conway muestra `Bankr` en `venue` (Rick muestra `Clanker V4`; nosotros sabemos el origen). `dexId` ≠ `launchpad.id` (tablas separadas, nunca mezclar). Specs: plumbing (snapshot→token con venue valido/invalido/ausente) + renderer (matriz 4 ramas venueLine, tabla dex display, chainName inc Chain-unknown→`""`, cleanup-`@`) + fixtures triviales (6e8LLH→LaunchLab, 0x9251→Pancakeswap V3, 0xFf81→Virtuals, JUP-null→`""`). Docs: dexter AGENTS (4 claves + regla venue + desviacion Conway) + CHANGELOG. NO tocar `dexId` como launchpad (grep lo prueba), NO Mini App/callbacks, NO market-data mas alla del campo snapshot.
+      Parallelization: Wave 1 follow-up (1 worker; market-data + dexter en secuencia dentro del mismo worker) | Blocked by: 1 (renderer/pipeline existen) | Blocks: —
+      References: `apps/market-data/src/provider/infrastructure/dexscreener/dexscreener.service.ts:313` + `dexscreener.types.ts:3,125` (dexId ya devuelto), `apps/market-data/src/snapshot/` (donde colgar `venue`), dexter `market-data.client.ts` + `token-scan.pipeline.ts` (mapping validado, patron `launchpad`), `placeholders/` (registry+renderer+META), `docs.rick.bot/features/pricebot` (venue-line + default-emoji), trivials (6e8LLH, 0x9251, 0xFf81, JUP-null).
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes en AMBOS apps; `{{chainName}} @ {{venueLine}}` reproduce `Solana @ LaunchLab`, `BNB @ Pancakeswap V3`, `Base @ Virtuals`, `Robinhood @ Virtuals` desde fixtures; JUP-null → `""` sin dangling; QA live `:4069`+market-data alterno (preview con las 4 claves).
+      QA scenarios: happy (matriz venueLine) + failure (sin venue, labels raras, dexId desconocido→capitalizado). Evidence .omo/evidence/task-fe-venue-line.log
+      Commit: Y | feat(dexter-venue): chainName + venue + venueTech + venueLine (docs dexter AGENTS+CHANGELOG)
+- [x] 15. Catalogo de placeholders en orden alfabetico (Wave 1 follow-up, decision owner)
+      What to do / Must NOT do: `GET /api/dexter/placeholders/:command` devuelve la lista ordenada alfabeticamente por `key` (ordenar en el backend — UNA fuente de verdad para API, preview y futuras UIs; el frontend NO ordena). Punto exacto: donde se construye la respuesta (controller o registry — el worker elige el nivel mas bajo que cubra todos los comandos + documenta por que). Specs: orden alfabetico incl. derivadas + `timeframe` solo c/cc intacto + preview/`placeholdersUsed` sin cambios. Docs: linea dexter AGENTS (contrato de orden) — CHANGELOG solo si el worker lo ve necesario (1 linea). NO tocar keys, META, renderer, frontend.
+      Parallelization: Wave 1 follow-up (1 worker, rapido) | Blocked by: 1 | Blocks: —
+      References: `src/placeholders/domain/placeholder-registry.ts` + `src/placeholders/api/http/placeholders.controller.ts` (punto de orden), spec existente del catalogo.
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; `GET placeholders/ca` sale `address, chain, chainDisplay, ...` alfabetico; QA live opcional `:4069` (mismo contrato).
+      QA scenarios: happy (orden + whitelist intacta). Evidence .omo/evidence/task-fe-alpha-catalog.log
+      Commit: Y | feat(dexter-placeholders): catalogo alfabetico (docs dexter AGENTS)
+- [x] 16. ATH de FDV desde historial propio: `{{fdvAth}}` + `{{fdvAthAgo}}` (Wave 1 follow-up, evidencia Rick + trivial 0xCfb3)
+      What to do / Must NOT do: Fuente UNICA: historial de snapshots propio (`snapshot-history.repository` + janitor `deleteOlderThan` existentes; NINGUN provider nuevo, NINGUN OHLC externo, NINGUNA key). Query `max(fdv)+timestamp` por (chain,address) sobre snapshots persistidos (si el repo no expone agregacion, anadir metodo de lectura SOLO-lectura; jamas mutar historial/retencion). `ResolvedToken` gana `fdvAthUsd?: number|null` + `fdvAthAt?: string|null` (ISO; ambos null si sin historial = cold-start → renderer: ATH = actual? NO — decision: sin historial, AMBOS en `""` (no inventar maximo); documentar cold-start en AGENTS). Renderer: `fdvAth` (money-compact sin `$`, misma politica todo 13) + `fdvAthAgo` (edad compacta `9d/3d/5h/12m` desde `fdvAthAt`; reutilizar formateador de Age existente si hay — verificar, no duplicar). Registry + META + specs (max-de-historial, cold-start vacio, multi-snapshot, janitor-ventana documentada). Ventana limitada por retencion del janitor (documentar limite exacto en AGENTS). Docs: dexter AGENTS (campo + 2 claves + cold-start) + CHANGELOG. NO Birdeye/Gecko OHLC (fast-follow si el cold-start importa), NO placeholders de presale-stats, NO tocar venue/launchpad/resto.
+      Parallelization: Wave 1 follow-up (1 worker; market-data + dexter en secuencia) | Blocked by: 1, 13 (snapshot-history + politica dinero existen) | Blocks: —
+      References: `apps/market-data/src/snapshot/infrastructure/snapshot-history.repository.ts` (query + janitor), `snapshot.types.ts` (donde colgar max), `docs.rick.bot/features/pricebot` (definicion FDV + ATH + ago), trivial `0xCfb3...` (ETH, pool Sep-24, FDV~5.6K → fixture `⇨`-con-historial-sembrado en specs).
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes en AMBOS apps; historial con maximo → `{{fdvAth}}`/`{{fdvAthAgo}}` exactos; sin historial → `""` ambos (jamas el actual disfrazado); QA live opcional (market-data con historial sembrado via specs es suficiente; boot live solo si barato).
+      QA scenarios: happy (max+ago) + failure (sin historial, un solo punto, timestamps futuros→clamp a now). Evidence .omo/evidence/task-fe-fdv-ath.log
+      Commit: Y | feat(dexter-ath): fdvAth + fdvAthAgo desde historial (docs dexter AGENTS+CHANGELOG)
+- [x] 17. Best-candidate con disclosure + edades w/mo/y (Wave 1 follow-up, revierte "never first-hit" deliberadamente)
+      What to do / Must NOT do: **Pipeline** (`token-scan.pipeline.ts` + port): ante ambiguedad con candidatos resolvibles, elegir el de MAYOR liquidez (tiebreak: mayor FDV, luego primera vista — determinista, documentado) y devolver token + `alternatives: {chain,address,liquidityUsd?}[]` (NUEVO campo en outcome/token; error `ambiguous` SOLO cuando cero candidatos resuelven — mensaje e hint intactos). Riesgo aceptado y documentado en codigo + AGENTS: copia scam con liquidez podria ganar — mitigado por disclosure + checks existentes; reversal deliberado del invariante, decirlo en voz alta. **Card/bot:** nueva clave derivada `{{alternatives}}` (render `Also on: bsc, eth` o `""` si ≤1 chain; registry+META+specs) para que la eleccion sea visible SIEMPRE (bot y preview). **Editor:** ya muestra candidatos (compatible; actualizar specs que asertaban error-ambiguo para fixtures multi-chain → ahora resuelven + alternatives). **Edades:** extender `formatCompactAgeText` a `w/mo/y` (`51w`, `11mo`, `9mo`; thresholds documentados; specs). **Specs a reescribir:** todas las que asertaban `ambiguous`-con-candidatos como error (inventariar via grep primero — es el blast radius principal). Docs: dexter AGENTS (reversal + `alternatives` + edades) + CHANGELOG. NO tocar venue/launchpad/ath, NO relajar invalid/not-found (siguen error), NO auto-elegir jamas sin alternatives visibles.
+      Parallelization: Wave 1 follow-up (1 worker) | Blocked by: 1, 13 (pipeline + edades existen) | Blocks: —
+      References: `scan/application/pipeline/token-scan.pipeline.ts` (resolve/resolveDetailed + outcome), port (`ResolvedToken`, outcome types), `message-formatter.ts` (age formatter actual), `placeholders/` (nueva key), `docs.rick.bot` (venue/ATH ya citados) + caso `0xFf81` (Base @ Virtuals, mejor-liquidez).
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes en dexter (+ market-data si roza); fixture multi-chain resuelve mejor-liquidez + `alternatives` listados; cero-candidatos sigue error con hint; edades `51w/11mo/9mo` exactas; QA live `:4069` (preview `0xFf81` pelado resuelve Base + alternatives).
+      QA scenarios: happy (best+alternatives) + failure (tie determinista, cero candidatos, edad futura). Evidence .omo/evidence/task-fe-best-pick.log
+      Commit: Y | feat(dexter-resolve): best-candidate con disclosure (docs dexter AGENTS+CHANGELOG)
+- [x] 18. Snapshot chain-honesto (Wave 1 follow-up, bug raiz del best-pick: misma data en todas las chains)
+      What to do / Must NOT do: **Market-data** (`address-snapshot.service.ts:128` llama `getBestPairSummary(address)` sin chain — cross-chain por construccion): cuando la chain es EXPLICITA, resolver con el endpoint por-chain `token-pairs/v1/<chain>/` (ya existe en `dexscreener.service.ts:122`; si otro provider alimenta el snapshot, aplicar el mismo principio: filtrar/consultar por chain, nunca mejor-global). Mapeo de slugs nuestro→DexScreener (`solana/ethereum/bnb/base/arbitrum/polygon/...` — verificar cada uno contra la API; chain sin mapeo → `null` documentado, jamas fallback cross-chain silencioso). Chain sin par → `null` (snapshot honesto: sin pair NO hay market data que devolver; el resto de campos ya eran null-safe). **Dexter:** sin cambios salvo specs (el sweep ahora ve candidatos reales; `0xFf81` pelado DEBE resolver Base + alternatives sin-Base). Specs: chain-explicita-con-par, chain-explicita-sin-par→null, slugs-sin-mapeo→null, regresion cross-chain-igual-en-todas (fixture: misma address en 3 chains → datos DIFERENTES o nulls, nunca triplicado identico), re-verify `0xFf81`→Base en specs con fixtures + live opcional. Docs: market-data AGENTS (snapshot honesto por chain) + CHANGELOG. NO tocar best-pick/tiebreak (quedan intactos y ahora operan sobre datos reales), NO tocar launchpad/venue/ath, NO backend/gateway/frontend/workflows/`.kiro`.
+      Parallelization: Wave 1 follow-up (1 worker, market-data + re-verify dexter) | Blocked by: 17 (best-pick existe) | Blocks: —
+      References: `address-snapshot.service.ts:124-128` (linea culpable), `dexscreener.service.ts:119-127` (endpoint por-chain existente), `snapshot.types.ts` (seam), caso `0xFf81` (Base real, eth/bsc vacios verificado 2026-10-04) + consenso 5 bots.
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes en market-data (+ dexter sin regresiones); `snapshot(chain=ethereum, 0xFf81)` → null-ish (sin pair) mientras `chain=base` resuelve; QA live `:4000`-alterno o directo (3 chains, datos diferentes); preview dexter `0xFf81` pelado → Base.
+      QA scenarios: happy (por-chain real) + failure (slug sin mapeo, provider-caido→null existente). Evidence .omo/evidence/task-fe-chain-honest.log
+      Commit: Y | fix(market-data-snapshot): honesto por chain (docs market-data AGENTS+CHANGELOG)
+- [ ] 2. Deploy automation: compose prod + 2 workflows + doc secretos
+     What to do / Must NOT do: Segun Wave 2 del Scope. Puertos prod `:4062`/`:5448`/`:6395` (verificados libres repo-wide + Oracle 2026-10-02). Tags `:sha` + `:staging-latest`/`:latest`, amd64-only. `workflow_dispatch` con lane rollback manual en ambos (mirror backend). Probe precondition SELECT antes de migrar. NO crear imagenes `latest` genericas ni multi-arch. NO tocar workflows existentes.
+     Parallelization: Wave 2 (compose+doc | workflow staging | workflow prod — 3 lanes, el worker los serializa solo si tocan el mismo fichero) | Blocked by: nada tecnico | Blocks: 3, 4
+     References: `apps/dexter-onchain-bot/docker-compose.staging.yml:1-123` (canon a espejar), `apps/dexter-onchain-bot/.env.staging.template` + `.env.production.template` (vars), `.github/workflows/deploy-staging.yml:500-560` (probe+migration+healthcheck patron), `.github/workflows/deploy.yml` (rollback automatico patron, 165 lineas), `apps/dexter-onchain-bot/Dockerfile` (solo lectura: justifica builder-target), `apps/dexter-onchain-bot/package.json:17` (`migration:run`).
+     Acceptance criteria: `actionlint` (si disponible) o `python -c yaml.safe_load` en ambos workflows; `docker compose -f docker-compose.prod.yml config` valida (sin `.env.production`, con defaults); doc secretos lista TODAS las vars de ambos templates con origen (droplet-only).
+     QA scenarios: dry-run `config` + `migration:show` contra dev (0 pendientes tras merge) + simulacro de rollback lane (dispatch manual en rama test, NUNCA en dev/master). Evidence .omo/evidence/task-dex-deploy-automation.log
+     Commit: Y | feat(dexter-deploy): compose prod + workflows staging/prod
+- [ ] 3. Rollout staging: migraciones + imagen + checklist (todo 15 del plan anterior)
+     What to do / Must NOT do: Backup `pg_dump onchain_bot_dexter_staging` (verificar tamano>0) + capturar digest imagen actual (`docker inspect`, 2026-09-27). `migration:show` (3 pendientes) → `migration:run` one-off builder → `migration:show` 0. Pull `:staging-latest` (recien buildeada de `dev`) → recreate → healthcheck `:4061` → ejecutar `.omo/plans/dexter-message-templates.md` todo 15. Rollback ante fallo (revert ×3 + digest anterior). PROHIBIDO tocar prod (ni URLs, ni compose, ni secretos).
+     Parallelization: Wave 3 solo | Blocked by: 2 | Blocks: 4
+     References: plan anterior todo 15 (checklist), Oracle `/opt/onchain-bot-staging/apps/dexter-onchain-bot/` (compose+env), containers `onchain-bot-dexter-{staging,postgres-staging,redis-staging}`.
+     Acceptance criteria: healthcheck ok + checklist 15 verde + evidencia.
+     QA scenarios: las del todo 15. Evidence .omo/evidence/task-dex-staging-rollout.log
+     Commit: N (operativa; solo evidencia + notepad)
+- [ ] 4. Rollout prod: migraciones + imagen + checklist (HARD GATE OWNER)
+     What to do / Must NOT do: Identico a Wave 3 contra prod (`:4062`, DB `onchain_bot_dexter`, compose prod). Requiere confirmacion EXPLICITA del owner en el momento (este checkbox jamas se auto-ejecuta). Rollback ante fallo (revert + digest anterior + recreate).
+     Parallelization: Wave 4 solo | Blocked by: 3 + confirmacion owner | Blocks: —
+     References: `docker-compose.prod.yml` (Wave 2), `.env.production` (droplet), workflow prod (Wave 2).
+     Acceptance criteria: healthcheck `:4062` + smoke templates/preview + evidencia.
+     QA scenarios: checklist + rollback. Evidence .omo/evidence/task-dex-prod-rollout.log
+     Commit: N
+
+### Wave 0 — guion local owner (10 min, dexter `:4060` + frontend `:5173`)
+
+1. `cd apps/dexter-onchain-bot && DEXTER_PORT=4060 npm run start:dev` (espera `Dexter templates seeded` en log).
+2. `curl -s localhost:4060/api/health` → ok. `curl -s localhost:4060/api/dexter/templates | jq length` → `7`, 6 activos.
+3. Crear template de prueba (POST), duplicado → 409, `POST /:id/activate` → conmuta, borrar activo → 409.
+4. Preview by-id con `So11111111111111111111111111111111111111112` → MarkdownV2 + `placeholdersUsed` (reintentar 1-2× si `Token not found`: market-data transitorio).
+5. `POST /api/dexter/display-maps {chain,solana,🟣}` → `GET /dexter/token?address=...` empieza por `🟣` SIN reboot.
+6. Frontend `:5173/dexter`: binding visible (gateway ausente → estado degradado esperado), scan `/x` + `/c` + bare funcionan como hoy.
+7. Limpieza: borrar template de prueba + display row; matar proceso por PID explícito.
+
+### Final Verification Wave
+
+- [ ] F1. Plan compliance audit (todos 0-5 + F2-F4 del plan anterior siguen verdes tras estos cambios)
+- [ ] F2. Code quality review (frontend FSD + workflows YAML + compose)
+- [ ] F3. Real manual QA (staging checklist = todo 15 ejecutado de verdad)
+- [ ] F4. Scope fidelity (cero toques a bot/backend/gateway/secrets en git)
+
+---
+
+## Verification strategy
+
+- Test decision: el plan mezcla codigo (Vitest+Playwright frontend, `tsc -b`, `actionlint`/yaml-parse + `compose config` en deploy) + operativa con gates humanos (staging/prod). waves 1-2 con QA de agente completa; waves 3-4 con evidencia de comandos + gate owner para prod.
+- Evidence: `.omo/evidence/task-dex-*.log` (gitignored, solo local).
+
+## Execution strategy
+
+### Parallel execution waves
+
+- Wave 0 (owner, sin worker) → Wave 1 frontend (2-3 lanes) → Wave 2 deploy files (3 lanes) → Wave 3 staging (solo, tras tu OK operativo) → Wave 4 prod (solo, tras tu OK explicito). F1-F4 al final.
+
+### Dependency matrix
+
+| Todo                  | Depends on       | Blocks       | Can parallelize with |
+| --------------------- | ---------------- | ------------ | -------------------- |
+| 0 local testing       | —                | nada tecnico | —                    |
+| 1 frontend UI         | (recomendado: 0) | 5            | 2                    |
+| 5 live editor         | 1                | —            | 2                    |
+| 6 english UI          | —                | —            | 2, 5                 |
+| 7 live save           | 1, 5, 6          | —            | 2                    |
+| 8 version badge       | 1, 6             | —            | 2                    |
+| 9 seed files          | —                | —            | 2                    |
+| 10 dev-db-on          | —                | —            | —                    |
+| 11 bot-start-link     | 1                | —            | 2                    |
+| 12 bot-profile-source | 11               | —            | 2                    |
+| 13 number-policy      | 1                | —            | 2                    |
+| 14 venue-line         | 1                | —            | 2                    |
+| 15 alpha-catalog      | 1                | —            | 2                    |
+| 16 fdv-ath            | 1                | —            | 2                    |
+| 17 best-pick          | 1,13             | —            | 2                    |
+| 18 chain-honest       | 17               | —            | 2                    |
+| 2 deploy files        | —                | 3, 4         | 1                    |
+| 3 staging rollout     | 2 + OK operativo | 4            | —                    |
+| 4 prod rollout        | 3 + OK owner     | —            | —                    |
+
+## Commit strategy
+
+- Un commit por todo implementado (waves 1-2), ninguno en F1-F4 ni en rollouts (operativa). Prefijos `feat(frontend-dexter)`, `feat(dexter-deploy)`. Ramas `feat/*` desde `dev` + PR (staging se prueba mergeando el PR; prod mergeando a `master`). Push por wave. `git reset --hard`/force prohibidos.
+
+## Success criteria
+
+- [ ] `/dexter` gestiona templates/preview/placeholders/display-maps contra dexter local + locations nginx en ambas confs.
+- [ ] Push a `dev` con paths dexter despliega staging solo (sin tocar backend/frontend); push a `master` despliega prod.
+- [ ] Migraciones staging aplicadas + checklist manual verde; prod intacto hasta tu OK.
+- [ ] Cero secretos en git; rollback probado en staging (lane manual).
