@@ -3,13 +3,15 @@ import {
   BOT_USERNAME_PATTERN,
   DexterBotConfigService,
 } from '@/settings/infrastructure/config/bot.config';
-import { DexterBotBindingService } from '@/gateway/application/dexter-bot-binding.service';
+import { GatewayBotMappingService } from '@/gateway/infrastructure/gateway/gateway-bot-mapping.service';
+import { GatewayHmacSigner } from '@/gateway/infrastructure/gateway/gateway-hmac-signer.service';
 
 /** Bot API `getMe` budget: one HTTPS GET, then the chain moves on. */
 export const BOT_IDENTITY_TIMEOUT_MS = 5_000;
 
 /**
- * White-label bot identity (plan todo 11, hybrid design).
+ * White-label bot identity (plan todo 11 hybrid design, todo 12
+ * profile source).
  *
  * HOME: `settings/` — identity is bot self-config, a sibling of
  * `DexterBotConfigService`. `gateway/` is message transport (sends,
@@ -18,19 +20,29 @@ export const BOT_IDENTITY_TIMEOUT_MS = 5_000;
  *
  * Resolves ONCE at bootstrap (`onApplicationBootstrap`, never
  * blocking boot — every step is fail-open with a catch-all per
- * source): gateway inventory bound-bot `username` → Bot API `getMe`
- * with `DEXTER_BOT_TOKEN` (one fetch, 5 s timeout, token never
- * logged) → `BOT_USERNAME` env → `""`. Warns (never throws) when
- * the env var is set but disagrees with a live source.
+ * source): bound-vault `GET /api/bots/:id/profile` `username` →
+ * Bot API `getMe` with `DEXTER_BOT_TOKEN` (one fetch, 5 s timeout,
+ * token never logged) → `BOT_USERNAME` env → `""`. Warns (never
+ * throws) when the env var is set but disagrees with a live source.
  *
- * FINDING (verified read-only): the gateway inventory shape is
- * `{ id, label, ownerApp, boundApp, available }`
- * (`BotBindingService.inventory()` via `GET /api/bots/inventory`) —
- * it exposes NO `username` (usernames live behind the per-vault
- * `GET /api/bots/:id/profile` resolver, which needs a vault id +
- * auth scope and is out of this todo's order). The inventory step
- * therefore probes rows defensively at runtime and always logs +
- * skips today; NO gateway code was added or changed.
+ * PROFILE SOURCE (todo 12, replaces the todo-11 inventory probe,
+ * deleted — the inventory shape is
+ * `{ id, label, ownerApp, boundApp, available }` with NO `username`
+ * by design, so that probe always skipped): the vault id comes from
+ * the EXISTING local mapping — `GatewayBotMappingService`
+ * (`'dexter'` label, same getter the sender uses) with the
+ * `DEXTER_BOT_VAULT_ID` config fallback (same order as
+ * `TelegramBotClient.resolveVaultId`). Unmapped + no vault id →
+ * null immediately, zero network.
+ *
+ * CLIENT CHOICE (documented): `GatewaySendClient` only POSTs sends
+ * (`/api/bots/:id/send`, no GET support), so reusing it for a
+ * profile GET would shoehorn a read through a send-only client.
+ * Instead this service does a minimal signed GET mirroring
+ * `DexterBotBindingService.inventory()` (same `GatewayHmacSigner`
+ * `authHeaders('GET', path, '')` + same base URL, `send` scope —
+ * the profile endpoint the sender already holds). NO gateway code
+ * was added or changed. Avatar ignored — `username` only.
  *
  * In-memory cache, no refresh loops, no MTProto/gramjs (explicitly
  * out — a full MTProto session to replace one HTTPS GET is overkill;
@@ -44,9 +56,12 @@ export class BotIdentityService {
 
   public constructor(
     private readonly botConfig: DexterBotConfigService,
-    @Inject(DexterBotBindingService)
+    @Inject(GatewayBotMappingService)
     @Optional()
-    private readonly binding?: DexterBotBindingService | null,
+    private readonly mapping?: GatewayBotMappingService | null,
+    @Inject(GatewayHmacSigner)
+    @Optional()
+    private readonly signer?: GatewayHmacSigner | null,
   ) {}
 
   public async onApplicationBootstrap(): Promise<void> {
@@ -72,7 +87,7 @@ export class BotIdentityService {
   private async resolve(): Promise<string> {
     const env = this.botConfig.get().botUsername;
     const live =
-      (await this.fromGatewayInventory()) ?? (await this.fromGetMe());
+      (await this.fromBoundVaultProfile()) ?? (await this.fromGetMe());
     if (live) {
       if (env && live.toLowerCase() !== env.toLowerCase()) {
         this.logger.warn(
@@ -84,32 +99,87 @@ export class BotIdentityService {
     return env;
   }
 
-  private async fromGatewayInventory(): Promise<string | null> {
-    if (!this.binding) return null;
-    let rows: Awaited<ReturnType<DexterBotBindingService['inventory']>>;
-    try {
-      rows = await this.binding.inventory();
-    } catch (err) {
+  /**
+   * Bound-vault profile `username` (same vault resolution as the
+   * sender: local `'dexter'` mapping first, `DEXTER_BOT_VAULT_ID`
+   * config fallback). Unmapped + no vault id → null immediately,
+   * zero network. 403/404/timeout/invalid shape → null with a warn
+   * (fail-open — the chain moves on to `getMe`).
+   */
+  private async fromBoundVaultProfile(): Promise<string | null> {
+    const vaultId = this.resolveVaultId();
+    if (!vaultId) {
       this.logger.warn(
-        `Gateway inventory unreachable — skipping identity source (getMe next): ${err instanceof Error ? err.message : 'unknown'}`,
+        'No bound gateway vault for dexter — skipping (getMe next)',
       );
       return null;
     }
-    const bound =
-      rows.find((row) => row.boundApp === DexterBotBindingService.APP_ID) ??
-      null;
-    const username = (bound as { username?: unknown } | null)?.username;
-    if (
-      typeof username === 'string' &&
-      username.trim() &&
-      BOT_USERNAME_PATTERN.test(username.trim())
-    ) {
-      return username.trim();
+    const path = `/api/bots/${encodeURIComponent(vaultId)}/profile`;
+    let baseUrl = 'http://localhost:4070';
+    try {
+      baseUrl = this.botConfig.get().botsGatewayBaseUrl || baseUrl;
+    } catch {
+      this.logger.warn(
+        'Bot config unreadable for the gateway base URL — using localhost:4070 (getMe next on failure)',
+      );
     }
-    this.logger.warn(
-      'Gateway inventory exposes no username for the bound bot — skipping (getMe next); no gateway changes made',
-    );
-    return null;
+    const headers: Record<string, string> = {
+      ...this.signer?.authHeaders('GET', path, ''),
+    };
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), BOT_IDENTITY_TIMEOUT_MS);
+    try {
+      const res = await fetch(`${baseUrl}${path}`, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        this.logger.warn(
+          `Bound vault profile unreachable (http ${res.status}) — skipping (getMe next)`,
+        );
+        return null;
+      }
+      const json = (await res.json().catch(() => null)) as {
+        username?: unknown;
+        result?: { username?: unknown };
+      } | null;
+      const raw = json?.username ?? json?.result?.username;
+      if (
+        typeof raw === 'string' &&
+        raw.trim() &&
+        BOT_USERNAME_PATTERN.test(raw.trim())
+      ) {
+        return raw.trim();
+      }
+      this.logger.warn(
+        'Bound vault profile returned no username — skipping (getMe next)',
+      );
+      return null;
+    } catch (err) {
+      this.logger.warn(
+        `Bound vault profile unreachable — skipping (getMe next): ${err instanceof Error ? err.message : 'unknown'}`,
+      );
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  /**
+   * Vault resolution mirroring `TelegramBotClient.resolveVaultId`
+   * (single source of truth for "which vault is bound"): the local
+   * `'dexter'` → vault mapping first, `DEXTER_BOT_VAULT_ID` config
+   * fallback. `''` = unbound.
+   */
+  private resolveVaultId(): string {
+    const mapped = this.mapping?.resolveGatewayId('dexter') ?? 'dexter';
+    if (mapped !== 'dexter') return mapped;
+    try {
+      return this.botConfig.get().botVaultId ?? '';
+    } catch {
+      return '';
+    }
   }
 
   private async fromGetMe(): Promise<string | null> {

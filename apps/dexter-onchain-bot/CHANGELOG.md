@@ -23,6 +23,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   byte-identical legacy. No Mini App, no auto-trading, no new
   callbacks.
 
+- **Bot identity via bound-vault profile (plan todo 12):**
+  `BotIdentityService` resolves the primary source from
+  `GET /api/bots/:id/profile` (`username`) against the bound vault
+  (existing local `'dexter'` mapping + `DEXTER_BOT_VAULT_ID`
+  fallback, same order as the sender; unmapped → zero network) —
+  order is now profile → Bot API `getMe` (5 s, token never logged)
+  → `BOT_USERNAME` env → `""`, warn-not-throw fail-open throughout.
+  The todo-11 inventory probe is deleted (rows carry no `username`
+  by design). No gateway changes (existing `send`-scope endpoint);
+  avatar ignored. `BOT_USERNAME` behavior unchanged (still 3rd).
+
 - \*\*Origin-launchpad plumbing + Wave-1 seeds (dexter-launchpad Lane S,
   `feat:`): `MarketDataSnapshot` gains optional `launchpad?
 {id,name,url}` (`market-data.client.ts`, shape-checked at the dexter

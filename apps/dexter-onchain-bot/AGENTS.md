@@ -472,10 +472,12 @@ todo 6 added 10 suites / 35 tests (±0 since); bare-address added
   (`[A-Za-z0-9_-]`, ≤64 chars — EVM 42 + Solana 44 fit — else `""`,
   never truncated). Identity resolves ONCE at bootstrap via
   `BotIdentityService` (`settings/`, sibling of the bot config —
-  NOT `gateway/`, which is message transport): gateway inventory
-  bound-bot `username` (verified absent — `{id,label,ownerApp,
-boundApp,available}`, log + skip, no gateway code touched) →
-  Bot API `getMe` with `DEXTER_BOT_TOKEN` (one fetch, 5 s timeout,
+  NOT `gateway/`, which is message transport): bound-vault profile
+  (`GET /api/bots/:id/profile` `username`, plan todo 12 — vault id
+  from the existing local `'dexter'` mapping + `DEXTER_BOT_VAULT_ID`
+  fallback, same order as the sender; unmapped → zero network; the
+  todo-11 inventory probe is deleted — inventory rows carry no
+  `username` by design) → Bot API `getMe` with `DEXTER_BOT_TOKEN` (one fetch, 5 s timeout,
   token never logged) → `BOT_USERNAME` env → `""`. Warns (never
   throws) when env disagrees with a live source. `/start <payload>`
   runs the shared `address-detector` and answers the full card via
