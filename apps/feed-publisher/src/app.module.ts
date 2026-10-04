@@ -9,11 +9,10 @@ import { FiltersModule } from './filters/filters.module';
 import { QueueModule } from './queue/queue.module';
 import { DeduplicationModule } from './deduplication/deduplication.module';
 import { LlmModule } from './llm/llm.module';
-// NOTE (scheduling-posts todo 1): `SchedulingModule` moved to
-// `apps/scheduling-posts/` via `git mv` (sessions-scheduler contract
+// NOTE (publishing-queue todo 1): `SchedulingModule` moved to
+// `apps/publishing-queue/` via `git mv` (sessions-scheduler contract
 // P52). This app no longer owns scheduling — it is sole owner there.
 import { ThreadsModule } from './threads/threads.module';
-import { TelegramModule } from './telegram/telegram.module';
 import { TargetModule } from './target/target.module';
 import { ContentTemplatesModule } from './template/content-templates.module';
 import { SessionsModule } from './sessions/sessions.module';
@@ -25,7 +24,7 @@ import { ApiKeyGuard } from './shared/guards/api-key.guard';
  *
  * Wires Config (envFilePath ['.env.dev', '.env']) + HealthModule
  * (GET /api/health -> { status: 'ok' }) + 11 feature modules
- * (scheduling moved to apps/scheduling-posts, todo 1).
+ * (scheduling moved to apps/publishing-queue, todo 1).
  * P10: NO kol logic anywhere in this app (no legacy publisher, no kol bot).
  * ConfigModule is global, so feature adapters resolve ConfigService
  * without importing SharedModule.
@@ -49,7 +48,6 @@ import { ApiKeyGuard } from './shared/guards/api-key.guard';
     DeduplicationModule,
     LlmModule,
     ThreadsModule,
-    TelegramModule,
     TargetModule,
     ContentTemplatesModule,
     SessionsModule,

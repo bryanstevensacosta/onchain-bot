@@ -34,7 +34,7 @@
 //   - Nest ConfigModule reads ['.env.dev', '.env'] + REAL ENV WINS, so the
 //     `env:` blocks below override any local env files. Per-app env files:
 //       .env.development present: feed-publisher, kol-calls,
-//         kol-calls-publisher, scheduling-posts, telegram-bots-gateway.
+//       kol-calls-publisher, publishing-queue, telegram-bots-gateway.
 //       .env.dev present: backend only.
 //       neither (env comes from compose/pm2): ingestion-telegram, market-data,
 //         dexter-onchain-bot, threads-publisher, ai-ml, frontend.
@@ -84,7 +84,7 @@ function app(name, dir, args, env, overrides = {}) {
 // (backend + ingestion-telegram use HOST/PORT vars = implicit db 0):
 //   db 0: backend (REDIS_HOST/PORT) + ingestion-telegram (INGESTION_REDIS_*)
 //   db 1: kol-calls | db 2: kol-calls-publisher | db 3: feed-publisher
-//   db 4: market-data | db 5: dexter | db 6: scheduling-posts
+//   db 4: market-data | db 5: dexter | db 6: publishing-queue
 //   db 7: ai-ml | db 8: threads-publisher
 // (kol-calls/publisher shared one redis :6382/0 before; split to db 1/2.)
 // gateway has no REDIS usage (no REDIS_URL needed).
@@ -221,12 +221,12 @@ module.exports = {
         '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
     }),
 
-    // scheduling-posts :4080.
-    app('scheduling-posts', 'scheduling-posts', 'run start:dev', {
-      SCHEDULING_POSTS_ENABLED: 'true',
-      SCHEDULING_POSTS_PORT: 4080,
+    // publishing-queue :4080.
+    app('publishing-queue', 'publishing-queue', 'run start:dev', {
+      PUBLISHING_QUEUE_ENABLED: 'true',
+      PUBLISHING_QUEUE_PORT: 4080,
       DATABASE_URL:
-        'postgres://onchain_bot:onchain_bot@localhost:5432/scheduling_posts_db',
+        'postgres://onchain_bot:onchain_bot@localhost:5432/publishing_queue_db',
       REDIS_URL: 'redis://localhost:6379/6',
       DATABASE_SYNCHRONIZE: 'true',
       ENCRYPTION_KEY:

@@ -1,0 +1,38 @@
+name: onchain-bot-publishing-queue
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: onchain-bot-publishing-queue-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: onchain_bot
+      POSTGRES_PASSWORD: onchain_bot
+      POSTGRES_DB: publishing_queue_db
+    ports:
+      - '5442:5432'
+    volumes:
+      - publishing-queue-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U onchain_bot -d publishing_queue_db']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    container_name: onchain-bot-publishing-queue-redis
+    restart: unless-stopped
+    ports:
+      - '6389:6379'
+    volumes:
+      - publishing-queue-redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  publishing-queue-postgres-data:
+  publishing-queue-redis-data:

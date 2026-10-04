@@ -24,7 +24,7 @@ describe('schedulingPath', () => {
     );
   });
 
-  it('uses an absolute VITE_SCHEDULING_POSTS_URL override without the proxy prefix', () => {
+  it('uses an absolute VITE_PUBLISHING_QUEUE_URL override without the proxy prefix', () => {
     expect(schedulingPath('/api/scheduling/ads', 'http://localhost:4080')).toBe(
       'http://localhost:4080/api/scheduling/ads',
     );

@@ -9,7 +9,7 @@ import { ENDPOINTS } from '@/shared/api/endpoints';
 
 /**
  * View models for the feed-scheduling REST API (live-errors-fix
- * 2026-09-28: served by scheduling-posts
+ * 2026-09-28: served by publishing-queue
  * `GET /scheduling-api/api/scheduling/*`, `:4080` dev / `:4081`
  * staging / `:4082` prod — P36 scheduling naming, not ads).
  */

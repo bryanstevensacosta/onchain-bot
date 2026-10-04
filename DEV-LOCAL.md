@@ -32,7 +32,7 @@ docker compose -f docker-compose.dev.yml up --build -d
 # 3) Create the per-app DBs once (volume persists; skip on later boots).
 #    The single pg starts with `backend_db`; the rest are created here
 #    (`DATABASE_SYNCHRONIZE=true` creates TABLES, not databases):
-for db in ingestion_telegram_db kol_calls_db kol_calls_publisher_db feed_publisher_db market_data_db dexter_db telegram_bots_db scheduling_posts_db ai_ml_db threads_publisher_db; do
+for db in ingestion_telegram_db kol_calls_db kol_calls_publisher_db feed_publisher_db market_data_db dexter_db telegram_bots_db publishing_queue_db ai_ml_db threads_publisher_db; do
   docker exec onchain-dev-pg psql -U onchain_bot -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$db'" | grep -q 1 || \
   docker exec onchain-dev-pg psql -U onchain_bot -d postgres -c "CREATE DATABASE $db OWNER onchain_bot";
 done
@@ -56,7 +56,7 @@ Partial boot (lighter): `docker compose -f docker-compose.dev.yml up -d pg redis
 | market-data           | http://localhost:4000 | `/api/health` | `market_data_db` / redis `6385`             |
 | dexter-onchain-bot    | http://localhost:4060 | `/api/health` | `dexter_db` / redis `6387`                  |
 | telegram-bots-gateway | http://localhost:4070 | `/api/health` | `telegram_bots_db` (user `onchain_bot`)     |
-| scheduling-posts      | http://localhost:4080 | `/api/health` | `scheduling_posts_db` / redis `6389`        |
+| publishing-queue      | http://localhost:4080 | `/api/health` | `publishing_queue_db` / redis `6389`        |
 | ai-ml                 | http://localhost:4090 | `/api/health` | `ai_ml_db` / redis `6391`                   |
 | threads-publisher     | http://localhost:4100 | `/api/health` | `threads_publisher_db` / redis `6393`       |
 | frontend (vite)       | http://localhost:5173 | `/` (200)     | —                                           |
@@ -128,7 +128,7 @@ docker compose -f docker-compose.dev.yml up -d pg redis-backend \
   redis-threads
 
 # 2) Per-app DBs — create once (same as §1 step 3):
-for db in ingestion_telegram_db kol_calls_db kol_calls_publisher_db feed_publisher_db market_data_db dexter_db telegram_bots_db scheduling_posts_db ai_ml_db threads_publisher_db; do
+for db in ingestion_telegram_db kol_calls_db kol_calls_publisher_db feed_publisher_db market_data_db dexter_db telegram_bots_db publishing_queue_db ai_ml_db threads_publisher_db; do
   docker exec onchain-dev-pg psql -U onchain_bot -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$db'" | grep -q 1 || \
   docker exec onchain-dev-pg psql -U onchain_bot -d postgres -c "CREATE DATABASE $db OWNER onchain_bot";
 done

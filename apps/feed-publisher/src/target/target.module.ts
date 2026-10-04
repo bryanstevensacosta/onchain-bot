@@ -1,10 +1,12 @@
-import { Global, Module, forwardRef } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { TelegramModule } from '../telegram/telegram.module';
 import { TargetDispatcherPort } from './application/ports/target-dispatcher.port';
 import { TargetDispatcherService } from './application/services/target-dispatcher.service';
 import { ThreadsPublisherHttpClient } from './infrastructure/threads/threads-publisher-http-client';
 import { TargetHealthIndicator } from './health/target-health.indicator';
+import { BotsGatewaySenderPort } from '../telegram/domain/ports/bots-gateway-sender.port';
+import { GatewaySendClient } from '../telegram/infrastructure/gateway/gateway-send-client.service';
+import { GatewayBotMappingService } from '../telegram/infrastructure/gateway/gateway-bot-mapping.service';
 
 /**
  * TargetModule (threads-publisher plan Fase 2 todo 10, P38-bis).
@@ -21,20 +23,26 @@ import { TargetHealthIndicator } from './health/target-health.indicator';
  * (dual-leg only, removed at threads-publisher todo 11). New callers
  * import ONLY from `src/target/`; the migrated callers are
  * sessions (planner + explicit publish), queue (drain dispatcher)
- * and template bot bindings. `TelegramModule` is imported
- * (forwardRef, cycle-safe) ONLY for the gateway sender + vault-id
- * mapping — no direct adapter imports.
+ * and template bot bindings. The gateway sender + vault-id
+ * mapping are provided here directly (no `TelegramModule` import) —
+ * no direct adapter imports.
  */
 @Global()
 @Module({
-  imports: [ConfigModule, forwardRef(() => TelegramModule)],
+  imports: [ConfigModule],
   providers: [
     TargetDispatcherService,
     ThreadsPublisherHttpClient,
     TargetHealthIndicator,
+    GatewaySendClient,
+    GatewayBotMappingService,
     {
       provide: TargetDispatcherPort,
       useClass: TargetDispatcherService,
+    },
+    {
+      provide: BotsGatewaySenderPort,
+      useClass: GatewaySendClient,
     },
   ],
   exports: [
@@ -42,6 +50,8 @@ import { TargetHealthIndicator } from './health/target-health.indicator';
     TargetDispatcherService,
     ThreadsPublisherHttpClient,
     TargetHealthIndicator,
+    BotsGatewaySenderPort,
+    GatewayBotMappingService,
   ],
 })
 export class TargetModule {}
