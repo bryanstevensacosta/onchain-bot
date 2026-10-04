@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- \*\*Origin-launchpad plumbing + Wave-1 seeds (dexter-launchpad Lane S,
+  `feat:`): `MarketDataSnapshot` gains optional `launchpad?
+{id,name,url}` (`market-data.client.ts`, shape-checked at the dexter
+  boundary via `toLaunchpadOrNull` — all three strings non-empty else
+  `null`, opaque JSON never reaches the renderer);
+  `TokenScanPipeline.toResolvedToken` passes it through to
+  `ResolvedToken.launchpad` (re-validated, JUP/HUMA team launches stay
+  `null`). DisplayMap seed catalog: 22 Wave-1 rows
+  (`launchpad/<id>/<emoji>`, §8 ratified set incl. swaps 👾/🪙/📥 —
+  no Bags row, no backlog gofundmeme/grafun/flap/daos rows) via the
+  existing `POST /api/dexter/display-maps` API only (operator-managed,
+  no hardcoded seeds; exact curl loop in
+  `.omo/notepads/dexter-launchpad-build.md`). Failing-first:
+  `market-data-client-launchpad.spec.ts` (CHALE verbatim + absent +
+  7 malformed → null) + `token-scan-launchpad.spec.ts` (CHALE
+  passthrough + JUP/HUMA null + malformed → null) + 2 mocked e2e in
+  `e2e/dexter-templates.spec.ts` (IconLink renders `[💊]
+(https://pump.fun/coin/…)`, null → empty, card intact).
+  (feat/mega-refactor-tramos)
+
 ### Changed
 
 - Gateway staging cutover (STAGING ONLY 2026-09-29, no prod touch): `.env.staging.template` fixes `BOTS_GATEWAY_URL` to the staging gateway `:4071` (was `:4070`, unreachable — the gateway staging container listens on `4071`); `DEXTER_SEND_MODE=gateway` already pinned. Plain-text lookups cut over; keyboard sends (`reply_markup`), `editMessageText` and `answerCallbackQuery` have no gateway equivalent and stay direct-only (markup dropped client-side, recorded as skipped). Rollback: `DEXTER_SEND_MODE=dual`.

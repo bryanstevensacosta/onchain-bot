@@ -5,9 +5,11 @@ import type { SolanaRpcConfig } from './solana-rpc.config';
 import { SOLANA_RPC_CONFIG } from './solana-rpc.config';
 import type {
   AccountInfoResult,
+  GetMultipleAccountsResult,
   GetTokenLargestAccountsResult,
   GetTokenSupplyResult,
   JsonRpcResponse,
+  SolanaAccountInfoValue,
   TokenAccountEntry,
 } from './solana-rpc.types';
 
@@ -101,6 +103,32 @@ export class SolanaRpcService extends DataProviderPort {
     return null;
   }
 
+  /**
+   * Batch account state via `getMultipleAccounts` (PDA-existence checks).
+   * One entry per requested address IN ORDER; a missing account stays
+   * an explicit `null` entry (callers map hits back to their candidates
+   * by index). `base64` encoding: pool/curve accounts exceed the 128
+   * decoded-byte ceiling the RPC enforces on `base58` data. Empty input
+   * returns `[]` with no RPC call. Transport failure on every URL
+   * returns `null` (whole-batch miss).
+   */
+  public async getMultipleAccounts(
+    addresses: ReadonlyArray<string>,
+  ): Promise<ReadonlyArray<SolanaAccountInfoValue | null> | null> {
+    if (addresses.length === 0) return [];
+    const rpcUrls = this.buildRpcUrls();
+    for (const url of rpcUrls) {
+      const result = await this.callRpc<GetMultipleAccountsResult>(
+        url,
+        'getMultipleAccounts',
+        [[...addresses], { encoding: 'base64', commitment: 'confirmed' }],
+      );
+      if (result === null) continue;
+      if (!Array.isArray(result.value)) continue;
+      return result.value as ReadonlyArray<SolanaAccountInfoValue | null>;
+    }
+    return null;
+  }
   private async callRpc<T>(
     rpcUrl: string,
     method: string,

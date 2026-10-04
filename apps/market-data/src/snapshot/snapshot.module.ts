@@ -20,6 +20,7 @@ import { SnapshotHistoryJanitorService } from './application/snapshot-history-ja
 import { HoldersModule } from '../holders/holders.module';
 import { AggregatorsModule } from 'aggregators/aggregators.module';
 import { AssetRegistryModule } from 'asset-registry/asset-registry.module';
+import { LaunchpadModule } from 'provider/launchpad/launchpad.module';
 import { SNAPSHOT_QUOTE_PROVIDERS } from './domain/snapshot-quote.types';
 import { buildProviderQuoteFetchers } from 'provider/infrastructure/quote-fetchers/provider-quote.fetchers';
 import { SnapshotHistoryEntity } from './infrastructure/snapshot-history.entity';
@@ -53,6 +54,7 @@ import { SnapshotHistoryRepository } from './infrastructure/snapshot-history.rep
     HoldersModule,
     AggregatorsModule,
     AssetRegistryModule,
+    LaunchpadModule,
     RateLimiterModule,
     ...(isDatabaseEnabled()
       ? [TypeOrmModule.forFeature([SnapshotHistoryEntity])]

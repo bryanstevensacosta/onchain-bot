@@ -27,11 +27,20 @@ export const MAX_MATCH_VALUE_LENGTH = 40;
 export const MIN_DISPLAY_LENGTH = 1;
 export const MAX_DISPLAY_LENGTH = 40;
 
+/**
+ * DisplayMap-only resolver dimension for launchpad emoji
+ * (dexter-launchpad, Lane R). NOT a template `{{key}}` — the
+ * renderer calls `resolve('launchpad', launchpad.id)`; rows arrive
+ * via API seeds (Lane S), e.g. (`launchpad`, `pump-fun`, `💊`).
+ */
+export const LAUNCHPAD_DISPLAY_KEY = 'launchpad';
+
 /** Every placeholder key a DisplayMap row may attach to (closed union). */
 export const DISPLAY_PLACEHOLDER_KEYS: readonly string[] = [
   ...BASE_TOKEN_PLACEHOLDERS,
   ...DERIVED_PLACEHOLDERS,
   TIMEFRAME_PLACEHOLDER,
+  LAUNCHPAD_DISPLAY_KEY,
 ];
 
 export class DisplayMapValidationError extends Error {

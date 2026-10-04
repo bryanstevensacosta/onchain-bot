@@ -24,6 +24,8 @@ import {
 } from '../domain/snapshot-quote.types';
 import { SnapshotAggregatorService } from 'aggregators/application/snapshot-aggregator.service';
 import { AggregationPolicyPort } from 'aggregators/domain/aggregation-policy.port';
+import { LaunchpadDetectorService } from 'provider/launchpad/application/launchpad-detector.service';
+import type { LaunchpadInfo } from 'provider/launchpad/domain/launchpad-info';
 import { SnapshotHistoryRepository } from '../infrastructure/snapshot-history.repository';
 import { applyOutboundRateLimit } from 'provider/infrastructure/quote-fetchers/rate-limited-fetchers';
 import { DevHoldingsPort } from '../../holders/domain/holdings.port';
@@ -70,6 +72,9 @@ export class AddressSnapshotService {
     private readonly policy: AggregationPolicyPort | null = null,
     @Optional()
     private readonly assets: AssetResolverService | null = null,
+    @Optional()
+    @Inject(LaunchpadDetectorService)
+    private readonly launchpad: LaunchpadDetectorService | null = null,
   ) {}
 
   private async resolveAssetId(
@@ -95,6 +100,18 @@ export class AddressSnapshotService {
       } catch {
         return null;
       }
+    }
+  }
+
+  private async resolveLaunchpad(
+    chain: string,
+    address: string,
+  ): Promise<LaunchpadInfo | null> {
+    if (this.launchpad === null || this.launchpad === undefined) return null;
+    try {
+      return await this.launchpad.detectLaunchpad(chain, address);
+    } catch {
+      return null;
     }
   }
 
@@ -156,6 +173,7 @@ export class AddressSnapshotService {
       input.value,
       gated,
     );
+    const launchpad = await this.resolveLaunchpad(known.id, input.value);
     for (const source of outcome.sources) {
       this.providers.recordSuccess(source, 0);
     }
@@ -187,6 +205,7 @@ export class AddressSnapshotService {
       key: id.key,
       status: outcome.allFailed && devWallets === null ? 'pending' : 'ready',
       assetId: await this.resolveAssetId(known.id, input.value, outcome.quote),
+      launchpad,
       providers: supporting,
       sources: outcome.sources,
       providerErrors,

@@ -9,6 +9,7 @@ import { RateLimiterModule } from 'rate-limiter/rate-limiter.module';
 import { AddressModule } from 'address/address.module';
 import { GatewayModule } from 'gateway/gateway.module';
 import { SNAPSHOT_QUOTE_PROVIDERS } from 'snapshot/domain/snapshot-quote.types';
+import { LaunchpadDetectorService } from 'provider/launchpad/application/launchpad-detector.service';
 
 const nullFetcher = {
   name: 'dexscreener',
@@ -47,6 +48,8 @@ describe('gateway addresses batch edge (todo 5)', () => {
     })
       .overrideProvider(SNAPSHOT_QUOTE_PROVIDERS)
       .useValue([nullFetcher])
+      .overrideProvider(LaunchpadDetectorService)
+      .useValue({ detectLaunchpad: async () => null })
       .compile();
     app = module.createNestApplication();
     app.useGlobalPipes(

@@ -55,6 +55,10 @@ export const DERIVED_PLACEHOLDERS: readonly string[] = [
   'geckoterminalUrl',
   'tradeHint',
   'devLine',
+  'launchpadText',
+  'launchpadTextLink',
+  'launchpadIcon',
+  'launchpadIconLink',
 ];
 
 /** Chart timeframe — valid ONLY inside `c`/`cc` bodies. */

@@ -28,6 +28,18 @@ export interface DevWalletView {
   readonly probable?: boolean;
 }
 
+/**
+ * Origin launchpad of a token (dexter-launchpad, Lane R). Produced by
+ * the market-data detector (Lane D); the renderer only consumes it.
+ * `null` = no launchpad detected (team launch) — all four derived
+ * keys render `""`. Canonical URL form: `pump.fun/coin/<mint>`.
+ */
+export interface LaunchpadInfo {
+  readonly id: string;
+  readonly name: string;
+  readonly url: string;
+}
+
 export interface ResolvedToken {
   readonly address: string;
   readonly chain: ChainIdentifier;
@@ -51,6 +63,7 @@ export interface ResolvedToken {
   readonly devPctSupply: number | null;
   readonly poolAddress: string | null;
   readonly source: 'market-data-http';
+  readonly launchpad?: LaunchpadInfo | null;
 }
 
 export interface ScanPipeline {

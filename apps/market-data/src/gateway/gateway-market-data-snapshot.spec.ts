@@ -9,6 +9,7 @@ import { RateLimiterModule } from 'rate-limiter/rate-limiter.module';
 import { AddressModule } from 'address/address.module';
 import { GatewayModule } from 'gateway/gateway.module';
 import { SNAPSHOT_QUOTE_PROVIDERS } from 'snapshot/domain/snapshot-quote.types';
+import { LaunchpadDetectorService } from 'provider/launchpad/application/launchpad-detector.service';
 
 const nullFetcher = {
   name: 'dexscreener',
@@ -43,6 +44,8 @@ describe('gateway market-data snapshot compat edge (todo 5)', () => {
     })
       .overrideProvider(SNAPSHOT_QUOTE_PROVIDERS)
       .useValue([nullFetcher])
+      .overrideProvider(LaunchpadDetectorService)
+      .useValue({ detectLaunchpad: async () => null })
       .compile();
     app = module.createNestApplication();
     app.useGlobalPipes(
@@ -86,6 +89,7 @@ describe('gateway market-data snapshot compat edge (todo 5)', () => {
     expect(res.body.chain).toBe('solana');
     expect(res.body.address).toBe(SOL.toLowerCase());
     expect(res.body.status).toBe('pending');
+    expect(res.body).toHaveProperty('launchpad', null);
   });
 
   it('second GET is a cache HIT (SLO layer)', async () => {
@@ -104,5 +108,59 @@ describe('gateway market-data snapshot compat edge (todo 5)', () => {
       '/api/market-data/snapshot?chain=nope&address=abc',
     );
     expect(res.status).toBe(404);
+  });
+});
+
+describe('gateway market-data snapshot launchpad plumbing (Lane D)', () => {
+  let app: INestApplication;
+
+  beforeAll(async () => {
+    const module = await Test.createTestingModule({
+      imports: [
+        ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }),
+        ChainModule,
+        ProviderModule,
+        CacheModule,
+        RateLimiterModule,
+        AddressModule,
+        GatewayModule,
+      ],
+    })
+      .overrideProvider(SNAPSHOT_QUOTE_PROVIDERS)
+      .useValue([nullFetcher])
+      .overrideProvider(LaunchpadDetectorService)
+      .useValue({
+        detectLaunchpad: async () => ({
+          id: 'pump-fun',
+          name: 'Pump.fun',
+          url: `https://pump.fun/coin/${SOL}`,
+        }),
+      })
+      .compile();
+    app = module.createNestApplication();
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    );
+    await app.init();
+  });
+
+  afterAll(async () => {
+    await app?.close();
+  });
+
+  it('exposes snapshot.launchpad from the detector (dexter contract)', async () => {
+    const res = await request(app.getHttpServer()).get(
+      `/api/market-data/snapshot?chain=solana&address=${SOL}`,
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.launchpad).toEqual({
+      id: 'pump-fun',
+      name: 'Pump.fun',
+      url: `https://pump.fun/coin/${SOL}`,
+    });
   });
 });

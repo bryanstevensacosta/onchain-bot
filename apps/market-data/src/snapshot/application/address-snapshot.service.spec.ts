@@ -2,6 +2,7 @@ import { Test } from '@nestjs/testing';
 import { ConfigModule } from '@nestjs/config';
 import { SnapshotModule } from '../snapshot.module';
 import { AddressSnapshotService } from './address-snapshot.service';
+import { LaunchpadDetectorService } from 'provider/launchpad/application/launchpad-detector.service';
 import { SNAPSHOT_QUOTE_PROVIDERS } from '../domain/snapshot-quote.types';
 
 const nullFetcher = {
@@ -22,6 +23,8 @@ describe('AddressSnapshotService (snapshot per kind)', () => {
     })
       .overrideProvider(SNAPSHOT_QUOTE_PROVIDERS)
       .useValue([nullFetcher])
+      .overrideProvider(LaunchpadDetectorService)
+      .useValue({ detectLaunchpad: async () => null })
       .compile();
     snapshots = module.get(AddressSnapshotService);
   });
