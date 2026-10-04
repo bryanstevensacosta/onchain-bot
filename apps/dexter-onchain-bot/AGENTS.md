@@ -496,6 +496,16 @@ todo 6 added 10 suites / 35 tests (±0 since); bare-address added
   `.omo/notepads/dexter-launchpad-r1.md` §§1-2 + §8 (source of truth;
   detector lives in market-data `src/provider/launchpad/`).
 
+- Number policy Rick-parity (plan todo 13): formatters emit NO `$`
+  (money → compact K/M/B trimmed `23.3K`/`7.9K`/`1.46B`; `priceUsd` →
+  adaptive `<1` full digits `0.00002434` / `>=1` grouped max-2 `3,457`;
+  percent → trimmed sign-only-when-negative `80%`/`-34.4%`, `-0` → `0%`;
+  counts unchanged; `N/A` on null). `$` is literal body text where a
+  style wants it (Proficy-style `MC: ${{marketCapUsd}}` → `$27.3K`;
+  Rick-style bodies carry none). Raw `$` is valid MarkdownV2 (not in
+  the reserved set — no escaping needed; the renderer escapes VALUES
+  only, bodies travel raw).
+
 - Holders + dev-wallet (2026-09-27, feat/mega-refactor-tramos):
   `ResolvedToken` carries `devWallets[]` + `devPctSupply` (market-data
   HTTP passthrough, null when absent). Full card renders a `Dev:` line

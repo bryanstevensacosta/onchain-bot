@@ -63,13 +63,83 @@ export class MessageFormatterAdapter {
     };
   }
 
+  /**
+   * Rick-parity number policy (plan todo 13, evidence
+   * `docs/examples-for-dexter/*` + https://docs.rick.bot/features/pricebot
+   * "Reading a token scan": `[2.3M/12%]`, `FDV: 2.3M`, `Liq: 234K`,
+   * `USD: 0.002345`, `Ether [3,457/-2.5%]`).
+   *
+   * One rule per metric, presentation layer only:
+   * - money (mc/fdv/liq/vol/ath) → compact K/M/B, NO `$` prefix
+   *   (`23.3K`, `7.9K`, `1.46B`, `752`); `$` lives in template bodies
+   *   as literal static text where a style wants it (Proficy-style).
+   * - price (`priceUsd` only) → adaptive: `<1` full significant
+   *   digits plain (`0.00002434`, never `$0.00`); `>=1` grouped
+   *   max-2 (`3,457`, `164.32`). Routed by the renderer, NOT via
+   *   `formatMoneyText` (other money fields keep the compact rule).
+   * - percent → 1-decimal-trimmed, sign ONLY when negative
+   *   (`80%`, `-34.4%`, never `+`; `-0` normalizes to `0%`).
+   * - counts → `formatNumberText`, unchanged.
+   * - `N/A` on null, unchanged.
+   *
+   * Shared helper: `trimFixed` = `toFixed(n)` with trailing zeros
+   * (and a dangling dot) stripped; `-0` normalizes to `0`.
+   * Money keeps up to 2 decimals so evidence values render verbatim
+   * (`30.22K`, `1.46B`) while 1-decimal evidence is untouched
+   * (`23.3K`, `7.9K`); percent is strictly 1-decimal per the ticket.
+   */
+  private static trimFixed(value: number, maxDecimals: number): string {
+    let text = value.toFixed(maxDecimals);
+    if (text.includes('.')) {
+      text = text.replace(/0+$/, '').replace(/\.$/, '');
+    }
+    if (text === '-0') return '0';
+    return text;
+  }
+
   public static formatMoneyText(value: number | null): string {
     if (value === null || value === undefined) return 'N/A';
-    if (value >= 1_000_000_000)
-      return `$${(value / 1_000_000_000).toFixed(2)}B`;
-    if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`;
-    if (value >= 1_000) return `$${(value / 1_000).toFixed(2)}K`;
-    return `$${value.toFixed(2)}`;
+    const sign = value < 0 ? '-' : '';
+    const abs = Math.abs(value);
+    if (abs >= 1_000_000_000)
+      return `${sign}${MessageFormatterAdapter.trimFixed(abs / 1_000_000_000, 2)}B`;
+    if (abs >= 1_000_000)
+      return `${sign}${MessageFormatterAdapter.trimFixed(abs / 1_000_000, 2)}M`;
+    if (abs >= 1_000)
+      return `${sign}${MessageFormatterAdapter.trimFixed(abs / 1_000, 2)}K`;
+    return `${sign}${MessageFormatterAdapter.trimFixed(abs, 2)}`;
+  }
+
+  /**
+   * Adaptive price rule for `priceUsd` (fixes the live `$0.00`-for-dust
+   * bug: dust used to flow through `formatMoneyText`). `<1` renders
+   * the shortest round-trip digits plain (exponent form expanded,
+   * never scientific); `>=1` renders grouped with max 2 decimals.
+   */
+  public static formatPriceText(value: number | null): string {
+    if (value === null || value === undefined) return 'N/A';
+    if (value === 0) return '0';
+    const abs = Math.abs(value);
+    if (abs < 1) {
+      const raw = String(abs);
+      const plain = raw.includes('e')
+        ? MessageFormatterAdapter.expandExponential(raw)
+        : raw;
+      return `${value < 0 ? '-' : ''}${plain}`;
+    }
+    return value.toLocaleString('en-US', { maximumFractionDigits: 2 });
+  }
+
+  private static expandExponential(raw: string): string {
+    const [coeff, expPart] = raw.toLowerCase().split('e');
+    const exponent = parseInt(expPart, 10);
+    const [intPart, fracPart = ''] = coeff.split('.');
+    const digits = `${intPart}${fracPart}`;
+    const point = intPart.length + exponent;
+    if (point <= 0) return `0.${'0'.repeat(-point)}${digits}`;
+    if (point >= digits.length)
+      return `${digits}${'0'.repeat(point - digits.length)}`;
+    return `${digits.slice(0, point)}.${digits.slice(point)}`;
   }
 
   public static formatNumberText(value: number | null): string {
@@ -81,8 +151,9 @@ export class MessageFormatterAdapter {
 
   public static formatPercentText(value: number | null): string {
     if (value === null || value === undefined) return 'N/A';
-    const sign = value >= 0 ? '+' : '';
-    return `${sign}${value.toFixed(2)}%`;
+    const magnitude = MessageFormatterAdapter.trimFixed(Math.abs(value), 1);
+    if (magnitude === '0') return '0%';
+    return `${value < 0 ? '-' : ''}${magnitude}%`;
   }
 
   public static formatDevLine(tokenInfo: ResolvedToken): string {
@@ -157,7 +228,7 @@ export class MessageFormatterAdapter {
     const header = `🔍 *$${symbol}* \\| ${name} — ${chain}`;
     const contract = `\`${tokenInfo.address}\``;
     const priceLine =
-      `💰 ${this.formatMoneyV2(tokenInfo.priceUsd)} ` +
+      `💰 ${this.formatPriceV2(tokenInfo.priceUsd)} ` +
       `\\(${this.formatPercentV2(tokenInfo.priceChange24h)}\\) ` +
       `• MC ${this.formatMoneyV2(tokenInfo.marketCapUsd)} ` +
       `• Liq ${this.formatMoneyV2(tokenInfo.liquidityUsd)}`;
@@ -209,6 +280,12 @@ export class MessageFormatterAdapter {
     return MessageFormatterAdapter.escapeV2(this.formatMoney(value));
   }
 
+  private formatPriceV2(value: number | null): string {
+    return MessageFormatterAdapter.escapeV2(
+      MessageFormatterAdapter.formatPriceText(value),
+    );
+  }
+
   private formatNumberV2(value: number | null): string {
     return MessageFormatterAdapter.escapeV2(this.formatNumber(value));
   }
@@ -242,7 +319,7 @@ export class MessageFormatterAdapter {
     const header = `💊 $${this.escapeMarkdown(tokenInfo.symbol)} | ${this.escapeMarkdown(tokenInfo.name)}`;
     const mc = this.formatMoney(tokenInfo.marketCapUsd);
     const fdv = this.formatMoney(tokenInfo.fdvUsd);
-    const price = this.formatMoney(tokenInfo.priceUsd);
+    const price = this.formatPrice(tokenInfo.priceUsd);
     const priceChange = this.formatPercent(tokenInfo.priceChange24h);
     const liq = this.formatMoney(tokenInfo.liquidityUsd);
     const vol = this.formatMoney(tokenInfo.volume24hUsd);
@@ -271,7 +348,7 @@ ${devSection}`;
 
   private formatCompact(tokenInfo: ResolvedToken): string {
     const header = `💊 $${this.escapeMarkdown(tokenInfo.symbol)} | ${this.escapeMarkdown(tokenInfo.name)}`;
-    const price = this.formatMoney(tokenInfo.priceUsd);
+    const price = this.formatPrice(tokenInfo.priceUsd);
     const priceChange = this.formatPercent(tokenInfo.priceChange24h);
     const mc = this.formatMoney(tokenInfo.marketCapUsd);
 
@@ -289,6 +366,10 @@ ${devSection}`;
 
   private formatMoney(value: number | null): string {
     return MessageFormatterAdapter.formatMoneyText(value);
+  }
+
+  private formatPrice(value: number | null): string {
+    return MessageFormatterAdapter.formatPriceText(value);
   }
 
   private formatPercent(value: number | null): string {

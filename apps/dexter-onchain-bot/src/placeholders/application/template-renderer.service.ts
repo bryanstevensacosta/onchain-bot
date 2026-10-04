@@ -171,6 +171,15 @@ export class TemplateRendererService {
   private resolveValue(key: string, values: TemplateValues): string {
     const esc = (text: string): string =>
       MessageFormatterAdapter.escapeV2Text(text);
+    // `priceUsd` rides the adaptive price rule (dust renders full
+    // digits, never `$0.00`); every other money key keeps compact K/M/B.
+    if (key === 'priceUsd') {
+      return esc(
+        MessageFormatterAdapter.formatPriceText(
+          (values as Record<string, number | null>)[key] ?? null,
+        ),
+      );
+    }
     if (MONEY_KEYS.includes(key)) {
       return esc(
         MessageFormatterAdapter.formatMoneyText(

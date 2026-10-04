@@ -23,8 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   byte-identical legacy. No Mini App, no auto-trading, no new
   callbacks.
 
-- **Bot identity via bound-vault profile (plan todo 12):**
-  `BotIdentityService` resolves the primary source from
+- **Bot identity via bound-vault profile (plan todo 12):** `BotIdentityService` resolves the primary source from
   `GET /api/bots/:id/profile` (`username`) against the bound vault
   (existing local `'dexter'` mapping + `DEXTER_BOT_VAULT_ID`
   fallback, same order as the sender; unmapped → zero network) —
@@ -33,6 +32,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The todo-11 inventory probe is deleted (rows carry no `username`
   by design). No gateway changes (existing `send`-scope endpoint);
   avatar ignored. `BOT_USERNAME` behavior unchanged (still 3rd).
+
+- **Rick-parity number policy (plan todo 13):** formatters emit NO
+  `$` (money → compact K/M/B trimmed `23.3K`/`7.9K`/`1.46B`;
+  `priceUsd` → adaptive `<1` full digits `0.00002434` / `>=1`
+  grouped max-2 `3,457`, fixing the live `$0.00`-for-dust bug via a
+  renderer `priceUsd` special-case); percent → trimmed,
+  sign-only-when-negative (`80%`, `-34.4%`, `-0` → `0%`); counts
+  unchanged; `N/A` on null. `$` is literal body text where a style
+  wants it (Proficy `$27.3K`, KOLscope `$30.22K` via `${{…}}`;
+  Rick-style seeds carry none — zero seed-body edits, existing DB
+  rows untouched). Catalog `PLACEHOLDER_META` examples updated to
+  the new outputs.
 
 - \*\*Origin-launchpad plumbing + Wave-1 seeds (dexter-launchpad Lane S,
   `feat:`): `MarketDataSnapshot` gains optional `launchpad?

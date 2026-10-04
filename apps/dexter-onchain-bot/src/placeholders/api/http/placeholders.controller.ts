@@ -29,18 +29,18 @@ const PLACEHOLDER_META: Record<string, Omit<PlaceholderDescriptor, 'key'>> = {
     nullable: false,
     example: 'So11111111111111111111111111111111111111112',
   },
-  priceUsd: { type: 'money', nullable: true, example: '$164.32' },
+  priceUsd: { type: 'money', nullable: true, example: '164.32' },
   priceChange24h: { type: 'percent', nullable: true, example: '2.5%' },
-  marketCapUsd: { type: 'money', nullable: true, example: '$80.0B' },
-  fdvUsd: { type: 'money', nullable: true, example: '$95.0B' },
-  liquidityUsd: { type: 'money', nullable: true, example: '$12.0M' },
+  marketCapUsd: { type: 'money', nullable: true, example: '80B' },
+  fdvUsd: { type: 'money', nullable: true, example: '95B' },
+  liquidityUsd: { type: 'money', nullable: true, example: '12M' },
   lockedLiquidityPercent: {
     type: 'percent',
     nullable: true,
     example: '80%',
   },
   burnedPercent: { type: 'percent', nullable: true, example: '5%' },
-  volume24hUsd: { type: 'money', nullable: true, example: '$2.5B' },
+  volume24hUsd: { type: 'money', nullable: true, example: '2.5B' },
   holders: { type: 'number', nullable: true, example: '1200000' },
   top10HolderPercent: {
     type: 'percent',
@@ -50,7 +50,7 @@ const PLACEHOLDER_META: Record<string, Omit<PlaceholderDescriptor, 'key'>> = {
   top20HolderPercent: {
     type: 'percent',
     nullable: true,
-    example: '18.75%',
+    example: '18.8%',
   },
   totalSupply: { type: 'number', nullable: true, example: '600000000' },
   circulatingSupply: {
@@ -59,7 +59,7 @@ const PLACEHOLDER_META: Record<string, Omit<PlaceholderDescriptor, 'key'>> = {
     example: '480000000',
   },
   maxSupply: { type: 'number', nullable: true, example: 'N/A' },
-  devPctSupply: { type: 'percent', nullable: true, example: '1.25%' },
+  devPctSupply: { type: 'percent', nullable: true, example: '1.3%' },
   devWallets: {
     type: 'array',
     nullable: true,
