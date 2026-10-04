@@ -7,6 +7,7 @@ import {
   placeholdersFor,
 } from '../domain/placeholder-registry';
 import type { TemplateCommand } from '../domain/placeholder-registry';
+import { chainNameOf, resolveVenueTexts } from '../domain/venue-display';
 
 export const TEMPLATE_MAX_LENGTH = 4096;
 
@@ -165,7 +166,9 @@ export class TemplateRendererService {
   public static cleanupDanglingSeparators(text: string): string {
     return text
       .replace(/[ \t]*[•|][ \t]*(?=\n|$)/g, '')
-      .replace(/(^|\n)[ \t]*[•|][ \t]*/g, '$1');
+      .replace(/(^|\n)[ \t]*[•|][ \t]*/g, '$1')
+      .replace(/^[ \t]*[^@\n]*[ \t]@[ \t]*(?=\n|$)/gm, '')
+      .replace(/(^|\n)[ \t]*@[ \t]+/g, '$1');
   }
 
   private resolveValue(key: string, values: TemplateValues): string {
@@ -296,6 +299,23 @@ export class TemplateRendererService {
           typeof values.address === 'string' ? values.address : '';
         if (!username || !isBotStartPayload(address)) return '';
         return `https://t.me/${username}?start=${address}`;
+      }
+      case 'chainName': {
+        return esc(
+          chainNameOf(typeof values.chain === 'string' ? values.chain : null),
+        );
+      }
+      case 'venue':
+      case 'venueTech':
+      case 'venueLine': {
+        const texts = resolveVenueTexts(values.launchpad, values.venue);
+        const text =
+          key === 'venue'
+            ? texts.venue
+            : key === 'venueTech'
+              ? texts.tech
+              : texts.venueLine;
+        return text === '' ? '' : esc(text);
       }
       default: {
         return '';

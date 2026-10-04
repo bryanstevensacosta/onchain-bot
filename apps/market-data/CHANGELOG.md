@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Snapshot DEX venue for the dexter venue-line (plan todo 14):**
+  `DexScreenerPairSummary` carries the best-pair `labels` (was
+  already returning `dexId` — labels were dropped at the summary
+  seam); `AddressSnapshot` gains live-resolved `venue?
+{dexId, labels}` (same lifecycle as `launchpad`: resolved per call
+  via the injected `DexScreenerService`, never persisted to history,
+  never throws) and the compat edge `GET /api/market-data/snapshot`
+  exposes it. Coexists with `launchpad` — the two resolve
+  independently and are never mixed.
+
 - **Birdeye WS realtime as the stream/ DEX source:** new
   `BirdeyeWsAdapter` in `src/provider/infrastructure/birdeye/`
   (`birdeye-ws.client.ts` + `birdeye-ws.types.ts`) speaking the

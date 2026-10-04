@@ -1,6 +1,7 @@
 import { AddressKind } from 'address/domain/address-kind';
 import { AddressProbe } from 'address/domain/address-probe.port';
 import type { LaunchpadInfo } from 'provider/launchpad/domain/launchpad-info';
+import type { SnapshotVenue } from './snapshot-venue';
 import type { SnapshotQuote } from './snapshot-quote.types';
 
 /**
@@ -35,6 +36,14 @@ export interface AddressSnapshot extends SnapshotQuote {
    * never persisted to history, never throws into the snapshot.
    */
   readonly launchpad: LaunchpadInfo | null;
+  /**
+   * DEX venue of the best-liquidity pair (dexter venue-line, plan
+   * todo 14): `{ dexId, labels }` or `null` when dexscreener has no
+   * pair. Resolved live per call, never persisted to history, never
+   * throws into the snapshot. Coexists with `launchpad` — the two
+   * are detected independently and never mixed.
+   */
+  readonly venue: SnapshotVenue | null;
   readonly providers: ReadonlyArray<string>;
   /** Registry-order names that contributed at least one quote field. */
   readonly sources: ReadonlyArray<string>;

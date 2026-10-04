@@ -9,6 +9,7 @@ import { RateLimiterModule } from 'rate-limiter/rate-limiter.module';
 import { GatewayModule } from 'gateway/gateway.module';
 import { SNAPSHOT_QUOTE_PROVIDERS } from 'snapshot/domain/snapshot-quote.types';
 import { LaunchpadDetectorService } from 'provider/launchpad/application/launchpad-detector.service';
+import { DexScreenerService } from 'provider/infrastructure/dexscreener';
 
 const nullFetcher = {
   name: 'dexscreener',
@@ -41,6 +42,8 @@ describe('gateway token snapshot shell (P43)', () => {
       .useValue([nullFetcher])
       .overrideProvider(LaunchpadDetectorService)
       .useValue({ detectLaunchpad: async () => null })
+      .overrideProvider(DexScreenerService)
+      .useValue({ getBestPairSummary: async () => null })
       .compile();
     app = module.createNestApplication();
     await app.init();

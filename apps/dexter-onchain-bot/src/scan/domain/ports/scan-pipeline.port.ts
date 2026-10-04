@@ -40,6 +40,17 @@ export interface LaunchpadInfo {
   readonly url: string;
 }
 
+/**
+ * DEX venue of the best-liquidity pair (dexter venue-line, plan
+ * todo 14). Produced by market-data from the dexscreener best pair;
+ * the renderer only consumes it. `null` = no pair known — the tech
+ * side of every venue key renders `""`.
+ */
+export interface VenueInfo {
+  readonly dexId: string;
+  readonly labels: ReadonlyArray<string>;
+}
+
 export interface ResolvedToken {
   readonly address: string;
   readonly chain: ChainIdentifier;
@@ -64,6 +75,7 @@ export interface ResolvedToken {
   readonly poolAddress: string | null;
   readonly source: 'market-data-http';
   readonly launchpad?: LaunchpadInfo | null;
+  readonly venue?: VenueInfo | null;
 }
 
 export interface ScanPipeline {

@@ -311,6 +311,7 @@ export class DexScreenerService extends DataProviderPort {
     return {
       pairAddress: best.pairAddress,
       dexId: best.dexId,
+      labels: [...(best.labels ?? [])],
       baseToken: { ...best.baseToken },
       priceUsd: best.priceUsd,
       priceNative: best.priceNative,

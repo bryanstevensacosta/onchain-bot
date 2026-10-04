@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- \*\*Origin-aware venue line `{{chainName}}` + `{{venue}}` +
+  `{{venueTech}}` + `{{venueLine}}` (plan todo 14): market-data
+  exposes `snapshot.venue? {dexId, labels}` (live from the
+  dexscreener best pair — `dexId` was already returned, `labels`
+  added — resolved per call, never persisted, coexists with
+  `launchpad`); dexter maps it shape-checked (`toVenueOrNull`) and
+  passes it to `ResolvedToken.venue?` (re-validated at the pipeline
+  boundary). Renderer: `chainName` from a code table (unlisted →
+  `""`), `venue` prefers the launchpad name (no DEX hybrids),
+  `venueTech` always `DexDisplay + labels` (uppercased, table +
+  capitalize-first default), `venueLine` closed 4-branch (`<Origin>
+via <Tech>` / origin / tech / `""`). Dangling-`@` cleanup joins the
+  `•`/`|` family (`Solana @ ` → `""`, ` @ X` → `X`). Deliberate
+  Conway deviation: origin-known renders the origin (`Bankr`) where
+  Rick shows the tech (`Clanker V4`). `dexId` (`meteoradbc`) never
+  feeds `launchpad.id` (`meteora-dbc`) — separate tables, spec-pinned.
+
 - \*\*Bot deep-link `{{botStartAddressLink}}` + `/start <payload>`
   (plan todo 11, hybrid white-label design): new generic `BOT_USERNAME`
   env (no prefix, one value per env, `^[A-Za-z0-9_]{5,}$`, empty

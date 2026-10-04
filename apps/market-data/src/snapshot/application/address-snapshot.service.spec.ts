@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { SnapshotModule } from '../snapshot.module';
 import { AddressSnapshotService } from './address-snapshot.service';
 import { LaunchpadDetectorService } from 'provider/launchpad/application/launchpad-detector.service';
+import { DexScreenerService } from 'provider/infrastructure/dexscreener';
 import { SNAPSHOT_QUOTE_PROVIDERS } from '../domain/snapshot-quote.types';
 
 const nullFetcher = {
@@ -25,6 +26,8 @@ describe('AddressSnapshotService (snapshot per kind)', () => {
       .useValue([nullFetcher])
       .overrideProvider(LaunchpadDetectorService)
       .useValue({ detectLaunchpad: async () => null })
+      .overrideProvider(DexScreenerService)
+      .useValue({ getBestPairSummary: async () => null })
       .compile();
     snapshots = module.get(AddressSnapshotService);
   });

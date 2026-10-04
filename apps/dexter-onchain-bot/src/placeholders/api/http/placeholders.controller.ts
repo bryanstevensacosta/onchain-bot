@@ -113,6 +113,14 @@ const PLACEHOLDER_META: Record<string, Omit<PlaceholderDescriptor, 'key'>> = {
     nullable: true,
     example: '[💊](https://pump.fun/coin/…)',
   },
+  chainName: { type: 'derived', nullable: false, example: 'Solana' },
+  venue: { type: 'derived', nullable: true, example: 'LaunchLab' },
+  venueTech: { type: 'derived', nullable: true, example: 'Raydium' },
+  venueLine: {
+    type: 'derived',
+    nullable: true,
+    example: 'LaunchLab via Raydium',
+  },
   timeframe: { type: 'string', nullable: true, example: '5m' },
   botStartAddressLink: {
     type: 'url',
@@ -129,8 +137,8 @@ export interface PlaceholdersView {
 /**
  * Placeholder catalog (`GET /api/dexter/placeholders/:command`).
  *
- * Metadata-only read of the closed registry vocabulary: 33 keys for
- * `ca|x|z|bare`, 34 for `c|cc` (`timeframe` ONLY there). No
+ * Metadata-only read of the closed registry vocabulary: 37 keys for
+ * `ca|x|z|bare`, 38 for `c|cc` (`timeframe` ONLY there). No
  * persistence, no pipeline, no sends. Unknown command → 404.
  *
  * v1 sin auth como /dexter/token — same unauthenticated regime as the

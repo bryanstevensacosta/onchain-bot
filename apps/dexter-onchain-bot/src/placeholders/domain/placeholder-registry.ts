@@ -60,6 +60,10 @@ export const DERIVED_PLACEHOLDERS: readonly string[] = [
   'launchpadIcon',
   'launchpadIconLink',
   'botStartAddressLink',
+  'chainName',
+  'venue',
+  'venueTech',
+  'venueLine',
 ];
 
 /** Chart timeframe — valid ONLY inside `c`/`cc` bodies. */

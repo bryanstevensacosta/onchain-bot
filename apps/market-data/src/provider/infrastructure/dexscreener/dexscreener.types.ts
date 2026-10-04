@@ -123,6 +123,13 @@ export interface DexScreenerMeta {
 export interface DexScreenerPairSummary {
   readonly pairAddress: string;
   readonly dexId: string;
+  /**
+   * Raw pair labels from the best-liquidity pair (dexter venue-line,
+   * plan todo 14): e.g. `['v3']` (PancakeSwap), `['wp']` (Orca
+   * whirlpool). Empty when the pair carries none — never null, so the
+   * snapshot venue resolver can pass them through verbatim.
+   */
+  readonly labels: ReadonlyArray<string>;
   readonly baseToken: {
     readonly address: string;
     readonly name: string;

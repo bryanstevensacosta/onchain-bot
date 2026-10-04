@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import {
   MarketDataClient,
   toLaunchpadOrNull,
+  toVenueOrNull,
   type MarketDataSnapshot,
 } from '@/scan/infrastructure/market-data/market-data.client';
 import {
@@ -178,6 +179,7 @@ export class TokenScanPipeline implements ScanPipeline {
       }> | null;
       readonly devPctSupply?: number | null;
       readonly launchpad?: unknown;
+      readonly venue?: unknown;
     },
   ): ResolvedToken {
     return {
@@ -204,6 +206,7 @@ export class TokenScanPipeline implements ScanPipeline {
       poolAddress: null,
       source: 'market-data-http',
       launchpad: toLaunchpadOrNull(snapshot.launchpad),
+      venue: toVenueOrNull(snapshot.venue),
     };
   }
 }

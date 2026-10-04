@@ -522,3 +522,21 @@ todo 6 added 10 suites / 35 tests (±0 since); bare-address added
 - Staging/prod compose + env templates are DRY-RUN (no deploy workflow,
   nothing applied to Oracle — operator confirms paths/ports with lsof).
 - `.kiro/` left alone per task constraint.
+
+- Origin-aware venue line (plan todo 14): 4 renderer keys on every
+  command — `chainName` (code table: solana→Solana, ethereum→Ethereum,
+  bnb→BNB, base→Base, arbitrum→Arbitrum, polygon→Polygon,
+  robinhood→Robinhood, unichain→Unichain; unlisted → `""`, never the
+  raw slug), `venue` (launchpad known → its `name`, ignoring the DEX
+  display entirely — no hybrids; else `DexDisplay + labels`),
+  `venueTech` (always `DexDisplay + labels`, no origin override),
+  `venueLine` (closed 4-branch: origin+tech-different → `<Origin> via
+<Tech>`, origin-only → origin, tech-only → tech, none → `""`).
+  `MarketDataSnapshot.venue? {dexId, labels}` (client shape-checked via
+  `toVenueOrNull`) → `ResolvedToken.venue?` (pipeline re-validated,
+  same double-validation as `launchpad`). `dexId` (`meteoradbc`) and
+  `launchpad.id` (`meteora-dbc`) live in separate tables and are never
+  mixed. Conway deviation (deliberate, pinned in `venue-display.ts`):
+  origin-known tokens render the origin (`Bankr`) where Rick shows the
+  tech (`Clanker V4`) — we know the origin via the detector, Rick only
+  sees the DEX.

@@ -26,6 +26,8 @@ import { SnapshotAggregatorService } from 'aggregators/application/snapshot-aggr
 import { AggregationPolicyPort } from 'aggregators/domain/aggregation-policy.port';
 import { LaunchpadDetectorService } from 'provider/launchpad/application/launchpad-detector.service';
 import type { LaunchpadInfo } from 'provider/launchpad/domain/launchpad-info';
+import { DexScreenerService } from 'provider/infrastructure/dexscreener';
+import { toVenueOrNull, type SnapshotVenue } from '../domain/snapshot-venue';
 import { SnapshotHistoryRepository } from '../infrastructure/snapshot-history.repository';
 import { applyOutboundRateLimit } from 'provider/infrastructure/quote-fetchers/rate-limited-fetchers';
 import { DevHoldingsPort } from '../../holders/domain/holdings.port';
@@ -75,6 +77,9 @@ export class AddressSnapshotService {
     @Optional()
     @Inject(LaunchpadDetectorService)
     private readonly launchpad: LaunchpadDetectorService | null = null,
+    @Optional()
+    @Inject(DexScreenerService)
+    private readonly dexscreener: DexScreenerService | null = null,
   ) {}
 
   private async resolveAssetId(
@@ -110,6 +115,19 @@ export class AddressSnapshotService {
     if (this.launchpad === null || this.launchpad === undefined) return null;
     try {
       return await this.launchpad.detectLaunchpad(chain, address);
+    } catch {
+      return null;
+    }
+  }
+
+  private async resolveVenue(address: string): Promise<SnapshotVenue | null> {
+    if (this.dexscreener === null || this.dexscreener === undefined) {
+      return null;
+    }
+    try {
+      const best = await this.dexscreener.getBestPairSummary(address);
+      if (best === null) return null;
+      return toVenueOrNull({ dexId: best.dexId, labels: best.labels });
     } catch {
       return null;
     }
@@ -174,6 +192,7 @@ export class AddressSnapshotService {
       gated,
     );
     const launchpad = await this.resolveLaunchpad(known.id, input.value);
+    const venue = await this.resolveVenue(input.value);
     for (const source of outcome.sources) {
       this.providers.recordSuccess(source, 0);
     }
@@ -206,6 +225,7 @@ export class AddressSnapshotService {
       status: outcome.allFailed && devWallets === null ? 'pending' : 'ready',
       assetId: await this.resolveAssetId(known.id, input.value, outcome.quote),
       launchpad,
+      venue,
       providers: supporting,
       sources: outcome.sources,
       providerErrors,
