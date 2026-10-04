@@ -120,12 +120,25 @@ export class AddressSnapshotService {
     }
   }
 
-  private async resolveVenue(address: string): Promise<SnapshotVenue | null> {
+  /**
+   * Strict per-chain venue (plan todo 18): the snapshot ALWAYS
+   * carries an explicit chain, so the venue resolves through the
+   * chain-scoped summary — never the cross-chain best pair. Chain
+   * with no pair (or no slug mapping) resolves `null`; the renderer
+   * already renders that as empty.
+   */
+  private async resolveVenue(
+    chain: string,
+    address: string,
+  ): Promise<SnapshotVenue | null> {
     if (this.dexscreener === null || this.dexscreener === undefined) {
       return null;
     }
     try {
-      const best = await this.dexscreener.getBestPairSummary(address);
+      const best = await this.dexscreener.getBestPairSummaryForChain(
+        chain,
+        address,
+      );
       if (best === null) return null;
       return toVenueOrNull({ dexId: best.dexId, labels: best.labels });
     } catch {
@@ -192,7 +205,7 @@ export class AddressSnapshotService {
       gated,
     );
     const launchpad = await this.resolveLaunchpad(known.id, input.value);
-    const venue = await this.resolveVenue(input.value);
+    const venue = await this.resolveVenue(known.id, input.value);
     // FDV ATH is strictly historical: read BEFORE the current row is
     // persisted, so cold-start (no history) resolves null and the
     // in-flight FDV is never substituted as ATH (spec-pinned).

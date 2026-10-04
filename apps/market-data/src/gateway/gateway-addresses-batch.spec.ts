@@ -52,7 +52,10 @@ describe('gateway addresses batch edge (todo 5)', () => {
       .overrideProvider(LaunchpadDetectorService)
       .useValue({ detectLaunchpad: async () => null })
       .overrideProvider(DexScreenerService)
-      .useValue({ getBestPairSummary: async () => null })
+      .useValue({
+        getBestPairSummary: async () => null,
+        getBestPairSummaryForChain: async () => null,
+      })
       .compile();
     app = module.createNestApplication();
     app.useGlobalPipes(

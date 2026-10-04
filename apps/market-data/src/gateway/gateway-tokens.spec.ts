@@ -43,7 +43,10 @@ describe('gateway token snapshot shell (P43)', () => {
       .overrideProvider(LaunchpadDetectorService)
       .useValue({ detectLaunchpad: async () => null })
       .overrideProvider(DexScreenerService)
-      .useValue({ getBestPairSummary: async () => null })
+      .useValue({
+        getBestPairSummary: async () => null,
+        getBestPairSummaryForChain: async () => null,
+      })
       .compile();
     app = module.createNestApplication();
     await app.init();

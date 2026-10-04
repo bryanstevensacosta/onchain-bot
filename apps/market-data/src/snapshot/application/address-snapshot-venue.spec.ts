@@ -31,7 +31,8 @@ async function buildService(
     .useValue({ detectLaunchpad: async () => null })
     .overrideProvider(DexScreenerService)
     .useValue({
-      getBestPairSummary: async () => (bestPair === null ? null : bestPair),
+      getBestPairSummaryForChain: async () =>
+        bestPair === null ? null : bestPair,
     })
     .compile();
   return module.get(AddressSnapshotService);

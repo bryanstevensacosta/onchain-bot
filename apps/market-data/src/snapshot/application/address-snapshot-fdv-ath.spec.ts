@@ -150,7 +150,10 @@ describe('AddressSnapshotService fdvAth plumbing (dexter fdv-ath)', () => {
       .overrideProvider(LaunchpadDetectorService)
       .useValue({ detectLaunchpad: async () => null })
       .overrideProvider(DexScreenerService)
-      .useValue({ getBestPairSummary: async () => null })
+      .useValue({
+        getBestPairSummary: async () => null,
+        getBestPairSummaryForChain: async () => null,
+      })
       .compile();
     return {
       snapshots: module.get(AddressSnapshotService),

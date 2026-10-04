@@ -27,7 +27,10 @@ describe('AddressSnapshotService (snapshot per kind)', () => {
       .overrideProvider(LaunchpadDetectorService)
       .useValue({ detectLaunchpad: async () => null })
       .overrideProvider(DexScreenerService)
-      .useValue({ getBestPairSummary: async () => null })
+      .useValue({
+        getBestPairSummary: async () => null,
+        getBestPairSummaryForChain: async () => null,
+      })
       .compile();
     snapshots = module.get(AddressSnapshotService);
   });

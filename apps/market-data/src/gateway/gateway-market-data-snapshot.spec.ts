@@ -48,7 +48,10 @@ describe('gateway market-data snapshot compat edge (todo 5)', () => {
       .overrideProvider(LaunchpadDetectorService)
       .useValue({ detectLaunchpad: async () => null })
       .overrideProvider(DexScreenerService)
-      .useValue({ getBestPairSummary: async () => null })
+      .useValue({
+        getBestPairSummary: async () => null,
+        getBestPairSummaryForChain: async () => null,
+      })
       .compile();
     app = module.createNestApplication();
     app.useGlobalPipes(
@@ -142,7 +145,7 @@ describe('gateway market-data snapshot launchpad plumbing (Lane D)', () => {
       })
       .overrideProvider(DexScreenerService)
       .useValue({
-        getBestPairSummary: async () => ({
+        getBestPairSummaryForChain: async () => ({
           pairAddress: 'pair1',
           dexId: 'raydium',
           labels: ['CLMM'],

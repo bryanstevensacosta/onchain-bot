@@ -18,6 +18,36 @@ import type {
 const BASE = 'https://api.dexscreener.com';
 
 /**
+ * Our chain id -> DexScreener `token-pairs/v1` slug (chain-honest
+ * snapshots, plan todo 18).
+ *
+ * Verified live 2026-10-04 against
+ * `GET /token-pairs/v1/<slug>/0xFf81…8583d6`: every mapped slug
+ * answers 200 with a JSON array (14 pairs for `base`, `[]` for the
+ * rest — honest empties, never cross-chain). Any chain WITHOUT an
+ * entry here resolves `null` WITHOUT touching the network — never a
+ * silent cross-chain fallback (e.g. `robinhood`, `unichain`, future
+ * chains). Slugs are DexScreener's, not ours (`bsc`, not `bnb`).
+ */
+export const DEXSCREENER_CHAIN_SLUGS: Readonly<Record<string, string>> = {
+  ethereum: 'ethereum',
+  solana: 'solana',
+  bsc: 'bsc',
+  base: 'base',
+  arbitrum: 'arbitrum',
+  polygon: 'polygon',
+};
+
+/**
+ * Resolve our chain id to its DexScreener slug, or `null` when the
+ * chain has no mapping (honest null — the caller must NOT fall back
+ * to a cross-chain query).
+ */
+export function resolveDexScreenerSlug(chain: string): string | null {
+  return DEXSCREENER_CHAIN_SLUGS[chain] ?? null;
+}
+
+/**
  * DexScreener market data provider — free, no API key required.
  *
  * Covers 80+ DEXes across 40+ chains. Primary source for:
@@ -116,18 +146,32 @@ export class DexScreenerService extends DataProviderPort {
   }
 
   /**
-   * Get token pairs for a specific chain.
+   * Get token pairs for a specific chain (chain-honest path).
+   *
+   * Live shape (verified 2026-10-04): the endpoint answers a bare
+   * JSON array of pairs (`[]` when the chain has none) — NOT the
+   * `{ pairs }` envelope of the `/latest/dex/*` family. Both shapes
+   * are accepted; anything else resolves `null`.
    */
   public async getPairsByChain(
     chainId: string,
     tokenAddress: string,
   ): Promise<ReadonlyArray<DexScreenerPair> | null> {
     try {
-      const { data } = await axios.get<DexScreenerPairsResponse>(
+      const { data } = await axios.get<unknown>(
         `${BASE}/token-pairs/v1/${chainId}/${tokenAddress}`,
-        { timeout: 8_000 },
+        {
+          timeout: 8_000,
+        },
       );
-      return data.pairs ?? null;
+      if (Array.isArray(data)) {
+        return data as ReadonlyArray<DexScreenerPair>;
+      }
+      if (data !== null && typeof data === 'object' && 'pairs' in data) {
+        const pairs = (data as DexScreenerPairsResponse).pairs;
+        return pairs ?? null;
+      }
+      return null;
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 404) return null;
       this.logger.debug(
@@ -293,6 +337,13 @@ export class DexScreenerService extends DataProviderPort {
   /**
    * Get the best-liquidity pair summary for a token.
    * Returns the pair with highest USD liquidity across all DEXes/chains.
+   *
+   * TWO MODES (plan todo 18 — do not merge them):
+   * - THIS method = best-effort cross-chain. Kept byte-identical for
+   *   bare/unknown-chain callers (existing specs pin it).
+   * - `getBestPairSummaryForChain` = strict per-chain. Explicit-chain
+   *   snapshot paths MUST use it; a chain with no pair resolves
+   *   `null`, never a sibling chain's data.
    */
   public async getBestPairSummary(
     address: string,
@@ -305,22 +356,58 @@ export class DexScreenerService extends DataProviderPort {
       return liq > (acc.liquidity?.usd ?? 0) ? p : acc;
     }, pairs[0]);
 
-    const vol24h = Object.values(best.volume).reduce((sum, v) => sum + v, 0);
-    const txns24h = best.txns?.h24 ?? { buys: 0, sells: 0 };
-
-    return {
-      pairAddress: best.pairAddress,
-      dexId: best.dexId,
-      labels: [...(best.labels ?? [])],
-      baseToken: { ...best.baseToken },
-      priceUsd: best.priceUsd,
-      priceNative: best.priceNative,
-      liquidityUsd: best.liquidity?.usd ?? null,
-      volume24h: vol24h,
-      fdv: best.fdv,
-      marketCap: best.marketCap,
-      priceChange24h: best.priceChange?.h24 ?? null,
-      txns24h,
-    };
+    return toPairSummary(best);
   }
+
+  /**
+   * Get the best-liquidity pair summary for a token ON ONE CHAIN
+   * (strict mode, plan todo 18).
+   *
+   * `chain` is OUR chain id (`base`, NOT a DexScreener slug — the
+   * slug resolves via `resolveDexScreenerSlug`). Unmapped chain ->
+   * `null` with zero network traffic, never a cross-chain query.
+   * The returned pairs pass a STRICT `chainId === slug` filter before
+   * the best-liquidity pick (belt + suspenders on top of the already
+   * chain-scoped endpoint), so a stray cross-chain row can never leak
+   * into another chain's snapshot. Chain with no pair -> `null`
+   * (honest empty; the snapshot's null-safe paths cover the rest).
+   */
+  public async getBestPairSummaryForChain(
+    chain: string,
+    address: string,
+  ): Promise<DexScreenerPairSummary | null> {
+    const slug = resolveDexScreenerSlug(chain);
+    if (slug === null) return null;
+    const pairs = await this.getPairsByChain(slug, address);
+    if (!pairs || pairs.length === 0) return null;
+    const scoped = pairs.filter((pair) => pair.chainId === slug);
+    if (scoped.length === 0) return null;
+
+    const best = scoped.reduce((acc, p) => {
+      const liq = p.liquidity?.usd ?? 0;
+      return liq > (acc.liquidity?.usd ?? 0) ? p : acc;
+    }, scoped[0]);
+
+    return toPairSummary(best);
+  }
+}
+
+function toPairSummary(pair: DexScreenerPair): DexScreenerPairSummary {
+  const vol24h = Object.values(pair.volume).reduce((sum, v) => sum + v, 0);
+  const txns24h = pair.txns?.h24 ?? { buys: 0, sells: 0 };
+
+  return {
+    pairAddress: pair.pairAddress,
+    dexId: pair.dexId,
+    labels: [...(pair.labels ?? [])],
+    baseToken: { ...pair.baseToken },
+    priceUsd: pair.priceUsd,
+    priceNative: pair.priceNative,
+    liquidityUsd: pair.liquidity?.usd ?? null,
+    volume24h: vol24h,
+    fdv: pair.fdv,
+    marketCap: pair.marketCap,
+    priceChange24h: pair.priceChange?.h24 ?? null,
+    txns24h,
+  };
 }

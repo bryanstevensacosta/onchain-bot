@@ -19,7 +19,7 @@ import {
  */
 function stubDeps(overrides: Record<string, unknown> = {}): never {
   return {
-    dexscreener: { getBestPairSummary: async () => null },
+    dexscreener: { getBestPairSummaryForChain: async () => null },
     geckoterminal: { getTokenInfo: async () => null },
     birdeye: { getTokenOverview: async () => null },
     coingecko: { getTokenContractInfo: async () => null },

@@ -270,9 +270,20 @@ ccxt — never earlier, never under `address/`). Holders resolves through
 `(chain, address)` only — zero market-data dependency; ordered
 brand-before-infra strategies, 10s overall timeout, never throws;
 `snapshot.launchpad` resolved live per call, never persisted to
-history). Every module is hexagonal (domain/ +
-application/ + infrastructure/) with its pre-hex roots kept as
-`@deprecated` compat re-exports (removal at cutover, todo 8).
+history). Chain-honest snapshots (dexter plan todo 18): every
+snapshot carries an explicit chain, so the dexscreener quote fetcher
+
+- `snapshot.venue` resolve through the STRICT per-chain path
+  (`getBestPairSummaryForChain`: `DEXSCREENER_CHAIN_SLUGS` maps our 6
+  ids 1:1 to DexScreener slugs, `GET /token-pairs/v1/<slug>/` answers
+  a bare pair array, STRICT `chainId === slug` filter before the
+  best-liquidity pick). Unmapped chain or chain with no pair resolves
+  `null` — never a sibling chain's data, never a network call for an
+  unmapped slug. The legacy cross-chain `getBestPairSummary` stays for
+  bare/unknown-chain callers only (best-effort mode, pinned in spec).
+  Every module is hexagonal (domain/ +
+  application/ + infrastructure/) with its pre-hex roots kept as
+  `@deprecated` compat re-exports (removal at cutover, todo 8).
 
 ## ENV INVENTORY
 
