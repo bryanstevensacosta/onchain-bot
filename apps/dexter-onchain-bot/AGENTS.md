@@ -542,3 +542,23 @@ todo 6 added 10 suites / 35 tests (±0 since); bare-address added
   origin-known tokens render the origin (`Bankr`) where Rick shows the
   tech (`Clanker V4`) — we know the origin via the detector, Rick only
   sees the DEX.
+
+- FDV ATH from own history (plan todo 16): market-data
+  `SnapshotHistoryRepository.findFdvAth(chain, address)` (read-only
+  aggregate: max `quote.fdvUsd` + setting-row `createdAt`, malformed
+  rows skipped; never mutates history/retention) → `AddressSnapshot.
+fdvAth? {fdvUsd, at}` (read BEFORE the current row is persisted —
+  strictly historical) → compat edge as flat `fdvAthUsd`/`fdvAthAt`
+  → dexter `MarketDataSnapshot` (client shape-checked via
+  `toFdvAthUsdOrNull`/`toFdvAthAtOrNull`) → `ResolvedToken.
+fdvAthUsd?`/`fdvAthAt?` (pipeline re-validated, same double
+  validation as `launchpad`/`venue`). Renderer: 2 keys on every
+  command — `fdvAth` (money-compact, todo-13 policy, no `$`) +
+  `fdvAthAgo` (compact age `9d/3d/5h/12m`, floored, sub-minute
+  `0m`; `formatCompactAgeText` in `message-formatter.ts` — no seed
+  ships an age formatter to reuse, this is the single home; future
+  timestamps clamp to now). Cold-start (either null) → BOTH `""`
+  — the current FDV is NEVER substituted as ATH (spec-pinned).
+  RETENTION LIMIT: the janitor keeps the last 90d
+  (`SNAPSHOT_HISTORY_RETENTION_DAYS`) — ATH is the max over
+  surviving rows, NOT all time.

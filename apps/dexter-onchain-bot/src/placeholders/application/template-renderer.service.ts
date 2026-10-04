@@ -317,6 +317,32 @@ export class TemplateRendererService {
               : texts.venueLine;
         return text === '' ? '' : esc(text);
       }
+      case 'fdvAth': {
+        const ath =
+          typeof values.fdvAthUsd === 'number' &&
+          Number.isFinite(values.fdvAthUsd)
+            ? values.fdvAthUsd
+            : null;
+        if (ath === null) return '';
+        return esc(MessageFormatterAdapter.formatMoneyText(ath));
+      }
+      case 'fdvAthAgo': {
+        const athForAgo =
+          typeof values.fdvAthUsd === 'number' &&
+          Number.isFinite(values.fdvAthUsd)
+            ? values.fdvAthUsd
+            : null;
+        if (athForAgo === null) return '';
+        if (
+          typeof values.fdvAthAt !== 'string' ||
+          Number.isNaN(Date.parse(values.fdvAthAt))
+        ) {
+          return '';
+        }
+        return esc(
+          MessageFormatterAdapter.formatCompactAgeText(values.fdvAthAt),
+        );
+      }
       default: {
         return '';
       }

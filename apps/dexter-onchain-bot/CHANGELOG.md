@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- \*\*FDV ATH from own snapshot history `{{fdvAth}}` + `{{fdvAthAgo}}`
+  (plan todo 16): market-data adds a read-only `findFdvAth`
+  aggregate over `snapshot-history` (max FDV + setting timestamp
+  per chain+address, malformed rows skipped, history/retention
+  untouched) wired into the snapshot path as `snapshot.fdvAth?`
+  (strictly historical — read before the current row persists) and
+  the compat edge as flat `fdvAthUsd`/`fdvAthAt`; dexter maps both
+  shape-checked (client + pipeline double validation, mirroring
+  `launchpad`/`venue`) onto `ResolvedToken`. Renderer: `fdvAth`
+  money-compact no-`$` (todo-13 policy) + `fdvAthAgo` compact age
+  (`9d/3d/5h/12m`, future clamps to now); cold-start (either null)
+  renders BOTH empty — the current FDV is never substituted.
+  Retention limit: janitor 90d window (ATH over surviving rows,
+  not all time).
+
 - \*\*Origin-aware venue line `{{chainName}}` + `{{venue}}` +
   `{{venueTech}}` + `{{venueLine}}` (plan todo 14): market-data
   exposes `snapshot.venue? {dexId, labels}` (live from the

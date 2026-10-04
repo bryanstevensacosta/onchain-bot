@@ -78,6 +78,23 @@ export function toVenueOrNull(raw: unknown): MarketDataVenue | null {
   return { dexId: dexId.trim(), labels: clean };
 }
 
+/**
+ * FDV ATH over the token's own snapshot history (dexter fdv-ath,
+ * plan todo 16). Two flat fields, each validated at this boundary:
+ * `fdvAthUsd` must be a finite number, `fdvAthAt` an ISO-parseable
+ * string — anything else resolves `null` so opaque JSON never
+ * reaches the renderer. Both `null` on cold-start (no history);
+ * the current FDV is NEVER substituted (spec-pinned).
+ */
+export function toFdvAthUsdOrNull(raw: unknown): number | null {
+  return typeof raw === 'number' && Number.isFinite(raw) ? raw : null;
+}
+
+export function toFdvAthAtOrNull(raw: unknown): string | null {
+  if (typeof raw !== 'string' || raw === '') return null;
+  return Number.isNaN(Date.parse(raw)) ? null : raw;
+}
+
 export interface MarketDataSnapshot {
   readonly chain: string;
   readonly address: string;
@@ -101,6 +118,8 @@ export interface MarketDataSnapshot {
   readonly status: string | null;
   readonly launchpad?: MarketDataLaunchpad | null;
   readonly venue?: MarketDataVenue | null;
+  readonly fdvAthUsd?: number | null;
+  readonly fdvAthAt?: string | null;
 }
 
 export interface ChainDetectHit {
@@ -168,6 +187,8 @@ export class MarketDataClient {
         status: body.status ?? null,
         launchpad: toLaunchpadOrNull(body.launchpad),
         venue: toVenueOrNull(body.venue),
+        fdvAthUsd: toFdvAthUsdOrNull(body.fdvAthUsd),
+        fdvAthAt: toFdvAthAtOrNull(body.fdvAthAt),
       };
     } catch (err) {
       this.logger.warn(

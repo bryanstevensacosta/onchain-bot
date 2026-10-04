@@ -2,6 +2,7 @@ import { AddressKind } from 'address/domain/address-kind';
 import { AddressProbe } from 'address/domain/address-probe.port';
 import type { LaunchpadInfo } from 'provider/launchpad/domain/launchpad-info';
 import type { SnapshotVenue } from './snapshot-venue';
+import type { SnapshotFdvAth } from './snapshot-fdv-ath';
 import type { SnapshotQuote } from './snapshot-quote.types';
 
 /**
@@ -44,6 +45,16 @@ export interface AddressSnapshot extends SnapshotQuote {
    * are detected independently and never mixed.
    */
   readonly venue: SnapshotVenue | null;
+  /**
+   * FDV ATH over own snapshot history (dexter fdv-ath, plan todo
+   * 16): max `fdvUsd` + setting row timestamp, or `null` on
+   * cold-start. Strictly historical — read BEFORE the current row is
+   * persisted, so the in-flight FDV is never substituted as ATH.
+   * Capped by the janitor window (`SNAPSHOT_HISTORY_RETENTION_DAYS`,
+   * 90): max over surviving rows, not all time. Never throws into
+   * the snapshot.
+   */
+  readonly fdvAth: SnapshotFdvAth | null;
   readonly providers: ReadonlyArray<string>;
   /** Registry-order names that contributed at least one quote field. */
   readonly sources: ReadonlyArray<string>;

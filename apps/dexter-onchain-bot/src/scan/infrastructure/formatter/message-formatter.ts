@@ -156,6 +156,30 @@ export class MessageFormatterAdapter {
     return `${value < 0 ? '-' : ''}${magnitude}%`;
   }
 
+  /**
+   * Compact age for `fdvAthAgo` (dexter fdv-ath, plan todo 16):
+   * `9d`/`3d`/`5h`/`12m` from an ISO timestamp vs `nowMs`
+   * (days/hours/minutes, floored; sub-minute → `0m`). Future
+   * timestamps clamp to now (`0m`, never negative). Null or
+   * unparseable input → `""` (cold-start honesty — the caller,
+   * not the formatter, owns the empty-vs-N/A decision, and no
+   * seed ships an age formatter to reuse: grep finds only a
+   * comment mention, so this is the single home).
+   */
+  public static formatCompactAgeText(
+    iso: string | null | undefined,
+    nowMs: number = Date.now(),
+  ): string {
+    if (typeof iso !== 'string' || iso === '') return '';
+    const at = Date.parse(iso);
+    if (Number.isNaN(at)) return '';
+    const diffMs = Math.max(0, nowMs - at);
+    const minutes = Math.floor(diffMs / 60_000);
+    if (minutes >= 24 * 60) return `${Math.floor(minutes / (24 * 60))}d`;
+    if (minutes >= 60) return `${Math.floor(minutes / 60)}h`;
+    return `${minutes}m`;
+  }
+
   public static formatDevLine(tokenInfo: ResolvedToken): string {
     const esc = MessageFormatterAdapter.escapeV2;
     const pct = tokenInfo.devPctSupply;

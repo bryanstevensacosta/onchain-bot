@@ -193,6 +193,10 @@ export class AddressSnapshotService {
     );
     const launchpad = await this.resolveLaunchpad(known.id, input.value);
     const venue = await this.resolveVenue(input.value);
+    // FDV ATH is strictly historical: read BEFORE the current row is
+    // persisted, so cold-start (no history) resolves null and the
+    // in-flight FDV is never substituted as ATH (spec-pinned).
+    const fdvAth = await this.history.findFdvAth(known.id, input.value);
     for (const source of outcome.sources) {
       this.providers.recordSuccess(source, 0);
     }
@@ -226,6 +230,7 @@ export class AddressSnapshotService {
       assetId: await this.resolveAssetId(known.id, input.value, outcome.quote),
       launchpad,
       venue,
+      fdvAth,
       providers: supporting,
       sources: outcome.sources,
       providerErrors,

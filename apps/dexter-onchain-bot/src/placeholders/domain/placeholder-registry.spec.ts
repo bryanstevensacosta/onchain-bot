@@ -41,7 +41,7 @@ describe('placeholder-registry (todo 4 closed vocabulary)', () => {
     ]);
   });
 
-  it('holds the fifteen derived keys (devLine is derived, not base)', () => {
+  it('holds the seventeen derived keys (devLine is derived, not base)', () => {
     expect([...DERIVED_PLACEHOLDERS]).toEqual([
       'chainDisplay',
       'scanLinks',
@@ -58,18 +58,20 @@ describe('placeholder-registry (todo 4 closed vocabulary)', () => {
       'venue',
       'venueTech',
       'venueLine',
+      'fdvAth',
+      'fdvAthAgo',
     ]);
   });
 
-  it('grants every command base + derived (37 keys)', () => {
+  it('grants every command base + derived (39 keys)', () => {
     for (const command of ['ca', 'x', 'z', 'bare'] as const) {
-      expect(PLACEHOLDERS_BY_COMMAND[command]).toHaveLength(37);
+      expect(PLACEHOLDERS_BY_COMMAND[command]).toHaveLength(39);
     }
   });
 
-  it('grants timeframe ONLY to c/cc (38 keys)', () => {
-    expect(PLACEHOLDERS_BY_COMMAND.c).toHaveLength(38);
-    expect(PLACEHOLDERS_BY_COMMAND.cc).toHaveLength(38);
+  it('grants timeframe ONLY to c/cc (40 keys)', () => {
+    expect(PLACEHOLDERS_BY_COMMAND.c).toHaveLength(40);
+    expect(PLACEHOLDERS_BY_COMMAND.cc).toHaveLength(40);
     expect(PLACEHOLDERS_BY_COMMAND.c).toContain(TIMEFRAME_PLACEHOLDER);
     expect(PLACEHOLDERS_BY_COMMAND.cc).toContain(TIMEFRAME_PLACEHOLDER);
     for (const command of ['ca', 'x', 'z', 'bare'] as const) {
@@ -124,6 +126,13 @@ describe('placeholder-registry (todo 4 closed vocabulary)', () => {
       for (const key of ['chainName', 'venue', 'venueTech', 'venueLine']) {
         expect(isKnownPlaceholder(command, key)).toBe(true);
       }
+    }
+  });
+
+  it('whitelists fdvAth + fdvAthAgo on every command', () => {
+    for (const command of TEMPLATE_COMMANDS) {
+      expect(isKnownPlaceholder(command, 'fdvAth')).toBe(true);
+      expect(isKnownPlaceholder(command, 'fdvAthAgo')).toBe(true);
     }
   });
 
