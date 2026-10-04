@@ -286,7 +286,7 @@ export caught red, fixed).
 
 - **D-1** — 4090/91/92 triplet per plan (verificar): lsof free +
   zero repo hits 2026-09-26; pg/redis picked adjacent-free 5444/45 +
-  6391/92 (5440/6387 taken by dexter/scheduling-posts).
+  6391/92 (5440/6387 taken by dexter/publishing-queue).
 - **D-2** — `generate` scope (not `snapshot`): ai-ml authorizes LLM
   use, not data snapshots; hierarchy admin > generate > read.
 - **D-3** — HMAC pepper (not plain SHA-256): stolen DB rows alone

@@ -151,7 +151,7 @@ cadence (`THREADS_PUBLISH_CRON` every-10-min, `THREADS_DAILY_CAP=60`)
 service). No clashes with backend
 (`:3030`), ingestion (`:3031/32/33`), frontend (`:5173`),
 feed-publisher (`:3040/41/42`), kol-stacks, market-data, dexter,
-gateway (`:4070/71/72`), scheduling-posts (`:4080/81/82`).
+gateway (`:4070/71/72`), publishing-queue (`:4080/81/82`).
 
 ## HEALTH
 

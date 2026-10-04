@@ -25,7 +25,7 @@ NestJS 11 service (Tramo 2 of the mega-refactor) owning all feed
 outside the monolith: ingestion (SSE-only + cursor catch-up) →
 matching/keywords/filters → unified queue (`contentType`) + dedup →
 LLM (global catalog) → scheduling/ads (MOVED to
-`apps/scheduling-posts/` 2026-09-26, historical here — P38 lives there) →
+`apps/publishing-queue/` 2026-09-26, historical here — P38 lives there) →
 telegram (crypto + threads) publishing + template/sessions
 multi-tab (P33/P34) + ownership-enforced publish auth (P50), with
 threads as skeleton +
@@ -86,13 +86,13 @@ Todos 0-9+12+14 DONE (verified 2026-09-27 against code + evidence logs incl. F-t
   queue, deduplication, llm, threads, telegram, target,
   template, sessions) + health.
   0 stubs remain. (`src/scheduling/` NOT present — moved to
-  `apps/scheduling-posts/` 2026-09-26, see below.)
+  `apps/publishing-queue/` 2026-09-26, see below.)
 - Cumulative full-suite tally: 153 suites / 491 tests green
   (150/483 pre-todo-10 + 5 suites / 15 tests new in
   threads-publisher todo 10 `src/target/`).
 - P10/P32 grep gates green (crypto-news only, zero foreign-type
   token outside the SSE negative assert). P38 per-target
-  delay+caps MOVED with scheduling to `apps/scheduling-posts/`
+  delay+caps MOVED with scheduling to `apps/publishing-queue/`
   (historical here). C-FLAGS-01 3-flag control live in
   llm/queue. C2 telegram adapters live with Bot API bindings.
   Threads v1 = skeleton + `src/threads/CONTRACT.md` (C1).
@@ -118,8 +118,8 @@ Worktree state 2026-09-25: DIRTY (uncommitted: todo-7/8 telegram +
 threads trees, `.env.*` templates, telegram/threads module wiring).
 No commit per todo convention (worktree left dirty, no commit).
 
-2026-09-26 scheduling-posts todos 1-2 (move source): `src/scheduling/`
-moved to `apps/scheduling-posts/` via staged `git mv`; this app unwired
+2026-09-26 publishing-queue todos 1-2 (move source): `src/scheduling/`
+moved to `apps/publishing-queue/` via staged `git mv`; this app unwired
 the leftovers (`app.module`, `telegram.module`, publisher router
 `forSchedulingTarget`, `TelegramScheduledAdDispatcher` + 2 specs).
 Full suite 140/435 green post-move. This AGENTS.md otherwise unchanged
@@ -332,7 +332,7 @@ docker compose -f apps/feed-publisher/docker-compose.yml up -d  # standalone pg 
 apps/feed-publisher/
   src/main.ts            # bootstrap :3040 (FEED_PUBLISHER_PORT) + ValidationPipe
   src/app.module.ts      # Config global + Health + 12 feature modules
-                           # (scheduling moved to apps/scheduling-posts/, see below)
+                           # (scheduling moved to apps/publishing-queue/, see below)
   src/health/            # GET /api/health static stub
   src/ingestion/         # BUILT (todo 2, wired): FeedIngestionClient
                          # (SSE-only + catch-up by cursor, backoff 1s→30s) +
@@ -425,7 +425,7 @@ apps/feed-publisher/
                          # with 409 in-use, /api/llm preview+models) +
                          # health hook
    src/scheduling/        # MOVED 2026-09-26 (todo 6 historical, UNWIRED here):
-                           # `git mv src/scheduling/` → `apps/scheduling-posts/`
+                           # `git mv src/scheduling/` → `apps/publishing-queue/`
                            # (sole owner there; this app keeps NO SchedulingModule —
                            # `app.module.ts` carries only a NOTE). Historical shape
                            # (todo 6 evidence `task-T2-06.log`: 18 suites / 72
@@ -434,7 +434,7 @@ apps/feed-publisher/
                            # SchedulingState + RotationDeciderService + publish
                            # use-cases + media library + cron 1min. Do NOT
                            # re-create this dir here; P38 lives in
-                           # `apps/scheduling-posts/` now.
+                           # `apps/publishing-queue/` now.
    src/threads/           # BUILT (todo 8, wired): `Thread` +
                           # `ThreadMessage` aggregates (DRAFT->QUEUED->
                           # IN_PROGRESS->COMPLETED, PARTIAL resume from
@@ -465,7 +465,7 @@ apps/feed-publisher/
                           # per-bot `TelegramRateLimiter` (fixed 60s
                           # window) + LIVE queue dispatcher (scheduling
                           # dispatcher moved with src/scheduling/ to
-                          # apps/scheduling-posts/) +
+                          # apps/publishing-queue/) +
                           # `TelegramHealthIndicator` (P21 hook)
                           # GATEWAY (bots-gateway todo 5, dual mode):
                           # `domain/ports/bots-gateway-sender.port.ts`
@@ -584,7 +584,7 @@ base `INGESTION_TELEGRAM_URL`, `x-api-key` from day one, fail-open `[]`)
   `llm.module.spec.ts` + `queue.module.spec.ts` stubs now boot with a
   global `ConfigModule` (transitive IngestionModule needs it).
 - `SchedulingModule` (todo 6 historical, MOVED 2026-09-26 — NOT
-  wired here): `src/scheduling/` lives in `apps/scheduling-posts/`
+  wired here): `src/scheduling/` lives in `apps/publishing-queue/`
   (sole owner; `app.module.ts` carries only a NOTE). See STRUCTURE
   for the historical shape (todo 6 evidence `task-T2-06.log`).
 - `ThreadsModule` (todo 8, wired): `Thread` + `ThreadMessage`

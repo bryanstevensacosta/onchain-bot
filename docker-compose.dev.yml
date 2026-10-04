@@ -14,7 +14,7 @@
 #   ingestion_telegram_db, kol_calls_db,
 #   kol_calls_publisher_db, feed_publisher_db,
 #   market_data_db, dexter_db, telegram_bots_db,
-#   scheduling_posts_db, ai_ml_db, threads_publisher_db
+#   publishing_queue_db, ai_ml_db, threads_publisher_db
 #   (+ _test variants + backend_db_test). Dev local ONLY — staging/prod
 #   keep their own servers (never touch Oracle here).
 #   kol-calls-publisher has its OWN DB (split from kol-calls 2026-09-28).
@@ -522,21 +522,21 @@ services:
       retries: 3
       start_period: 120s
 
-  scheduling:
+  publishing-queue:
     build:
       context: .
-      dockerfile: apps/scheduling-posts/Dockerfile
+      dockerfile: apps/publishing-queue/Dockerfile
       target: builder
-    container_name: onchain-dev-scheduling
+    container_name: onchain-dev-publishing-queue
     restart: unless-stopped
     env_file:
-      - path: apps/scheduling-posts/.env.development
+      - path: apps/publishing-queue/.env.development
         required: false
     environment:
       NODE_ENV: development
-      SCHEDULING_POSTS_ENABLED: 'true'
-      SCHEDULING_POSTS_PORT: 4080
-      DATABASE_URL: postgres://onchain_bot:onchain_bot@pg:5432/scheduling_posts_db
+      PUBLISHING_QUEUE_ENABLED: 'true'
+      PUBLISHING_QUEUE_PORT: 4080
+      DATABASE_URL: postgres://onchain_bot:onchain_bot@pg:5432/publishing_queue_db
       REDIS_URL: redis://redis-scheduling:6379/0
       DATABASE_SYNCHRONIZE: 'true'
       ENCRYPTION_KEY: dev-dummy-encryption-key-00000000000000000000000000000000
@@ -544,13 +544,13 @@ services:
     ports:
       - '4080:4080'
     volumes:
-      - ./apps/scheduling-posts/src:/app/apps/scheduling-posts/src
+      - ./apps/publishing-queue/src:/app/apps/publishing-queue/src
     depends_on:
       pg:
         condition: service_healthy
       redis-scheduling:
         condition: service_healthy
-    command: npm run start:dev -w @onchain-bot/scheduling-posts
+    command: npm run start:dev -w @onchain-bot/publishing-queue
     healthcheck:
       test:
         [

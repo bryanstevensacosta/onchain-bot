@@ -23,7 +23,7 @@ export interface ResolvedPipelineFlags {
  * Pure 3-flag resolver (ai-ml, todo 0 — mirrors feed-publisher).
  *
  * ai-ml OWNS llm + publishing (`LlmConfig`); matching lives in the
- * consumer (feed-publisher/scheduling-posts) and arrives as input.
+ * consumer (feed-publisher/publishing-queue) and arrives as input.
  * LLM generation runs ONLY when llm AND publishing are on — with
  * publishing off the queue only accumulates, so generating would burn
  * provider calls for nothing.

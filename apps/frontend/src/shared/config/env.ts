@@ -26,9 +26,9 @@ export const MARKET_DATA_BASE_URL = import.meta.env.VITE_MARKET_DATA_URL ?? '';
 export const DEXTER_BASE_URL = import.meta.env.VITE_DEXTER_URL ?? '';
 
 /**
- * Scheduling-posts service base (live-errors-fix 2026-09-28). Empty =
+ * Publishing-queue service base (live-errors-fix 2026-09-28). Empty =
  * same-origin `/scheduling-api` proxy (vite dev → `:4080`, staging
  * `:4081`, prod `:4082`). Set to an absolute URL for direct access.
  */
-export const SCHEDULING_POSTS_BASE_URL =
-  import.meta.env.VITE_SCHEDULING_POSTS_URL ?? '';
+export const PUBLISHING_QUEUE_BASE_URL =
+  import.meta.env.VITE_PUBLISHING_QUEUE_URL ?? '';
