@@ -182,24 +182,25 @@ text with no contract gets the "no veo ningún contrato" reply.
 
 ## ENV INVENTORY
 
-| Variable                                                                     | Default                                 | Meaning                                                                                                               |
-| ---------------------------------------------------------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `DEXTER_ENABLED`                                                             | `false`                                 | master switch                                                                                                         |
-| `DEXTER_PORT` / `DEXTER_HOST`                                                | `4060` / `0.0.0.0`                      | bind (triplet 4060/4061/4062; dev may pin 127.0.0.1)                                                                  |
-| `DEXTER_BOT_TOKEN`                                                           | `''`                                    | lookup bot token (wins over legacy — direct-leg credential only since todo 6)                                         |
-| `CHAIN_DEXTER_BOT_TOKEN`                                                     | `''`                                    | legacy fallback (deprecated, honored)                                                                                 |
-| `DEXTER_BOT_VAULT_ID`                                                        | `''`                                    | gateway vault id for this bot (todo 6; set by hand after migration)                                                   |
-| `DEXTER_SEND_MODE`                                                           | `dual`                                  | `direct` (deprecated) \| `dual` (both legs + parity) \| `gateway` (cutover)                                           |
-| `BOTS_GATEWAY_URL` / `BOTS_GATEWAY_CLIENT_ID` / `BOTS_GATEWAY_CLIENT_SECRET` | `http://localhost:4070` / `''` / `''`   | gateway base + HMAC client (empty = keyless/unsigned dev)                                                             |
-| `DEXTER_INGRESS_SECRET`                                                      | `null`                                  | shared secret for `POST /dexter/ingress` (empty = unsigned dev)                                                       |
-| `DEXTER_WEBHOOK_SECRET/URL`                                                  | —                                       | webhook auth + registration                                                                                           |
-| `DEXTER_INGEST_MODE`                                                         | `polling`                               | `webhook` (staging/prod) or `polling` (dev)                                                                           |
-| `DEXTER_POLLING_INTERVAL_MS`                                                 | `1000`                                  | poller cadence (min 100)                                                                                              |
-| `MARKET_DATA_URL` / `MARKET_DATA_API_KEY` / `MARKET_DATA_TIMEOUT_MS`         | `http://localhost:4000` / `''` / `2000` | ONLY market-data source                                                                                               |
-| `DEXTER_RATE_LIMIT_PER_USER`                                                 | `30`                                    | per-user commands per 60 s                                                                                            |
-| `DEXTER_DEFAULT_TRADE_BUTTONS`                                               | `DEX,PHO,TRO`                           | default button set                                                                                                    |
-| `DATABASE_URL`                                                               | `…/onchain_bot_dexter`                  | templates/display repos: TypeORM when `DATABASE_ENABLED=true`, in-memory when `false` (chat settings still in-memory) |
-| `REDIS_URL`                                                                  | `…/6387/0`                              | RESERVED (limiter is in-process)                                                                                      |
+| Variable                                                                     | Default                                 | Meaning                                                                                                                                                           |
+| ---------------------------------------------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DEXTER_ENABLED`                                                             | `false`                                 | master switch                                                                                                                                                     |
+| `DEXTER_PORT` / `DEXTER_HOST`                                                | `4060` / `0.0.0.0`                      | bind (triplet 4060/4061/4062; dev may pin 127.0.0.1)                                                                                                              |
+| `DEXTER_BOT_TOKEN`                                                           | `''`                                    | lookup bot token (wins over legacy — direct-leg credential only since todo 6)                                                                                     |
+| `CHAIN_DEXTER_BOT_TOKEN`                                                     | `''`                                    | legacy fallback (deprecated, honored)                                                                                                                             |
+| `DEXTER_BOT_VAULT_ID`                                                        | `''`                                    | gateway vault id for this bot (todo 6; set by hand after migration)                                                                                               |
+| `BOT_USERNAME`                                                               | `''`                                    | white-label bot username for deep-links (todo 11; generic name on purpose, one value per env; `^[A-Za-z0-9_]{5,}$`, empty allowed — never a real username in git) |
+| `DEXTER_SEND_MODE`                                                           | `dual`                                  | `direct` (deprecated) \| `dual` (both legs + parity) \| `gateway` (cutover)                                                                                       |
+| `BOTS_GATEWAY_URL` / `BOTS_GATEWAY_CLIENT_ID` / `BOTS_GATEWAY_CLIENT_SECRET` | `http://localhost:4070` / `''` / `''`   | gateway base + HMAC client (empty = keyless/unsigned dev)                                                                                                         |
+| `DEXTER_INGRESS_SECRET`                                                      | `null`                                  | shared secret for `POST /dexter/ingress` (empty = unsigned dev)                                                                                                   |
+| `DEXTER_WEBHOOK_SECRET/URL`                                                  | —                                       | webhook auth + registration                                                                                                                                       |
+| `DEXTER_INGEST_MODE`                                                         | `polling`                               | `webhook` (staging/prod) or `polling` (dev)                                                                                                                       |
+| `DEXTER_POLLING_INTERVAL_MS`                                                 | `1000`                                  | poller cadence (min 100)                                                                                                                                          |
+| `MARKET_DATA_URL` / `MARKET_DATA_API_KEY` / `MARKET_DATA_TIMEOUT_MS`         | `http://localhost:4000` / `''` / `2000` | ONLY market-data source                                                                                                                                           |
+| `DEXTER_RATE_LIMIT_PER_USER`                                                 | `30`                                    | per-user commands per 60 s                                                                                                                                        |
+| `DEXTER_DEFAULT_TRADE_BUTTONS`                                               | `DEX,PHO,TRO`                           | default button set                                                                                                                                                |
+| `DATABASE_URL`                                                               | `…/onchain_bot_dexter`                  | templates/display repos: TypeORM when `DATABASE_ENABLED=true`, in-memory when `false` (chat settings still in-memory)                                             |
+| `REDIS_URL`                                                                  | `…/6387/0`                              | RESERVED (limiter is in-process)                                                                                                                                  |
 
 ## PORTS
 
@@ -464,6 +465,24 @@ todo 6 added 10 suites / 35 tests (±0 since); bare-address added
   templates, NOT the future frontend-feed `templates` rename.
 
 ## NOTES
+
+- Bot deep-link (plan todo 11, `botStartAddressLink`): derived key on
+  EVERY command (`https://t.me/<username>?start=<address>`; no
+  username → `""`; payload must match Bot API `start` rules
+  (`[A-Za-z0-9_-]`, ≤64 chars — EVM 42 + Solana 44 fit — else `""`,
+  never truncated). Identity resolves ONCE at bootstrap via
+  `BotIdentityService` (`settings/`, sibling of the bot config —
+  NOT `gateway/`, which is message transport): gateway inventory
+  bound-bot `username` (verified absent — `{id,label,ownerApp,
+boundApp,available}`, log + skip, no gateway code touched) →
+  Bot API `getMe` with `DEXTER_BOT_TOKEN` (one fetch, 5 s timeout,
+  token never logged) → `BOT_USERNAME` env → `""`. Warns (never
+  throws) when env disagrees with a live source. `/start <payload>`
+  runs the shared `address-detector` and answers the full card via
+  the SAME `sendFullScan` as `/ca` (lookup `['ca']` — `start` is
+  not a template command); bare/invalid `/start` is byte-identical
+  legacy. No Mini App (`startapp`), no auto-trading, no new
+  callbacks.
 
 - Origin launchpad (2026-10-04, dexter-launchpad Lane S):
   `ResolvedToken.launchpad? {id,name,url}` (market-data detector

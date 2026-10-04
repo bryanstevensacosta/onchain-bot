@@ -114,6 +114,11 @@ const PLACEHOLDER_META: Record<string, Omit<PlaceholderDescriptor, 'key'>> = {
     example: '[💊](https://pump.fun/coin/…)',
   },
   timeframe: { type: 'string', nullable: true, example: '5m' },
+  botStartAddressLink: {
+    type: 'url',
+    nullable: true,
+    example: 'https://t.me/DexterBot?start=So1111…',
+  },
 };
 
 export interface PlaceholdersView {
@@ -124,8 +129,8 @@ export interface PlaceholdersView {
 /**
  * Placeholder catalog (`GET /api/dexter/placeholders/:command`).
  *
- * Metadata-only read of the closed registry vocabulary: 32 keys for
- * `ca|x|z|bare`, 33 for `c|cc` (`timeframe` ONLY there). No
+ * Metadata-only read of the closed registry vocabulary: 33 keys for
+ * `ca|x|z|bare`, 34 for `c|cc` (`timeframe` ONLY there). No
  * persistence, no pipeline, no sends. Unknown command → 404.
  *
  * v1 sin auth como /dexter/token — same unauthenticated regime as the

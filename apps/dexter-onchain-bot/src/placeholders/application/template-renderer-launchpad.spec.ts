@@ -118,11 +118,9 @@ describe('TemplateRendererService launchpad placeholders (dexter-launchpad Lane 
 
   it('falls back to empty icons when no display resolver is injected', () => {
     const renderer = new TemplateRendererService();
-    expect(
-      renderer.render('{{launchpadIcon}}', CHALE, 'ca').text,
-    ).toBe('');
-    expect(
-      renderer.render('{{launchpadIconLink}}', CHALE, 'ca').text,
-    ).toBe(`[Pump\\.fun](https://pump.fun/coin/${CHALE_MINT})`);
+    expect(renderer.render('{{launchpadIcon}}', CHALE, 'ca').text).toBe('');
+    expect(renderer.render('{{launchpadIconLink}}', CHALE, 'ca').text).toBe(
+      `[Pump\\.fun](https://pump.fun/coin/${CHALE_MINT})`,
+    );
   });
 });

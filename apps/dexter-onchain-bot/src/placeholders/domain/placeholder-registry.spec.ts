@@ -41,7 +41,7 @@ describe('placeholder-registry (todo 4 closed vocabulary)', () => {
     ]);
   });
 
-  it('holds the ten derived keys (devLine is derived, not base)', () => {
+  it('holds the eleven derived keys (devLine is derived, not base)', () => {
     expect([...DERIVED_PLACEHOLDERS]).toEqual([
       'chainDisplay',
       'scanLinks',
@@ -53,18 +53,19 @@ describe('placeholder-registry (todo 4 closed vocabulary)', () => {
       'launchpadTextLink',
       'launchpadIcon',
       'launchpadIconLink',
+      'botStartAddressLink',
     ]);
   });
 
-  it('grants every command base + derived (32 keys)', () => {
+  it('grants every command base + derived (33 keys)', () => {
     for (const command of ['ca', 'x', 'z', 'bare'] as const) {
-      expect(PLACEHOLDERS_BY_COMMAND[command]).toHaveLength(32);
+      expect(PLACEHOLDERS_BY_COMMAND[command]).toHaveLength(33);
     }
   });
 
-  it('grants timeframe ONLY to c/cc (33 keys)', () => {
-    expect(PLACEHOLDERS_BY_COMMAND.c).toHaveLength(33);
-    expect(PLACEHOLDERS_BY_COMMAND.cc).toHaveLength(33);
+  it('grants timeframe ONLY to c/cc (34 keys)', () => {
+    expect(PLACEHOLDERS_BY_COMMAND.c).toHaveLength(34);
+    expect(PLACEHOLDERS_BY_COMMAND.cc).toHaveLength(34);
     expect(PLACEHOLDERS_BY_COMMAND.c).toContain(TIMEFRAME_PLACEHOLDER);
     expect(PLACEHOLDERS_BY_COMMAND.cc).toContain(TIMEFRAME_PLACEHOLDER);
     for (const command of ['ca', 'x', 'z', 'bare'] as const) {
@@ -105,6 +106,12 @@ describe('placeholder-registry (todo 4 closed vocabulary)', () => {
         expect(isKnownPlaceholder(command, key)).toBe(true);
       }
       expect(isKnownPlaceholder(command, 'launchpad')).toBe(false);
+    }
+  });
+
+  it('whitelists botStartAddressLink on every command', () => {
+    for (const command of TEMPLATE_COMMANDS) {
+      expect(isKnownPlaceholder(command, 'botStartAddressLink')).toBe(true);
     }
   });
 });

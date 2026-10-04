@@ -3,6 +3,7 @@ import { HttpModule } from '@nestjs/axios';
 import { DataSource } from 'typeorm';
 import { isDatabaseEnabled } from './shared/database/database.module';
 import { DexterBotConfigService } from './settings/infrastructure/config/bot.config';
+import { BotIdentityService } from './settings/application/bot-identity.service';
 import { TelegramBotClient } from './gateway/infrastructure/telegram/bot-client';
 import { TradeButtonRegistry } from './gateway/infrastructure/keyboard/trade-button-registry';
 import { InlineKeyboardBuilder } from './gateway/infrastructure/keyboard/inline-keyboard.builder';
@@ -165,6 +166,10 @@ function resolveMessageTemplateRepository(
   ],
   providers: [
     DexterBotConfigService,
+    // todo 11 (bot-start-link): bootstrap-once bot identity
+    // (gateway inventory → getMe → BOT_USERNAME → ""), consumed by
+    // the template renderer for {{botStartAddressLink}}.
+    BotIdentityService,
     TelegramBotClient,
     GatewayHmacSigner,
     GatewayBotMappingService,

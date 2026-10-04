@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- \*\*Bot deep-link `{{botStartAddressLink}}` + `/start <payload>`
+  (plan todo 11, hybrid white-label design): new generic `BOT_USERNAME`
+  env (no prefix, one value per env, `^[A-Za-z0-9_]{5,}$`, empty
+  allowed — empty in all three templates, never a real username in
+  git); new `BotIdentityService` (`settings/`, bootstrap-once
+  gateway-inventory → Bot API `getMe` (5 s, token never logged) →
+  env → `""`, warn-on-mismatch, fail-open); derived renderer key on
+  every command (`https://t.me/<username>?start=<address>`, `""`
+  without username or with a non-`[A-Za-z0-9_-]`/>64-char payload);
+  `/start <payload>` answers the full card via the shared
+  `sendFullScan` (ACTIVE `ca` template), bare/invalid `/start`
+  byte-identical legacy. No Mini App, no auto-trading, no new
+  callbacks.
+
 - \*\*Origin-launchpad plumbing + Wave-1 seeds (dexter-launchpad Lane S,
   `feat:`): `MarketDataSnapshot` gains optional `launchpad?
 {id,name,url}` (`market-data.client.ts`, shape-checked at the dexter

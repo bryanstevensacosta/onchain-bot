@@ -1,6 +1,7 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { MessageFormatterAdapter } from '@/scan/infrastructure/formatter/message-formatter';
 import type { ResolvedToken } from '@/scan/domain/ports/scan-pipeline.port';
+import { BotIdentityService } from '@/settings/application/bot-identity.service';
 import {
   PLACEHOLDERS_BY_COMMAND,
   placeholdersFor,
@@ -103,6 +104,15 @@ const shortenWallet = (wallet: string): string =>
   wallet.length > 10 ? `${wallet.slice(0, 4)}…${wallet.slice(-4)}` : wallet;
 
 /**
+ * Bot API `start` payload rules: max 64 chars, `[A-Za-z0-9_-]`.
+ * EVM (`0x`+40 hex = 42) and Solana (44) addresses fit; anything
+ * else degrades the deep-link key to `""` (never silently truncated).
+ */
+export function isBotStartPayload(value: string): boolean {
+  return /^[A-Za-z0-9_-]{1,64}$/.test(value);
+}
+
+/**
  * Stateless MarkdownV2 template renderer with closed placeholder
  * semantics. Static body text is author-owned MarkdownV2 (never
  * touched); every substituted VALUE is `escapeV2`-escaped exactly
@@ -116,6 +126,9 @@ export class TemplateRendererService {
     @Inject(DISPLAY_RESOLVER)
     @Optional()
     private readonly displayResolver?: DisplayResolverPort | null,
+    @Inject(BotIdentityService)
+    @Optional()
+    private readonly botIdentity?: BotIdentityService | null,
   ) {}
 
   public render(
@@ -217,9 +230,7 @@ export class TemplateRendererService {
       case 'launchpadIcon': {
         const launchpad = values.launchpad;
         if (!launchpad) return '';
-        return (
-          this.displayResolver?.resolve('launchpad', launchpad.id) ?? ''
-        );
+        return this.displayResolver?.resolve('launchpad', launchpad.id) ?? '';
       }
       case 'launchpadIconLink': {
         const launchpad = values.launchpad;
@@ -269,6 +280,13 @@ export class TemplateRendererService {
         const tf = values.timeframe;
         if (tf === null || tf === undefined || tf === '') return '';
         return esc(String(tf));
+      }
+      case 'botStartAddressLink': {
+        const username = this.botIdentity?.getUsername() ?? '';
+        const address =
+          typeof values.address === 'string' ? values.address : '';
+        if (!username || !isBotStartPayload(address)) return '';
+        return `https://t.me/${username}?start=${address}`;
       }
       default: {
         return '';

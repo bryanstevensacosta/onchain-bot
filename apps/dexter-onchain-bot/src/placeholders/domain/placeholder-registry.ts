@@ -59,6 +59,7 @@ export const DERIVED_PLACEHOLDERS: readonly string[] = [
   'launchpadTextLink',
   'launchpadIcon',
   'launchpadIconLink',
+  'botStartAddressLink',
 ];
 
 /** Chart timeframe — valid ONLY inside `c`/`cc` bodies. */
