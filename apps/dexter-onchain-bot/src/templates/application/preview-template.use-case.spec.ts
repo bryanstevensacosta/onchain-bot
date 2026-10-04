@@ -300,7 +300,7 @@ describe('PreviewTemplateUseCase (todo 7 dry-run preview)', () => {
     });
   });
 
-  it('multi-chain address propagates the ambiguous shape with candidates', async () => {
+  it('zero-candidate ambiguous propagates the ambiguous shape with candidates', async () => {
     const { useCase } = await setup({
       resolveDetailed: jest.fn(
         async (address: string): Promise<ResolveOutcome> => ({
@@ -411,7 +411,9 @@ describe('PreviewTemplateUseCase (todo 7 dry-run preview)', () => {
     if (!isResult(ok)) {
       throw new Error('expected a rendered result');
     }
-    expect(ok.token).toEqual(expect.objectContaining({ address: SOL_ADDRESS, symbol: 'SOL' }));
+    expect(ok.token).toEqual(
+      expect.objectContaining({ address: SOL_ADDRESS, symbol: 'SOL' }),
+    );
     const failing = await setup({
       resolveDetailed: jest.fn(
         async (address: string): Promise<ResolveOutcome> => ({
@@ -425,7 +427,9 @@ describe('PreviewTemplateUseCase (todo 7 dry-run preview)', () => {
       address: SOL_ADDRESS,
     });
     expect(output).toEqual({ error: 'Token not found', address: SOL_ADDRESS });
-    expect('token' in (output as unknown as Record<string, unknown>)).toBe(false);
+    expect('token' in (output as unknown as Record<string, unknown>)).toBe(
+      false,
+    );
   });
 
   it('preview files never reference the bot sender (zero-send construction guard)', () => {

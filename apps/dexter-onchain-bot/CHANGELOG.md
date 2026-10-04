@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- \*\*Best-candidate auto-resolve with disclosure + `w/mo/y` ages
+  (plan todo 17 — deliberate reversal of never-first-hit): the
+  bare-address sweep now picks the highest-liquidity candidate
+  (tiebreak: higher FDV, then first-seen — deterministic, raw-number
+  comparison) and returns `alternatives: {chain,address,
+liquidityUsd?}[]` on every multi-chain `ResolvedToken` (picked
+  chain excluded, same order rule); `ambiguous` survives only for
+  the zero-candidate path (message + hint byte-identical),
+  `invalid`/`not-found` untouched. Accepted risk (scam copy with
+  liquidity could win) mitigated by the always-attached disclosure.
+  New derived key `{{alternatives}}` on every command (`Also on:
+bsc, eth`, `""` when ≤1 chain). `formatCompactAgeText` extended
+  to weeks/months/years (`<7d→Xd`, `<30d→Xw`, `<365d→Xmo`,
+  else `Xy`; d/h/m rungs unchanged).
+
 - \*\*FDV ATH from own snapshot history `{{fdvAth}}` + `{{fdvAthAgo}}`
   (plan todo 16): market-data adds a read-only `findFdvAth`
   aggregate over `snapshot-history` (max FDV + setting timestamp

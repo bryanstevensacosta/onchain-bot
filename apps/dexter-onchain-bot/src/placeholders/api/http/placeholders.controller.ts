@@ -123,6 +123,11 @@ const PLACEHOLDER_META: Record<string, Omit<PlaceholderDescriptor, 'key'>> = {
   },
   fdvAth: { type: 'derived', nullable: true, example: '5.6K' },
   fdvAthAgo: { type: 'derived', nullable: true, example: '9d' },
+  alternatives: {
+    type: 'derived',
+    nullable: true,
+    example: 'Also on: bsc, eth',
+  },
   timeframe: { type: 'string', nullable: true, example: '5m' },
   botStartAddressLink: {
     type: 'url',
@@ -139,8 +144,8 @@ export interface PlaceholdersView {
 /**
  * Placeholder catalog (`GET /api/dexter/placeholders/:command`).
  *
- * Metadata-only read of the closed registry vocabulary: 39 keys for
- * `ca|x|z|bare`, 40 for `c|cc` (`timeframe` ONLY there). No
+ * Metadata-only read of the closed registry vocabulary: 40 keys for
+ * `ca|x|z|bare`, 41 for `c|cc` (`timeframe` ONLY there). No
  * persistence, no pipeline, no sends. Unknown command → 404.
  *
  * v1 sin auth como /dexter/token — same unauthenticated regime as the

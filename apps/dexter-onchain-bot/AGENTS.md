@@ -221,7 +221,9 @@ repo-wide by grep. Compose `name:` is explicit (`onchain-bot-dexter`,
   `{ error: 'Token not found' }` (market-data down/pending → error, never
   a partial card). Bare addresses need no chain qualifier (detect-first
   via chain-detect, else the format-narrowed solana-first sweep);
-  ambiguity answers `{ error: 'Ambiguous address …', candidates }` and
+  multi-chain identity resolves best-pick (highest liquidity +
+  `alternatives` disclosure, plan todo 17); zero-candidate ambiguity
+  answers `{ error: 'Ambiguous address …', candidates }` and
   garbage answers `{ error: 'Invalid address: …' }` — explicit choice,
   never a silent guess.
 
@@ -392,8 +394,10 @@ todo 6 added 10 suites / 35 tests (±0 since); bare-address added
    `onchain_bot_dexter[_staging]` DBs are provisioned but unwired.
 3. Bare lookup is detect-first + format-narrowed sweep (solana → [solana],
    EVM → [ethereum, base, bsc, arbitrum, polygon], detect winner ordered
-   first): identity on 2+ chains answers ambiguous with candidates
-   (explicit `chain:address` retry, never first-hit). The EVM sweep is
+   first): identity on 2+ chains resolves best-pick (highest liquidity,
+   tiebreak higher FDV then first-seen — deterministic; `alternatives`
+   disclose the rest, plan todo 17 — DELIBERATE reversal of the old
+   never-first-hit rule). The EVM sweep is
    sequential (5 × timeout worst case); parallelize when p95 matters.
 4. No e2e against a live bot token (unit specs + manual `GET
 /dexter/token` only); needs a sandbox bot before staging.
@@ -562,3 +566,24 @@ fdvAthUsd?`/`fdvAthAt?` (pipeline re-validated, same double
   RETENTION LIMIT: the janitor keeps the last 90d
   (`SNAPSHOT_HISTORY_RETENTION_DAYS`) — ATH is the max over
   surviving rows, NOT all time.
+
+- Best-pick with disclosure (plan todo 17 — DELIBERATE REVERSAL of
+  the never-first-hit invariant): the bare-address sweep used to
+  answer `ambiguous` whenever 2+ chains resolved; it now picks the
+  HIGHEST-liquidity candidate (tiebreak: higher FDV, then first-seen
+  sweep order — deterministic; comparisons on RAW numbers, never
+  formatted strings; `null` liquidity sorts weakest) and returns the
+  token with `alternatives: {chain,address,liquidityUsd?}[]` (every
+  OTHER resolved chain, same order rule — never self-lists).
+  `ambiguous` survives ONLY for the zero-candidate path (message +
+  `chain:address` hint byte-identical); `invalid`/`not-found`
+  untouched. ACCEPTED RISK (pinned in `token-scan.pipeline.ts` too):
+  a scam copy with the deepest pool could win the pick — mitigated
+  by the always-attached disclosure (a resolved token is never
+  returned without it) + the existing downstream checks. Renderer:
+  derived key `{{alternatives}}` on every command (`Also on: bsc,
+eth` — chain slugs as resolved, comma-space joined; `""` when ≤1
+  chain). Ages: `formatCompactAgeText` now spans `w/mo/y`
+  (thresholds, floored: <7d → `Xd`, <30d → `Xw` = 7d weeks, <365d
+  → `Xmo` = 30d months, else `Xy` = 365d years; d/h/m rungs
+  byte-identical to todo 16).

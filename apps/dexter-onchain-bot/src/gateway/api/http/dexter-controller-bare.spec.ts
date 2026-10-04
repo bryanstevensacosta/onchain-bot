@@ -64,7 +64,7 @@ describe('DexterController bare-address lookup (explicit errors, no silent guess
     expect(body['templateUsed']).toBeNull();
   });
 
-  it('names every candidate when the address is ambiguous', async () => {
+  it('names every candidate for the zero-candidate ambiguous shape', async () => {
     const controller = makeController({
       status: 'ambiguous',
       address: '0xabc',

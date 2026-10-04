@@ -15,6 +15,7 @@ import type {
   ChainIdentifier,
   ResolvedToken,
   ScanPipeline,
+  TokenAlternative,
 } from '@/scan/domain/ports/scan-pipeline.port';
 
 /**
@@ -28,7 +29,7 @@ import type {
  * (those cross-BC imports stay in the backend — this app is lookup-only).
  */
 
-export type { ChainIdentifier, ResolvedToken, ScanPipeline };
+export type { ChainIdentifier, ResolvedToken, ScanPipeline, TokenAlternative };
 
 export type ResolveOutcome =
   | { readonly status: 'resolved'; readonly token: ResolvedToken }
@@ -59,6 +60,12 @@ function hasIdentity(snapshot: {
   readonly name: string | null;
 }): boolean {
   return snapshot.symbol !== null || snapshot.name !== null;
+}
+
+function finiteOrNegativeInfinity(value: number | null | undefined): number {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? value
+    : Number.NEGATIVE_INFINITY;
 }
 
 function parseChainPrefix(input: string): {
@@ -122,14 +129,54 @@ export class TokenScanPipeline implements ScanPipeline {
       const hit = hits[0];
       return {
         status: 'resolved',
-        token: this.toResolvedToken(hit.chain, bare, hit.snapshot),
+        token: this.toResolvedToken(hit.chain, bare, hit.snapshot, []),
       };
     }
     if (hits.length > 1) {
-      return {
-        status: 'ambiguous',
+      // Best-pick with disclosure (plan todo 17): DELIBERATE reversal of
+      // the "never first-hit" invariant (multi-chain used to answer
+      // `ambiguous`). The sweep now picks the HIGHEST-liquidity candidate
+      // — tiebreak: higher FDV, then first-seen (sweep order, which is
+      // detect-first — fully deterministic) — and returns every OTHER
+      // resolved chain as `alternatives` so the choice stays visible
+      // (`{{alternatives}}` renders it on every card + preview).
+      //
+      // ACCEPTED RISK: a scam copy with the deepest pool could win the
+      // pick. Mitigations: the disclosure list is always attached (never
+      // a silent guess), and the existing checks still apply downstream.
+      // `ambiguous` survives in the `ResolveOutcome` union for the
+      // propagation layers (preview + `GET /dexter/token` answer it
+      // byte-identical) — no sweep branch emits it anymore; `invalid` and
+      // `not-found` are untouched. Comparisons run on RAW numbers —
+      // never on formatted strings; `null` liquidity sorts as -Infinity
+      // (a measured pool always beats an unmeasured one).
+      const ranked = [...hits].sort((a, b) => {
+        const liqA = finiteOrNegativeInfinity(a.snapshot.liquidityUsd);
+        const liqB = finiteOrNegativeInfinity(b.snapshot.liquidityUsd);
+        if (liqB !== liqA) return liqB - liqA;
+        const fdvA = finiteOrNegativeInfinity(a.snapshot.fdvUsd);
+        const fdvB = finiteOrNegativeInfinity(b.snapshot.fdvUsd);
+        if (fdvB !== fdvA) return fdvB - fdvA;
+        return hits.indexOf(a) - hits.indexOf(b);
+      });
+      const [best, ...rest] = ranked;
+      const alternatives: ReadonlyArray<TokenAlternative> = rest.map((hit) => ({
+        chain: hit.chain,
         address: bare,
-        candidates: hits.map((hit) => hit.chain),
+        liquidityUsd:
+          typeof hit.snapshot.liquidityUsd === 'number' &&
+          Number.isFinite(hit.snapshot.liquidityUsd)
+            ? hit.snapshot.liquidityUsd
+            : null,
+      }));
+      return {
+        status: 'resolved',
+        token: this.toResolvedToken(
+          best.chain,
+          bare,
+          best.snapshot,
+          alternatives,
+        ),
       };
     }
     return { status: 'not-found', address: bare };
@@ -185,6 +232,7 @@ export class TokenScanPipeline implements ScanPipeline {
       readonly fdvAthUsd?: unknown;
       readonly fdvAthAt?: unknown;
     },
+    alternatives: ReadonlyArray<TokenAlternative> = [],
   ): ResolvedToken {
     return {
       address,
@@ -213,6 +261,7 @@ export class TokenScanPipeline implements ScanPipeline {
       venue: toVenueOrNull(snapshot.venue),
       fdvAthUsd: toFdvAthUsdOrNull(snapshot.fdvAthUsd),
       fdvAthAt: toFdvAthAtOrNull(snapshot.fdvAthAt),
+      alternatives,
     };
   }
 }

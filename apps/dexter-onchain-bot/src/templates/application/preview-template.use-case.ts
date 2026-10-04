@@ -177,7 +177,7 @@ export class PreviewTemplateUseCase {
 
     let token: ResolvedToken;
     if (hasToken) {
-      token = input.token as ResolvedToken;
+      token = input.token;
     } else {
       const outcome = await this.pipeline.resolveDetailed(
         input.address as string,
@@ -229,7 +229,9 @@ export class PreviewTemplateUseCase {
    * `Partial<ResolvedToken>`), so requiring them here would reject
    * snapshots the render path handles fine.
    */
-  public static assertTokenSnapshot(token: unknown): asserts token is ResolvedToken {
+  public static assertTokenSnapshot(
+    token: unknown,
+  ): asserts token is ResolvedToken {
     const record =
       typeof token === 'object' && token !== null && !Array.isArray(token)
         ? (token as Record<string, unknown>)
@@ -237,11 +239,11 @@ export class PreviewTemplateUseCase {
     const valid =
       record !== null &&
       typeof record['address'] === 'string' &&
-      (record['address'] as string).trim() !== '' &&
+      record['address'].trim() !== '' &&
       typeof record['chain'] === 'string' &&
-      (record['chain'] as string).trim() !== '' &&
+      record['chain'].trim() !== '' &&
       typeof record['symbol'] === 'string' &&
-      (record['symbol'] as string).trim() !== '';
+      record['symbol'].trim() !== '';
     if (!valid) {
       throw new BadRequestException({
         error:

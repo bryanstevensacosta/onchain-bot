@@ -317,6 +317,11 @@ export class TemplateRendererService {
               : texts.venueLine;
         return text === '' ? '' : esc(text);
       }
+      case 'alternatives': {
+        const rest = values.alternatives;
+        if (!rest || rest.length === 0) return '';
+        return esc(`Also on: ${rest.map((entry) => entry.chain).join(', ')}`);
+      }
       case 'fdvAth': {
         const ath =
           typeof values.fdvAthUsd === 'number' &&

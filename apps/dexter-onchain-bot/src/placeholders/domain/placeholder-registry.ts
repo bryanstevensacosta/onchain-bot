@@ -66,6 +66,7 @@ export const DERIVED_PLACEHOLDERS: readonly string[] = [
   'venueLine',
   'fdvAth',
   'fdvAthAgo',
+  'alternatives',
 ];
 
 /** Chart timeframe — valid ONLY inside `c`/`cc` bodies. */
