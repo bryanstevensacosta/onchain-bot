@@ -20,6 +20,38 @@ export interface DevWalletSnapshot {
   readonly probable?: boolean;
 }
 
+/**
+ * Origin launchpad of a token (dexter-launchpad, Lane S). Mirrors
+ * market-data `LaunchpadInfo` + the domain `LaunchpadInfo` in
+ * `scan/domain/ports/scan-pipeline.port.ts`: `{id, name, url}` or
+ * `null` when no launchpad was detected. NEVER trusted blindly —
+ * `toLaunchpadOrNull` shape-checks at this boundary (all three
+ * strings non-empty, else null) so opaque JSON never reaches the
+ * renderer.
+ */
+export interface MarketDataLaunchpad {
+  readonly id: string;
+  readonly name: string;
+  readonly url: string;
+}
+
+export function toLaunchpadOrNull(raw: unknown): MarketDataLaunchpad | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const candidate = raw as Record<string, unknown>;
+  const { id, name, url } = candidate;
+  if (
+    typeof id !== 'string' ||
+    id === '' ||
+    typeof name !== 'string' ||
+    name === '' ||
+    typeof url !== 'string' ||
+    url === ''
+  ) {
+    return null;
+  }
+  return { id, name, url };
+}
+
 export interface MarketDataSnapshot {
   readonly chain: string;
   readonly address: string;
@@ -41,6 +73,7 @@ export interface MarketDataSnapshot {
   readonly devWallets: ReadonlyArray<DevWalletSnapshot> | null;
   readonly devPctSupply: number | null;
   readonly status: string | null;
+  readonly launchpad?: MarketDataLaunchpad | null;
 }
 
 export interface ChainDetectHit {
@@ -106,6 +139,7 @@ export class MarketDataClient {
         devPctSupply:
           typeof body.devPctSupply === 'number' ? body.devPctSupply : null,
         status: body.status ?? null,
+        launchpad: toLaunchpadOrNull(body.launchpad),
       };
     } catch (err) {
       this.logger.warn(

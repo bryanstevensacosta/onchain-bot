@@ -33,14 +33,26 @@ export interface GetTokenSupplyResult {
   };
 }
 
+export interface SolanaAccountInfoValue {
+  readonly data: readonly [string, string];
+  readonly executable: boolean;
+  readonly lamports: number;
+  readonly owner: string;
+  readonly rentEpoch: number;
+  readonly space?: number;
+}
+
 export interface AccountInfoResult {
   readonly context?: { readonly slot: number };
-  readonly value?: {
-    readonly data: readonly [string, string];
-    readonly executable: boolean;
-    readonly lamports: number;
-    readonly owner: string;
-    readonly rentEpoch: number;
-    readonly space?: number;
-  } | null;
+  readonly value?: SolanaAccountInfoValue | null;
+}
+
+/**
+ * `getMultipleAccounts` result: `value` keeps one entry per requested
+ * address IN ORDER — a missing account is an explicit `null` entry
+ * (per-account null tolerance), never a shortened array.
+ */
+export interface GetMultipleAccountsResult {
+  readonly context?: { readonly slot: number };
+  readonly value?: ReadonlyArray<SolanaAccountInfoValue | null>;
 }

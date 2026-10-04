@@ -235,6 +235,7 @@ apps/market-data/
   src/chain/             # HEXAGONAL (todos 2+12, P50): domain/ (ChainInfo + STATIC_CHAINS, incl. logoUrl) + application/ (DetectChainService + ports/) + infrastructure/ (static catalog + probers); root files are @deprecated compat re-exports
   src/chain-logo/        # NEW (chain-logo resolver): domain/ (TrustWallet/CoinGecko id maps + placeholder PNG + logoUrl builder) + application/ (ChainLogoFetcherPort + ChainLogoService fetch-ONCE file store) + infrastructure/ (HttpChainLogoFetcher, global fetch, 8s timeout) + ChainLogoModule (ports only — HTTP lives in gateway/ per P43)
   src/provider/          # HEXAGONAL (provider-hex): domain/ (port + descriptors + health VOs) + application/ (registry + checker; failover policy re-exports aggregators/) + infrastructure/ (todos 4+16, P47: 14 canonical adapters + ProvidersModule + R1 `quote-fetchers/` — provider-quote + outbound token-bucket gate from snapshot/); root files are compat re-exports
+  src/provider/launchpad/ # NEW (dexter-launchpad Wave 1, Lane D): `LaunchpadModule` (imports SolanaRpcModule, exports detector + `LAUNCHPAD_DETECTOR` port) + domain/ (`launchpad-info.ts` `LaunchpadInfo{id,name,url}`, `launchpad-table.ts` ratified table as data: R1 §5 ORDER arrays, program IDs + factory sets, marker allowlists, canonical URLs with pump.fun `/coin/` pinned, defined.fi fallback, `EVM_RECEIPT_EXCLUDED` presale rows, keyless EVM transports) + application/ (`launchpad-detector.service.ts`: ordered strategies, FIRST match wins, 10s timeout, never throws; Solana ONE batch + heaven REST, EVM bankr/mintclub API + ONE Blockscout creation + ONE receipt vs factory table) + infrastructure/ (`solana-pda.ts` zero-dep `findProgramAddress`); `solana-rpc.service.ts` gains `getMultipleAccounts` batch; `snapshot.launchpad` resolved live per call (never persisted, detector `@Optional()` with explicit-token inject)
   src/cache/ + src/rate-limiter/  # DEPRECATED (R1): compat re-exports only (`cache/*` + `rate-limiter/*` aliases resolve under `src/shared/infrastructure/`)
   src/gateway/           # HEXAGONAL (todos 2+12, P50, P43): domain/ (edge policy: 60/min budget + batch cap/TTL + cache-key builders) + application/ (rate-limit guard) + infrastructure/http/ (the ONLY feature controllers) + infrastructure/ws/ (todo 11, P49: MarketDataWsGateway, Socket.IO namespace /market-data over the stream/ broker); the api/http/ + api/ws/ compat re-export shims were REMOVED (gateway-dedupe: zero consumers, canonical is infrastructure/)
   src/stream/            # NEW (todo 11, P49): StreamModule + domain/ (stream types + policy + ExchangeWsPort: one-conn-per-exchange contract) + application/ (ExchangeConnectionManager single-conn multiplex + backoff, StreamBrokerService auth/subs/backpressure/cleanup) + infrastructure/ (in-memory driver default + ccxt.pro driver operator-gated + factory on MARKET_DATA_STREAM_DRIVER)
@@ -263,7 +264,13 @@ batch-50 + `GatewayRateLimitGuard`; auth via global `ApiKeyGuard`).
 14 physical adapters + `quote-fetchers/` live in
 `src/provider/infrastructure/` (todo 4, C-DATA-01 + P47 + todo 16 P48
 ccxt — never earlier, never under `address/`). Holders resolves through
-`DevHoldingsPort` (R1). Every module is hexagonal (domain/ +
+`DevHoldingsPort` (R1). Origin-launchpad detection lives in
+`src/provider/launchpad/` (dexter-launchpad Wave 1, Lane D:
+`LaunchpadDetectorService` behind `LAUNCHPAD_DETECTOR`, input
+`(chain, address)` only — zero market-data dependency; ordered
+brand-before-infra strategies, 10s overall timeout, never throws;
+`snapshot.launchpad` resolved live per call, never persisted to
+history). Every module is hexagonal (domain/ +
 application/ + infrastructure/) with its pre-hex roots kept as
 `@deprecated` compat re-exports (removal at cutover, todo 8).
 

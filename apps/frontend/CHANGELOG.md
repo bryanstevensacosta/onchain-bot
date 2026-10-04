@@ -6,6 +6,11 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ### Added
 
+- Dexter launchpad placeholders (Wave 1 Lane S, backend contract only,
+  no local code on this branch): `{{launchpadText}}`/
+  `{{launchpadTextLink}}`/`{{launchpadIcon}}`/`{{launchpadIconLink}}`
+  in the dexter registry+renderer + DisplayMap `launchpad` dimension
+  (data-layer/UI/e2e live on `feat/dexter-frontend`).
 - New `FRONTEND.md` plain-language guide: describes every dashboard screen
   in non-technical words (what each screen is for, what it shows, what you
   can do there), with routes and data sources as the only technical detail.

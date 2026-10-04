@@ -41,7 +41,7 @@ describe('placeholder-registry (todo 4 closed vocabulary)', () => {
     ]);
   });
 
-  it('holds the six derived keys (devLine is derived, not base)', () => {
+  it('holds the ten derived keys (devLine is derived, not base)', () => {
     expect([...DERIVED_PLACEHOLDERS]).toEqual([
       'chainDisplay',
       'scanLinks',
@@ -49,18 +49,22 @@ describe('placeholder-registry (todo 4 closed vocabulary)', () => {
       'geckoterminalUrl',
       'tradeHint',
       'devLine',
+      'launchpadText',
+      'launchpadTextLink',
+      'launchpadIcon',
+      'launchpadIconLink',
     ]);
   });
 
-  it('grants every command base + derived (28 keys)', () => {
+  it('grants every command base + derived (32 keys)', () => {
     for (const command of ['ca', 'x', 'z', 'bare'] as const) {
-      expect(PLACEHOLDERS_BY_COMMAND[command]).toHaveLength(28);
+      expect(PLACEHOLDERS_BY_COMMAND[command]).toHaveLength(32);
     }
   });
 
-  it('grants timeframe ONLY to c/cc (29 keys)', () => {
-    expect(PLACEHOLDERS_BY_COMMAND.c).toHaveLength(29);
-    expect(PLACEHOLDERS_BY_COMMAND.cc).toHaveLength(29);
+  it('grants timeframe ONLY to c/cc (33 keys)', () => {
+    expect(PLACEHOLDERS_BY_COMMAND.c).toHaveLength(33);
+    expect(PLACEHOLDERS_BY_COMMAND.cc).toHaveLength(33);
     expect(PLACEHOLDERS_BY_COMMAND.c).toContain(TIMEFRAME_PLACEHOLDER);
     expect(PLACEHOLDERS_BY_COMMAND.cc).toContain(TIMEFRAME_PLACEHOLDER);
     for (const command of ['ca', 'x', 'z', 'bare'] as const) {
@@ -88,5 +92,19 @@ describe('placeholder-registry (todo 4 closed vocabulary)', () => {
     expect(isKnownPlaceholder('c', 'timeframe')).toBe(true);
     expect(isKnownPlaceholder('cc', 'timeframe')).toBe(true);
     expect(isKnownPlaceholder('z', 'precio')).toBe(false);
+  });
+
+  it('whitelists the four launchpad keys on every command', () => {
+    for (const command of TEMPLATE_COMMANDS) {
+      for (const key of [
+        'launchpadText',
+        'launchpadTextLink',
+        'launchpadIcon',
+        'launchpadIconLink',
+      ]) {
+        expect(isKnownPlaceholder(command, key)).toBe(true);
+      }
+      expect(isKnownPlaceholder(command, 'launchpad')).toBe(false);
+    }
   });
 });

@@ -1,5 +1,6 @@
 import { AddressKind } from 'address/domain/address-kind';
 import { AddressProbe } from 'address/domain/address-probe.port';
+import type { LaunchpadInfo } from 'provider/launchpad/domain/launchpad-info';
 import type { SnapshotQuote } from './snapshot-quote.types';
 
 /**
@@ -28,6 +29,12 @@ export interface AddressSnapshot extends SnapshotQuote {
   readonly status: 'pending' | 'ready';
   /** Registry id from `asset_registry` (contract+chain), null when unregistered. */
   readonly assetId: string | null;
+  /**
+   * Origin launchpad (dexter-launchpad Wave 1, Lane D): `{ id, name, url }`
+   * or `null` when no launchpad is detected. Resolved live per call,
+   * never persisted to history, never throws into the snapshot.
+   */
+  readonly launchpad: LaunchpadInfo | null;
   readonly providers: ReadonlyArray<string>;
   /** Registry-order names that contributed at least one quote field. */
   readonly sources: ReadonlyArray<string>;

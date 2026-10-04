@@ -78,6 +78,20 @@ describe('DisplayMap entity', () => {
     expect(validatePlaceholderKey('timeframe')).toBe('timeframe');
   });
 
+  it('accepts the launchpad DisplayMap dimension (POST launchpad/pump-fun/💊)', () => {
+    expect(validatePlaceholderKey('launchpad')).toBe('launchpad');
+    expect(validateMatchValue('pump-fun')).toBe('pump-fun');
+    expect(validateDisplay('💊')).toBe('💊');
+    const map = DisplayMap.create({
+      placeholderKey: 'launchpad',
+      matchValue: 'pump-fun',
+      display: '💊',
+    });
+    expect(map.placeholderKey).toBe('launchpad');
+    expect(map.matchValue).toBe('pump-fun');
+    expect(map.display).toBe('💊');
+  });
+
   it('rejects empty and overlong matchValue', () => {
     expect(() => validateMatchValue('')).toThrow(DisplayMapValidationError);
     expect(() => validateMatchValue('   ')).toThrow(DisplayMapValidationError);
