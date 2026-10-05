@@ -113,7 +113,7 @@ test.describe('feed-publisher (Tramo 2, todo 9)', () => {
       return route.fallback();
     });
 
-    // Scheduling moved to scheduling-posts (live-errors-fix 2026-09-28):
+    // Scheduling moved to publishing-queue (live-errors-fix 2026-09-28):
     // same-origin /scheduling-api prefix (vite dev → :4080).
     await page.route('**/scheduling-api/**', (route: Route) => {
       const url = new URL(route.request().url());

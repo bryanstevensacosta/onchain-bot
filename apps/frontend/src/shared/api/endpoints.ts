@@ -240,11 +240,11 @@ export const ENDPOINTS = {
     },
     scheduling: {
       // Live-errors-fix 2026-09-28: scheduling moved out of
-      // feed-publisher into scheduling-posts (`:4080` dev / `:4081`
+      // feed-publisher into publishing-queue (`:4080` dev / `:4081`
       // staging / `:4082` prod) behind the same-origin
       // `/scheduling-api` prefix (vite dev proxy strips it;
-      // `VITE_SCHEDULING_POSTS_URL` overrides it for direct service
-      // access). Backend legacy (`/crypto-news-scheduling/*`, // @deprecated T2-15: legacy -> '/scheduling-api/*' (scheduling-posts); remove at cutover T2-11.
+      // `VITE_PUBLISHING_QUEUE_URL` overrides it for direct service
+      // access). Backend legacy (`/crypto-news-scheduling/*`, // @deprecated T2-15: legacy -> '/scheduling-api/*' (publishing-queue); remove at cutover T2-11.
       // `/feed-scheduling/*`) stays untouched.
       ads: () => schedulingPath('/api/scheduling/ads'),
       ad: (id: string) =>

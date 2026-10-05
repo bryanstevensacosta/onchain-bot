@@ -1,0 +1,102 @@
+# Staging environment - publishing-queue (todos 1-2, per-env model)
+#
+# DRY-RUN ONLY — no publishing-queue deploy workflow exists yet; nothing
+# here has ever been applied to Oracle.
+#
+# Project name EXPLÍCITO: sin `name:`, compose usa el basename del
+# directorio (`publishing-queue`), que COLISIONA con el proyecto del dev
+# compose (mismo basename, mismos services postgres/redis).
+#
+# PORTS (no clashes with the triplet map — OPERATOR-CONFIRM on Oracle):
+# - publishing-queue HTTP host :4081 → container :4080. Triplet
+#   4080/81/82 (dev/staging/prod) per .env.example.
+# - postgres host :5443 → container :5432 (dev uses :5442; feed staging
+#   DRY-RUN claims :5437, market dev :5438, dexter dev :5440).
+# - redis host :6390 → container :6379 (dev uses :6389).
+name: onchain-bot-publishing-queue-staging
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: onchain-bot-publishing-queue-postgres-staging
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-onchain_bot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-onchain_bot}
+      POSTGRES_DB: ${POSTGRES_DB:-onchain_bot_scheduling_staging}
+    ports:
+      - '5443:5432'
+    volumes:
+      - onchain-bot-publishing-queue-staging-pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-onchain_bot} -d ${POSTGRES_DB:-onchain_bot_scheduling_staging}',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: onchain-bot-publishing-queue-redis-staging
+    restart: unless-stopped
+    ports:
+      - '6390:6379'
+    volumes:
+      - onchain-bot-publishing-queue-staging-redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  publishing-queue:
+    build:
+      context: ../..
+      dockerfile: apps/publishing-queue/Dockerfile
+    image: ghcr.io/bryanstevensacosta/onchain-bot-publishing-queue:staging-latest
+    container_name: onchain-bot-publishing-queue-staging
+    restart: unless-stopped
+    env_file:
+      - .env.staging
+    environment:
+      NODE_ENV: staging
+      PUBLISHING_QUEUE_PORT: 4080
+      DATABASE_URL: postgres://${POSTGRES_USER:-onchain_bot}:${POSTGRES_PASSWORD:-onchain_bot}@postgres:5432/${POSTGRES_DB:-onchain_bot_scheduling_staging}
+      DATABASE_SYNCHRONIZE: false
+      BOTS_GATEWAY_URL: http://onchain-bot-telegram-bots-gateway-staging:4071
+    ports:
+      - '4081:4080'
+    volumes:
+      - onchain-bot-publishing-queue-staging-uploads:/app/apps/publishing-queue/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://127.0.0.1:4080/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  default:
+    name: onchain-bot-staging-net
+
+volumes:
+  onchain-bot-publishing-queue-staging-pg-data:
+    name: onchain-bot-publishing-queue-staging-pg-data
+  onchain-bot-publishing-queue-staging-redis-data:
+    name: onchain-bot-publishing-queue-staging-redis-data
+  onchain-bot-publishing-queue-staging-uploads:
+    name: onchain-bot-publishing-queue-staging-uploads

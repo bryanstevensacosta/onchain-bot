@@ -42,7 +42,7 @@
 - **Staging backport 2026-09-27:** staging compose builds locally
   (GHCR pull denied) + joins `onchain-bot-staging-net` with DNS alias
   `onchain-bot-telegram-bots-gateway-staging`. Registered
-  `scheduling-posts-staging` + `threads-publisher-staging` send-clients
+  `publishing-queue-staging` + `threads-publisher-staging` send-clients
   in the staging `BOTS_GATEWAY_CLIENTS` (droplet env only, never
   committed).
 

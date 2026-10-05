@@ -124,6 +124,7 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
   `dexter-*` unchanged. Tests updated (`templates-section.test.tsx`,
   `scan-search-modal.test.tsx`, `e2e/dexter-templates.spec.ts`).
   (feat/dexter-frontend)
+- Scheduling app rename `scheduling-posts` → `publishing-queue` (no behaviour change): `SCHEDULING_POSTS_*` env/consts become `PUBLISHING_QUEUE_*`, `VITE_SCHEDULING_POSTS_URL` becomes `VITE_PUBLISHING_QUEUE_URL`. Proxy prefix `/scheduling-api`, routes and ports unchanged. (feat/feed-frontend)
 
 - Manage Sessions moved into the Overview tab (breaking UI change):
   `widgets/feed-sessions/ui/manage-session-modal.tsx` deleted; its

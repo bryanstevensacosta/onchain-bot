@@ -329,9 +329,9 @@ except `feed_content_templates`, which is a shape stub without `@Entity`.
   Columns: id, name, active, sourceIds, keywordIds, promptTemplateId, targets.
 - Template bot catalog + publishing sessions — in-memory only, no table shape declared yet.
 
-### Database `onchain_bot_scheduling[_staging]` — scheduling-posts (Tramo 2 follow-up)
+### Database `onchain_bot_scheduling[_staging]` — publishing-queue (Tramo 2 follow-up)
 
-Owner: `apps/scheduling-posts/` (moved from feed-publisher via `git mv`
+Owner: `apps/publishing-queue/` (moved from feed-publisher via `git mv`
 2026-09-26; HTTP `:4080`/`:4081`/`:4082`, dev pg `:5442`). Shapes UNWIRED
 (GAP-1, in-memory live).
 

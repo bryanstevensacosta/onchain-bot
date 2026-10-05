@@ -1,6 +1,6 @@
 /**
  * @deprecated Tramo 2 todo 15 (barrido JSDoc): legacy '/crypto-news-scheduling/*'
- * paths below. New path: '/scheduling-api/*' (scheduling-posts) + '/feed-scheduling/*'
+ * paths below. New path: '/scheduling-api/*' (publishing-queue) + '/feed-scheduling/*'
  * dual-serve; removed at cutover T2-11 (pins kept until then, no behavior change).
  */
 // @vitest-environment jsdom
