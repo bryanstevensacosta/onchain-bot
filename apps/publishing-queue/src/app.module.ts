@@ -5,6 +5,8 @@ import { HealthModule } from './health/health.module';
 import { SchedulingModule } from './scheduling/scheduling.module';
 import { ScheduledPostsModule } from './scheduled-posts/scheduled-posts.module';
 import { TelegramModule } from './telegram/telegram.module';
+import { QueueModule } from './queue/queue.module';
+import { TargetModule } from './gateway/target-gateway.module';
 import { DomainExceptionFilter } from './shared/filters/domain-exception.filter';
 import { ApiKeyGuard } from './shared/guards/api-key.guard';
 
@@ -26,6 +28,8 @@ import { ApiKeyGuard } from './shared/guards/api-key.guard';
     SchedulingModule,
     ScheduledPostsModule,
     TelegramModule,
+    TargetModule,
+    QueueModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ApiKeyGuard },

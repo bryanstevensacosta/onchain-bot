@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Queue/target/gateway moved to publishing-queue (R-b co-move): src/queue/ + src/target/ (12) + telegram live-merge (12) + dead-leg deleted (26). etaMs/deadlineAt/late on entries, QUEUE_CRON_ENABLED (default false), seeds 500/24, text-only drain. Matching evaluation/keywords/sessions stay. (feat/feed-queue)
 - Gateway staging cutover (STAGING ONLY 2026-09-29, no prod touch): `.env.staging.template` gains the bots-gateway block (`BOTS_GATEWAY_URL=http://localhost:4071`, `FEED_PUBLISH_MODE=gateway` — was absent, staging ran direct). Text-only shapes cut over; local-file/video/button legs stay on the deprecated direct adapters (gateway `SendDto` has no upload/`reply_markup` — gateway mode fail-closed with a clear error). Rollback: `FEED_PUBLISH_MODE=dual`.
 
 ### Added

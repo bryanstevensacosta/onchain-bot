@@ -3,13 +3,15 @@ import {
   SessionPublisherPort,
   type SessionPublishPlan,
 } from '@/sessions/application/ports/session-publisher.port';
-import { TargetDispatcherPort } from '@/target/application/ports/target-dispatcher.port';
+import { SessionTargetDispatcherPort } from '@/sessions/application/ports/session-target-dispatcher.port';
 
 /**
  * Gateway-backed session publisher (telegram-bots-gateway todo 5;
  * re-homed onto `target/` in threads-publisher plan Fase 2 todo 10).
  *
- * Delivers routed session plans through `TargetDispatcherPort`:
+ * Delivers routed session plans through `SessionTargetDispatcherPort`
+ * (R-b1 sessions-side mirror of the moved `TargetDispatcherPort`;
+ * the B1 dual binds it to HTTP against `apps/publishing-queue/`):
  * `telegram` plans go via the telegram-bots-gateway (vault id only,
  * resolved inside the dispatcher so sessions keep working after
  * `POST /api/content-template-bots/migrate-to-gateway`);
@@ -22,7 +24,7 @@ import { TargetDispatcherPort } from '@/target/application/ports/target-dispatch
 @Injectable()
 export class GatewaySessionPublisher extends SessionPublisherPort {
   public constructor(
-    @Optional() private readonly targets?: TargetDispatcherPort,
+    @Optional() private readonly targets?: SessionTargetDispatcherPort,
   ) {
     super();
   }

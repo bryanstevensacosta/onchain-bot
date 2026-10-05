@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { LlmFailedError } from 'shared/exceptions/feed-publisher.error';
-import { QueuedArticleRendererPort } from '@/queue/application/ports/queued-article-renderer.port';
-import type { PublisherQueueEntry } from '@/queue/domain/publisher-queue-entry.entity';
+import { QueuedArticleRendererPort } from '@/llm/application/ports/queued-article-renderer.port';
+import type { LlmEntryView } from '@/llm/domain/llm-entry.view';
 import { FeedLlmGenerator } from './feed-llm-generator.adapter';
 import { LlmConfigRepository } from '@/llm/domain/ports/llm-config.repository';
 import { findNonLatinCharacter } from '@/llm/application/services/latin-script-validator';
@@ -29,7 +29,7 @@ export class LlmArticleRendererAdapter extends QueuedArticleRendererPort {
   }
 
   public async render(
-    entry: PublisherQueueEntry,
+    entry: LlmEntryView,
   ): Promise<{ readonly content: string }> {
     const cfg = await this.llmConfigRepo.load();
     if (!cfg.shouldGenerateLlm()) {

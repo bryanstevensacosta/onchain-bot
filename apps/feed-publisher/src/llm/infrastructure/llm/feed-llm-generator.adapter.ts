@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { readFileSync } from 'node:fs';
 import { extname } from 'node:path';
 import { LlmFailedError } from 'shared/exceptions/feed-publisher.error';
-import type { PublisherQueueEntry } from '@/queue/domain/publisher-queue-entry.entity';
+import type { LlmEntryView } from '@/llm/domain/llm-entry.view';
 import { resolveAiMlMode } from '@/ai-ml/ai-ml-mode';
 import { AiMlParityService } from '@/ai-ml/application/services/ai-ml-parity.service';
 import { AiMlPromptClient } from '@/ai-ml/infrastructure/ai-ml-prompt-client';
@@ -47,7 +47,7 @@ export class FeedLlmGenerator {
     private readonly parity?: AiMlParityService,
   ) {}
 
-  public async generateForEntry(entry: PublisherQueueEntry): Promise<{
+  public async generateForEntry(entry: LlmEntryView): Promise<{
     content: string;
     systemPrompt: string | null;
     userPrompt: string;
@@ -155,7 +155,7 @@ export class FeedLlmGenerator {
   /** Exposed for tests + playground: same render path as generation. */
   public renderPromptFor(
     templatePromptText: string,
-    entry: PublisherQueueEntry,
+    entry: LlmEntryView,
   ): string {
     return renderPrompt(templatePromptText, entry);
   }
@@ -198,7 +198,7 @@ export class FeedLlmGenerator {
     }
   }
 
-  private readImagePayload(entry: PublisherQueueEntry): {
+  private readImagePayload(entry: LlmEntryView): {
     base64: string | undefined;
     mimeType: string | undefined;
   } {
@@ -228,7 +228,7 @@ export class FeedLlmGenerator {
  */
 export const renderPrompt = (
   templatePromptText: string,
-  entry: PublisherQueueEntry,
+  entry: LlmEntryView,
 ): string => {
   const hasImage = entry.imagePaths.length > 0 ? 'sí' : 'no';
   return templatePromptText.replace(

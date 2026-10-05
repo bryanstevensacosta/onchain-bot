@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { FeedPort } from '@/matching/domain/ports/feed.port';
-import { QueueManager } from '@/queue/application/services/queue-manager.service';
+import { MessageQueueLookupPort } from '@/matching/domain/ports/message-queue-lookup.port';
 import { EvaluateMessageMatchUseCase } from './evaluate-message-match.use-case';
 import { KeywordRepository } from '@/keywords/application/ports/keyword.repository';
 import { BlacklistPhraseRepository } from '@/keywords/application/ports/blacklist-phrase.repository';
@@ -49,6 +49,10 @@ export function buildMatchReasons(input: {
  * slid out of the recent window, the verdict falls back to the stored
  * verdict and then to the queue snapshot — the queue row stays the
  * source of truth for anything enqueued.
+ *
+ * R-b1: the queue lookup is optional (the unified queue moved to
+ * `apps/publishing-queue/`; null until the B1 dual binds HTTP) — the
+ * view degrades to the live verdict plus `queue: null`.
  */
 @Injectable()
 export class MessageMatchStatusUseCase {
@@ -56,18 +60,18 @@ export class MessageMatchStatusUseCase {
 
   public constructor(
     private readonly feed: FeedPort,
-    private readonly queue: QueueManager,
     private readonly dryRun: EvaluateMessageMatchUseCase,
     private readonly keywords: KeywordRepository,
     private readonly blacklist: BlacklistPhraseRepository,
     private readonly verdicts: MessageMatchVerdictStore,
+    @Optional() private readonly queue?: MessageQueueLookupPort,
   ) {}
 
   public async getStatus(
     channelId: string,
     messageId: number,
   ): Promise<MessageStatusView> {
-    const entry = await this.queue.findTracked(channelId, messageId);
+    const entry = await this.queue?.findTracked(channelId, messageId);
     const queueView: QueueStatusView | null = entry
       ? {
           status: entry.status,

@@ -1,7 +1,7 @@
 import { LlmArticleRendererAdapter } from './llm-article-renderer.adapter';
 import { LlmFailedError } from 'shared/exceptions/feed-publisher.error';
 import { LlmConfig } from '@/llm/domain/llm-config.entity';
-import { PublisherQueueEntry } from '@/queue/domain/publisher-queue-entry.entity';
+import type { LlmEntryView } from '@/llm/domain/llm-entry.view';
 import type { LlmConfigRepository } from '@/llm/domain/ports/llm-config.repository';
 
 const base = {
@@ -13,15 +13,12 @@ const base = {
   llmMaxAttempts: 3,
 };
 
-const entry = (rawContent: string): PublisherQueueEntry =>
-  PublisherQueueEntry.create({
-    contentType: 'crypto-news',
-    channelId: '-1001',
-    messageId: 7,
-    rawContent,
-    rawTitle: null,
-    imagePaths: [],
-  });
+const entry = (rawContent: string): LlmEntryView => ({
+  rawContent,
+  rawTitle: null,
+  imagePaths: [],
+  keywordTemplateId: null,
+});
 
 const configRepo = (cfg: LlmConfig): LlmConfigRepository => ({
   load: async (): Promise<LlmConfig> => cfg,

@@ -1006,3 +1006,4 @@ English per `RELEASE-FLOW.md` (P39). Stale knowledge base = failed todo.
   code goes via `apps/ai-ml` over HTTP (see `AI-ML MIGRATION` above).
   Divergence → no cutover (`assertNoDivergence` CONFLICT).
 - Naming: display strings use `feed` (log/service names); wire/DB/API paths stay `crypto-news` (`messageType`, `contentType`, routes, tables).
+- R-b 2026-10-02: queue/target/gateway moved to apps/publishing-queue (co-move with ETA); matching evaluation stays here.

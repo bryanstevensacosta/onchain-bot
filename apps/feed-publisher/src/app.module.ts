@@ -6,14 +6,18 @@ import { IngestionModule } from './ingestion/ingestion.module';
 import { MatchingModule } from './matching/matching.module';
 import { KeywordsModule } from './keywords/keywords.module';
 import { FiltersModule } from './filters/filters.module';
-import { QueueModule } from './queue/queue.module';
+// NOTE (R-b1): `QueueModule` moved to `apps/publishing-queue/`
+// (sole owner there since R-b1a). Matching keeps its writer path via
+// the in-memory collector until the B1 dual binds HTTP.
 import { DeduplicationModule } from './deduplication/deduplication.module';
 import { LlmModule } from './llm/llm.module';
 // NOTE (publishing-queue todo 1): `SchedulingModule` moved to
 // `apps/publishing-queue/` via `git mv` (sessions-scheduler contract
 // P52). This app no longer owns scheduling — it is sole owner there.
 import { ThreadsModule } from './threads/threads.module';
-import { TargetModule } from './target/target.module';
+// NOTE (R-b1): `TargetModule` moved to `apps/publishing-queue/`
+// (`gateway/`). Sessions address targets through the template-owned
+// `PublishTarget` union + a sessions-local dispatcher port.
 import { ContentTemplatesModule } from './template/content-templates.module';
 import { SessionsModule } from './sessions/sessions.module';
 import { DomainExceptionFilter } from './shared/filters/domain-exception.filter';
@@ -44,11 +48,9 @@ import { ApiKeyGuard } from './shared/guards/api-key.guard';
     MatchingModule,
     KeywordsModule,
     FiltersModule,
-    QueueModule,
     DeduplicationModule,
     LlmModule,
     ThreadsModule,
-    TargetModule,
     ContentTemplatesModule,
     SessionsModule,
   ],

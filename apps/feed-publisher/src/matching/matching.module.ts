@@ -4,8 +4,6 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { IngestionModule } from '../ingestion/ingestion.module';
 import { KeywordsModule } from '../keywords/keywords.module';
 import { FiltersModule } from '../filters/filters.module';
-import { QueueModule } from '../queue/queue.module';
-import { QueueMatchedMessageAdapter } from '../queue/infrastructure/feed/queue-matched-message.adapter';
 import { MatchingConfigRepository } from './domain/ports/matching-config.repository';
 import { FeedPort } from './domain/ports/feed.port';
 import { MatchedMessageEnqueuePort } from './domain/ports/matched-message-enqueue.port';
@@ -31,15 +29,16 @@ import { MatchingHealthIndicator } from './health/matching-health.indicator';
  * single-row MatchingConfig. Feed rows are typed crypto-only; foreign
  * feed types are dropped client-side (P10). Threads never route through
  * matching (direct to queue in todo 4). `MatchedMessageEnqueuePort`
- * binds the unified queue since todo 4 (the in-memory collector remains
- * as a test double only); the TypeORM shapes ship unwired (GAP-1).
+ * binds the in-memory collector since R-b1 (the unified queue moved to
+ * `apps/publishing-queue/`; the B1 dual rebinds this port to the HTTP
+ * writer without touching the cron); the TypeORM shapes ship unwired
+ * (GAP-1).
  */
 @Module({
   imports: [
     ConfigModule,
     ScheduleModule.forRoot(),
     forwardRef(() => IngestionModule),
-    forwardRef(() => QueueModule),
     KeywordsModule,
     FiltersModule,
   ],
@@ -64,7 +63,7 @@ import { MatchingHealthIndicator } from './health/matching-health.indicator';
     },
     {
       provide: MatchedMessageEnqueuePort,
-      useClass: QueueMatchedMessageAdapter,
+      useClass: InMemoryMatchedMessageCollector,
     },
   ],
   exports: [

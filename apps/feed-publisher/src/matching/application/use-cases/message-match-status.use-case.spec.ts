@@ -6,8 +6,10 @@ import { KeywordRepository } from '@/keywords/application/ports/keyword.reposito
 import { BlacklistPhraseRepository } from '@/keywords/application/ports/blacklist-phrase.repository';
 import { ChannelFilterRepository } from '@/filters/application/ports/channel-filter.repository';
 import { FeedPort } from '@/matching/domain/ports/feed.port';
-import { QueueManager } from '@/queue/application/services/queue-manager.service';
-import { PublisherQueueEntry } from '@/queue/domain/publisher-queue-entry.entity';
+import {
+  MessageQueueLookupPort,
+  type MessageQueueRow,
+} from '@/matching/domain/ports/message-queue-lookup.port';
 import { Keyword } from '@/keywords/domain/keyword.entity';
 import { BlacklistPhrase } from '@/keywords/domain/blacklist-phrase.entity';
 import type { FeedMessage } from '@/matching/domain/feed-message';
@@ -79,7 +81,7 @@ describe('MessageMatchStatusUseCase', () => {
     const feed = {
       fetchRecentMessages: jest.fn().mockResolvedValue(rows),
     } as unknown as FeedPort;
-    const tracked = new Map<string, PublisherQueueEntry>();
+    const tracked = new Map<string, MessageQueueRow>();
     const queue = {
       findTracked: jest
         .fn()
@@ -87,11 +89,10 @@ describe('MessageMatchStatusUseCase', () => {
           async (channelId: string, messageId: number) =>
             tracked.get(`${channelId}:${messageId}`) ?? null,
         ),
-    } as unknown as QueueManager;
+    } as unknown as MessageQueueLookupPort;
     const store = new MessageMatchVerdictStore();
     const useCase = new MessageMatchStatusUseCase(
       feed,
-      queue,
       new EvaluateMessageMatchUseCase(
         new MatchingEvaluator(),
         keywordRepo,
@@ -101,6 +102,7 @@ describe('MessageMatchStatusUseCase', () => {
       keywordRepo,
       blacklistRepo,
       store,
+      queue,
     );
     return { useCase, store, tracked };
   }
@@ -143,14 +145,16 @@ describe('MessageMatchStatusUseCase', () => {
     const { useCase, tracked } = await build([
       row('-1001', 10, 'spot etf inflows'),
     ]);
-    const entry = PublisherQueueEntry.create({
-      contentType: 'crypto-news',
-      channelId: '-1001',
-      messageId: 10,
-      rawContent: 'spot etf inflows',
+    const entry: MessageQueueRow = {
+      status: 'PUBLISHED',
+      attempts: 0,
+      blockedReason: null,
+      lastError: null,
+      telegramMessageId: '777',
       matchedKeywordIds: ['kw-1'],
-    });
-    entry.markPublished('777');
+      rawTitle: null,
+      rawContent: 'spot etf inflows',
+    };
     tracked.set('-1001:10', entry);
     const status = await useCase.getStatus('-1001', 10);
     expect(status.badge).toBe('Published');
@@ -160,14 +164,16 @@ describe('MessageMatchStatusUseCase', () => {
 
   it('badges a dedup-blocked entry as Blocked by with the queue reason', async () => {
     const { useCase, tracked } = await build([]);
-    const entry = PublisherQueueEntry.create({
-      contentType: 'crypto-news',
-      channelId: '-1001',
-      messageId: 11,
-      rawContent: 'spot etf inflows',
+    const entry: MessageQueueRow = {
+      status: 'BLOCKED',
+      attempts: 0,
+      blockedReason: 'Duplicate content of queue',
+      lastError: null,
+      telegramMessageId: null,
       matchedKeywordIds: ['kw-1'],
-    });
-    entry.markBlocked('Duplicate content of queue');
+      rawTitle: null,
+      rawContent: 'spot etf inflows',
+    };
     tracked.set('-1001:11', entry);
     const status = await useCase.getStatus('-1001', 11);
     expect(status.ingested).toBe(false);

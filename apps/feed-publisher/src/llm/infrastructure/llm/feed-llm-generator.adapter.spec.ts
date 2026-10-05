@@ -6,7 +6,7 @@ import {
 import { LlmFailedError } from 'shared/exceptions/feed-publisher.error';
 import { LlmConfig } from '@/llm/domain/llm-config.entity';
 import { PromptTemplate } from '@/llm/domain/prompt-template.entity';
-import { PublisherQueueEntry } from '@/queue/domain/publisher-queue-entry.entity';
+import type { LlmEntryView } from '@/llm/domain/llm-entry.view';
 import type { LlmConfigRepository } from '@/llm/domain/ports/llm-config.repository';
 import type { PromptTemplateRepository } from '@/llm/domain/ports/prompt-template.repository';
 
@@ -51,16 +51,12 @@ const entry = (overrides?: {
   rawTitle?: string | null;
   imagePaths?: string[];
   keywordTemplateId?: string | null;
-}): PublisherQueueEntry =>
-  PublisherQueueEntry.create({
-    contentType: 'crypto-news',
-    channelId: 'playground-preview',
-    messageId: 0,
-    rawContent: overrides?.rawContent ?? 'Bitcoin rompe maximos',
-    rawTitle: overrides?.rawTitle ?? 'Mercado',
-    imagePaths: overrides?.imagePaths ?? [],
-    keywordTemplateId: overrides?.keywordTemplateId ?? null,
-  });
+}): LlmEntryView => ({
+  rawContent: overrides?.rawContent ?? 'Bitcoin rompe maximos',
+  rawTitle: overrides?.rawTitle ?? 'Mercado',
+  imagePaths: overrides?.imagePaths ?? [],
+  keywordTemplateId: overrides?.keywordTemplateId ?? null,
+});
 
 const repos = (template: PromptTemplate | null, failWith?: Error) => {
   const configRepo = {

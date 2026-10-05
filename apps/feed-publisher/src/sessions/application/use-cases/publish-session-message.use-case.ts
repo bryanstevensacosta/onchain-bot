@@ -1,6 +1,6 @@
 import { Injectable, Optional } from '@nestjs/common';
 import { DomainError, ErrorCode } from 'shared/kernel/domain-error';
-import type { PublishTarget } from '@/target/domain/target-binding';
+import type { PublishTarget } from '@/template/domain/template-target';
 import { PublishingSessionRepository } from '@/sessions/domain/ports/publishing-session.repository';
 import {
   SessionPublisherPort,

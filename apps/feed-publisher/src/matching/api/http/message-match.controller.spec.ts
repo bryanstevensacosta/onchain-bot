@@ -6,9 +6,6 @@ import { MessageMatchVerdictStore } from '@/matching/application/state/message-m
 import { EvaluateMessageMatchUseCase } from '@/matching/application/use-cases/evaluate-message-match.use-case';
 import { MatchingEvaluator } from '@/matching/application/services/matching-evaluator.service';
 import { FeedPort } from '@/matching/domain/ports/feed.port';
-import { QueueManager } from '@/queue/application/services/queue-manager.service';
-import { PublisherQueueRepository } from '@/queue/domain/ports/publisher-queue.repository';
-import { InMemoryPublisherQueueRepository } from '@/queue/infrastructure/persistence/in-memory/in-memory-publisher-queue.repository';
 import { KeywordRepository } from '@/keywords/application/ports/keyword.repository';
 import { InMemoryKeywordRepository } from '@/keywords/infrastructure/persistence/in-memory/in-memory-keyword.repository';
 import { BlacklistPhraseRepository } from '@/keywords/application/ports/blacklist-phrase.repository';
@@ -29,11 +26,6 @@ describe('MessageMatchController', () => {
         {
           provide: FeedPort,
           useValue: { fetchRecentMessages: jest.fn().mockResolvedValue([]) },
-        },
-        QueueManager,
-        {
-          provide: PublisherQueueRepository,
-          useClass: InMemoryPublisherQueueRepository,
         },
         { provide: KeywordRepository, useClass: InMemoryKeywordRepository },
         {

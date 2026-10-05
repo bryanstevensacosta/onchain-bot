@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { DeduplicationService } from '@/deduplication/application/services/deduplication.service';
 import { TemplateBotRepository } from '@/template/domain/ports/template-bot.repository';
-import type { PublishTarget } from '@/target/domain/target-binding';
-import { PUBLISH_TARGETS } from '@/target/domain/target-binding';
+import type { PublishTarget } from '@/template/domain/template-target';
+import { PUBLISH_TARGETS } from '@/template/domain/template-target';
 import { PublishingSessionRepository } from '@/sessions/domain/ports/publishing-session.repository';
 import type { SessionPublishPlan } from '../ports/session-publisher.port';
 import { isBotAuthorizedFor } from './session-publish-authorizer.service';

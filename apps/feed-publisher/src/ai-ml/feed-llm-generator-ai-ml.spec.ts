@@ -2,7 +2,7 @@ import { LlmPort } from '../llm/application/ports/llm.port';
 import { FeedLlmGenerator } from '../llm/infrastructure/llm/feed-llm-generator.adapter';
 import { InMemoryLlmConfigRepository } from '../llm/infrastructure/persistence/in-memory/in-memory-llm-config.repository';
 import { InMemoryPromptTemplateRepository } from '../llm/infrastructure/persistence/in-memory/in-memory-prompt-template.repository';
-import { PublisherQueueEntry } from '../queue/domain/publisher-queue-entry.entity';
+import type { LlmEntryView } from '../llm/domain/llm-entry.view';
 import { AiMlParityService } from './application/services/ai-ml-parity.service';
 import type { AiMlPromptClient } from './infrastructure/ai-ml-prompt-client';
 
@@ -15,16 +15,12 @@ class StubLlm extends LlmPort {
   }
 }
 
-const entry = (): PublisherQueueEntry =>
-  PublisherQueueEntry.create({
-    contentType: 'crypto-news',
-    channelId: 'chan',
-    messageId: 1,
-    rawContent: 'bitcoin surges',
-    rawTitle: null,
-    imagePaths: [],
-    keywordTemplateId: null,
-  });
+const entry = (): LlmEntryView => ({
+  rawContent: 'bitcoin surges',
+  rawTitle: null,
+  imagePaths: [],
+  keywordTemplateId: null,
+});
 
 const withEnv = async (
   vars: Record<string, string | undefined>,

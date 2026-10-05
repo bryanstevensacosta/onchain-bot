@@ -1,6 +1,6 @@
 import { GatewaySessionPublisher } from './gateway-session-publisher.adapter';
 import type { SessionPublishPlan } from '@/sessions/application/ports/session-publisher.port';
-import type { TargetDispatcherPort } from '@/target/application/ports/target-dispatcher.port';
+import type { SessionTargetDispatcherPort } from '@/sessions/application/ports/session-target-dispatcher.port';
 
 function makeDispatcher(result: { ok: boolean }): {
   dispatcher: { dispatch: jest.Mock };

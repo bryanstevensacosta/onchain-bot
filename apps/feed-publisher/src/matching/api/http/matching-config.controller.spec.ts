@@ -4,9 +4,6 @@ import { MatchingConfigController } from './matching-config.controller';
 import { MatchingConfigRepository } from '@/matching/domain/ports/matching-config.repository';
 import { MatchingHealthState } from '@/matching/application/state/matching-health.state';
 import { InMemoryMatchingConfigRepository } from '@/matching/infrastructure/persistence/in-memory/in-memory-matching-config.repository';
-import { QueueManager } from '@/queue/application/services/queue-manager.service';
-import { PublisherQueueRepository } from '@/queue/domain/ports/publisher-queue.repository';
-import { InMemoryPublisherQueueRepository } from '@/queue/infrastructure/persistence/in-memory/in-memory-publisher-queue.repository';
 
 describe('MatchingConfigController', () => {
   async function build() {
@@ -18,11 +15,6 @@ describe('MatchingConfigController', () => {
           useClass: InMemoryMatchingConfigRepository,
         },
         MatchingHealthState,
-        QueueManager,
-        {
-          provide: PublisherQueueRepository,
-          useClass: InMemoryPublisherQueueRepository,
-        },
         {
           provide: ConfigService,
           useValue: {

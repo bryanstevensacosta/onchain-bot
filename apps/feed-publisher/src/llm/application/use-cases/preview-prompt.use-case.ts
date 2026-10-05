@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PublisherQueueEntry } from '@/queue/domain/publisher-queue-entry.entity';
+import type { LlmEntryView } from '@/llm/domain/llm-entry.view';
 import type { ReasoningEffort } from '@/llm/domain/prompt-template.validators';
 import { PromptTemplateRepository } from '@/llm/domain/ports/prompt-template.repository';
 import { FeedLlmGenerator } from '@/llm/infrastructure/llm/feed-llm-generator.adapter';
@@ -80,15 +80,12 @@ export class PreviewPromptUseCase {
         error: 'rawContent must be a non-empty string',
       });
     }
-    const entry = PublisherQueueEntry.create({
-      contentType: 'crypto-news',
-      channelId: 'playground-preview',
-      messageId: 0,
+    const entry: LlmEntryView = {
       rawContent: input.rawContent,
       rawTitle: input.rawTitle ?? null,
       imagePaths: [],
       keywordTemplateId: templateId ?? null,
-    });
+    };
     if (input.generate === true) {
       return this.generate(input, entry, templateId);
     }
@@ -96,7 +93,7 @@ export class PreviewPromptUseCase {
   }
 
   private async renderOnly(
-    entry: PublisherQueueEntry,
+    entry: LlmEntryView,
     templateId: string | undefined,
     draft: PreviewPromptDraftInput | undefined,
   ): Promise<PreviewPromptResult> {
@@ -137,7 +134,7 @@ export class PreviewPromptUseCase {
 
   private async generate(
     input: PreviewPromptInput,
-    entry: PublisherQueueEntry,
+    entry: LlmEntryView,
     templateId: string | undefined,
   ): Promise<PreviewPromptResult> {
     if (templateId !== undefined) {

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch } from '@nestjs/common';
+import { Body, Controller, Get, Optional, Patch } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { MatchingConfigRepository } from '@/matching/domain/ports/matching-config.repository';
 import { MatchingHealthState } from '@/matching/application/state/matching-health.state';
@@ -7,7 +7,7 @@ import {
   type MatchingConfigView,
 } from '@/matching/application/mappers/matching-config.mapper';
 import { UpdateMatchingConfigDto } from '../input/matching-config.input';
-import { QueueManager } from '@/queue/application/services/queue-manager.service';
+import { QueueDepthReader } from '@/matching/domain/ports/queue-depth.port';
 
 export interface MatchingHealthView {
   readonly enabled: boolean;
@@ -23,7 +23,8 @@ export interface MatchingHealthView {
  *
  * GET /config · PATCH /config (sole writer of the match flag) ·
  * GET /health (frozen 6-field view: flag, ticks, queue depth).
- * `queuePending` reads the unified queue (todo 4 binding).
+ * `queuePending` reads the unified queue via `QueueDepthReader`
+ * (R-b1: 0 until the B1 dual binds the HTTP reader).
  */
 @ApiTags('feed-publisher-matching')
 @Controller('feed-publisher/matching')
@@ -31,7 +32,7 @@ export class MatchingConfigController {
   public constructor(
     private readonly matchingConfigRepo: MatchingConfigRepository,
     private readonly health: MatchingHealthState,
-    private readonly queue: QueueManager,
+    @Optional() private readonly queue?: QueueDepthReader,
   ) {}
 
   @Get('config')
@@ -49,14 +50,14 @@ export class MatchingConfigController {
   @ApiResponse({ status: 200, description: 'Matching pipeline health' })
   public async getHealth(): Promise<MatchingHealthView> {
     const cfg = await this.matchingConfigRepo.load();
-    const counts = await this.queue.counts();
+    const queuePending = (await this.queue?.counts())?.pending ?? 0;
     return {
       enabled: cfg.enabled,
       lastTickAt: this.health.lastTickAt,
       lastFetchOk: this.health.lastFetchOk,
       consecutiveFetchFailures: this.health.consecutiveFetchFailures,
       lastEnqueuedAt: this.health.lastEnqueuedAt,
-      queuePending: counts.pending,
+      queuePending,
     };
   }
 
