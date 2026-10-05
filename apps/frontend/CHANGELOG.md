@@ -6,6 +6,88 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ### Added
 
+- Dexter template-management data layer (Wave 1 Lane A, no UI yet):
+  new `entities/dexter/` slice (`model/types.ts`:
+  `MessageTemplateView`/`DisplayMapView`/`PlaceholdersView`/
+  `PreviewTemplateBody`/`PreviewTemplateOutput`, wire field `display`
+  NOT `emoji`, derived key `{{chainDisplay}}`;
+  `api/dexter-queries.ts` fetchers for templates CRUD + activate +
+  preview, placeholders catalog, display-maps CRUD with `dexterKeys`
+  factory; hooks `useDexterTemplates`/`useDexterTemplate`/
+  `useCreateTemplate`/`useUpdateTemplate`/`useDeleteTemplate`/
+  `useActivateTemplate` + `usePlaceholders`/`useDisplayMaps`/
+  `useCreateDisplayMap`/`useUpdateDisplayMap`/`useDeleteDisplayMap` +
+  `usePreviewTemplate` (mutation, no polling)) + `ENDPOINTS.dexter`
+  template routes via `dexterPath` same-origin `/dexter-api` prefix
+  (vite dev → `:4060`) + `/dexter-api/` nginx locations in BOTH confs
+  (prefix stripped, lazy-DNS; staging upstream
+  `onchain-bot-dexter-staging:4060` live, prod upstream
+  `onchain-bot-dexter:4060` planned — prod 502s until dexter
+  deploys). No page/widget consumes these hooks yet:
+  template-management UI is pending (Lane B). Tests:
+  `entities/dexter/api/dexter-queries.test.ts`.
+  (feat/dexter-frontend)
+
+- Dexter template-management UI (Wave 1 Lane B, consumes Lane A hooks,
+  no entity changes): four sections below binding+scan on `/dexter`
+  (`pages/dexter/`, `previewSeed: string | null` wiring in `index.tsx`):
+  `TemplatesSection` (per-command CRUD + activate + "Vista previa"
+  row action), `PreviewSection` (active/id/draft modes, `isPreviewUnresolved()`
+  narrowing, copy + `truncado` badge), `PlaceholdersSection` (read-only
+  catalog), `DisplayMapsSection` (CRUD) + tokenized MarkdownV2 renderer
+  ( `shared/lib/render-markdown-v2.tsx`, React rebuild, never
+  `dangerouslySetInnerHTML`, XSS-safe) + `dexter-template-helpers.ts`
+  (command enum, timeframe hint, HttpError-to-English mapper).
+  English strings, `dexter-*` testids, API-down empty states (never
+  crashes). Tests: `e2e/dexter-templates.spec.ts` (6 tests con
+  `/dexter-api/**` mockeados: list + activate, preview render,
+  unresolved state, timeframe gating, placeholders + display-maps,
+  API-down empty states).
+  (feat/dexter-frontend)
+
+- Dexter live template editor with frozen snapshot (Wave 1 follow-up,
+  frontend lane; backend contract already live): new `LiveEditorSection`
+  (`pages/dexter/live-editor-section.tsx`, wired below `PreviewSection`
+  in `index.tsx`) — split Markdown textarea with `{{placeholders}}` on
+  top + `RenderMarkdownV2` result below, address input + `Load data`
+  button (one `{draft, address}` resolve via `usePreviewTemplate`,
+  freezes the returned `token`), debounced keystroke re-renders
+  (`LIVE_EDITOR_DEBOUNCE_MS` 400 ms) sending `{draft, token}` WITHOUT
+  address through `previewDexterTemplate` (per-fire `AbortController`
+  cancel + sequence-id stale discard; address/command edits invalidate
+  the snapshot with a re-load hint); `placeholdersUsed` chips +
+  `truncated` badge + unresolved states; English strings, `dexter-live-*`
+  testids, no save button (drafts never persisted). Additive-only
+  entity delta: TYPE-ONLY `ResolvedTokenSnapshot` mirror of backend
+  `ResolvedToken` (required `address/chain/symbol`, rest
+  optional/nullable, JSON-safe primitives) as `PreviewTemplateBody.token`
+  (making `address` optional) + `PreviewResult.token`;
+  `previewDexterTemplate(body, signal?)` forwards to `httpPost` (new
+  optional signal param, backward compatible). Tests:
+  `live-editor-section.test.tsx` (5 tests) + 2 mocked e2e cases in
+  `dexter-templates.spec.ts` (load→type→stable render, stale-discard).
+  (feat/dexter-frontend)
+
+- Dexter live-editor save flow sharing the CRUD persistence (no
+  duplication): extracted the create/edit modal from
+  `TemplatesSection` into shared `TemplateFormModal`
+  (`pages/dexter/template-form-modal.tsx`, same fields/validations/
+  mutations, zero visible change); `LiveEditorSection` gains a template
+  picker (`dexter-live-template-picker` over `useDexterTemplates(command)`
+  — selecting loads body+command into the draft, `dexter-live-editing`
+  state + Detach back to a free draft) and an explicit-only Save button
+  (`dexter-live-save`: linked + name unchanged → `useUpdateTemplate`
+  PATCH body, version++; free draft or renamed link →
+  `useCreateTemplate` POST with the name input; 409/400 via
+  `englishMutationError`, refresh via the hooks' existing global
+  invalidation; no new validation logic, no autosave). English strings,
+  `dexter-live-*` testids. Tests: `live-editor-section.test.tsx`
+  (save-new/save-back/detach/rename/409) +
+  `template-form-modal.test.tsx` (shared submit paths + raw-source
+  no-duplication guard) + 3 mocked e2e in `dexter-templates.spec.ts`
+  (save-as-new appears in list, save-back bumps version, detach).
+  (feat/dexter-frontend)
+
 - Dexter launchpad placeholders (Wave 1 Lane S, backend contract only,
   no local code on this branch): `{{launchpadText}}`/
   `{{launchpadTextLink}}`/`{{launchpadIcon}}`/`{{launchpadIconLink}}`
@@ -23,6 +105,25 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ### Changed
 
+- Dexter templates without a visible version (owner decision: display
+  without action = noise): the `v1/v2/...` badge is gone from template
+  rows, the live-editor picker options, and the live-editor editing
+  line; the `version` field stays in `MessageTemplateView`/hooks and in
+  the backend (traceability via `templateUsed`). Tests updated
+  (`templates-section.test.tsx`, `live-editor-section.test.tsx`,
+  `e2e/dexter-templates.spec.ts`).
+  (feat/dexter-frontend)
+
+- Dexter page English pass (owner override of the repo's Spanish-UI
+  convention — dexter page only): all user-visible strings in
+  `pages/dexter/` translated to operator English (templates / preview /
+  placeholders / display-maps sections, create/edit/delete/activate
+  modals + confirms, 409/400 inline errors, empty / loading states,
+  filter inputs, Yes/No badges, tooltips); `spanishMutationError`
+  renamed to `englishMutationError` (+ all imports). Testids
+  `dexter-*` unchanged. Tests updated (`templates-section.test.tsx`,
+  `scan-search-modal.test.tsx`, `e2e/dexter-templates.spec.ts`).
+  (feat/dexter-frontend)
 - Scheduling app rename `scheduling-posts` → `publishing-queue` (no behaviour change): `SCHEDULING_POSTS_*` env/consts become `PUBLISHING_QUEUE_*`, `VITE_SCHEDULING_POSTS_URL` becomes `VITE_PUBLISHING_QUEUE_URL`. Proxy prefix `/scheduling-api`, routes and ports unchanged. (feat/feed-frontend)
 
 - Manage Sessions moved into the Overview tab (breaking UI change):

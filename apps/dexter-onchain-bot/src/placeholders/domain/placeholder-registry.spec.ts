@@ -41,7 +41,7 @@ describe('placeholder-registry (todo 4 closed vocabulary)', () => {
     ]);
   });
 
-  it('holds the ten derived keys (devLine is derived, not base)', () => {
+  it('holds the eighteen derived keys (devLine is derived, not base)', () => {
     expect([...DERIVED_PLACEHOLDERS]).toEqual([
       'chainDisplay',
       'scanLinks',
@@ -53,18 +53,26 @@ describe('placeholder-registry (todo 4 closed vocabulary)', () => {
       'launchpadTextLink',
       'launchpadIcon',
       'launchpadIconLink',
+      'botStartAddressLink',
+      'chainName',
+      'venue',
+      'venueTech',
+      'venueLine',
+      'fdvAth',
+      'fdvAthAgo',
+      'alternatives',
     ]);
   });
 
-  it('grants every command base + derived (32 keys)', () => {
+  it('grants every command base + derived (40 keys)', () => {
     for (const command of ['ca', 'x', 'z', 'bare'] as const) {
-      expect(PLACEHOLDERS_BY_COMMAND[command]).toHaveLength(32);
+      expect(PLACEHOLDERS_BY_COMMAND[command]).toHaveLength(40);
     }
   });
 
-  it('grants timeframe ONLY to c/cc (33 keys)', () => {
-    expect(PLACEHOLDERS_BY_COMMAND.c).toHaveLength(33);
-    expect(PLACEHOLDERS_BY_COMMAND.cc).toHaveLength(33);
+  it('grants timeframe ONLY to c/cc (41 keys)', () => {
+    expect(PLACEHOLDERS_BY_COMMAND.c).toHaveLength(41);
+    expect(PLACEHOLDERS_BY_COMMAND.cc).toHaveLength(41);
     expect(PLACEHOLDERS_BY_COMMAND.c).toContain(TIMEFRAME_PLACEHOLDER);
     expect(PLACEHOLDERS_BY_COMMAND.cc).toContain(TIMEFRAME_PLACEHOLDER);
     for (const command of ['ca', 'x', 'z', 'bare'] as const) {
@@ -106,5 +114,47 @@ describe('placeholder-registry (todo 4 closed vocabulary)', () => {
       }
       expect(isKnownPlaceholder(command, 'launchpad')).toBe(false);
     }
+  });
+
+  it('whitelists botStartAddressLink on every command', () => {
+    for (const command of TEMPLATE_COMMANDS) {
+      expect(isKnownPlaceholder(command, 'botStartAddressLink')).toBe(true);
+    }
+  });
+
+  it('whitelists the four venue keys on every command', () => {
+    for (const command of TEMPLATE_COMMANDS) {
+      for (const key of ['chainName', 'venue', 'venueTech', 'venueLine']) {
+        expect(isKnownPlaceholder(command, key)).toBe(true);
+      }
+    }
+  });
+
+  it('whitelists fdvAth + fdvAthAgo on every command', () => {
+    for (const command of TEMPLATE_COMMANDS) {
+      expect(isKnownPlaceholder(command, 'fdvAth')).toBe(true);
+      expect(isKnownPlaceholder(command, 'fdvAthAgo')).toBe(true);
+    }
+  });
+
+  it('whitelists alternatives on every command', () => {
+    for (const command of TEMPLATE_COMMANDS) {
+      expect(isKnownPlaceholder(command, 'alternatives')).toBe(true);
+    }
+  });
+
+  it('returns keys alphabetically (byte order) for ca + c, canonical arrays untouched', () => {
+    const isSorted = (keys: string[]): boolean =>
+      keys.every((key, i) => i === 0 || keys[i - 1] < key);
+    for (const command of ['ca', 'x'] as const) {
+      const keys = placeholdersFor(command);
+      expect(isSorted(keys)).toBe(true);
+      expect(keys).toContain('chainDisplay');
+      expect(keys).not.toContain(TIMEFRAME_PLACEHOLDER);
+    }
+    const chartKeys = placeholdersFor('c');
+    expect(isSorted(chartKeys)).toBe(true);
+    expect(chartKeys).toContain(TIMEFRAME_PLACEHOLDER);
+    expect(PLACEHOLDERS_BY_COMMAND.ca[0]).toBe('symbol');
   });
 });

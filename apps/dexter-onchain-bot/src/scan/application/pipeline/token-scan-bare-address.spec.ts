@@ -102,21 +102,28 @@ describe('TokenScanPipeline bare-address support', () => {
     expect(snapshotCalls[0]).toBe(`snapshot:ethereum:${EVM}`);
   });
 
-  it('never silently guesses: identity on two EVM chains is ambiguous', async () => {
+  it('best-pick with disclosure: identity on two EVM chains resolves highest liquidity', async () => {
     const { client } = makeClient({
       detect: { chainId: 'ethereum' },
       snapshots: {
-        ethereum: identity('ethereum', EVM),
-        base: identity('base', EVM),
+        ethereum: {
+          ...identity('ethereum', EVM),
+          liquidityUsd: 100,
+          fdvUsd: 1000,
+        },
+        base: { ...identity('base', EVM), liquidityUsd: 9000, fdvUsd: 500 },
       },
     });
     const pipeline = new TokenScanPipeline(client as never);
-    await expect(pipeline.resolve(EVM)).resolves.toBeNull();
+    const token = await pipeline.resolve(EVM);
+    expect(token?.chain).toBe('base');
     const detailed = await pipeline.resolveDetailed(EVM);
-    expect(detailed.status).toBe('ambiguous');
-    if (detailed.status === 'ambiguous') {
-      expect(detailed.candidates).toContain('ethereum');
-      expect(detailed.candidates).toContain('base');
+    expect(detailed.status).toBe('resolved');
+    if (detailed.status === 'resolved') {
+      expect(detailed.token.chain).toBe('base');
+      expect(detailed.token.alternatives).toEqual([
+        { chain: 'ethereum', address: EVM, liquidityUsd: 100 },
+      ]);
     }
   });
 

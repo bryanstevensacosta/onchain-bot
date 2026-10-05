@@ -13,7 +13,7 @@ describe('provider-quote fetchers (supply fields)', () => {
   function deps(overrides: Record<string, unknown> = {}) {
     return {
       dexscreener: {
-        getBestPairSummary: async () => ({
+        getBestPairSummaryForChain: async () => ({
           priceUsd: 1.5,
           marketCap: 100,
           fdv: 200,

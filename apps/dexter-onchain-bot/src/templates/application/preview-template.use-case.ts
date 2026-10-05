@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { SCAN_PIPELINE } from '@/scan/domain/ports/scan-pipeline.port';
+import type { ResolvedToken } from '@/scan/domain/ports/scan-pipeline.port';
 import type { ResolveOutcome } from '@/scan/application/pipeline/token-scan.pipeline';
 import {
   TemplateRendererService,
@@ -42,7 +43,25 @@ export interface PreviewTemplateDraftInput {
 export interface PreviewTemplateInput {
   readonly templateId?: string;
   readonly draft?: PreviewTemplateDraftInput;
-  readonly address: string;
+  /**
+   * Token source: EXACTLY ONE of `address` / `token` (strict XOR —
+   * both or neither → 400, same rule as `templateId`/`draft`).
+   *
+   * - `address`: resolved via `SCAN_PIPELINE` (`resolveDetailed`) as today.
+   * - `token`: a `ResolvedToken` snapshot echoed back by a previous
+   *   preview (`token` in the success shape). The pipeline is SKIPPED
+   *   entirely — fetch-once support for the live editor (resolve once,
+   *   re-render the draft on every keystroke without re-resolving).
+   *
+   * DECISION (liveedit-backend): strict XOR won over token-wins
+   * precedence — both present → 400, consistent with the
+   * `templateId`/`draft` rule and unambiguous for clients.
+   *
+   * `ResolvedToken` is all primitives (no `Date`), so the snapshot
+   * survives a direct JSON round-trip with zero (de)serializers.
+   */
+  readonly address?: string;
+  readonly token?: ResolvedToken;
   readonly timeframe?: string;
 }
 
@@ -53,6 +72,12 @@ export interface PreviewTemplateResult {
   readonly placeholdersUsed: string[];
   /** Always empty: the renderer throws on unknown keys instead of collecting. Kept for contract stability. */
   readonly unknown: string[];
+  /**
+   * The token the render was built from: pipeline-resolved for the
+   * `address` path, echoed snapshot for the `token` path. ABSENT on
+   * unresolved shapes (`{error,...}` stay byte-identical).
+   */
+  readonly token: ResolvedToken;
 }
 
 /** Pipeline error shapes, propagated verbatim (same bodies as `GET /dexter/token`). */
@@ -112,10 +137,18 @@ export class PreviewTemplateUseCase {
           : 'provide exactly one of templateId or draft',
       });
     }
-    if (typeof input.address !== 'string' || input.address.trim() === '') {
+    const hasAddress =
+      typeof input.address === 'string' && input.address.trim() !== '';
+    const hasToken = input.token !== undefined && input.token !== null;
+    if (hasAddress === hasToken) {
       throw new BadRequestException({
-        error: 'address must be a non-empty string',
+        error: hasAddress
+          ? 'provide exactly one of address or token, not both'
+          : 'address must be a non-empty string',
       });
+    }
+    if (hasToken) {
+      PreviewTemplateUseCase.assertTokenSnapshot(input.token);
     }
 
     let command: TemplateCommand;
@@ -142,27 +175,35 @@ export class PreviewTemplateUseCase {
 
     PreviewTemplateUseCase.assertTimeframe(command, input.timeframe);
 
-    const outcome = await this.pipeline.resolveDetailed(input.address);
-    if (outcome.status === 'ambiguous') {
-      return {
-        error:
-          'Ambiguous address — it resolves on more than one chain. Retry with an explicit chain qualifier (chain:address).',
-        address: outcome.address,
-        candidates: outcome.candidates,
-      };
-    }
-    if (outcome.status === 'invalid') {
-      return {
-        error: `Invalid address: ${outcome.reason}`,
-        address: outcome.address,
-      };
-    }
-    if (outcome.status === 'not-found') {
-      return { error: 'Token not found', address: outcome.address };
+    let token: ResolvedToken;
+    if (hasToken) {
+      token = input.token;
+    } else {
+      const outcome = await this.pipeline.resolveDetailed(
+        input.address as string,
+      );
+      if (outcome.status === 'ambiguous') {
+        return {
+          error:
+            'Ambiguous address — it resolves on more than one chain. Retry with an explicit chain qualifier (chain:address).',
+          address: outcome.address,
+          candidates: outcome.candidates,
+        };
+      }
+      if (outcome.status === 'invalid') {
+        return {
+          error: `Invalid address: ${outcome.reason}`,
+          address: outcome.address,
+        };
+      }
+      if (outcome.status === 'not-found') {
+        return { error: 'Token not found', address: outcome.address };
+      }
+      token = outcome.token;
     }
 
     const values: TemplateValues = {
-      ...outcome.token,
+      ...token,
       ...(input.timeframe !== undefined ? { timeframe: input.timeframe } : {}),
     };
     try {
@@ -173,9 +214,41 @@ export class PreviewTemplateUseCase {
         parseMode: 'MarkdownV2',
         placeholdersUsed: rendered.placeholdersUsed,
         unknown: [],
+        token,
       };
     } catch (error) {
       throw PreviewTemplateUseCase.toBadRequest(error);
+    }
+  }
+
+  /**
+   * Light snapshot check (NOT deep validation): the token must be a
+   * plain object carrying non-empty string `address` + `chain` +
+   * `symbol`. Every other key is optional — the renderer already
+   * tolerates absent keys as `N/A`/`""` (`TemplateValues` is
+   * `Partial<ResolvedToken>`), so requiring them here would reject
+   * snapshots the render path handles fine.
+   */
+  public static assertTokenSnapshot(
+    token: unknown,
+  ): asserts token is ResolvedToken {
+    const record =
+      typeof token === 'object' && token !== null && !Array.isArray(token)
+        ? (token as Record<string, unknown>)
+        : null;
+    const valid =
+      record !== null &&
+      typeof record['address'] === 'string' &&
+      record['address'].trim() !== '' &&
+      typeof record['chain'] === 'string' &&
+      record['chain'].trim() !== '' &&
+      typeof record['symbol'] === 'string' &&
+      record['symbol'].trim() !== '';
+    if (!valid) {
+      throw new BadRequestException({
+        error:
+          'token must be an object with non-empty string address, chain and symbol',
+      });
     }
   }
 

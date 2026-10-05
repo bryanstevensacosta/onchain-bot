@@ -316,5 +316,21 @@ export const ENDPOINTS = {
     bind: dexterPath('/api/dexter-bots/bind'),
     unbind: dexterPath('/api/dexter-bots/unbind'),
     migrate: dexterPath('/api/dexter-bots/migrate-to-gateway'),
+    // Dexter message-template management (Wave 1 Lane A): templates
+    // CRUD + activate + preview, placeholder catalog, display-maps
+    // CRUD. Same-origin `/dexter-api` prefix (vite dev → `:4060`;
+    // nginx locations are Lane C). Wire field is `display`
+    // (NOT `emoji`); derived key `{{chainDisplay}}`.
+    templates: dexterPath('/api/dexter/templates'),
+    templateById: (id: string) =>
+      dexterPath(`/api/dexter/templates/${encodeURIComponent(id)}`),
+    templateActivate: (id: string) =>
+      dexterPath(`/api/dexter/templates/${encodeURIComponent(id)}/activate`),
+    templatePreview: dexterPath('/api/dexter/templates/preview'),
+    placeholdersByCommand: (command: string) =>
+      dexterPath(`/api/dexter/placeholders/${encodeURIComponent(command)}`),
+    displayMaps: dexterPath('/api/dexter/display-maps'),
+    displayMapById: (id: string) =>
+      dexterPath(`/api/dexter/display-maps/${encodeURIComponent(id)}`),
   },
 } as const;

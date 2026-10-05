@@ -6,10 +6,7 @@ import {
   UnsupportedTemplateSyntax,
 } from '@/placeholders/application/template-renderer.service';
 import type { DisplayResolverPort } from '@/placeholders/application/template-renderer.service';
-import {
-  PLACEHOLDERS_BY_COMMAND,
-  placeholdersFor,
-} from '@/placeholders/domain/placeholder-registry';
+import { PLACEHOLDERS_BY_COMMAND } from '@/placeholders/domain/placeholder-registry';
 import type { TemplateCommand } from '@/placeholders/domain/placeholder-registry';
 
 const TOKEN: ResolvedToken = {
@@ -142,13 +139,15 @@ describe('TemplateRendererService (todo 4 closed semantics)', () => {
     );
     expect(out.text).toBe('A\\.B \\(C\\)');
     expect(out.text).not.toContain('\\\\');
+    // Rick parity: money carries NO `$` — `$` is literal body text now.
     const money = renderer.render(
       '{{priceUsd}}',
       { ...TOKEN, priceUsd: 164.32 },
       'ca',
     );
-    expect(money.text).toBe('$164\\.32');
+    expect(money.text).toBe('164\\.32');
     expect(money.text).not.toContain('\\\\');
+    expect(money.text).not.toContain('$');
   });
 
   it('truncates a 5000-char body with the shared marker', () => {
@@ -212,7 +211,10 @@ describe('TemplateRendererService (todo 4 closed semantics)', () => {
     const commands: TemplateCommand[] = ['ca', 'x', 'z', 'c', 'cc', 'bare'];
     for (let i = 0; i < 50; i += 1) {
       const command = commands[i % commands.length];
-      const expected = placeholdersFor(command);
+      // Renderer errors carry the canonical declaration-order list (the
+      // renderer reads PLACEHOLDERS_BY_COMMAND directly; the sorted
+      // catalog contract lives in placeholdersFor, used by the API).
+      const expected = PLACEHOLDERS_BY_COMMAND[command];
       const renderer = new TemplateRendererService(stubResolver('🟣'));
       let caught: unknown;
       try {
@@ -224,5 +226,131 @@ describe('TemplateRendererService (todo 4 closed semantics)', () => {
       expect((caught as UnknownPlaceholder).key).toBe(`unknown${i}`);
       expect((caught as UnknownPlaceholder).valid).toEqual(expected);
     }
+  });
+});
+
+describe('Rick-parity number policy (plan todo 13, evidence examples.md)', () => {
+  const policyRenderer = (): TemplateRendererService =>
+    new TemplateRendererService(stubResolver('🟣'));
+
+  it.each([
+    [23_300, '23\\.3K'],
+    [7_900, '7\\.9K'],
+    [1_460_000_000, '1\\.46B'],
+    [80_000_000_000, '80B'],
+    [12_900, '12\\.9K'],
+    [752, '752'],
+    [983.78, '983\\.78'],
+    [94.31, '94\\.31'],
+  ])('money %p renders compact without `$`: %p', (value, expected) => {
+    const out = policyRenderer().render(
+      '{{marketCapUsd}}',
+      { ...TOKEN, marketCapUsd: value },
+      'ca',
+    );
+    expect(out.text).toBe(expected);
+    expect(out.text).not.toContain('$');
+  });
+
+  it.each([
+    [0.00002434, '0\\.00002434'],
+    [0.00004128, '0\\.00004128'],
+    [0.00000086, '0\\.00000086'],
+    [0.002345, '0\\.002345'],
+    [3457, '3,457'],
+    [164.32, '164\\.32'],
+    [100, '100'],
+  ])(
+    'priceUsd %p renders adaptive (dust full digits, never `$0.00`)',
+    (value, expected) => {
+      const out = policyRenderer().render(
+        'USD: {{priceUsd}}',
+        { ...TOKEN, priceUsd: value },
+        'ca',
+      );
+      expect(out.text).toBe(`USD: ${expected}`);
+    },
+  );
+
+  it.each([
+    [80, '80%'],
+    [-34.4, '\\-34\\.4%'],
+    [2.5, '2\\.5%'],
+    [5, '5%'],
+    [-100, '\\-100%'],
+  ])(
+    'percent %p renders trimmed with sign only when negative',
+    (value, expected) => {
+      const out = policyRenderer().render(
+        '{{priceChange24h}}',
+        { ...TOKEN, priceChange24h: value },
+        'ca',
+      );
+      expect(out.text).toBe(expected);
+      expect(out.text).not.toContain('+');
+    },
+  );
+
+  it.each([[-0], [-0.04], [0]])(
+    'percent %p normalizes negative zero to `0%`',
+    (value) => {
+      const out = policyRenderer().render(
+        '{{priceChange24h}}',
+        { ...TOKEN, priceChange24h: value },
+        'ca',
+      );
+      expect(out.text).toBe('0%');
+    },
+  );
+
+  it('Rick evidence body renders `[23.3K/80%]` + `USD: 0.00002434` + `Liq: 7.9K`', () => {
+    const out = policyRenderer().render(
+      '[{{marketCapUsd}}/{{priceChange24h}}]\nUSD: {{priceUsd}}\nLiq: {{liquidityUsd}}',
+      {
+        ...TOKEN,
+        marketCapUsd: 23_300,
+        priceChange24h: 80,
+        priceUsd: 0.00002434,
+        liquidityUsd: 7_900,
+      },
+      'ca',
+    );
+    expect(out.text).toBe('[23\\.3K/80%]\nUSD: 0\\.00002434\nLiq: 7\\.9K');
+  });
+
+  it('Proficy style gets `$` from literal body text (`MC: $27.3K`)', () => {
+    const out = policyRenderer().render(
+      '**MC:** ${{marketCapUsd}}',
+      { ...TOKEN, marketCapUsd: 27_300 },
+      'ca',
+    );
+    expect(out.text).toBe('**MC:** $27\\.3K');
+  });
+
+  it('KOLscope style gets `$` from literal body text (`MC $30.22K`)', () => {
+    const out = policyRenderer().render(
+      '`MC` **${{marketCapUsd}}**',
+      { ...TOKEN, marketCapUsd: 30_220 },
+      'ca',
+    );
+    expect(out.text).toBe('`MC` **$30\\.22K**');
+  });
+
+  it('Soul dust renders plain (`USD: 0.00004128`, never `$0.00`)', () => {
+    const out = policyRenderer().render(
+      '`USD:` **{{priceUsd}}**',
+      { ...TOKEN, priceUsd: 0.00004128 },
+      'ca',
+    );
+    expect(out.text).toBe('`USD:` **0\\.00004128**');
+  });
+
+  it('nulls still render `N/A` on every numeric key', () => {
+    const out = policyRenderer().render(
+      '{{priceUsd}} {{marketCapUsd}} {{priceChange24h}} {{holders}}',
+      NULL_TOKEN,
+      'ca',
+    );
+    expect(out.text).toBe('N/A N/A N/A N/A');
   });
 });

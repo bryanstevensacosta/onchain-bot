@@ -104,7 +104,7 @@ describe('scan search modal — recent searches', () => {
     openModal();
     submitModal(`/x solana ${SOL}`);
     expect(screen.getByTestId('scan-modal-results')).toHaveTextContent(
-      'Cargando',
+      'Loading',
     );
     const items = screen.getAllByTestId('scan-modal-recent-item');
     expect(items).toHaveLength(1);
@@ -116,7 +116,7 @@ describe('scan search modal — recent searches', () => {
     expect(screen.getAllByTestId('scan-modal-recent-item')).toHaveLength(1);
     fireEvent.click(screen.getAllByTestId('scan-modal-recent-item')[0]);
     expect(screen.getByTestId('scan-modal-results')).toHaveTextContent(
-      'Cargando',
+      'Loading',
     );
     vi.restoreAllMocks();
   });

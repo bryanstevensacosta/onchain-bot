@@ -52,6 +52,49 @@ export function toLaunchpadOrNull(raw: unknown): MarketDataLaunchpad | null {
   return { id, name, url };
 }
 
+/**
+ * DEX venue of the best-liquidity pair (dexter venue-line, plan
+ * todo 14). Mirrors market-data `SnapshotVenue`: `{ dexId, labels }`
+ * or `null`. NEVER trusted blindly — `toVenueOrNull` shape-checks at
+ * this boundary (dexId a non-empty string, labels an array of
+ * strings, else null) so opaque JSON never reaches the renderer.
+ * `dexId` (e.g. `meteoradbc`) is never treated as a launchpad id
+ * (e.g. `meteora-dbc`) — separate tables, separate validators.
+ */
+export interface MarketDataVenue {
+  readonly dexId: string;
+  readonly labels: ReadonlyArray<string>;
+}
+
+export function toVenueOrNull(raw: unknown): MarketDataVenue | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const candidate = raw as Record<string, unknown>;
+  const { dexId, labels } = candidate;
+  if (typeof dexId !== 'string' || dexId.trim() === '') return null;
+  if (!Array.isArray(labels)) return null;
+  const clean = labels.filter(
+    (entry): entry is string => typeof entry === 'string',
+  );
+  return { dexId: dexId.trim(), labels: clean };
+}
+
+/**
+ * FDV ATH over the token's own snapshot history (dexter fdv-ath,
+ * plan todo 16). Two flat fields, each validated at this boundary:
+ * `fdvAthUsd` must be a finite number, `fdvAthAt` an ISO-parseable
+ * string — anything else resolves `null` so opaque JSON never
+ * reaches the renderer. Both `null` on cold-start (no history);
+ * the current FDV is NEVER substituted (spec-pinned).
+ */
+export function toFdvAthUsdOrNull(raw: unknown): number | null {
+  return typeof raw === 'number' && Number.isFinite(raw) ? raw : null;
+}
+
+export function toFdvAthAtOrNull(raw: unknown): string | null {
+  if (typeof raw !== 'string' || raw === '') return null;
+  return Number.isNaN(Date.parse(raw)) ? null : raw;
+}
+
 export interface MarketDataSnapshot {
   readonly chain: string;
   readonly address: string;
@@ -74,6 +117,9 @@ export interface MarketDataSnapshot {
   readonly devPctSupply: number | null;
   readonly status: string | null;
   readonly launchpad?: MarketDataLaunchpad | null;
+  readonly venue?: MarketDataVenue | null;
+  readonly fdvAthUsd?: number | null;
+  readonly fdvAthAt?: string | null;
 }
 
 export interface ChainDetectHit {
@@ -140,6 +186,9 @@ export class MarketDataClient {
           typeof body.devPctSupply === 'number' ? body.devPctSupply : null,
         status: body.status ?? null,
         launchpad: toLaunchpadOrNull(body.launchpad),
+        venue: toVenueOrNull(body.venue),
+        fdvAthUsd: toFdvAthUsdOrNull(body.fdvAthUsd),
+        fdvAthAt: toFdvAthAtOrNull(body.fdvAthAt),
       };
     } catch (err) {
       this.logger.warn(

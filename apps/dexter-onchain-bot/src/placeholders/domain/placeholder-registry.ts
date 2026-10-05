@@ -59,6 +59,14 @@ export const DERIVED_PLACEHOLDERS: readonly string[] = [
   'launchpadTextLink',
   'launchpadIcon',
   'launchpadIconLink',
+  'botStartAddressLink',
+  'chainName',
+  'venue',
+  'venueTech',
+  'venueLine',
+  'fdvAth',
+  'fdvAthAgo',
+  'alternatives',
 ];
 
 /** Chart timeframe — valid ONLY inside `c`/`cc` bodies. */
@@ -90,7 +98,20 @@ export function placeholdersFor(command: TemplateCommand): string[] {
       `Unknown template command: ${String(command)} (valid: ${TEMPLATE_COMMANDS.join(', ')})`,
     );
   }
-  return [...known];
+  // Catalog contract (plan todo 15): alphabetical by key, locale-free
+  // byte/codepoint order (`<`/`>`, NOT `localeCompare` — locale collation
+  // varies by Node/ICU version, byte order is deterministic everywhere).
+  // Sort level: HERE (registry accessor, lowest point covering all six
+  // commands) rather than the controller response build — the controller
+  // maps this function, so the catalog inherits the order, and `valid`
+  // lists in 400s stay consistent with the catalog (single source of
+  // truth; frontend never sorts). Order-freedom finding: no consumer
+  // depends on declaration order — `isKnownPlaceholder`/renderer/
+  // template validation gate on membership (`.includes`), and
+  // `placeholdersUsed` follows body order, not registry order — but the
+  // canonical `PLACEHOLDERS_BY_COMMAND` arrays still keep declaration
+  // order untouched (sorted COPY only).
+  return [...known].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 }
 
 export function isKnownPlaceholder(

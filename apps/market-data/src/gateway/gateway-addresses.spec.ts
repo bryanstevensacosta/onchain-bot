@@ -10,6 +10,7 @@ import { AddressModule } from 'address/address.module';
 import { GatewayModule } from 'gateway/gateway.module';
 import { SNAPSHOT_QUOTE_PROVIDERS } from 'snapshot/domain/snapshot-quote.types';
 import { LaunchpadDetectorService } from 'provider/launchpad/application/launchpad-detector.service';
+import { DexScreenerService } from 'provider/infrastructure/dexscreener';
 
 const nullFetcher = {
   name: 'dexscreener',
@@ -43,6 +44,11 @@ describe('gateway addresses edge (P45)', () => {
       .useValue([nullFetcher])
       .overrideProvider(LaunchpadDetectorService)
       .useValue({ detectLaunchpad: async () => null })
+      .overrideProvider(DexScreenerService)
+      .useValue({
+        getBestPairSummary: async () => null,
+        getBestPairSummaryForChain: async () => null,
+      })
       .compile();
     app = module.createNestApplication();
     await app.init();

@@ -18,7 +18,7 @@ const MINT = 'JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN';
 
 function stubDeps(overrides: Record<string, unknown> = {}) {
   return {
-    dexscreener: { getBestPairSummary: async () => null },
+    dexscreener: { getBestPairSummaryForChain: async () => null },
     geckoterminal: { getTokenInfo: async () => null },
     birdeye: { getTokenOverview: async () => null },
     ccxt: { defaultExchange: 'binance', fetchTicker: async () => null },

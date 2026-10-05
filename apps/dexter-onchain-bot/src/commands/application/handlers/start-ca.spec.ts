@@ -56,7 +56,13 @@ const FIXTURE: ResolvedToken = {
 describe('/start (rewritten info+usage, lookup-only)', () => {
   it('explains lookup usage and never promises channel publishing', async () => {
     const bot = makeBot();
-    const handler = new StartCommandHandler(bot as never);
+    const handler = new StartCommandHandler(
+      bot as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
     await handler.handle([], makeContext());
     expect(bot.sent).toHaveLength(1);
     const text = bot.sent[0].text;

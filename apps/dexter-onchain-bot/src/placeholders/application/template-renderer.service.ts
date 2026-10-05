@@ -1,11 +1,13 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { MessageFormatterAdapter } from '@/scan/infrastructure/formatter/message-formatter';
 import type { ResolvedToken } from '@/scan/domain/ports/scan-pipeline.port';
+import { BotIdentityService } from '@/settings/application/bot-identity.service';
 import {
   PLACEHOLDERS_BY_COMMAND,
   placeholdersFor,
 } from '../domain/placeholder-registry';
 import type { TemplateCommand } from '../domain/placeholder-registry';
+import { chainNameOf, resolveVenueTexts } from '../domain/venue-display';
 
 export const TEMPLATE_MAX_LENGTH = 4096;
 
@@ -103,6 +105,15 @@ const shortenWallet = (wallet: string): string =>
   wallet.length > 10 ? `${wallet.slice(0, 4)}…${wallet.slice(-4)}` : wallet;
 
 /**
+ * Bot API `start` payload rules: max 64 chars, `[A-Za-z0-9_-]`.
+ * EVM (`0x`+40 hex = 42) and Solana (44) addresses fit; anything
+ * else degrades the deep-link key to `""` (never silently truncated).
+ */
+export function isBotStartPayload(value: string): boolean {
+  return /^[A-Za-z0-9_-]{1,64}$/.test(value);
+}
+
+/**
  * Stateless MarkdownV2 template renderer with closed placeholder
  * semantics. Static body text is author-owned MarkdownV2 (never
  * touched); every substituted VALUE is `escapeV2`-escaped exactly
@@ -116,6 +127,9 @@ export class TemplateRendererService {
     @Inject(DISPLAY_RESOLVER)
     @Optional()
     private readonly displayResolver?: DisplayResolverPort | null,
+    @Inject(BotIdentityService)
+    @Optional()
+    private readonly botIdentity?: BotIdentityService | null,
   ) {}
 
   public render(
@@ -152,12 +166,23 @@ export class TemplateRendererService {
   public static cleanupDanglingSeparators(text: string): string {
     return text
       .replace(/[ \t]*[•|][ \t]*(?=\n|$)/g, '')
-      .replace(/(^|\n)[ \t]*[•|][ \t]*/g, '$1');
+      .replace(/(^|\n)[ \t]*[•|][ \t]*/g, '$1')
+      .replace(/^[ \t]*[^@\n]*[ \t]@[ \t]*(?=\n|$)/gm, '')
+      .replace(/(^|\n)[ \t]*@[ \t]+/g, '$1');
   }
 
   private resolveValue(key: string, values: TemplateValues): string {
     const esc = (text: string): string =>
       MessageFormatterAdapter.escapeV2Text(text);
+    // `priceUsd` rides the adaptive price rule (dust renders full
+    // digits, never `$0.00`); every other money key keeps compact K/M/B.
+    if (key === 'priceUsd') {
+      return esc(
+        MessageFormatterAdapter.formatPriceText(
+          (values as Record<string, number | null>)[key] ?? null,
+        ),
+      );
+    }
     if (MONEY_KEYS.includes(key)) {
       return esc(
         MessageFormatterAdapter.formatMoneyText(
@@ -217,9 +242,7 @@ export class TemplateRendererService {
       case 'launchpadIcon': {
         const launchpad = values.launchpad;
         if (!launchpad) return '';
-        return (
-          this.displayResolver?.resolve('launchpad', launchpad.id) ?? ''
-        );
+        return this.displayResolver?.resolve('launchpad', launchpad.id) ?? '';
       }
       case 'launchpadIconLink': {
         const launchpad = values.launchpad;
@@ -269,6 +292,61 @@ export class TemplateRendererService {
         const tf = values.timeframe;
         if (tf === null || tf === undefined || tf === '') return '';
         return esc(String(tf));
+      }
+      case 'botStartAddressLink': {
+        const username = this.botIdentity?.getUsername() ?? '';
+        const address =
+          typeof values.address === 'string' ? values.address : '';
+        if (!username || !isBotStartPayload(address)) return '';
+        return `https://t.me/${username}?start=${address}`;
+      }
+      case 'chainName': {
+        return esc(
+          chainNameOf(typeof values.chain === 'string' ? values.chain : null),
+        );
+      }
+      case 'venue':
+      case 'venueTech':
+      case 'venueLine': {
+        const texts = resolveVenueTexts(values.launchpad, values.venue);
+        const text =
+          key === 'venue'
+            ? texts.venue
+            : key === 'venueTech'
+              ? texts.tech
+              : texts.venueLine;
+        return text === '' ? '' : esc(text);
+      }
+      case 'alternatives': {
+        const rest = values.alternatives;
+        if (!rest || rest.length === 0) return '';
+        return esc(`Also on: ${rest.map((entry) => entry.chain).join(', ')}`);
+      }
+      case 'fdvAth': {
+        const ath =
+          typeof values.fdvAthUsd === 'number' &&
+          Number.isFinite(values.fdvAthUsd)
+            ? values.fdvAthUsd
+            : null;
+        if (ath === null) return '';
+        return esc(MessageFormatterAdapter.formatMoneyText(ath));
+      }
+      case 'fdvAthAgo': {
+        const athForAgo =
+          typeof values.fdvAthUsd === 'number' &&
+          Number.isFinite(values.fdvAthUsd)
+            ? values.fdvAthUsd
+            : null;
+        if (athForAgo === null) return '';
+        if (
+          typeof values.fdvAthAt !== 'string' ||
+          Number.isNaN(Date.parse(values.fdvAthAt))
+        ) {
+          return '';
+        }
+        return esc(
+          MessageFormatterAdapter.formatCompactAgeText(values.fdvAthAt),
+        );
       }
       default: {
         return '';

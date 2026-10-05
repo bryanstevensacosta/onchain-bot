@@ -10,6 +10,7 @@ import { AddressModule } from 'address/address.module';
 import { GatewayModule } from 'gateway/gateway.module';
 import { SNAPSHOT_QUOTE_PROVIDERS } from 'snapshot/domain/snapshot-quote.types';
 import { LaunchpadDetectorService } from 'provider/launchpad/application/launchpad-detector.service';
+import { DexScreenerService } from 'provider/infrastructure/dexscreener';
 
 const nullFetcher = {
   name: 'dexscreener',
@@ -46,6 +47,11 @@ describe('gateway market-data snapshot compat edge (todo 5)', () => {
       .useValue([nullFetcher])
       .overrideProvider(LaunchpadDetectorService)
       .useValue({ detectLaunchpad: async () => null })
+      .overrideProvider(DexScreenerService)
+      .useValue({
+        getBestPairSummary: async () => null,
+        getBestPairSummaryForChain: async () => null,
+      })
       .compile();
     app = module.createNestApplication();
     app.useGlobalPipes(
@@ -90,6 +96,7 @@ describe('gateway market-data snapshot compat edge (todo 5)', () => {
     expect(res.body.address).toBe(SOL.toLowerCase());
     expect(res.body.status).toBe('pending');
     expect(res.body).toHaveProperty('launchpad', null);
+    expect(res.body).toHaveProperty('venue', null);
   });
 
   it('second GET is a cache HIT (SLO layer)', async () => {
@@ -136,6 +143,14 @@ describe('gateway market-data snapshot launchpad plumbing (Lane D)', () => {
           url: `https://pump.fun/coin/${SOL}`,
         }),
       })
+      .overrideProvider(DexScreenerService)
+      .useValue({
+        getBestPairSummaryForChain: async () => ({
+          pairAddress: 'pair1',
+          dexId: 'raydium',
+          labels: ['CLMM'],
+        }),
+      })
       .compile();
     app = module.createNestApplication();
     app.useGlobalPipes(
@@ -162,5 +177,13 @@ describe('gateway market-data snapshot launchpad plumbing (Lane D)', () => {
       name: 'Pump.fun',
       url: `https://pump.fun/coin/${SOL}`,
     });
+  });
+
+  it('exposes snapshot.venue from the dexscreener best pair (dexter contract)', async () => {
+    const res = await request(app.getHttpServer()).get(
+      `/api/market-data/snapshot?chain=solana&address=${SOL}`,
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.venue).toEqual({ dexId: 'raydium', labels: ['CLMM'] });
   });
 });

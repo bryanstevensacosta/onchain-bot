@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 import type { AddressKind } from 'address/domain/address-kind';
 import type { SnapshotQuote } from '../domain/snapshot-quote.types';
+import type { SnapshotFdvAth } from '../domain/snapshot-fdv-ath';
 import { SnapshotHistoryEntity, toHistoryRow } from './snapshot-history.entity';
 
 export interface SnapshotHistoryRow {
@@ -82,6 +83,54 @@ export class SnapshotHistoryRepository {
       return this.rows.length;
     }
     return this.store.count();
+  }
+
+  /**
+   * FDV ATH over own history (dexter fdv-ath, plan todo 16).
+   * READ-ONLY aggregate: max `quote.fdvUsd` + the `createdAt` of the
+   * row that set it, scoped to one `(chain, address)` (normalized
+   * lowercase-trimmed, same key rule as `AddressIdVo`). Rows with a
+   * missing/non-finite FDV are skipped, never crash. Returns `null`
+   * when no row carries a usable FDV (cold-start / single-null
+   * history). NEVER mutates history or retention.
+   *
+   * RETENTION LIMIT: the janitor (`SnapshotHistoryJanitorService`)
+   * prunes rows older than `SNAPSHOT_HISTORY_RETENTION_DAYS` (90),
+   * so this max covers the surviving 90-day window, NOT all time.
+   */
+  public async findFdvAth(
+    chain: string,
+    address: string,
+  ): Promise<SnapshotFdvAth | null> {
+    const wantedChain = (chain ?? '').trim().toLowerCase();
+    const wantedAddress = (address ?? '').trim().toLowerCase();
+    let rows: ReadonlyArray<SnapshotHistoryRow>;
+    if (this.store === undefined || this.store === null) {
+      rows = this.rows;
+    } else {
+      const entities = await this.store.find({
+        where: { chain: wantedChain, address: wantedAddress },
+        order: { createdAt: 'ASC' },
+      });
+      rows = entities.map((entity) => toHistoryRow(entity));
+    }
+    let best: SnapshotFdvAth | null = null;
+    for (const row of rows) {
+      if (
+        row.chain.trim().toLowerCase() !== wantedChain ||
+        row.address.trim().toLowerCase() !== wantedAddress
+      ) {
+        continue;
+      }
+      const fdv = row.quote?.fdvUsd;
+      if (typeof fdv !== 'number' || !Number.isFinite(fdv)) continue;
+      const at = row.createdAt;
+      if (typeof at !== 'string' || Number.isNaN(Date.parse(at))) continue;
+      if (best === null || fdv > best.fdvUsd) {
+        best = { fdvUsd: fdv, at };
+      }
+    }
+    return best;
   }
 
   public async deleteOlderThan(cutoff: Date): Promise<number> {

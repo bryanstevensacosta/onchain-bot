@@ -23,11 +23,13 @@ export async function httpGet<T>(path: string): Promise<T> {
 export async function httpPost<TBody, TResp = unknown>(
   path: string,
   body: TBody,
+  signal?: AbortSignal,
 ): Promise<TResp> {
   const res = await fetch(`${API_BASE_URL}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+    ...(signal !== undefined ? { signal } : {}),
   });
   if (!res.ok) {
     const text = await res.text().catch(() => '');

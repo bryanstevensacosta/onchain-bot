@@ -131,9 +131,19 @@ export function buildProviderQuoteFetchers(
 
   const dexscreener: QuoteFetcher = {
     name: 'dexscreener',
-    supportsChains: ['ethereum', 'solana', 'bsc', 'base'],
-    fetch: async (_chain: string, address: string) => {
-      const best = await deps.dexscreener.getBestPairSummary(address);
+    supportsChains: [
+      'ethereum',
+      'solana',
+      'bsc',
+      'base',
+      'arbitrum',
+      'polygon',
+    ],
+    fetch: async (chain: string, address: string) => {
+      const best = await deps.dexscreener.getBestPairSummaryForChain(
+        chain,
+        address,
+      );
       if (best === null) {
         return null;
       }

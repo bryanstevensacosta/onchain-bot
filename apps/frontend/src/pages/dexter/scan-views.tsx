@@ -82,7 +82,7 @@ export function FullScanCard({
   const devAlert = useDevDumpAlert(compat.data?.devPctSupply ?? null);
 
   if (snapshot.isPending || compat.isPending) {
-    return <div data-testid="dexter-scan-loading">Cargando…</div>;
+    return <div data-testid="dexter-scan-loading">Loading…</div>;
   }
   if (snapshot.isError || compat.isError) {
     return (
@@ -200,7 +200,7 @@ export function ChartCard({
   const snapshot = useCompatSnapshot(chain, address);
 
   if (snapshot.isPending) {
-    return <div data-testid="dexter-chart-loading">Cargando…</div>;
+    return <div data-testid="dexter-chart-loading">Loading…</div>;
   }
   if (snapshot.isError || !snapshot.data) {
     return (

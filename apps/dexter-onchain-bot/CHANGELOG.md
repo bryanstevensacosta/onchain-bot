@@ -9,6 +9,89 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- \*\*Best-candidate auto-resolve with disclosure + `w/mo/y` ages
+  (plan todo 17 — deliberate reversal of never-first-hit): the
+  bare-address sweep now picks the highest-liquidity candidate
+  (tiebreak: higher FDV, then first-seen — deterministic, raw-number
+  comparison) and returns `alternatives: {chain,address,
+liquidityUsd?}[]` on every multi-chain `ResolvedToken` (picked
+  chain excluded, same order rule); `ambiguous` survives only for
+  the zero-candidate path (message + hint byte-identical),
+  `invalid`/`not-found` untouched. Accepted risk (scam copy with
+  liquidity could win) mitigated by the always-attached disclosure.
+  New derived key `{{alternatives}}` on every command (`Also on:
+bsc, eth`, `""` when ≤1 chain). `formatCompactAgeText` extended
+  to weeks/months/years (`<7d→Xd`, `<30d→Xw`, `<365d→Xmo`,
+  else `Xy`; d/h/m rungs unchanged).
+
+- \*\*FDV ATH from own snapshot history `{{fdvAth}}` + `{{fdvAthAgo}}`
+  (plan todo 16): market-data adds a read-only `findFdvAth`
+  aggregate over `snapshot-history` (max FDV + setting timestamp
+  per chain+address, malformed rows skipped, history/retention
+  untouched) wired into the snapshot path as `snapshot.fdvAth?`
+  (strictly historical — read before the current row persists) and
+  the compat edge as flat `fdvAthUsd`/`fdvAthAt`; dexter maps both
+  shape-checked (client + pipeline double validation, mirroring
+  `launchpad`/`venue`) onto `ResolvedToken`. Renderer: `fdvAth`
+  money-compact no-`$` (todo-13 policy) + `fdvAthAgo` compact age
+  (`9d/3d/5h/12m`, future clamps to now); cold-start (either null)
+  renders BOTH empty — the current FDV is never substituted.
+  Retention limit: janitor 90d window (ATH over surviving rows,
+  not all time).
+
+- \*\*Origin-aware venue line `{{chainName}}` + `{{venue}}` +
+  `{{venueTech}}` + `{{venueLine}}` (plan todo 14): market-data
+  exposes `snapshot.venue? {dexId, labels}` (live from the
+  dexscreener best pair — `dexId` was already returned, `labels`
+  added — resolved per call, never persisted, coexists with
+  `launchpad`); dexter maps it shape-checked (`toVenueOrNull`) and
+  passes it to `ResolvedToken.venue?` (re-validated at the pipeline
+  boundary). Renderer: `chainName` from a code table (unlisted →
+  `""`), `venue` prefers the launchpad name (no DEX hybrids),
+  `venueTech` always `DexDisplay + labels` (uppercased, table +
+  capitalize-first default), `venueLine` closed 4-branch (`<Origin>
+via <Tech>` / origin / tech / `""`). Dangling-`@` cleanup joins the
+  `•`/`|` family (`Solana @ ` → `""`, ` @ X` → `X`). Deliberate
+  Conway deviation: origin-known renders the origin (`Bankr`) where
+  Rick shows the tech (`Clanker V4`). `dexId` (`meteoradbc`) never
+  feeds `launchpad.id` (`meteora-dbc`) — separate tables, spec-pinned.
+
+- \*\*Bot deep-link `{{botStartAddressLink}}` + `/start <payload>`
+  (plan todo 11, hybrid white-label design): new generic `BOT_USERNAME`
+  env (no prefix, one value per env, `^[A-Za-z0-9_]{5,}$`, empty
+  allowed — empty in all three templates, never a real username in
+  git); new `BotIdentityService` (`settings/`, bootstrap-once
+  gateway-inventory → Bot API `getMe` (5 s, token never logged) →
+  env → `""`, warn-on-mismatch, fail-open); derived renderer key on
+  every command (`https://t.me/<username>?start=<address>`, `""`
+  without username or with a non-`[A-Za-z0-9_-]`/>64-char payload);
+  `/start <payload>` answers the full card via the shared
+  `sendFullScan` (ACTIVE `ca` template), bare/invalid `/start`
+  byte-identical legacy. No Mini App, no auto-trading, no new
+  callbacks.
+
+- **Bot identity via bound-vault profile (plan todo 12):** `BotIdentityService` resolves the primary source from
+  `GET /api/bots/:id/profile` (`username`) against the bound vault
+  (existing local `'dexter'` mapping + `DEXTER_BOT_VAULT_ID`
+  fallback, same order as the sender; unmapped → zero network) —
+  order is now profile → Bot API `getMe` (5 s, token never logged)
+  → `BOT_USERNAME` env → `""`, warn-not-throw fail-open throughout.
+  The todo-11 inventory probe is deleted (rows carry no `username`
+  by design). No gateway changes (existing `send`-scope endpoint);
+  avatar ignored. `BOT_USERNAME` behavior unchanged (still 3rd).
+
+- **Rick-parity number policy (plan todo 13):** formatters emit NO
+  `$` (money → compact K/M/B trimmed `23.3K`/`7.9K`/`1.46B`;
+  `priceUsd` → adaptive `<1` full digits `0.00002434` / `>=1`
+  grouped max-2 `3,457`, fixing the live `$0.00`-for-dust bug via a
+  renderer `priceUsd` special-case); percent → trimmed,
+  sign-only-when-negative (`80%`, `-34.4%`, `-0` → `0%`); counts
+  unchanged; `N/A` on null. `$` is literal body text where a style
+  wants it (Proficy `$27.3K`, KOLscope `$30.22K` via `${{…}}`;
+  Rick-style seeds carry none — zero seed-body edits, existing DB
+  rows untouched). Catalog `PLACEHOLDER_META` examples updated to
+  the new outputs.
+
 - \*\*Origin-launchpad plumbing + Wave-1 seeds (dexter-launchpad Lane S,
   `feat:`): `MarketDataSnapshot` gains optional `launchpad?
 {id,name,url}` (`market-data.client.ts`, shape-checked at the dexter

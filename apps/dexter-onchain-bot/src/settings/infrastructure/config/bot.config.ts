@@ -7,6 +7,16 @@ import {
 
 export type DexterIngestMode = 'webhook' | 'polling';
 
+/** Bot username shape (Telegram handles): 5+ chars, letters/digits/underscore. */
+export const BOT_USERNAME_PATTERN = /^[A-Za-z0-9_]{5,}$/;
+
+export function resolveBotUsername(raw: string | undefined): string {
+  const clean = (raw ?? '').trim();
+  if (!clean) return '';
+  if (!BOT_USERNAME_PATTERN.test(clean)) return '';
+  return clean;
+}
+
 export interface DexterBotConfig {
   readonly botToken: string;
   readonly webhookSecret: string | null;
@@ -19,6 +29,13 @@ export interface DexterBotConfig {
   readonly commandRateLimitPerUser: number;
   /** Gateway vault id for the dexter bot (`DEXTER_BOT_VAULT_ID`, '' = unmapped). */
   readonly botVaultId: string;
+  /**
+   * White-label bot username for deep-links (`BOT_USERNAME`, no prefix
+   * by design — one value per env, never a real username in git).
+   * Empty = unknown (deep-link keys render `""` until the identity
+   * service resolves a live source at bootstrap).
+   */
+  readonly botUsername: string;
   /** Lookup send path (`DEXTER_SEND_MODE`, default `dual`). */
   readonly sendMode: DexterSendMode;
   /** telegram-bots-gateway base URL (dev :4070, staging :4071, prod :4072). */
@@ -33,6 +50,7 @@ const DEFAULTS: Omit<
   | 'webhookSecret'
   | 'webhookUrl'
   | 'botVaultId'
+  | 'botUsername'
   | 'sendMode'
   | 'botsGatewayBaseUrl'
   | 'ingressSecret'
@@ -77,6 +95,12 @@ export class DexterBotConfigService {
         .filter(Boolean) ?? [...DEFAULTS.defaultTradeButtons];
     const ingressSecret =
       (process.env.DEXTER_INGRESS_SECRET ?? '').trim() || null;
+    const botUsernameRaw = (process.env.BOT_USERNAME ?? '').trim();
+    if (botUsernameRaw && !BOT_USERNAME_PATTERN.test(botUsernameRaw)) {
+      this.logger.warn(
+        'BOT_USERNAME has an invalid shape (want ^[A-Za-z0-9_]{5,}$) — ignoring it, deep-link keys render "" until a live source resolves',
+      );
+    }
 
     this.config = Object.freeze({
       botToken,
@@ -99,6 +123,7 @@ export class DexterBotConfigService {
           DEFAULTS.commandRateLimitPerUser,
       ),
       botVaultId: (process.env.DEXTER_BOT_VAULT_ID ?? '').trim(),
+      botUsername: resolveBotUsername(botUsernameRaw),
       sendMode: resolveDexterSendMode(process.env.DEXTER_SEND_MODE),
       botsGatewayBaseUrl:
         (process.env.BOTS_GATEWAY_URL ?? '').trim().replace(/\/+$/, '') ||

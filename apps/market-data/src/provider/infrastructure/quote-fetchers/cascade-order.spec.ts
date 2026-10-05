@@ -13,7 +13,7 @@ import { buildProviderQuoteFetchers } from './provider-quote.fetchers';
 function stubDeps(overrides: Record<string, unknown> = {}): never {
   return {
     dexscreener: {
-      getBestPairSummary: async () => ({
+      getBestPairSummaryForChain: async () => ({
         priceUsd: '9.99',
         marketCap: null,
         fdv: null,

@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Chain-honest snapshots (dexter plan todo 18, root fix for
+  fabricated multi-chain ties):** `DexScreenerService` gains
+  `DEXSCREENER_CHAIN_SLUGS` (our 6 chain ids map 1:1 to DexScreener
+  slugs, verified live; unmapped chain resolves `null` with zero
+  network traffic) + `getBestPairSummaryForChain(chain, address)`
+  (strict: chain-scoped `GET /token-pairs/v1/<slug>/` + STRICT
+  `chainId` filter + best-liquidity pick; chain with no pair
+  resolves `null`). Also fixes `getPairsByChain`, which read
+  `data.pairs` off an endpoint that answers a bare pair array (was
+  always `null` — dead code). The dexscreener quote fetcher (now all
+  6 chains) + `snapshot.venue` use the strict path; the legacy
+  cross-chain `getBestPairSummary` is untouched for bare callers
+  (dual modes pinned in `address-snapshot-chain-honest.spec.ts`).
+  Live `:4165`: `0xFf81…8583d6` resolves on base (ready, venue
+  baseline) and honest `pending`/nulls on ethereum + bsc.
+
+- **Snapshot DEX venue for the dexter venue-line (plan todo 14):**
+  `DexScreenerPairSummary` carries the best-pair `labels` (was
+  already returning `dexId` — labels were dropped at the summary
+  seam); `AddressSnapshot` gains live-resolved `venue?
+{dexId, labels}` (same lifecycle as `launchpad`: resolved per call
+  via the injected `DexScreenerService`, never persisted to history,
+  never throws) and the compat edge `GET /api/market-data/snapshot`
+  exposes it. Coexists with `launchpad` — the two resolve
+  independently and are never mixed.
+
 - **Birdeye WS realtime as the stream/ DEX source:** new
   `BirdeyeWsAdapter` in `src/provider/infrastructure/birdeye/`
   (`birdeye-ws.client.ts` + `birdeye-ws.types.ts`) speaking the

@@ -1,4 +1,5 @@
 import { TemplateRendererService } from '@/placeholders/application/template-renderer.service';
+import type { ResolvedToken } from '@/scan/domain/ports/scan-pipeline.port';
 import type { ResolveOutcome } from '@/scan/application/pipeline/token-scan.pipeline';
 import { DisplayMap } from '@/templates/domain/display-map.entity';
 import { DisplayResolverService } from '@/templates/application/display-resolver.service';
@@ -218,6 +219,54 @@ describe('TemplatePreviewController (todo 7 preview route)', () => {
           },
           address: SOL_ADDRESS,
           timeframe: '9m',
+        }),
+      ),
+    ).toBe(400);
+  });
+
+  it('POST by token snapshot renders the same text without address', async () => {
+    const { controller } = await setup();
+    const viaAddress = await controller.previewTemplate({
+      draft: { command: 'ca', bodyMarkdown: BODY },
+      address: SOL_ADDRESS,
+    });
+    const viaToken = await controller.previewTemplate({
+      draft: { command: 'ca', bodyMarkdown: BODY },
+      token: (viaAddress as { token: ResolvedToken }).token,
+    });
+    if (!('text' in viaAddress) || !('text' in viaToken)) {
+      throw new Error('expected rendered results');
+    }
+    expect(viaToken.text).toBe(viaAddress.text);
+    expect(viaToken.token).toEqual(
+      (viaAddress as { token: ResolvedToken }).token,
+    );
+  });
+
+  it('POST address + token → 400 strict XOR', async () => {
+    const { controller } = await setup();
+    const viaAddress = await controller.previewTemplate({
+      draft: { command: 'ca', bodyMarkdown: BODY },
+      address: SOL_ADDRESS,
+    });
+    expect(
+      await statusOf(() =>
+        controller.previewTemplate({
+          draft: { command: 'ca', bodyMarkdown: BODY },
+          address: SOL_ADDRESS,
+          token: (viaAddress as { token: ResolvedToken }).token,
+        }),
+      ),
+    ).toBe(400);
+  });
+
+  it('POST non-object token → 400', async () => {
+    const { controller } = await setup();
+    expect(
+      await statusOf(() =>
+        controller.previewTemplate({
+          draft: { command: 'ca', bodyMarkdown: BODY },
+          token: 'not-a-token' as unknown as ResolvedToken,
         }),
       ),
     ).toBe(400);
