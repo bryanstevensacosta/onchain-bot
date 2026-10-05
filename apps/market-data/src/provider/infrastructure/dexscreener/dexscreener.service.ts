@@ -344,6 +344,14 @@ export class DexScreenerService extends DataProviderPort {
    * - `getBestPairSummaryForChain` = strict per-chain. Explicit-chain
    *   snapshot paths MUST use it; a chain with no pair resolves
    *   `null`, never a sibling chain's data.
+   *
+   * @deprecated Cross-chain + side-unverified (plan todo 20): the
+   *   summary now carries BOTH sides (`baseToken` + `quoteToken`) but
+   *   this method performs no side check — callers that report
+   *   `symbol`/`name` MUST resolve identity from the side matching
+   *   their mint (see the dexscreener quote fetcher) or use
+   *   `getBestPairSummaryForChain`. Kept working because gateway
+   *   specs mock it; do not add new callers.
    */
   public async getBestPairSummary(
     address: string,
@@ -401,6 +409,11 @@ function toPairSummary(pair: DexScreenerPair): DexScreenerPairSummary {
     dexId: pair.dexId,
     labels: [...(pair.labels ?? [])],
     baseToken: { ...pair.baseToken },
+    quoteToken: {
+      address: pair.quoteToken?.address ?? null,
+      name: pair.quoteToken?.name ?? null,
+      symbol: pair.quoteToken?.symbol ?? null,
+    },
     priceUsd: pair.priceUsd,
     priceNative: pair.priceNative,
     liquidityUsd: pair.liquidity?.usd ?? null,

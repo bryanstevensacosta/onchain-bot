@@ -337,6 +337,26 @@ describe('PreviewTemplateUseCase (todo 7 dry-run preview)', () => {
     expect(output).toEqual({ error: 'Token not found', address: SOL_ADDRESS });
   });
 
+  it('pending lookup propagates the pinned pending shape (1:1 with GET /dexter/token)', async () => {
+    const { useCase } = await setup({
+      resolveDetailed: jest.fn(
+        async (address: string): Promise<ResolveOutcome> => ({
+          status: 'pending',
+          address,
+        }),
+      ),
+    });
+    const output = await useCase.execute({
+      draft: { command: 'ca', bodyMarkdown: BODY },
+      address: SOL_ADDRESS,
+    });
+    expect(output).toEqual({
+      error: 'Token pending — retry shortly',
+      address: SOL_ADDRESS,
+      pending: true,
+    });
+  });
+
   it('token snapshot renders identical text to the address path (pipeline skipped)', async () => {
     const { useCase, pipeline } = await setup();
     const spy = (pipeline as { resolveDetailed: jest.Mock }).resolveDetailed;

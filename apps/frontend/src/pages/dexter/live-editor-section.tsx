@@ -421,7 +421,9 @@ export function LiveEditorSection() {
             className="text-xs text-amber-300 mt-2 space-y-1"
           >
             <div>
-              No resolution for {liveResult.address}: {liveResult.error}
+              {liveResult.pending === true
+                ? `Token data pending for ${liveResult.address} — retry shortly`
+                : `No resolution for ${liveResult.address}: ${liveResult.error}`}
             </div>
             {(liveResult.candidates ?? []).length > 0 && (
               <div className="flex flex-wrap gap-1">

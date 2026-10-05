@@ -263,7 +263,9 @@ export function PreviewSection({
           className="text-xs text-amber-300 mt-2 space-y-1"
         >
           <div>
-            No resolution for {result.address}: {result.error}
+            {result.pending === true
+              ? `Token data pending for ${result.address} — retry shortly`
+              : `No resolution for ${result.address}: ${result.error}`}
           </div>
           {(result.candidates ?? []).length > 0 && (
             <div className="flex flex-wrap gap-1">

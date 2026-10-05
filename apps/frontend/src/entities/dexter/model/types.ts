@@ -108,6 +108,14 @@ export interface PreviewUnresolved {
   readonly error: string;
   readonly address: string;
   readonly candidates?: ReadonlyArray<string>;
+  /**
+   * Pending marker (robust-nulls, plan todo 19a): `true` ONLY on the
+   * pending shape (`Token pending — retry shortly`, HTTP 200); absent
+   * on every other unresolved shape. `isPreviewUnresolved` needs no
+   * change (pending still carries `error`); surfaces render a pending
+   * copy that differs from `Token not found`.
+   */
+  readonly pending?: boolean;
 }
 
 export type PreviewTemplateOutput = PreviewResult | PreviewUnresolved;

@@ -17,6 +17,7 @@ import { RugCheckService } from 'provider/infrastructure/rugcheck';
 import { SolanaRpcService } from 'provider/infrastructure/solana-rpc';
 import { AddressSnapshotService } from './application/address-snapshot.service';
 import { SnapshotHistoryJanitorService } from './application/snapshot-history-janitor.service';
+import { SnapshotNullMetricsService } from './application/snapshot-null-metrics.service';
 import { HoldersModule } from '../holders/holders.module';
 import { AggregatorsModule } from 'aggregators/aggregators.module';
 import { AssetRegistryModule } from 'asset-registry/asset-registry.module';
@@ -64,6 +65,7 @@ import { SnapshotHistoryRepository } from './infrastructure/snapshot-history.rep
     AddressSnapshotService,
     SnapshotHistoryJanitorService,
     SnapshotHistoryRepository,
+    SnapshotNullMetricsService,
     {
       provide: SNAPSHOT_QUOTE_PROVIDERS,
       inject: [

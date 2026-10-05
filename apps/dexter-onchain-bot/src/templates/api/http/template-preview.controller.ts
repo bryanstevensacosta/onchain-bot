@@ -75,7 +75,9 @@ export class PreviewTemplateRequestDto {
  * that is not an object with string `address`/`chain`/`symbol` → 400;
  * unknown placeholders in a draft → 400 + valid list; bad timeframe →
  * 400; unresolvable addresses propagate the pipeline shapes
- * (`Ambiguous…` / `Invalid address…` / `Token not found`).
+ * (`Ambiguous…` / `Invalid address…` / `Token not found`, plus the
+ * pending shape `{ error: 'Token pending — retry shortly', address,
+ * pending: true }` — 1:1 with `GET /dexter/token`, HTTP 200).
  *
  * Success gains `token: ResolvedToken` (pipeline-resolved for the
  * `address` path, echoed snapshot for the `token` path) — the live

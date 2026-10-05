@@ -294,6 +294,27 @@ describe('LiveEditorSection', () => {
     expect(previewMock()).not.toHaveBeenCalled();
   });
 
+  it('shows the pending copy when the address resolves to a pending shell', async () => {
+    const mutateAsync = vi.fn().mockResolvedValue({
+      error: 'Token pending — retry shortly',
+      address: 'So9999',
+      pending: true,
+    });
+    hookMock().mockReturnValue(idleHook(mutateAsync));
+    renderEditor();
+
+    fireEvent.change(screen.getByTestId('dexter-live-address'), {
+      target: { value: 'So9999' },
+    });
+    fireEvent.click(screen.getByTestId('dexter-live-load'));
+    await act(async () => {});
+
+    const unresolved = screen.getByTestId('dexter-live-unresolved');
+    expect(unresolved).toHaveTextContent('pending for So9999');
+    expect(unresolved).toHaveTextContent('retry shortly');
+    expect(unresolved).not.toHaveTextContent('Token not found');
+  });
+
   it('saves a free draft as a new template and links the result', async () => {
     const mutateAsync = vi.fn().mockResolvedValue(LOAD_OUTPUT);
     hookMock().mockReturnValue(idleHook(mutateAsync));

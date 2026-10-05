@@ -43,7 +43,11 @@ export type ResolveOutcome =
       readonly address: string;
       readonly reason: string;
     }
-  | { readonly status: 'not-found'; readonly address: string };
+  | { readonly status: 'not-found'; readonly address: string }
+  | {
+      readonly status: 'pending';
+      readonly address: string;
+    };
 
 const SOLANA_CANDIDATES: ReadonlyArray<string> = ['solana'];
 
@@ -86,6 +90,11 @@ export class TokenScanPipeline implements ScanPipeline {
   public constructor(private readonly marketData: MarketDataClient) {}
 
   public async resolve(address: string): Promise<ResolvedToken | null> {
+    // Robust-nulls (plan todo 19a, accepted): `pending` collapses to
+    // null here — the bot keeps its generic "could not resolve" reply
+    // for pending tokens. Only `GET /dexter/token` + preview split
+    // pending from not-found (wire contract); the bot path is
+    // intentionally untouched.
     const outcome = await this.resolveDetailed(address);
     return outcome.status === 'resolved' ? outcome.token : null;
   }
@@ -98,13 +107,20 @@ export class TokenScanPipeline implements ScanPipeline {
 
     if (chain !== null) {
       const snapshot = await this.marketData.getSnapshot(chain, bare);
-      if (!snapshot || !hasIdentity(snapshot)) {
-        return { status: 'not-found', address: bare };
+      if (snapshot && hasIdentity(snapshot)) {
+        return {
+          status: 'resolved',
+          token: this.toResolvedToken(chain, bare, snapshot),
+        };
       }
-      return {
-        status: 'resolved',
-        token: this.toResolvedToken(chain, bare, snapshot),
-      };
+      // Robust-nulls (plan todo 19a): `MarketDataSnapshot.status`
+      // already travels end-to-end — read it here instead of
+      // collapsing every identity-less shell to `not-found`. A client
+      // null (fetch throw / own-timeout) stays `not-found` (frozen).
+      if (snapshot?.status === 'pending') {
+        return { status: 'pending', address: bare };
+      }
+      return { status: 'not-found', address: bare };
     }
 
     if (!isEvmAddress(bare) && !isSolanaAddress(bare)) {
@@ -119,10 +135,17 @@ export class TokenScanPipeline implements ScanPipeline {
     const sweep = isSolanaAddress(bare) ? SOLANA_CANDIDATES : EVM_CANDIDATES;
     const ordered = await this.detectFirst(bare, sweep);
     const hits: Array<{ chain: string; snapshot: MarketDataSnapshot }> = [];
+    // Robust-nulls (plan todo 19a): a sweep with zero identity hits
+    // but at least one pending shell answers `pending` (retry shortly),
+    // not `not-found`. Client nulls (fetch throw / own-timeout) keep
+    // the frozen `not-found` verdict.
+    let sawPending = false;
     for (const candidate of ordered) {
       const snapshot = await this.marketData.getSnapshot(candidate, bare);
       if (snapshot && hasIdentity(snapshot)) {
         hits.push({ chain: candidate, snapshot });
+      } else if (snapshot?.status === 'pending') {
+        sawPending = true;
       }
     }
     if (hits.length === 1) {
@@ -179,6 +202,13 @@ export class TokenScanPipeline implements ScanPipeline {
         ),
       };
     }
+    if (hits.length === 0) {
+      return sawPending
+        ? { status: 'pending', address: bare }
+        : { status: 'not-found', address: bare };
+    }
+    // Unreachable: hits.length === 1 and > 1 both return above.
+    // Kept as the typed fallthrough so future sweep branches stay total.
     return { status: 'not-found', address: bare };
   }
 

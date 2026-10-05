@@ -29,6 +29,10 @@ import type { LaunchpadInfo } from 'provider/launchpad/domain/launchpad-info';
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
 import { toVenueOrNull, type SnapshotVenue } from '../domain/snapshot-venue';
 import { SnapshotHistoryRepository } from '../infrastructure/snapshot-history.repository';
+import {
+  deriveSnapshotNullReason,
+  SnapshotNullMetricsService,
+} from './snapshot-null-metrics.service';
 import { applyOutboundRateLimit } from 'provider/infrastructure/quote-fetchers/rate-limited-fetchers';
 import { DevHoldingsPort } from '../../holders/domain/holdings.port';
 import { AssetResolverService } from 'asset-registry/application/asset-resolver.service';
@@ -80,6 +84,8 @@ export class AddressSnapshotService {
     @Optional()
     @Inject(DexScreenerService)
     private readonly dexscreener: DexScreenerService | null = null,
+    @Optional()
+    private readonly nullMetrics: SnapshotNullMetricsService | null = null,
   ) {}
 
   private async resolveAssetId(
@@ -172,6 +178,12 @@ export class AddressSnapshotService {
     if (this.cache) {
       const cached = await this.cache.get<AddressSnapshot>(cacheKey);
       if (cached !== null) {
+        // Metric only: a pre-deploy pending row served from cache.
+        // Post-deploy this must decay to 0 (nothing writes pending
+        // anymore) — a nonzero `cached` past deploy+60s is the alarm.
+        if (cached.status === 'pending') {
+          this.nullMetrics?.record('cached');
+        }
         return cached;
       }
     }
@@ -266,8 +278,20 @@ export class AddressSnapshotService {
       sources: outcome.sources,
       providerErrors,
     });
-    if (this.cache) {
+    if (this.cache && snapshot.status !== 'pending') {
+      // Robust-nulls (plan todo 19a): pending snapshots are NEVER
+      // cached — a cached pending shell freezes a transient miss for
+      // the full TTL (P12: `x-cache: HIT`, zero provider traffic).
+      // The store honors any TTL (`CachePort.set` takes `ttlSeconds`,
+      // in-memory applies it verbatim), so skip-write needs no
+      // short-TTL fallback. History still persists pending rows (19b
+      // SWR + fdvAth read them).
       await this.cache.set(cacheKey, snapshot, SNAPSHOT_CACHE_TTL_SECONDS);
+    }
+    if (snapshot.status === 'pending') {
+      this.nullMetrics?.record(
+        deriveSnapshotNullReason({ servedFromCache: false, providerErrors }),
+      );
     }
     return snapshot;
   }

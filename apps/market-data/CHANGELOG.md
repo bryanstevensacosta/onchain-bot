@@ -9,6 +9,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **No-negative-cache + `nullReason` counter (dexter plan todo 19a,
+  robust-nulls S):** pending snapshots are NEVER cached at any of
+  the three writers — `AddressSnapshotService` skips `cache.set` on
+  `status: 'pending'` (no short-TTL fallback needed: the store
+  honors any TTL), the edge `CacheInterceptor` skips `status:
+'pending'` bodies, and `CacheService.getOrSet` takes a `shouldCache`
+  gate the batch edge sets to "not pending" (default preserves
+  always-write for other callers). The P12 repeat now re-touches
+  providers (`x-cache: MISS`) instead of serving a frozen HIT.
+  History still persists pending rows (19b SWR reads them). New
+  `SnapshotNullMetricsService` counts the miss flavor
+  (`no-market`/`transient`/`cached`, derived never stored; metric
+  only — no cron, no scan; runbook line in AGENTS).
+
+- **Pair-side attribution fix (dexter plan todo 20, root fix for
+  the USDC→PUMP mislabel):** `DexScreenerPairSummary` now carries
+  BOTH `baseToken` and `quoteToken` (`toPairSummary` plumbs the
+  quote side, null-safe when the pair carries none) and the
+  dexscreener quote fetcher side-verifies identity — the requested
+  mint must equal one side's address (case-insensitive) and that
+  side's symbol/name wins; a pair with our mint on neither side is
+  discarded (null, never throws). Repo-wide `baseToken` audit:
+  geckoterminal (`getTokenInfo`) and birdeye (`getTokenOverview`)
+  query per-address endpoints (mint-bound by construction, no
+  change); backend `dexscreener.adapter` + `ticker-resolver`
+  excluded by design (other app, other plan). The legacy
+  cross-chain `getBestPairSummary` is `@deprecated`
+  (side-unverified; kept working, no new callers). Liquidity pick
+  untouched. Failing-first:
+  `provider-quote-pair-side.spec.ts` (plumbing both modes +
+  quote/base/neither-discard/case-insensitive); `cascade-order` +
+  `supply` + `chain-honest` stubs now carry side addresses.
+
 - **Chain-honest snapshots (dexter plan todo 18, root fix for
   fabricated multi-chain ties):** `DexScreenerService` gains
   `DEXSCREENER_CHAIN_SLUGS` (our 6 chain ids map 1:1 to DexScreener

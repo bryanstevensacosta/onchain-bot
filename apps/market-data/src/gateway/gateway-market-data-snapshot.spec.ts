@@ -99,7 +99,7 @@ describe('gateway market-data snapshot compat edge (todo 5)', () => {
     expect(res.body).toHaveProperty('venue', null);
   });
 
-  it('second GET is a cache HIT (SLO layer)', async () => {
+  it('second GET of a pending shell is a cache MISS (no negative cache, plan todo 19a)', async () => {
     await request(app.getHttpServer()).get(
       '/api/market-data/snapshot?chain=solana&address=So11111111111111111111111111111111111111113',
     );
@@ -107,7 +107,8 @@ describe('gateway market-data snapshot compat edge (todo 5)', () => {
       '/api/market-data/snapshot?chain=solana&address=So11111111111111111111111111111111111111113',
     );
     expect(res.status).toBe(200);
-    expect(res.headers['x-cache']).toBe('HIT');
+    expect(res.body.status).toBe('pending');
+    expect(res.headers['x-cache']).toBe('MISS');
   });
 
   it('unknown chain -> 404 (never a silent null)', async () => {

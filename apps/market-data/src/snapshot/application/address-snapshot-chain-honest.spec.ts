@@ -224,7 +224,8 @@ describe('dexscreener quote fetcher (chain-honest regression)', () => {
           liquidityUsd: 759829.39,
           volume24h: 33208.37,
           priceChange24h: 1.5,
-          baseToken: { symbol: 'REPPO', name: 'REPPO' },
+          baseToken: { address: FF81, symbol: 'REPPO', name: 'REPPO' },
+          quoteToken: { address: null, symbol: null, name: null },
         },
       }),
     );

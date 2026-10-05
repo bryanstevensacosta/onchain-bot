@@ -6,6 +6,12 @@ import { CachePort } from '../domain/cache.port';
  *
  * Thin convenience over CachePort: passthrough get/set/del plus
  * getOrSet (single loader call per TTL window).
+ *
+ * Robust-nulls (plan todo 19a): `getOrSet` takes an optional
+ * `shouldCache` gate — the batch edge passes "not pending" so
+ * transient snapshots are recomputed on the next MISS instead of
+ * being served as hits. The default (`() => true`) preserves the
+ * historical always-write behavior for every other caller.
  */
 @Injectable()
 export class CacheService {
@@ -27,13 +33,16 @@ export class CacheService {
     key: string,
     ttlSeconds: number,
     loader: () => Promise<T>,
+    shouldCache: (value: T) => boolean = () => true,
   ): Promise<T> {
     const cached = await this.port.get<T>(key);
     if (cached !== null) {
       return cached;
     }
     const fresh = await loader();
-    await this.port.set(key, fresh, ttlSeconds);
+    if (shouldCache(fresh)) {
+      await this.port.set(key, fresh, ttlSeconds);
+    }
     return fresh;
   }
 }

@@ -97,6 +97,17 @@ describe('DexterController bare-address lookup (explicit errors, no silent guess
     expect(body).toEqual({ error: 'Token not found' });
   });
 
+  it('answers pending with the pinned wire shape (HTTP 200 object, copy differs from not-found)', async () => {
+    const controller = makeController({ status: 'pending', address: SOL });
+    const body = (await controller.getToken(SOL)) as Record<string, unknown>;
+    expect(body).toEqual({
+      error: 'Token pending — retry shortly',
+      address: SOL,
+      pending: true,
+    });
+    expect(body['error']).not.toBe('Token not found');
+  });
+
   it('keeps requiring the address param', async () => {
     const controller = makeController({ status: 'not-found', address: '' });
     const body = (await controller.getToken('')) as Record<string, unknown>;

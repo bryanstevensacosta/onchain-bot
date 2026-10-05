@@ -281,6 +281,16 @@ snapshot carries an explicit chain, so the dexscreener quote fetcher
   `null` — never a sibling chain's data, never a network call for an
   unmapped slug. The legacy cross-chain `getBestPairSummary` stays for
   bare/unknown-chain callers only (best-effort mode, pinned in spec).
+  Pair-side attribution (dexter plan todo 20): the best-liquidity pair
+  may carry the requested mint on EITHER side, so `DexScreenerPairSummary`
+  carries BOTH `baseToken` and `quoteToken` and the dexscreener quote
+  fetcher is the ONLY identity step — the mint must equal one side's
+  address (case-insensitive) and that side's symbol/name wins; a pair
+  with our mint on neither side is discarded (null, never throws).
+  The legacy `getBestPairSummary` is `@deprecated` (cross-chain +
+  side-unverified; mocked by gateway specs, kept working, no new
+  callers). Backend `dexscreener.adapter` + `ticker-resolver` keep
+  their own reads (other app, other plan — excluded here by design).
   Every module is hexagonal (domain/ +
   application/ + infrastructure/) with its pre-hex roots kept as
   `@deprecated` compat re-exports (removal at cutover, todo 8).
@@ -680,3 +690,20 @@ English per `RELEASE-FLOW.md` (P39). Stale knowledge base = failed todo.
   `token/application/services`; cache/rate-limiter → own modules;
   shared-kernel → `shared/`; chain probers → `chain/`. Variante B stays
   a gated later phase — no module invented without a mapping row.
+
+- Pending semantics + no-negative-cache (dexter plan todo 19a,
+  robust-nulls S): `status: 'pending'` means every provider failed or
+  yielded nothing — a TRANSIENT shell, not a verdict. Pending
+  snapshots are NEVER cached at any of the three writers (service
+  `AddressSnapshotService` skips `cache.set`; edge `CacheInterceptor`
+  skips `status: 'pending'` bodies; batch `getOrSet` takes a
+  `shouldCache` gate the controller sets to "not pending"), so the
+  P12 repeat re-touches providers (`x-cache: MISS`) instead of
+  serving a frozen HIT. History still persists pending rows (19b SWR
+  - fdvAth read them). `SnapshotNullMetricsService` counts the miss
+    flavor (`no-market`: every error is `'no data'`; `transient`: any
+    throw/timeout/outbound-deny; `cached`: a pre-deploy pending row
+    served from cache — must decay to 0 past deploy+60s). Metric only:
+    no cron, no periodic scan. Runbook: rising `transient` on canary
+    tokens (WIF/SOL) → check `providerErrors`; nonzero `cached` past
+    deploy+60s → a writer regressed → check the three sites above.
