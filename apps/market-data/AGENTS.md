@@ -595,6 +595,154 @@ coverage target >80% (pure units, no I/O).
   specs red before impl (missing modules), green after (+3 suites /
   +16 tests, 55/199 total).
 
+## TRANSPORT (Lane T, dexter plan todo 22 — on-chain fast-path foundation)
+
+Fail-open everywhere, timeouts via AbortController (a race alone never
+cancels the socket). Frozen Lane S/E reader contracts — DO NOT rename:
+`BatchAccountsClient.getMultiple` (`solana-rpc.types.ts`),
+`ChainRpc.getCode/getTransactionCount/ethCall` (`alchemy.chains.ts`),
+`MulticallClient.tryAggregate` (`multicall.service.ts`).
+
+- Solana: `getMultipleAccounts` chunks ≤100 in ONE parallel round and
+  concatenates in order; a dead chunk resolves per-address `null`s
+  (never whole-batch `null`, never throws). 150 PDAs = 2 calls.
+- EVM: ONE table `EVM_CHAIN_TRANSPORTS` drives endpoints
+  (`eth/base/bnb→bnb-mainnet/arb/polygon/opt/unichain` subdomains) and
+  Multicall3 support. Multicall3 `0xcA11…CA11` (verified 7/7 on
+  2026-10-05) batches `eth_call`s with tryAggregate semantics (one
+  revert never fails the batch); aggregate miss/timeout (7.5 s abort)
+  falls back to parallel per-call `eth_call`s (5 s abort each).
+  Robinhood has NO row (unverified — all-false fail-open).
+- FluxRPC: `getAccountInfo` reads `base64` (struct-decodable) beside
+  the untouched `jsonParsed` batch reads (unusable for structs).
+- QPS budget (assumptions in code): Alchemy free ≈ 300M CU/mo; one
+  20-call aggregate ≈ 26 CU flat (vs 26×N individual);
+  `eth_getCode`/`eth_getTransactionCount` ≈ 20 CU each. Quota owner:
+  whoever holds `ALCHEMY_API_KEY`.
+
+## ONCHAIN READERS (Lane S, dexter plan todo 22 — Solana fast-path)
+
+`src/provider/infrastructure/onchain/` decodes pool state straight
+from chain accounts (pump curve, Raydium AMMv4/CPMM/CLMM, Orca
+Whirlpool, Meteora DLMM/DBC) plus token supply/holders/metadata —
+no aggregators, no indexer, no gRPC, no new deps (Buffer/DataView +
+repo `solana-pda.ts` only). Family dispatch is by account OWNER
+program (CPMM/CLMM share the `PoolState` discriminator, so the
+discriminator alone never selects the family); every decoder is
+discriminator + length guarded and returns `null` (never throws) on
+unknown/short/uninitialized data. Program IDs are R1 pins or
+on-chain-observed + IDL-cross-checked (see `solana-program-ids.ts`:
+CLMM lives at `CAMMCzo5...`, DLMM at `...VaPwxo`, CPMM at
+`...QB5qKP1C` — the strings from memory were wrong and are
+documented there as such). Findings that constrain callers: AMMv4
+`poolOpenTime` reads 0 on live legacy pools (not an init signal);
+Raydium `status` reads 0 on live CPMM/CLMM pools (not an init
+signal); DBC `isMigrated` pools still decode (post-migration
+leftovers — aggregator decides freshness). Token-2022: base-82B
+header identical to classic SPL, extensions past byte 82 flagged via
+`hasExtensions`. `OnchainSolanaReaderService` composes pool views
+(vault/mint batch + supply-for-decimals) and token basics
+(supply + largest-accounts + metadata PDA in ONE `Promise.all`).
+NOT wired into the snapshot pipeline (later todo); holders live
+fixture pending (public-RPC `getTokenLargestAccounts` 429-walled —
+spec uses labeled synthetic holder math until the capture lands).
+
+## EVM READERS (Lane E, dexter plan todo 22 — EVM fast-path)
+
+`src/provider/infrastructure/onchain/evm-pools.codec.ts` (pure ABI
+decode: V2 getReserves/token0/token1, ERC20 decimals/totalSupply, V3
+slot0/liquidity/fee, V4 StateView getSlot0/getLiquidity + price math)
+
+- `onchain-evm.reader.ts` (`OnchainEvmReaderService`: V2/V3/V4 views
+  over the frozen Lane T `MulticallClient.tryAggregate` + `ChainRpc`
+  existence gate, BigInt-first, decimals per leg, never throws) +
+  `evm-tolerance.ts` (direct-vs-aggregator bps check at the snapshot
+  seam, log-only). NEW files only — Lane S files and the onchain barrel
+  untouched; snapshot/aggregator/gateway byte-identical (no wiring yet).
+
+* Selectors DERIVED 2026-10-05 (`keccak256(signature)[:4]`, env
+  pycryptodome — no new dep), not memorized: the live probe below
+  closed the loop on `getReserves=0x0902f1ac`, the recomputed
+  `tryAggregate` selector matches Lane T's `bce38bd7` byte-for-byte,
+  and derivation corrected memory on V3 `liquidity` (`0x1a686502`,
+  not `0x1a686774`).
+* Live proof (ONE probe, public RPC, rate-limit friendly):
+  DexScreener-discovered Uniswap V2 WETH/USDC
+  `0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc` (ethereum) via
+  tryAggregate returned reserve0=10543620724770 (~10.54M USDC) /
+  reserve1=3881028913582414867556 (~3881 WETH) / fresh timestamp —
+  plausible vs ~$21M DexScreener liquidity. Pinned as
+  `LIVE_V2_TRYAGGREGATE_RETURN` in `evm-pools.codec.spec.ts`.
+* Uninitialized rule: V3/V4 `sqrtPriceX96 == 0` -> `null`; V2
+  double-zero reserves -> `null`. Fee semantics: V2 reserve ratio is a
+  PRE-FEE mid (execution haircut `V2_DEFAULT_FEE_BPS`, v2-INCLUSIVE);
+  V3 slot0 / V4 lens quote fee-FREE spot (add `fee`/`lpFee` on top,
+  v4-EXCLUSIVE).
+* V4 lens per chain: StateView verified ONLY on ethereum + base
+  (official v4 deployments table); bsc/arbitrum/polygon/optimism/
+  unichain resolve `null` (`v4-lens-unverified`) — no invented rows.
+* Tolerance seam: `selectPreferredQuote(direct, aggregator)` merges
+  defined direct fields over today's fan-out (partial direct never
+  blanks good fields; direct `null` returns the aggregator quote
+  verbatim); `priceUsd` divergence beyond `TOLERANCE_DEFAULT_BPS`
+  (100 = 1%) is a `Logger.warn` ONLY — no metric infra, no gates,
+  render never blocked. Home is `onchain/` (not `snapshot/`) so the
+  lane ships with zero snapshot-core edits; adoption is one line in
+  `getSnapshot` post-merge, pre-`history.save` (documented in file).
+* QPS budget lives in the codec header (per-view ~= 72 CU worst /
+  ~= 46 CU steady; readers never poll — a future integrator owns
+  cadence: 100 pools x 30s ~= 153 CU/s OVER free ~115 CU/s).
+  Quota owner: whoever holds `ALCHEMY_API_KEY`.
+
+## DIRECT FAST-PATH (wire-up, dexter plan todo 22 — serve order + deadlines)
+
+`snapshot/application/direct-fast-path.service.ts` (NEW) + a seam in
+`AddressSnapshotService.getSnapshot` (fast branch + `buildSnapshot`
+extraction; the fallback call reproduces the old inline behavior
+exactly — existing specs pin it with the fast path mocked null).
+
+- Order per request (cache-HIT still returns first, unchanged):
+  fan-out starts IMMEDIATELY and concurrently; the on-chain readers
+  race `DIRECT_FAST_PATH_DEADLINE_MS` (800ms) against it. Sane
+  direct values serve at direct speed (partial card: direct
+  price/liquidity/holders/supply/identity, N/A nulls elsewhere, dev
+  holdings skipped and marked); the in-flight fan-out completes in
+  background for the log-only tolerance check (no second run, no
+  history/cache/registry writes from the background leg). ANY direct
+  miss awaits the already-running fan-out — fallback pays ~zero
+  direct penalty on fast misses and ~800ms only when readers hang
+  to the deadline (measured: concurrent fallback totals improved
+  ~6.1s to ~3.3s on WIF-class colds by removing the old sequential
+  wait — the remainder is launchpad/dev/venue tail, not fan-out).
+- Deadline enforcement is race-based (frozen Lane T transports take
+  no external signal; abandoned sockets die on their own internal
+  timeouts). Latency discipline inside the budget: discovery, pool,
+  basics, launchpad and the lean anchor all start at t0; launchpad
+  is take-if-ready (slow detector resolves null, never waits); the
+  pump pool leg is skipped when discovery names the curve PDA
+  itself (duplicate read). Union-typed ctor params carry explicit
+  `@Inject` (else Nest emits `Object` metadata and resolves null —
+  same latent pattern as the pre-existing `cache`/`assets`/
+  `nullMetrics` params: observed during wire-up, NOT changed).
+- Coverage (honest): Solana pump-PDA (no discovery needed),
+  Solana pools via DexScreener pairAddress (owner dispatch),
+  EVM V2/V3 via best-pair discovery (V4 poolIds not discoverable).
+  USD only against a stable leg or a pinned native anchor (lean
+  1-round Raydium CLMM SOL/USDC, AMM fallback; ethereum WETH/USDC
+  Lane-E-verified). Anything else resolves null (not covered).
+- MEASURED 2026-10-06 (alt-port :4171, 15 colds, evidence
+  `.omo/evidence/task-fe-onchain-wire.log`): p95 cold <800ms MISSED
+  on all live routes — direct legs always hit the 800ms deadline
+  (Helius 2-sequential-round paths ~= 900-1200ms typical; Alchemy
+  403 on ALL EVM subdomains — app has no enabled networks, so EVM
+  direct always nulls here), and cold totals (~2.6-3.4s) are
+  launchpad/dev/venue-tail-dominated. Reader-level parity PROVEN
+  live (real Helius through real reader code): pump-curve -3.8bps,
+  Raydium AMM -27.6bps vs aggregator (tolerance 100bps); pumpswap
+  pool resolves null (unsupported family, fail-open). Serve-level
+  parity had zero samples (no fast serve fired) — needs a keyed EVM
+  env and/or sub-800ms round trips to revisit.
+
 ## SECURITY (P46, todo 10)
 
 Scoped API keys (`src/auth/`): `read` (GET chains/providers/addresses/

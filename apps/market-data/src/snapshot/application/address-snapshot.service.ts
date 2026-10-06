@@ -1,6 +1,7 @@
 import {
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   Optional,
 } from '@nestjs/common';
@@ -21,8 +22,10 @@ import {
   SNAPSHOT_QUOTE_FIELDS,
   emptySnapshotQuote,
   type QuoteFetcher,
+  type SnapshotQuote,
 } from '../domain/snapshot-quote.types';
 import { SnapshotAggregatorService } from 'aggregators/application/snapshot-aggregator.service';
+import type { AggregationOutcome } from 'aggregators/application/snapshot-aggregator.service';
 import { AggregationPolicyPort } from 'aggregators/domain/aggregation-policy.port';
 import { LaunchpadDetectorService } from 'provider/launchpad/application/launchpad-detector.service';
 import type { LaunchpadInfo } from 'provider/launchpad/domain/launchpad-info';
@@ -36,6 +39,18 @@ import {
 import { applyOutboundRateLimit } from 'provider/infrastructure/quote-fetchers/rate-limited-fetchers';
 import { DevHoldingsPort } from '../../holders/domain/holdings.port';
 import { AssetResolverService } from 'asset-registry/application/asset-resolver.service';
+import {
+  DIRECT_FAST_PATH_DEADLINE_MS,
+  DirectFastPathService,
+} from './direct-fast-path.service';
+import {
+  selectPreferredQuote,
+  TOLERANCE_DEFAULT_BPS,
+} from 'provider/infrastructure/onchain/evm-tolerance';
+
+/** Log helper: nullable ms renders as `n/a` (never crashes the line). */
+const roundMs = (ms: number | null): string =>
+  ms === null ? 'n/a' : String(Math.round(ms));
 
 /**
  * AddressSnapshotService (Tramo 3, P45; canonical home todo 12, P50;
@@ -57,6 +72,8 @@ import { AssetResolverService } from 'asset-registry/application/asset-resolver.
  */
 @Injectable()
 export class AddressSnapshotService {
+  private readonly logger = new Logger(AddressSnapshotService.name);
+
   public constructor(
     private readonly catalog: ChainCatalogPort,
     private readonly providers: ProviderRegistryService,
@@ -86,6 +103,11 @@ export class AddressSnapshotService {
     private readonly dexscreener: DexScreenerService | null = null,
     @Optional()
     private readonly nullMetrics: SnapshotNullMetricsService | null = null,
+    // Union-typed params emit `Object` metadata: `@Inject` is mandatory
+    // here, otherwise Nest resolves null even when registered.
+    @Optional()
+    @Inject(DirectFastPathService)
+    private readonly fastPath: DirectFastPathService | null = null,
   ) {}
 
   private async resolveAssetId(
@@ -155,6 +177,7 @@ export class AddressSnapshotService {
   public async getSnapshot(
     input: AddressSnapshotInput,
   ): Promise<AddressSnapshot> {
+    const startedAt = performance.now();
     const chain = (input.chain ?? '').trim();
     if (chain === '') {
       throw new NotFoundException('Chain qualifier is required');
@@ -169,6 +192,7 @@ export class AddressSnapshotService {
       kindHint: input.kindHint,
       probe: input.probe ?? null,
     });
+    const kindMs = Math.round(performance.now() - startedAt);
     const id = AddressIdVo.from(known.id, input.value, kind);
     const supporting = this.providers
       .listProviders()
@@ -211,17 +235,152 @@ export class AddressSnapshotService {
       (name: string) =>
         resolveProviderOutboundBudget(this.providers.listProviders(), name),
     );
-    const outcome = await this.aggregator.aggregate(
-      known.id,
-      input.value,
-      gated,
+    // Direct fast-path FIRST (todo 22 wire-up): the fan-out starts
+    // IMMEDIATELY and the on-chain readers race a HARD deadline
+    // against it. Sane direct values serve at direct speed while the
+    // in-flight fan-out completes in background for the log-only
+    // tolerance check (no second run). ANY direct miss (no coverage,
+    // timeout, insane values) awaits the already-running fan-out —
+    // the fallback path below is byte-identical and pays ~zero
+    // direct penalty when the miss is fast (instant-null coverage).
+    const fanoutP = this.aggregator.aggregate(known.id, input.value, gated);
+    const fastStartedAt = performance.now();
+    const fast =
+      this.fastPath === null
+        ? null
+        : await this.fastPath.tryResolve(
+            { chain: known.id, address: input.value, kind },
+            DIRECT_FAST_PATH_DEADLINE_MS,
+          );
+    const directMs = Math.round(performance.now() - fastStartedAt);
+    if (fast !== null) {
+      const snapshot = await this.buildSnapshot({
+        knownId: known.id,
+        inputValue: input.value,
+        cacheKey,
+        kind,
+        id,
+        supporting,
+        outcome: fast.outcome,
+        launchpad: { resolved: true, value: fast.launchpad },
+        venue: { resolved: true, value: fast.venue },
+        skipDevHoldings: true,
+      });
+      this.logger.log(
+        `direct-fast-path chain=${known.id} served=fast directMs=${directMs} ` +
+          `discoveryMs=${roundMs(fast.timings.discoveryMs)} ` +
+          `kindMs=${kindMs} ` +
+          `totalMs=${Math.round(performance.now() - startedAt)}`,
+      );
+      this.compareToleranceInBackground(
+        fanoutP,
+        known.id,
+        input.value,
+        fast.outcome.quote,
+      );
+      return snapshot;
+    }
+    const fanoutStartedAt = performance.now();
+    const outcome = await fanoutP;
+    const fanoutMs = Math.round(performance.now() - fanoutStartedAt);
+    const snapshot = await this.buildSnapshot({
+      knownId: known.id,
+      inputValue: input.value,
+      cacheKey,
+      kind,
+      id,
+      supporting,
+      outcome,
+      launchpad: { resolved: false, value: null },
+      venue: { resolved: false, value: null },
+      skipDevHoldings: false,
+    });
+    this.logger.log(
+      `direct-fast-path chain=${known.id} served=fanout directMs=${directMs} ` +
+        `fanoutMs=${fanoutMs} kindMs=${kindMs} ` +
+        `totalMs=${Math.round(performance.now() - startedAt)}`,
     );
-    const launchpad = await this.resolveLaunchpad(known.id, input.value);
-    const venue = await this.resolveVenue(known.id, input.value);
+    return snapshot;
+  }
+
+  /**
+   * Tolerance comparator, strictly log-only (todo 22 §4): awaits the
+   * already in-flight fan-out AFTER a fast serve and warns on
+   * direct-vs-aggregator divergence. Never writes history/cache/
+   * registry, never throws (floating promise with a catch — the
+   * render already returned).
+   */
+  private compareToleranceInBackground(
+    fanoutP: Promise<AggregationOutcome>,
+    chain: string,
+    address: string,
+    directQuote: Partial<SnapshotQuote>,
+  ): void {
+    void (async () => {
+      try {
+        const started = performance.now();
+        const outcome = await fanoutP;
+        const elapsedMs = Math.round(performance.now() - started);
+        const check = selectPreferredQuote(directQuote, outcome.quote);
+        if (check.diverged) {
+          this.logger.warn(
+            `direct-fast-path tolerance diverged ` +
+              `${check.divergeBps?.toFixed(1)}bps beyond ${TOLERANCE_DEFAULT_BPS}bps ` +
+              `(chain=${chain} address=${address} direct=${directQuote.priceUsd} ` +
+              `aggregator=${outcome.quote.priceUsd} bgFanoutMs=${elapsedMs})`,
+          );
+        } else {
+          // Info-level (not debug): this line IS the parity metric for
+          // the wire-up — exact direct-vs-aggregator pair per fast serve.
+          this.logger.log(
+            `direct-fast-path tolerance ok (chain=${chain} direct=${directQuote.priceUsd} ` +
+              `aggregator=${outcome.quote.priceUsd} bgFanoutMs=${elapsedMs})`,
+          );
+        }
+      } catch (err) {
+        this.logger.debug(
+          `direct-fast-path background fan-out failed: ${(err as Error).message}`,
+        );
+      }
+    })();
+  }
+
+  /**
+   * Snapshot tail: launchpad/venue/fdvAth/asset/dev/merge/persist/
+   * cache (moved verbatim from `getSnapshot` for the fast-path seam;
+   * the fallback call below passes `resolved: false` + `skipDevHoldings:
+   * false`, which reproduces the old inline behavior exactly).
+   */
+  private async buildSnapshot(args: {
+    readonly knownId: string;
+    readonly inputValue: string;
+    readonly cacheKey: string;
+    readonly kind: string;
+    readonly id: AddressIdVo;
+    readonly supporting: ReadonlyArray<string>;
+    readonly outcome: AggregationOutcome;
+    readonly launchpad: {
+      readonly resolved: boolean;
+      readonly value: LaunchpadInfo | null;
+    };
+    readonly venue: {
+      readonly resolved: boolean;
+      readonly value: SnapshotVenue | null;
+    };
+    readonly skipDevHoldings: boolean;
+  }): Promise<AddressSnapshot> {
+    const { knownId, inputValue, cacheKey, kind, id, supporting, outcome } =
+      args;
+    const launchpad = args.launchpad.resolved
+      ? args.launchpad.value
+      : await this.resolveLaunchpad(knownId, inputValue);
+    const venue = args.venue.resolved
+      ? args.venue.value
+      : await this.resolveVenue(knownId, inputValue);
     // FDV ATH is strictly historical: read BEFORE the current row is
     // persisted, so cold-start (no history) resolves null and the
     // in-flight FDV is never substituted as ATH (spec-pinned).
-    const fdvAth = await this.history.findFdvAth(known.id, input.value);
+    const fdvAth = await this.history.findFdvAth(knownId, inputValue);
     for (const source of outcome.sources) {
       this.providers.recordSuccess(source, 0);
     }
@@ -233,9 +392,14 @@ export class AddressSnapshotService {
     let devWallets: AddressSnapshot['devWallets'] = null;
     let devPctSupply: number | null = null;
     const providerErrors: Record<string, string> = { ...outcome.errors };
-    if (kind === 'token' && this.devHoldings) {
+    if (args.skipDevHoldings && kind === 'token') {
+      // Fast card: dev holdings need their own aggregator round trip,
+      // outside the 800ms budget by design — marked, never silent.
+      providerErrors['dev:fast-path'] = 'skipped (fast-path budget)';
+    }
+    if (kind === 'token' && this.devHoldings && !args.skipDevHoldings) {
       try {
-        const dev = await this.devHoldings.resolve(known.id, input.value);
+        const dev = await this.devHoldings.resolve(knownId, inputValue);
         devWallets = dev.devWallets ?? null;
         devPctSupply = dev.devPctSupply;
         for (const [k, v] of Object.entries(dev.providerErrors)) {
@@ -252,7 +416,7 @@ export class AddressSnapshotService {
       kind: id.kind,
       key: id.key,
       status: outcome.allFailed && devWallets === null ? 'pending' : 'ready',
-      assetId: await this.resolveAssetId(known.id, input.value, outcome.quote),
+      assetId: await this.resolveAssetId(knownId, inputValue, outcome.quote),
       launchpad,
       venue,
       fdvAth,

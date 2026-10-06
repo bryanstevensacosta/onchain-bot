@@ -23,10 +23,15 @@ Chain data, not price / holders / security data:
 
 ## Base URL
 
-`https://eth-mainnet.g.alchemy.com/v2` (`alchemy.service.ts:14`).
-Full RPC URL is `${BASE}/${apiKey}` (`alchemy.service.ts:38`).
-Ethereum mainnet only — other EVM chains in the registry entry are not
-wired to a per-chain endpoint here.
+`https://eth-mainnet.g.alchemy.com/v2` (`alchemy.service.ts` `BASE`) for
+the legacy mainnet-only methods. Lane T (todo 22) adds the per-chain
+table `EVM_CHAIN_TRANSPORTS` (`alchemy.chains.ts`): OUR chain id →
+`https://<subdomain>.g.alchemy.com/v2/{apiKey}` (ethereum→eth-mainnet,
+base→base-mainnet, bsc→bnb-mainnet, arbitrum→arb-mainnet,
+polygon→polygon-mainnet, optimism→opt-mainnet,
+unichain→unichain-mainnet). Robinhood has NO row (no known Alchemy
+slug, Multicall3 unverified — `isChainSupported` false, transports
+resolve fail-open nulls until a verified row lands).
 
 ## Auth
 
@@ -52,17 +57,20 @@ returns `null` (disabled, never throws).
 Every row cross-checked with `alchemy.service.ts` on 2026-09-27.
 Transport for all: `POST /v2/{apiKey}` JSON-RPC 2.0, 8 s timeout.
 
-| Method                                  | Code                         | Upstream                                             | SnapshotQuote / gateway need                                            |
-| --------------------------------------- | ---------------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------- |
-| `rpcCall(method, params?)`              | `alchemy.service.ts:66-93`   | generic JSON-RPC POST, 8 s timeout                   | shared transport for every row below                                    |
-| `getBalance(address)`                   | `alchemy.service.ts:105-107` | `eth_getBalance [address, latest]`                   | wallet-kind snapshots (`GET /api/v1/addresses/:chain/:address`)         |
-| `getCode(address)`                      | `alchemy.service.ts:115-117` | `eth_getCode [address, latest]`                      | kind probe (EOA vs contract) for `AddressKindDetectorService`           |
-| `ethCall(to, data, block?)`             | `alchemy.service.ts:127-133` | `eth_call [{ to, data }, block]`                     | on-chain reads (decimals/totalSupply) for future token-identity fetcher |
-| `getChainId()`                          | `alchemy.service.ts:140-144` | `eth_chainId`, hex → number                          | chain-detect edge (`GET /api/v1/chains/detect`)                         |
-| `getTokenBalances(address, contracts?)` | `alchemy.service.ts:157-168` | `alchemy_getTokenBalances`; default `DEFAULT_TOKENS` | wallet holdings for wallet-kind snapshots / batch POST                  |
-| `getLogs(filter)`                       | `alchemy.service.ts:180-190` | `eth_getLogs [filter]`, returns `r?.logs ?? null`    | event-scan jobs (Swap/Transfer), future trade-activity signals          |
-| `getTransactionReceipt(txHash)`         | `alchemy.service.ts:198-204` | `eth_getTransactionReceipt [txHash]`                 | receipt status/logs for future tx-lookup gateway                        |
-| `getBlockNumber()`                      | `alchemy.service.ts:211-215` | `eth_blockNumber`, hex → number                      | freshness anchor for cached snapshots (30 s TTL)                        |
+| Method                                               | Code                         | Upstream                                                                                  | SnapshotQuote / gateway need                                             |
+| ---------------------------------------------------- | ---------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `rpcCall(method, params?)`                           | `alchemy.service.ts:66-93`   | generic JSON-RPC POST, 8 s timeout                                                        | shared transport for every row below                                     |
+| `getBalance(address)`                                | `alchemy.service.ts:105-107` | `eth_getBalance [address, latest]`                                                        | wallet-kind snapshots (`GET /api/v1/addresses/:chain/:address`)          |
+| `getCode(address)` / `getCode(chain, address)`       | `alchemy.service.ts`         | `eth_getCode [address, latest]` per chain (single-arg = mainnet, backend-prober contract) | kind probe (EOA vs contract) + Lane T existence checks                   |
+| `getTransactionCount(chain, address)`                | `alchemy.service.ts`         | `eth_getTransactionCount [address, latest]` per chain (Lane T)                            | hex nonce, EOA-vs-dead signal                                            |
+| `ethCall(chain, to, data, block?)`                   | `alchemy.service.ts`         | `eth_call [{ to, data }, block]` per chain (Lane T, was mainnet-only)                     | raw on-chain reads + Multicall3 aggregate transport                      |
+| `rpcCallForChain(chain, method, params?, {signal}?)` | `alchemy.service.ts`         | per-chain POST, 8 s timeout, AbortSignal passthrough                                      | shared transport for the three rows above                                |
+| `tryAggregate(chain, calls)`                         | `multicall.service.ts`       | ONE `eth_call` to Multicall3 `0xcA11…CA11` + documented per-call fallback                 | batched reads, tryAggregate semantics (one revert never fails the batch) |
+| `getChainId()`                                       | `alchemy.service.ts:140-144` | `eth_chainId`, hex → number                                                               | chain-detect edge (`GET /api/v1/chains/detect`)                          |
+| `getTokenBalances(address, contracts?)`              | `alchemy.service.ts:157-168` | `alchemy_getTokenBalances`; default `DEFAULT_TOKENS`                                      | wallet holdings for wallet-kind snapshots / batch POST                   |
+| `getLogs(filter)`                                    | `alchemy.service.ts:180-190` | `eth_getLogs [filter]`, returns `r?.logs ?? null`                                         | event-scan jobs (Swap/Transfer), future trade-activity signals           |
+| `getTransactionReceipt(txHash)`                      | `alchemy.service.ts:198-204` | `eth_getTransactionReceipt [txHash]`                                                      | receipt status/logs for future tx-lookup gateway                         |
+| `getBlockNumber()`                                   | `alchemy.service.ts:211-215` | `eth_blockNumber`, hex → number                                                           | freshness anchor for cached snapshots (30 s TTL)                         |
 
 ## AVAILABLE — Full upstream catalog (not wired)
 
@@ -76,18 +84,18 @@ Docs index: https://www.alchemy.com/docs/reference/api-overview.
 Per-method pages live under
 `https://www.alchemy.com/docs/chains/ethereum/ethereum-api-endpoints/<slug>`.
 
-| JSON-RPC method                  | Params                                          | Response shape              | Gateway need (future)                                           |
-| -------------------------------- | ----------------------------------------------- | --------------------------- | --------------------------------------------------------------- |
-| `eth_getBlockByNumber`           | `[blockTag, fullTx?]`                           | block object (hash, txs, …) | block-anchored snapshot history (`snapshot-history.repository`) |
-| `eth_getBlockByHash`             | `[blockHash, fullTx?]`                          | block object                | same as above, hash-addressed                                   |
-| `eth_getTransactionByHash`       | `[txHash]`                                      | tx object or `null`         | future tx-lookup gateway alongside `getTransactionReceipt`      |
-| `eth_getTransactionCount`        | `[address, blockTag]`                           | hex quantity (nonce)        | wallet-activity signal for wallet-kind snapshots                |
-| `eth_gasPrice`                   | `[]`                                            | hex wei                     | execution-quality / fee context for Dexter (todo 9)             |
-| `eth_maxPriorityFeePerGas`       | `[]`                                            | hex wei                     | same as above (EIP-1559 chains)                                 |
-| `eth_feeHistory`                 | `[blockCount, newestBlock, rewardPercentiles?]` | baseFee + reward history    | fee-trend panel for Dexter / data dashboard (todos 7, 9)        |
-| `eth_estimateGas`                | `[txObject, blockTag?]`                         | hex gas units               | pre-trade estimates for Dexter                                  |
-| `eth_getStorageAt`               | `[address, slot, blockTag]`                     | hex storage value           | deep token-identity reads (owner slots, pause flags)            |
-| `eth_call` (with state override) | `[{ to, data }, blockTag, stateOverride?]`      | hex return data             | batched view reads without new endpoints                        |
+| JSON-RPC method                          | Params                                          | Response shape              | Gateway need (future)                                                                    |
+| ---------------------------------------- | ----------------------------------------------- | --------------------------- | ---------------------------------------------------------------------------------------- |
+| `eth_getBlockByNumber`                   | `[blockTag, fullTx?]`                           | block object (hash, txs, …) | block-anchored snapshot history (`snapshot-history.repository`)                          |
+| `eth_getBlockByHash`                     | `[blockHash, fullTx?]`                          | block object                | same as above, hash-addressed                                                            |
+| `eth_getTransactionByHash`               | `[txHash]`                                      | tx object or `null`         | future tx-lookup gateway alongside `getTransactionReceipt`                               |
+| `eth_getTransactionCount` (WIRED Lane T) | `[address, blockTag]`                           | hex quantity (nonce)        | `getTransactionCount(chain, address)` — wallet-activity signal for wallet-kind snapshots |
+| `eth_gasPrice`                           | `[]`                                            | hex wei                     | execution-quality / fee context for Dexter (todo 9)                                      |
+| `eth_maxPriorityFeePerGas`               | `[]`                                            | hex wei                     | same as above (EIP-1559 chains)                                                          |
+| `eth_feeHistory`                         | `[blockCount, newestBlock, rewardPercentiles?]` | baseFee + reward history    | fee-trend panel for Dexter / data dashboard (todos 7, 9)                                 |
+| `eth_estimateGas`                        | `[txObject, blockTag?]`                         | hex gas units               | pre-trade estimates for Dexter                                                           |
+| `eth_getStorageAt`                       | `[address, slot, blockTag]`                     | hex storage value           | deep token-identity reads (owner slots, pause flags)                                     |
+| `eth_call` (with state override)         | `[{ to, data }, blockTag, stateOverride?]`      | hex return data             | batched view reads without new endpoints                                                 |
 
 ### B. Alchemy Token API (Enhanced, same JSON-RPC transport)
 

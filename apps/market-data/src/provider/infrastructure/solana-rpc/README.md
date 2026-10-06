@@ -104,10 +104,11 @@ before the gateway can use it.
 
 ### USED-TODAY (2)
 
-| Method                    | Code                       | Gateway need            |
-| ------------------------- | -------------------------- | ----------------------- |
-| `getTokenLargestAccounts` | `solana-rpc.service.ts:45` | Top-20 holders (served) |
-| `getAccountInfo`          | `solana-rpc.service.ts:65` | Chain probing (served)  |
+| Method                                | Code                       | Gateway need                                                                                                |
+| ------------------------------------- | -------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `getTokenLargestAccounts`             | `solana-rpc.service.ts:45` | Top-20 holders (served)                                                                                     |
+| `getAccountInfo`                      | `solana-rpc.service.ts:65` | Chain probing (served)                                                                                      |
+| `getMultipleAccounts` / `getMultiple` | `solana-rpc.service.ts`    | Batch state reads (Lane T: chunked ≤100, parallel, per-chunk fail-open nulls; frozen `BatchAccountsClient`) |
 
 ### AVAILABLE — Accounts (5 further methods)
 
@@ -116,7 +117,6 @@ before the gateway can use it.
 | `getBalance`                        | Wallet SOL balance (snapshot field)          |
 | `getLargestAccounts`                | Whale watching (concentration signals)       |
 | `getMinimumBalanceForRentExemption` | Rent quote (future tx-building path)         |
-| `getMultipleAccounts`               | Batch state reads (snapshot fan-out)         |
 | `getProgramAccounts`                | Program-owned account scans (protocol stats) |
 
 ### AVAILABLE — Tokens (3 further methods)

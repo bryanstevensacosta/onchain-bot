@@ -7,6 +7,8 @@ import type {
   JsonRpcRequest,
   JsonRpcResponse,
   SolanaBalanceResponse,
+  SolanaBase64AccountResponse,
+  SolanaBase64AccountValue,
   SolanaTransactionResponse,
 } from './fluxrpc.types';
 
@@ -97,6 +99,22 @@ export class FluxRpcService extends DataProviderPort {
     return this.rpcCall<SolanaBalanceResponse>('getBalance', [address]).then(
       (r) => r?.value ?? null,
     );
+  }
+
+  /**
+   * Account info with `base64` data (Lane T, todo 22): raw bytes for
+   * pool-struct decode. Sits BESIDE the existing `jsonParsed`
+   * `getTokenAccountsByOwner`/`getMultipleAccounts` — those stay
+   * untouched (parsed layouts for known programs); this is the only
+   * struct-decodable read. Missing account ⇒ `null` (never throws).
+   */
+  public async getAccountInfo(
+    address: string,
+  ): Promise<SolanaBase64AccountValue | null> {
+    return this.rpcCall<SolanaBase64AccountResponse>('getAccountInfo', [
+      address,
+      { encoding: 'base64', commitment: 'confirmed' },
+    ]).then((r) => r?.value ?? null);
   }
 
   /**

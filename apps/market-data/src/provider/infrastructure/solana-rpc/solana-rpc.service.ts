@@ -5,6 +5,7 @@ import type { SolanaRpcConfig } from './solana-rpc.config';
 import { SOLANA_RPC_CONFIG } from './solana-rpc.config';
 import type {
   AccountInfoResult,
+  BatchAccountsClient,
   GetMultipleAccountsResult,
   GetTokenLargestAccountsResult,
   GetTokenSupplyResult,
@@ -14,6 +15,22 @@ import type {
 } from './solana-rpc.types';
 
 const PUBLIC_SOLANA_RPC = 'https://api.mainnet.solana.com';
+
+/**
+ * `getMultipleAccounts` chunk ceiling (Lane T, todo 22).
+ *
+ * QPS BUDGET (assumptions, numeric): the public RPC caps
+ * `getMultipleAccounts` at 100 accounts per call (enforced upstream —
+ * larger batches are rejected, not truncated). So N addresses cost
+ * `ceil(N / 100)` RPC calls per URL attempt. Worst case here is 150
+ * pool PDAs → 2 calls (one round, parallel chunks) against the primary
+ * (Helius free tier: ~100 req/s burst on paid, ~10 req/s effective on
+ * free — 2 parallel calls are noise) with the public-RPC fallback only
+ * on transport failure (public RPC: 40 req/10s per IP rolling — a
+ * single 2-call burst is ~5% of that window; backoff on 429 stays in
+ * the aggregator, not here).
+ */
+export const GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE = 100;
 
 /**
  * Solana JSON-RPC provider.
@@ -26,7 +43,10 @@ const PUBLIC_SOLANA_RPC = 'https://api.mainnet.solana.com';
  * JSON-RPC 2.0 calls. No key needed (public RPC) — free tier.
  */
 @Injectable()
-export class SolanaRpcService extends DataProviderPort {
+export class SolanaRpcService
+  extends DataProviderPort
+  implements BatchAccountsClient
+{
   public readonly name = 'solana-rpc';
   protected readonly logger = new Logger(SolanaRpcService.name);
 
@@ -109,25 +129,68 @@ export class SolanaRpcService extends DataProviderPort {
    * an explicit `null` entry (callers map hits back to their candidates
    * by index). `base64` encoding: pool/curve accounts exceed the 128
    * decoded-byte ceiling the RPC enforces on `base58` data. Empty input
-   * returns `[]` with no RPC call. Transport failure on every URL
-   * returns `null` (whole-batch miss).
+   * returns `[]` with no RPC call.
+   *
+   * CHUNKED (Lane T, todo 22): the RPC rejects batches > 100, so the
+   * input is split into ≤100-address chunks fetched IN PARALLEL (one
+   * round) and concatenated in order. Fail-open per chunk: a chunk
+   * whose every URL fails resolves to `null`s for its slice — a dead
+   * chunk NEVER fails the batch and this method NEVER throws (only
+   * `[]` for empty input; no whole-batch `null` anymore — Lane S/E
+   * build on the frozen `BatchAccountsClient.getMultiple` alias below).
    */
   public async getMultipleAccounts(
     addresses: ReadonlyArray<string>,
-  ): Promise<ReadonlyArray<SolanaAccountInfoValue | null> | null> {
+  ): Promise<ReadonlyArray<SolanaAccountInfoValue | null>> {
     if (addresses.length === 0) return [];
+    const chunks: string[][] = [];
+    for (
+      let i = 0;
+      i < addresses.length;
+      i += GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE
+    ) {
+      chunks.push([
+        ...addresses.slice(i, i + GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE),
+      ]);
+    }
+    const settled = await Promise.all(
+      chunks.map((chunk) => this.fetchChunk(chunk)),
+    );
+    return settled.flat();
+  }
+
+  /**
+   * Frozen Lane T alias of `getMultipleAccounts` (see
+   * `BatchAccountsClient` in `solana-rpc.types.ts`). Lane S/E pool
+   * readers depend on this name — do not rename.
+   */
+  public async getMultiple(
+    addresses: ReadonlyArray<string>,
+  ): Promise<ReadonlyArray<SolanaAccountInfoValue | null>> {
+    return this.getMultipleAccounts(addresses);
+  }
+
+  /**
+   * One ≤100-address chunk against each URL in order (primary, then
+   * public fallback). First URL with a well-formed array wins; every
+   * URL failing (or answering a non-array) resolves to per-address
+   * `null`s — never throws.
+   */
+  private async fetchChunk(
+    chunk: ReadonlyArray<string>,
+  ): Promise<ReadonlyArray<SolanaAccountInfoValue | null>> {
     const rpcUrls = this.buildRpcUrls();
     for (const url of rpcUrls) {
       const result = await this.callRpc<GetMultipleAccountsResult>(
         url,
         'getMultipleAccounts',
-        [[...addresses], { encoding: 'base64', commitment: 'confirmed' }],
+        [[...chunk], { encoding: 'base64', commitment: 'confirmed' }],
       );
       if (result === null) continue;
       if (!Array.isArray(result.value)) continue;
-      return result.value as ReadonlyArray<SolanaAccountInfoValue | null>;
+      return chunk.map((_, i) => result.value?.[i] ?? null);
     }
-    return null;
+    return chunk.map(() => null);
   }
   private async callRpc<T>(
     rpcUrl: string,

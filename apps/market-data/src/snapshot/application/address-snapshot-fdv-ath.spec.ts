@@ -2,6 +2,7 @@ import { Test } from '@nestjs/testing';
 import { ConfigModule } from '@nestjs/config';
 import { SnapshotModule } from '../snapshot.module';
 import { AddressSnapshotService } from './address-snapshot.service';
+import { DirectFastPathService } from './direct-fast-path.service';
 import { SnapshotHistoryRepository } from '../infrastructure/snapshot-history.repository';
 import { SNAPSHOT_HISTORY_RETENTION_DAYS } from '../infrastructure/snapshot-history.entity';
 import { LaunchpadDetectorService } from 'provider/launchpad/application/launchpad-detector.service';
@@ -154,6 +155,9 @@ describe('AddressSnapshotService fdvAth plumbing (dexter fdv-ath)', () => {
         getBestPairSummary: async () => null,
         getBestPairSummaryForChain: async () => null,
       })
+      // No live readers in fallback-contract specs.
+      .overrideProvider(DirectFastPathService)
+      .useValue({ tryResolve: async () => null })
       .compile();
     return {
       snapshots: module.get(AddressSnapshotService),

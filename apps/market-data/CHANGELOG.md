@@ -9,6 +9,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Direct fast-path wire-up (dexter plan todo 22, serve seam):**
+  NEW `snapshot/application/direct-fast-path.service.ts` tries the
+  Lane E/S on-chain readers FIRST under a HARD 800ms deadline while
+  the aggregator fan-out runs concurrently; sane direct values serve
+  a partial card immediately (dev holdings skipped and marked) and
+  the in-flight fan-out completes in background for the log-only
+  tolerance check. Any miss falls back to the byte-identical fan-out
+  path (existing specs pin it with the fast path mocked null).
+  Measured 2026-10-06: p95 cold <800ms missed on live routes
+  (Helius 2-round paths over budget; Alchemy 403 on all EVM
+  subdomains in this env); reader-level parity proven live
+  (-3.8bps pump, -27.6bps Raydium vs aggregator, tolerance 100bps).
+
+- **On-chain EVM readers + tolerance (dexter plan todo 22, Lane E):**
+  NEW `provider/infrastructure/onchain/` files only (no snapshot-core
+  edits, no wiring yet): `evm-pools.codec.ts` (pure ABI decode —
+  V2 getReserves/token0/token1, ERC20 decimals/totalSupply, V3
+  slot0/liquidity/fee, V4 StateView getSlot0/getLiquidity + BigInt
+  price math; selectors derived 2026-10-05 via
+  `keccak256(signature)[:4]`, live cross-checked; uninitialized
+  V3/V4 `sqrtPriceX96 == 0` and double-zero V2 reserves decode to
+  `null`; fee semantics documented — V2 reserve ratio is a PRE-FEE
+  mid, V3/V4 `sqrtPriceX96` is fee-FREE spot),
+  `onchain-evm.reader.ts` (`OnchainEvmReaderService` over the frozen
+  Lane T `MulticallClient.tryAggregate` + `ChainRpc` existence gate:
+  V2/V3 views with decimals per leg, V4 via StateView lens in ONE
+  batch with caller-supplied decimals; StateView verified on
+  ethereum + base only, other chains resolve `null`
+  (`v4-lens-unverified`); every method BigInt-first, fail-open
+  `null`, never throws), `evm-tolerance.ts`
+  (`selectPreferredQuote` at the snapshot seam: defined direct
+  fields win over the aggregator quote, direct `null` returns the
+  aggregator quote verbatim, `priceUsd` divergence beyond 100 bps
+  is a `Logger.warn` metric only — never gates the render).
+  Live-verified 2026-10-05 with ONE `eth_call` tryAggregate
+  (getReserves + token0/token1) on DexScreener-discovered Uniswap
+  V2 WETH/USDC `0xB4e16d…C9Dc` (ethereum): legs confirmed
+  USDC/WETH, reserves ~10.51M/~3892 vs ~$21.03M DexScreener
+  liquidity. QPS budget + quota owner (`ALCHEMY_API_KEY` holder)
+  in the codec header.
+
+- **On-chain transport foundation (dexter plan todo 22, Lane T):**
+  chunked Solana `getMultipleAccounts` (≤100/batch, parallel chunks,
+  per-chunk fail-open nulls — never whole-batch null/throw; frozen
+  `BatchAccountsClient.getMultiple`); multi-chain Alchemy
+  (`EVM_CHAIN_TRANSPORTS`: ethereum/base/bsc/arbitrum/polygon/
+  optimism/unichain subdomains; frozen `ChainRpc.getCode`/
+  `getTransactionCount`/`ethCall(chain, ...)` with AbortSignal;
+  single-arg `getCode(address)` mainnet form kept for the backend
+  prober); NEW `MulticallService.tryAggregate` (Multicall3
+  `0xcA11…CA11`, per-call ok passthrough, aggregate miss → parallel
+  per-call fallback, unsupported chains all-false; frozen
+  `MulticallClient`); FluxRPC `getAccountInfo` base64 beside
+  jsonParsed. QPS budget assumptions in code comments.
+
 - **No-negative-cache + `nullReason` counter (dexter plan todo 19a,
   robust-nulls S):** pending snapshots are NEVER cached at any of
   the three writers — `AddressSnapshotService` skips `cache.set` on

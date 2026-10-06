@@ -14,6 +14,7 @@ import type { DexScreenerPair } from 'provider/infrastructure/dexscreener/dexscr
 import { buildProviderQuoteFetchers } from 'provider/infrastructure/quote-fetchers/provider-quote.fetchers';
 import { SnapshotModule } from '../snapshot.module';
 import { AddressSnapshotService } from './address-snapshot.service';
+import { DirectFastPathService } from './direct-fast-path.service';
 import { LaunchpadDetectorService } from 'provider/launchpad/application/launchpad-detector.service';
 import { SNAPSHOT_QUOTE_PROVIDERS } from '../domain/snapshot-quote.types';
 
@@ -276,6 +277,9 @@ describe('AddressSnapshotService venue (chain-honest, 0xFf81 fixture)', () => {
         getBestPairSummaryForChain: async (chain: string) =>
           (perChain[chain] as never) ?? null,
       })
+      // No live readers in fallback-contract specs.
+      .overrideProvider(DirectFastPathService)
+      .useValue({ tryResolve: async () => null })
       .compile();
     return module.get(AddressSnapshotService);
   }

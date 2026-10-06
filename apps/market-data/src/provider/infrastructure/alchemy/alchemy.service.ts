@@ -10,6 +10,7 @@ import type {
   TransactionReceipt,
   LogEntry,
 } from './alchemy.types';
+import { chainRpcUrl, isChainSupported, type ChainRpc } from './alchemy.chains';
 
 const BASE = 'https://eth-mainnet.g.alchemy.com/v2';
 
@@ -25,7 +26,17 @@ const BASE = 'https://eth-mainnet.g.alchemy.com/v2';
  * @see https://docs.alchemy.com/
  */
 @Injectable()
-export class AlchemyService extends DataProviderPort {
+/**
+ * Alchemy blockchain data provider — multi-chain EVM (Lane T, todo 22).
+ *
+ * Legacy single-chain methods (`getBalance`, `getChainId`,
+ * `getTokenBalances`, `getLogs`, `getTransactionReceipt`,
+ * `getBlockNumber`) stay eth-mainnet-only. The on-chain transport
+ * surface (`getCode`, `getTransactionCount`, `ethCall`) is per-chain
+ * via `EVM_CHAIN_TRANSPORTS` (`alchemy.chains.ts`) and satisfies the
+ * frozen `ChainRpc` contract Lane S/E readers build against.
+ */
+export class AlchemyService extends DataProviderPort implements ChainRpc {
   public readonly name = 'alchemy';
   protected readonly logger = new Logger(AlchemyService.name);
 
@@ -93,7 +104,59 @@ export class AlchemyService extends DataProviderPort {
   }
 
   // ─────────────────────────────────────────────
-  //  Account & chain data
+  //  Chain-routed transport (Lane T: ChainRpc surface)
+  // ─────────────────────────────────────────────
+
+  /**
+   * Per-chain JSON-RPC call. Unknown chain ⇒ `null` (never throws);
+   * supports `AbortSignal` so multicall timeouts cancel in-flight
+   * HTTP instead of merely ignoring late winners.
+   */
+  public async rpcCallForChain<T>(
+    chain: string,
+    method: string,
+    params?: unknown[],
+    options?: { readonly signal?: AbortSignal },
+  ): Promise<T | null> {
+    if (!this.apiKey) return null;
+    const url = chainRpcUrl(chain, this.apiKey);
+    if (url === null) {
+      this.logger.debug(`Alchemy ${method}: unsupported chain ${chain}`);
+      return null;
+    }
+    try {
+      const body: JsonRpcRequest = {
+        jsonrpc: '2.0',
+        id: `alc-${chain}-${Date.now()}`,
+        method,
+        params,
+      };
+      const { data } = await axios.post<JsonRpcResponse<T>>(url, body, {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 8_000,
+        signal: options?.signal,
+      });
+      if (data.error) {
+        this.logger.debug(
+          `Alchemy ${chain} ${method} error [${data.error.code}]: ${data.error.message}`,
+        );
+        return null;
+      }
+      return data.result ?? null;
+    } catch (err) {
+      this.logger.debug(
+        `Alchemy ${chain} ${method} failed: ${(err as Error).message}`,
+      );
+      return null;
+    }
+  }
+
+  public isChainSupported(chain: string): boolean {
+    return isChainSupported(chain);
+  }
+
+  // ─────────────────────────────────────────────
+  //  Account & chain data (mainnet-only legacy)
   // ─────────────────────────────────────────────
 
   /**
@@ -108,28 +171,65 @@ export class AlchemyService extends DataProviderPort {
 
   /**
    * Contract bytecode — empty result means the address is an EOA.
+   * Single-arg form stays eth-mainnet (backend `evm-chain-prober`
+   * calls it); the two-arg form is the frozen `ChainRpc.getCode`.
    *
-   * @param address - Ethereum address
    * @see https://docs.alchemy.com/reference/eth-getcode
    */
-  public async getCode(address: string): Promise<string | null> {
-    return this.rpcCall<string>('eth_getCode', [address, 'latest']);
+  public async getCode(address: string): Promise<string | null>;
+  public async getCode(chain: string, address: string): Promise<string | null>;
+  public async getCode(first: string, second?: string): Promise<string | null> {
+    if (second === undefined) {
+      return this.rpcCall<string>('eth_getCode', [first, 'latest']);
+    }
+    return this.rpcCallForChain<string>(first, 'eth_getCode', [
+      second,
+      'latest',
+    ]);
   }
 
   /**
-   * Execute an eth_call (read-only contract invocation).
+   * Transaction count (hex nonce) — EOA-vs-dead signal for Lane T
+   * existence checks. Frozen `ChainRpc.getTransactionCount`.
    *
-   * @param to    - Target contract address
-   * @param data  - Encoded calldata (ABI-encoded function + args)
-   * @param block - Block tag (default: latest)
+   * @see https://docs.alchemy.com/reference/eth-gettransactioncount
+   */
+  public async getTransactionCount(
+    chain: string,
+    address: string,
+  ): Promise<string | null> {
+    return this.rpcCallForChain<string>(chain, 'eth_getTransactionCount', [
+      address,
+      'latest',
+    ]);
+  }
+
+  /**
+   * Raw read-only contract invocation on any supported chain.
+   * Frozen `ChainRpc.ethCall` — returns raw hex return-data,
+   * `null` on revert/transport failure (never throws).
+   *
+   * NOTE (Lane T breaking change): the old mainnet-only
+   * `ethCall(to, data, block?)` is now `ethCall(chain, to, data,
+   * block?)`. No in-repo callers existed (verified 2026-10-05);
+   * the backend `evm-chain-prober` only uses `getCode(address)`,
+   * which keeps its single-arg form.
+   *
    * @see https://docs.alchemy.com/reference/eth-call-rpc
    */
   public async ethCall(
+    chain: string,
     to: string,
     data: string,
     block: string = 'latest',
+    options?: { readonly signal?: AbortSignal },
   ): Promise<string | null> {
-    return this.rpcCall<string>('eth_call', [{ to, data }, block]);
+    return this.rpcCallForChain<string>(
+      chain,
+      'eth_call',
+      [{ to, data }, block],
+      options,
+    );
   }
 
   /**

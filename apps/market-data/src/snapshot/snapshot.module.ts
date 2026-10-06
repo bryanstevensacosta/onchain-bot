@@ -15,6 +15,11 @@ import { MobulaService } from 'provider/infrastructure/mobula';
 import { MoralisService } from 'provider/infrastructure/moralis';
 import { RugCheckService } from 'provider/infrastructure/rugcheck';
 import { SolanaRpcService } from 'provider/infrastructure/solana-rpc';
+import { AlchemyService } from 'provider/infrastructure/alchemy/alchemy.service';
+import { MulticallService } from 'provider/infrastructure/alchemy/multicall.service';
+import { OnchainEvmReaderService } from 'provider/infrastructure/onchain/onchain-evm.reader';
+import { OnchainSolanaReaderService } from 'provider/infrastructure/onchain/onchain-solana.reader';
+import { DirectFastPathService } from './application/direct-fast-path.service';
 import { AddressSnapshotService } from './application/address-snapshot.service';
 import { SnapshotHistoryJanitorService } from './application/snapshot-history-janitor.service';
 import { SnapshotNullMetricsService } from './application/snapshot-null-metrics.service';
@@ -66,6 +71,22 @@ import { SnapshotHistoryRepository } from './infrastructure/snapshot-history.rep
     SnapshotHistoryJanitorService,
     SnapshotHistoryRepository,
     SnapshotNullMetricsService,
+    DirectFastPathService,
+    // On-chain readers (todo 22 wire-up): built from the frozen Lane T
+    // transports via factories (interface-typed ctor params need
+    // explicit tokens). Unregistered anywhere else — snapshot owns them.
+    {
+      provide: OnchainSolanaReaderService,
+      inject: [SolanaRpcService],
+      useFactory: (rpc: SolanaRpcService) =>
+        new OnchainSolanaReaderService(rpc, rpc, rpc),
+    },
+    {
+      provide: OnchainEvmReaderService,
+      inject: [MulticallService, AlchemyService],
+      useFactory: (multicall: MulticallService, chainRpc: AlchemyService) =>
+        new OnchainEvmReaderService(multicall, chainRpc),
+    },
     {
       provide: SNAPSHOT_QUOTE_PROVIDERS,
       inject: [
