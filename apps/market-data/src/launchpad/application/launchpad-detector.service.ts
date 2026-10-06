@@ -15,6 +15,7 @@ import {
   HEAVEN_PROGRAM,
   MINTCLUB_API_BASE,
   MOONIT_PROGRAM,
+  PONS_LAUNCHPAD_BASE,
   PUMP_FUN_PROGRAM,
   RAYDIUM_LAUNCHLAB_PROGRAM,
   STONKFUN_PLATFORM_CONFIGS,
@@ -60,6 +61,9 @@ const MINTCLUB_NUMERIC_CHAIN: Record<string, number> = {
 };
 
 const BANKR_CHAINS = new Set(['base', 'robinhood']);
+
+/** Chains where the Pons SSR registry leg may fire (Pons is Robinhood-native). */
+const PONS_CHAINS = new Set(['robinhood']);
 
 const RECEIPT_MATCH_ORDER = EVM_LAUNCHPAD_ORDER.filter(
   (id) => !(id in EVM_RECEIPT_EXCLUDED),
@@ -276,6 +280,11 @@ export class LaunchpadDetectorService implements LaunchpadDetectorPort {
     }
     const mintclub = await this.detectMintclub(chain, address);
     if (mintclub !== null) return mintclub;
+    if (PONS_CHAINS.has(chain)) {
+      if (await this.detectPons(address)) {
+        return launchpadInfo('pons', chain, address);
+      }
+    }
     const factory = await this.detectFactoryTo(chain, address);
     if (factory === null) return null;
     return launchpadInfo(factory, chain, address);
@@ -288,9 +297,7 @@ export class LaunchpadDetectorService implements LaunchpadDetectorPort {
         { timeout: HTTP_TIMEOUT_MS, validateStatus: () => true },
       );
       if (status !== 200 || data === null || data === undefined) return false;
-      return (
-        JSON.stringify(data).toLowerCase().includes(address.toLowerCase())
-      );
+      return JSON.stringify(data).toLowerCase().includes(address.toLowerCase());
     } catch {
       return false;
     }
@@ -330,16 +337,44 @@ export class LaunchpadDetectorService implements LaunchpadDetectorPort {
     }
   }
 
+  /**
+   * Pons SSR registry leg (plan todo 26): `GET <base>/launchpad/<address>`
+   * is server-rendered — a Pons-launched token answers a token-specific
+   * `<title>NAME ($SYM) · pons</title>` plus a canonical link carrying
+   * its address, while unknown addresses get `<title>Buy token · pons</title>`
+   * with no canonical. Both conditions must hold (title + canonical),
+   * so a site redesign fails open to null instead of false-positive.
+   * Keyless, single GET, robinhood-scoped by the caller.
+   */
+  private async detectPons(address: string): Promise<boolean> {
+    try {
+      const { status, data } = await axios.get(
+        `${PONS_LAUNCHPAD_BASE}/launchpad/${address}`,
+        { timeout: HTTP_TIMEOUT_MS, validateStatus: () => true },
+      );
+      if (status !== 200 || typeof data !== 'string') return false;
+      const title = /<title>([^<]*)<\/title>/i.exec(data)?.[1] ?? '';
+      if (!title.endsWith('· pons') || title === 'Buy token · pons') {
+        return false;
+      }
+      // Canonical-link check (not a bare substring: unknown addresses echo
+      // in Next.js flight data but carry zero <link rel="canonical"> tags —
+      // verified live 2026-10-06 STAGEVEIL vs 0x…dead).
+      const canonical =
+        /<link[^>]*rel=["']canonical["'][^>]*>/i.exec(data)?.[0] ?? '';
+      return canonical.toLowerCase().includes(address.toLowerCase());
+    } catch {
+      return false;
+    }
+  }
+
   private async detectFactoryTo(
     chain: string,
     address: string,
   ): Promise<string | null> {
     const transport = EVM_CHAIN_TRANSPORTS[chain] ?? null;
     if (transport === null || transport.blockscoutUrl === null) return null;
-    const txHash = await this.creationTxHash(
-      transport.blockscoutUrl,
-      address,
-    );
+    const txHash = await this.creationTxHash(transport.blockscoutUrl, address);
     if (txHash === null) return null;
     const to = await this.receiptTo(transport.rpcUrl, txHash);
     if (to === null) return null;

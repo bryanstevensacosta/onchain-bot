@@ -11,6 +11,7 @@ import { GatewayModule } from 'gateway/gateway.module';
 import { SNAPSHOT_QUOTE_PROVIDERS } from 'snapshot/domain/snapshot-quote.types';
 import { LaunchpadDetectorService } from 'launchpad/application/launchpad-detector.service';
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
+import { GeckoTerminalService } from 'provider/infrastructure/geckoterminal';
 
 const nullFetcher = {
   name: 'dexscreener',
@@ -52,6 +53,8 @@ describe('gateway market-data snapshot compat edge (todo 5)', () => {
         getBestPairSummary: async () => null,
         getBestPairSummaryForChain: async () => null,
       })
+      .overrideProvider(GeckoTerminalService)
+      .useValue({ getTokenPools: async () => null })
       .compile();
     app = module.createNestApplication();
     app.useGlobalPipes(
@@ -152,6 +155,8 @@ describe('gateway market-data snapshot launchpad plumbing (Lane D)', () => {
           labels: ['CLMM'],
         }),
       })
+      .overrideProvider(GeckoTerminalService)
+      .useValue({ getTokenPools: async () => null })
       .compile();
     app = module.createNestApplication();
     app.useGlobalPipes(

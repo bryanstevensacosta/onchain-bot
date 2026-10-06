@@ -30,6 +30,12 @@ import { AggregationPolicyPort } from 'aggregators/domain/aggregation-policy.por
 import { LaunchpadDetectorService } from 'launchpad/application/launchpad-detector.service';
 import type { LaunchpadInfo } from 'launchpad/domain/launchpad-info';
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
+import { GeckoTerminalService } from 'provider/infrastructure/geckoterminal';
+import {
+  GECKO_NETWORK_SLUGS,
+  GECKO_SUPPORTED_CHAINS,
+} from 'provider/infrastructure/quote-fetchers/provider-quote.fetchers';
+import { selectPoolQuote } from 'provider/infrastructure/geckoterminal';
 import { toVenueOrNull, type SnapshotVenue } from '../domain/snapshot-venue';
 import { SnapshotHistoryRepository } from '../infrastructure/snapshot-history.repository';
 import {
@@ -102,6 +108,9 @@ export class AddressSnapshotService {
     @Inject(DexScreenerService)
     private readonly dexscreener: DexScreenerService | null = null,
     @Optional()
+    @Inject(GeckoTerminalService)
+    private readonly geckoterminal: GeckoTerminalService | null = null,
+    @Optional()
     private readonly nullMetrics: SnapshotNullMetricsService | null = null,
     // Union-typed params emit `Object` metadata: `@Inject` is mandatory
     // here, otherwise Nest resolves null even when registered.
@@ -154,21 +163,44 @@ export class AddressSnapshotService {
    * chain-scoped summary — never the cross-chain best pair. Chain
    * with no pair (or no slug mapping) resolves `null`; the renderer
    * already renders that as empty.
+   *
+   * Gecko fallback (plan todo 26): when DexScreener has no pair for
+   * the token (e.g. STAGEVEIL on robinhood), the GeckoTerminal pool
+   * carries the venue in `relationships.dex.data.id` (live:
+   * `pons-v2-dex`). The dex id passes through verbatim with empty
+   * labels — dexter's display table capitalizes unknown ids, so the
+   * card stays non-empty without a new table on either side.
    */
   private async resolveVenue(
     chain: string,
     address: string,
   ): Promise<SnapshotVenue | null> {
-    if (this.dexscreener === null || this.dexscreener === undefined) {
+    if (this.dexscreener !== null && this.dexscreener !== undefined) {
+      try {
+        const best = await this.dexscreener.getBestPairSummaryForChain(
+          chain,
+          address,
+        );
+        if (best !== null) {
+          return toVenueOrNull({ dexId: best.dexId, labels: best.labels });
+        }
+      } catch {
+        // Fall through to the Gecko leg below (fail-open, never throws).
+      }
+    }
+    if (
+      this.geckoterminal === null ||
+      this.geckoterminal === undefined ||
+      !GECKO_SUPPORTED_CHAINS.includes(chain)
+    ) {
       return null;
     }
     try {
-      const best = await this.dexscreener.getBestPairSummaryForChain(
-        chain,
-        address,
-      );
-      if (best === null) return null;
-      return toVenueOrNull({ dexId: best.dexId, labels: best.labels });
+      const slug = GECKO_NETWORK_SLUGS[chain] ?? chain;
+      const pools = await this.geckoterminal.getTokenPools(slug, address);
+      const pick = selectPoolQuote(pools, address);
+      if (pick === null || pick.dexId === null) return null;
+      return toVenueOrNull({ dexId: pick.dexId, labels: [] });
     } catch {
       return null;
     }

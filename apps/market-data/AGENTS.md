@@ -803,6 +803,34 @@ reserve correctly lose). Extra call costs one gecko request only on
 the fdv/price-null path (free tier ~10-30 req/min — the common
 info-complete path is unchanged).
 
+## ROBINHOOD ENRICHMENT (todo 26 — pons leg + gecko venue, 2026-10-06)
+
+Both legs viable keyless (decision gate MATCH/MATCH, live evidence
+`.omo/evidence/task-fe-robinhood-enrich.log`):
+
+- Pons origin leg (`LaunchpadDetectorService.detectPons`,
+  robinhood-scoped, after mintclub / before factory receipt): keyless
+  single `GET https://www.ponsfamily.com/launchpad/<address>` (SSR).
+  Launched token → `<title>NAME ($SYM) · pons</title>` + `<link
+rel="canonical" href="…/launchpad/<address>"/>`; unknown → `<title>Buy
+token · pons</title>` with zero canonical tags (unknown addresses DO
+  echo in Next.js flight data, so the guard checks the canonical LINK,
+  not a bare substring). Both conditions required — redesign fails
+  open to null. Public Robinhood RPC (`eth_chainId` → `0x1237` live)
+  and deployer-pattern receipt matching need no Pons factory set, so
+  neither is wired (documented, not omitted). Returns
+  `launchpadInfo('pons', …)` — pre-existing `pons` table row, zero
+  table-shape change, zero registry change.
+- Gecko→venue fallback (`AddressSnapshotService.resolveVenue`):
+  DexScreener hit wins (gecko never fires); on miss/throw, ONE
+  `getTokenPools` call feeds `snapshot.venue` verbatim from the best
+  pool's `relationships.dex.data.id` with empty labels (live STAGEVEIL:
+  DexScreener `[]` even cross-chain → `pons-v2-dex`, reserve $5737).
+  No `?include=dex` needed (id rides the default pools response).
+  Dexter's display table capitalizes unknown ids, so the card stays
+  non-empty with no new table on either side. Venue NEVER feeds
+  `launchpad` (spec-pinned separation); `dexId` ≠ `launchpad.id`.
+
 ## SECURITY (P46, todo 10)
 
 Scoped API keys (`src/auth/`): `read` (GET chains/providers/addresses/

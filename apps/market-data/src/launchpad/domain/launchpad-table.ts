@@ -21,18 +21,14 @@ import type { LaunchpadInfo } from './launchpad-info';
  * intake session surfaces the canonical form. Never any `?ref=`.
  */
 
-export const PUMP_FUN_PROGRAM =
-  '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P';
+export const PUMP_FUN_PROGRAM = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P';
 export const METEORA_DBC_PROGRAM =
   'dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN';
 export const RAYDIUM_LAUNCHLAB_PROGRAM =
   'LanMV9sAd7wArD4vJFi2qDdfnVhFxYSUg6eADduJ3uj';
-export const MOONIT_PROGRAM =
-  'MoonCVVNZFSYkqNXP6bxHLPL6QQJiMagDL3qcqUQTrG';
-export const BOOP_PROGRAM =
-  'boop8hVGQGqehUK2iVEMEnMrL5RbjywRzHKBmBE7ry4';
-export const HEAVEN_PROGRAM =
-  'HEAVENoP2qxoeuF8Dj2oT1GHEnu49U5mJYkdeC8BAX2o';
+export const MOONIT_PROGRAM = 'MoonCVVNZFSYkqNXP6bxHLPL6QQJiMagDL3qcqUQTrG';
+export const BOOP_PROGRAM = 'boop8hVGQGqehUK2iVEMEnMrL5RbjywRzHKBmBE7ry4';
+export const HEAVEN_PROGRAM = 'HEAVENoP2qxoeuF8Dj2oT1GHEnu49U5mJYkdeC8BAX2o';
 
 /** wSOL mint (repo-grounded: gateway-market-data-snapshot.spec.ts). */
 export const WSOL_MINT = 'So11111111111111111111111111111111111111112';
@@ -115,8 +111,7 @@ export const SOLANA_LAUNCHPAD_ROWS: Record<string, LaunchpadRow> = {
   stonkfun: {
     id: 'stonkfun',
     name: 'StonkFun',
-    buildUrl: (_chain, address) =>
-      `https://www.stonkfun.xyz/token/${address}`,
+    buildUrl: (_chain, address) => `https://www.stonkfun.xyz/token/${address}`,
   },
   'raydium-launchlab': {
     id: 'raydium-launchlab',
@@ -191,8 +186,7 @@ export const EVM_RECEIPT_EXCLUDED: Record<string, string> = {
   mintclub: 'view/API leg runs before receipt matching (R1 §2 tries (b) first)',
   pinksale:
     'presale-pattern: creation receipt has to=null, no factory (see evidence P1-P4)',
-  dxsale:
-    'presale-pattern: per-sale contracts, no factory set (R1 §2.9 TBD)',
+  dxsale: 'presale-pattern: per-sale contracts, no factory set (R1 §2.9 TBD)',
 };
 
 export const EVM_LAUNCHPAD_ROWS: Record<string, LaunchpadRow> = {
@@ -204,8 +198,7 @@ export const EVM_LAUNCHPAD_ROWS: Record<string, LaunchpadRow> = {
   clanker: {
     id: 'clanker',
     name: 'Clanker',
-    buildUrl: (_chain, address) =>
-      `https://clanker.world/clanker/${address}`,
+    buildUrl: (_chain, address) => `https://clanker.world/clanker/${address}`,
   },
   pons: {
     id: 'pons',
@@ -384,7 +377,16 @@ export const EVM_CHAIN_TRANSPORTS: Record<string, EvmChainTransport> = {
 
 export const BANKR_API_BASE = 'https://api.bankr.bot';
 export const MINTCLUB_API_BASE = 'https://mint.club';
-export const HEAVEN_POOL_STATE_URL = 'https://tx.api.heaven.xyz/data/pool-state';
+export const HEAVEN_POOL_STATE_URL =
+  'https://tx.api.heaven.xyz/data/pool-state';
+/**
+ * Pons launchpad registry (plan todo 26): server-rendered per-token
+ * pages — a launched token answers `<title>NAME ($SYM) · pons</title>`
+ * plus a canonical link carrying its address; unknown addresses get
+ * `<title>Buy token · pons</title>` with no canonical (verified live
+ * 2026-10-06: STAGEVEIL vs 0x…dead). Keyless single HTTPS GET.
+ */
+export const PONS_LAUNCHPAD_BASE = 'https://www.ponsfamily.com';
 
 export function launchpadInfo(
   id: string,

@@ -58,6 +58,10 @@ export interface GeckoTerminalPoolTokenRef {
   readonly data?: { readonly id?: string } | null;
 }
 
+export interface GeckoTerminalPoolDexRef {
+  readonly data?: { readonly id?: string; readonly type?: string } | null;
+}
+
 export interface GeckoTerminalPoolResource {
   readonly id: string;
   readonly type: string;
@@ -65,6 +69,14 @@ export interface GeckoTerminalPoolResource {
   readonly relationships?: {
     readonly base_token?: GeckoTerminalPoolTokenRef | null;
     readonly quote_token?: GeckoTerminalPoolTokenRef | null;
+    /**
+     * Venue source (dexter plan todo 26): the pool's DEX, e.g.
+     * `{ id: 'pons-v2-dex', type: 'dex' }` on STAGEVEIL's
+     * `robinhood_0x9269…` pool (verified live 2026-10-06). Present
+     * on the default pools response — no `?include=dex` needed
+     * (that only adds human names under top-level `included`).
+     */
+    readonly dex?: GeckoTerminalPoolDexRef | null;
   } | null;
 }
 
@@ -76,4 +88,11 @@ export interface GeckoTerminalPoolsResponse {
 export interface GeckoPoolQuote {
   readonly fdvUsd: number | null;
   readonly priceUsd: number | null;
+  /**
+   * Venue source (dexter plan todo 26): `relationships.dex.data.id`
+   * of the picked pool (e.g. `'pons-v2-dex'`), or null when the
+   * pool carries no dex relationship. Passes through verbatim —
+   * dexter's display table capitalizes unknown ids.
+   */
+  readonly dexId: string | null;
 }

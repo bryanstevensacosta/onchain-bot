@@ -176,9 +176,14 @@ export function selectPoolQuote(
     bestSide === 'base'
       ? best.attributes?.base_token_price_usd
       : best.attributes?.quote_token_price_usd;
+  const dexIdRaw = best.relationships?.dex?.data?.id;
   return {
     fdvUsd:
       bestSide === 'base' ? toFiniteNumber(best.attributes?.fdv_usd) : null,
     priceUsd: toFiniteNumber(priceRaw),
+    dexId:
+      typeof dexIdRaw === 'string' && dexIdRaw.trim() !== ''
+        ? dexIdRaw.trim()
+        : null,
   };
 }

@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Robinhood enrichment: pons leg + gecko venue (dexter plan todo 26):**
+  Pons origin leg in `LaunchpadDetectorService` (robinhood-scoped,
+  keyless single `GET ponsfamily.com/launchpad/<address>`: token title
+  - canonical link carrying the address both required, unknown-address
+    flight-data echo excluded by canonical-link check, fail-open null on
+    any miss; pre-existing `pons` table row, zero table-shape change).
+    Gecko→venue fallback in `AddressSnapshotService.resolveVenue`
+    (DexScreener hit wins; on miss/throw the best GeckoTerminal pool's
+    `relationships.dex.data.id` feeds `snapshot.venue` verbatim with
+    empty labels — live STAGEVEIL `0xcf7f…f3597` resolves `pons-v2-dex`).
+    Specs: 6 pons detector cases (match / Buy-token shell / redesign
+    guard / flight-data echo / chain-scope / transport failure) +
+    `address-snapshot-venue-gecko.spec.ts` (STAGEVEIL non-empty venue,
+    dex-hit precedence, throw-fallback, null-on-miss, launchpad
+    separation) + `selectPoolQuote` dexId carry-through. No new keys,
+    no registry/dexter/frontend touches.
+
 - **GeckoTerminal network coverage: robinhood + audit (dexter plan todo 25):**
   `GECKO_NETWORK_SLUGS` now maps all 9 audited chains (added
   `robinhood`, `optimism`, `unichain` — every slug verified live

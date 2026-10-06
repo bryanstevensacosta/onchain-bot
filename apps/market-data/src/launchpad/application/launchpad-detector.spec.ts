@@ -155,9 +155,17 @@ describe('LaunchpadDetectorService (ordered strategies, null-safe)', () => {
   });
 
   it('invalid chain and address inputs resolve null', async () => {
-    const { detector, solanaRpc } = detectorWith([null, null, null, null, null]);
+    const { detector, solanaRpc } = detectorWith([
+      null,
+      null,
+      null,
+      null,
+      null,
+    ]);
     await expect(detector.detectLaunchpad('tron', CHALE)).resolves.toBeNull();
-    await expect(detector.detectLaunchpad('solana', 'not-a-mint')).resolves.toBeNull();
+    await expect(
+      detector.detectLaunchpad('solana', 'not-a-mint'),
+    ).resolves.toBeNull();
     await expect(detector.detectLaunchpad('', '')).resolves.toBeNull();
     expect(solanaRpc.getMultipleAccounts).not.toHaveBeenCalled();
   });
@@ -226,7 +234,10 @@ describe('LaunchpadDetectorService (ordered strategies, null-safe)', () => {
     };
     mockedAxios.post.mockImplementation(async (url: string) => {
       if (String(url).includes('heaven')) return { data: {} };
-      return { status: 200, data: { result: { to: '0x0000000000000000000000000000000000000000' } } };
+      return {
+        status: 200,
+        data: { result: { to: '0x0000000000000000000000000000000000000000' } },
+      };
     });
     mockedAxios.get.mockImplementation(async (url: string) => {
       if (String(url).includes('blockscout')) {
@@ -253,7 +264,8 @@ describe('LaunchpadDetectorService (ordered strategies, null-safe)', () => {
         status: 200,
         data: {
           result: {
-            transactionHash: '0x07332d7fab7a3491025656b375ef1206134c6e1834ccf225da1dd1b7752f0585',
+            transactionHash:
+              '0x07332d7fab7a3491025656b375ef1206134c6e1834ccf225da1dd1b7752f0585',
             to: null,
             contractAddress: pyrd.toLowerCase(),
             status: '0x1',
@@ -313,5 +325,105 @@ describe('LaunchpadDetectorService (ordered strategies, null-safe)', () => {
     await expect(detector.detectLaunchpad('base', 'nope')).resolves.toBeNull();
     expect(mockedAxios.get).not.toHaveBeenCalled();
     expect(mockedAxios.post).not.toHaveBeenCalled();
+  });
+
+  describe('pons SSR registry leg (plan todo 26)', () => {
+    const STAGEVEIL = '0xcf7f57cd2924d5c34758a3363b0fb237687f3597';
+
+    function ponsPage(title: string, canonical: boolean) {
+      return (
+        `<html><head><title>${title}</title>` +
+        (canonical
+          ? `<link rel="canonical" href="https://www.ponsfamily.com/launchpad/${STAGEVEIL}"/>`
+          : '') +
+        `</head><body/></html>`
+      );
+    }
+
+    function evmDetector(
+      ponsBody: string | null,
+      seen: string[] = [],
+    ): LaunchpadDetectorService {
+      const solanaRpc = {
+        getMultipleAccounts: jest.fn(),
+        getAccountInfo: jest.fn(),
+      };
+      mockedAxios.post.mockResolvedValue({ data: {} });
+      mockedAxios.get.mockImplementation(async (url: string) => {
+        seen.push(String(url));
+        if (String(url).includes('ponsfamily.com')) {
+          return ponsBody === null
+            ? { status: 500, data: null }
+            : { status: 200, data: ponsBody };
+        }
+        return { status: 404, data: null };
+      });
+      return new LaunchpadDetectorService(solanaRpc as never);
+    }
+
+    it('pons match resolves pons without consulting the factory receipt', async () => {
+      const seen: string[] = [];
+      const detector = evmDetector(
+        ponsPage('STAGEVEIL ($SVEIL) · pons', true),
+        seen,
+      );
+      const res = await detector.detectLaunchpad('robinhood', STAGEVEIL);
+      expect(res).toEqual({
+        id: 'pons',
+        name: 'Pons',
+        url: `https://ponsfamily.com/launchpad/${STAGEVEIL}`,
+      });
+      expect(seen.some((url) => url.includes('blockscout'))).toBe(false);
+    });
+
+    it('pons no-match (Buy token shell) falls through to null', async () => {
+      const detector = evmDetector(ponsPage('Buy token · pons', false));
+      await expect(
+        detector.detectLaunchpad('robinhood', STAGEVEIL),
+      ).resolves.toBeNull();
+    });
+
+    it('title-match without canonical fails open to null (redesign guard)', async () => {
+      const detector = evmDetector(
+        ponsPage('STAGEVEIL ($SVEIL) · pons', false),
+      );
+      await expect(
+        detector.detectLaunchpad('robinhood', STAGEVEIL),
+      ).resolves.toBeNull();
+    });
+
+    it('flight-data address echo without canonical still resolves null (live dead-page shape)', async () => {
+      const echo =
+        `<html><head><title>Buy token · pons</title></head>` +
+        `<body>{"c":["","launchpad","${STAGEVEIL}"]}</body></html>`;
+      const detector = evmDetector(echo);
+      await expect(
+        detector.detectLaunchpad('robinhood', STAGEVEIL),
+      ).resolves.toBeNull();
+    });
+
+    it('non-robinhood chains never fetch the pons registry', async () => {
+      const seen: string[] = [];
+      const detector = evmDetector(
+        ponsPage('STAGEVEIL ($SVEIL) · pons', true),
+        seen,
+      );
+      const token = '0x1111111111111111111111111111111111111111';
+      await expect(detector.detectLaunchpad('base', token)).resolves.toBeNull();
+      expect(seen.some((url) => url.includes('ponsfamily.com'))).toBe(false);
+    });
+
+    it('pons transport failure resolves null, never throws', async () => {
+      mockedAxios.get.mockRejectedValue(new Error('down'));
+      mockedAxios.post.mockResolvedValue({ data: {} });
+      const solanaRpc = {
+        getMultipleAccounts: jest.fn(),
+        getAccountInfo: jest.fn(),
+      };
+      const detector = new LaunchpadDetectorService(solanaRpc as never);
+      await expect(
+        detector.detectLaunchpad('robinhood', STAGEVEIL),
+      ).resolves.toBeNull();
+    });
   });
 });

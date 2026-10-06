@@ -39,7 +39,7 @@ function rpcAmountToUi(
 }
 
 /** GeckoTerminal network slugs verified live 2026-10-06 via `GET /networks`. */
-const GECKO_NETWORK_SLUGS: Record<string, string> = {
+export const GECKO_NETWORK_SLUGS: Record<string, string> = {
   ethereum: 'eth',
   solana: 'solana',
   bsc: 'bsc',
@@ -52,7 +52,7 @@ const GECKO_NETWORK_SLUGS: Record<string, string> = {
 };
 
 /** Our chains whose snapshots may consult GeckoTerminal (dexter plan todo 25). */
-const GECKO_SUPPORTED_CHAINS: ReadonlyArray<string> = [
+export const GECKO_SUPPORTED_CHAINS: ReadonlyArray<string> = [
   'ethereum',
   'solana',
   'bsc',

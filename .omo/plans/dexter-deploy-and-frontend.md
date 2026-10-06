@@ -234,6 +234,13 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartAddressL
       Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; snapshot robinhood/`0xcF7f` trae FDV via Gecko (live); auditoria escrita en notepad con veredicto por network.
       QA scenarios: happy (robinhood resuelve) + failure (network sin mapear → igual que antes). Evidence .omo/evidence/task-fe-gecko-nets.log
       Commit: Y | feat(market-data-gecko): cobertura robinhood + auditoria (docs AGENTS+CHANGELOG)
+- [x] 26. Enriquecimiento Robinhood: pata Pons + venue desde Gecko (Wave 1 follow-up, evidencia STAGEVEIL 2026-10-06)
+      What to do / Must NOT do: **(a) Pata Pons** (origen real, hoy `null`): investigar factory/contracts Pons en Robinhood Chain (RPC `https://rpc.mainnet.chain.robinhood.com` keyless con backoff, o Alchemy `robinhood-mainnet` si hay key con networks; registry/API Pons `ponsfamily.com` si expone creador; deployer-pattern como Believe) — si NO hay via factible sin keys nuevas, documentarlo con evidencia y CERRAR como limite honesto (no inventar). **(b) Venue desde Gecko** (tech cuando DexScreener no cubre): el pool Gecko trae dex/venue usable (verificar campo exacto: `dex_id`? relationships?); mapear a `venue {dexId, labels}` con la misma tabla display; si Gecko no da venue usable, documentarlo y cerrar igual. Specs: Pons-match/no-match (o documentacion del limite), Gecko-venue (STAGEVEIL fixture: venue no-vacio), resto intacto. Docs: AGENTS + CHANGELOG (ADD-only).
+      Parallelization: Wave 1 follow-up (1 worker, research-first: si (a) es inviable, solo (b) + documentar) | Blocked by: — | Blocks: —
+      References: caso STAGEVEIL `0xcF7f...` (venue vacio hoy), LaunchpadDetector existente (patron de pata nueva), Gecko adapter (pool shape), notepad launchpad R1 (Pons pendiente).
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; STAGEVEIL con venue no-vacio (si (b) viable) y/o Pons resuelto (si (a) viable); limites documentados si no.
+      QA scenarios: happy + failure (RPC caido→null intacto). Evidence .omo/evidence/task-fe-robinhood-enrich.log
+      Commit: Y | feat(dexter-robinhood): pata pons + venue gecko (docs AGENTS+CHANGELOG)
 
 ### Wave 0 — guion local owner (10 min, dexter `:4060` + frontend `:5173`)
 
@@ -296,6 +303,7 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartAddressL
 | 4 prod rollout        | 3 + OK owner     | —            | —                    |
 | 24 fallback           | —                | —            | 2                    |
 | 25 gecko-nets         | —                | —            | 2                    |
+| 26 robinhood-enrich   | —                | —            | 2                    |
 
 ## Commit strategy
 

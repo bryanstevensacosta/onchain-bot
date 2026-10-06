@@ -60,6 +60,7 @@ function buildService(
     null,
     null,
     null,
+    null,
     metrics as never,
   );
   return { service, metrics };
