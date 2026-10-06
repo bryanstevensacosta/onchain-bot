@@ -25,9 +25,10 @@ volume, price change, GT score — aggregated across DEXes.
 
 ## Methods → endpoints
 
-| Method                               | Code                          | HTTP                                                |
-| ------------------------------------ | ----------------------------- | --------------------------------------------------- |
-| `getTokenInfo(networkSlug, address)` | `geckoterminal.service.ts:51` | `GET /networks/{networkSlug}/tokens/{address}/info` |
+| Method                                | Code                          | HTTP                                                 |
+| ------------------------------------- | ----------------------------- | ---------------------------------------------------- |
+| `getTokenInfo(networkSlug, address)`  | `geckoterminal.service.ts:51` | `GET /networks/{networkSlug}/tokens/{address}/info`  |
+| `getTokenPools(networkSlug, address)` | `geckoterminal.service.ts:76` | `GET /networks/{networkSlug}/tokens/{address}/pools` |
 
 `networkSlug` is the GeckoTerminal network id (`solana`, `eth`, `bsc`,
 `polygon_pos`, … — see `GET /networks`). Mapping to the local shape is in

@@ -78,7 +78,7 @@ export const STATIC_CHAINS: ReadonlyArray<ChainInfo> = [
     displayName: 'Robinhood Chain',
     nativeSymbol: 'ETH',
     explorerUrl: 'https://robin.etherscan.io',
-    geckoTerminalSlug: null,
+    geckoTerminalSlug: 'robinhood',
     logoUrl: '/api/v1/chains/robinhood/logo',
   },
 ];

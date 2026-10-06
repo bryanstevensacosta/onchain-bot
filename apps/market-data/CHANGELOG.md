@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **GeckoTerminal network coverage: robinhood + audit (dexter plan todo 25):**
+  `GECKO_NETWORK_SLUGS` now maps all 9 audited chains (added
+  `robinhood`, `optimism`, `unichain` — every slug verified live
+  2026-10-06 via `GET /networks`) and the gecko fetcher
+  `supportsChains` grows 4 → 7 (`arbitrum`, `polygon` had slugs but
+  were never consulted; `robinhood` is new). `optimism`/`unichain`
+  stay out of `supportsChains` (no `STATIC_CHAINS` row, so snapshots
+  404 before fetchers — slug mapped for the day the catalog lands).
+  NEW `GeckoTerminalService.getTokenPools`
+  (`GET /networks/{network}/tokens/{address}/pools`) + pure
+  `selectPoolQuote` (best by `reserve_in_usd`, side-verified via
+  relationship ids: pool `fdv_usd` is base-token FDV, so a quote-side
+  token takes price only, never fdv): when token `/info` lacks price
+  or fdv, the fetcher fills the gaps from the best pool (never
+  overwrites info values; info miss still resolves null, never a
+  phantom). Live 2026-10-06: STAGEVEIL `0xcf7f…f3597` on `robinhood`
+  (DexScreener: 0 pairs even cross-chain) resolves symbol/holders via
+  info + FDV `3471.76` via pool `robinhood_0x9269…ef60`. Also sets
+  `STATIC_CHAINS.robinhood.geckoTerminalSlug` (`null` → `robinhood`;
+  informational, zero consumers). Failing-first:
+  `provider-quote-fetchers-gecko-nets.spec.ts` (11 tests: live-shaped
+  fixtures, slug pins, unmapped passthrough, side rule, fail-open).
+
 - **EVM RPC fallback tiers + Robinhood coverage (dexter plan todo 24):**
   `AlchemyService.rpcCallForChain` now walks fallback tiers per call
   (first non-null wins, never throws): Alchemy (only when

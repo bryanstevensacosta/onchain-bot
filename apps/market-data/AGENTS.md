@@ -769,6 +769,40 @@ exactly — existing specs pin it with the fast path mocked null).
   parity had zero samples (no fast serve fired) — needs a keyed EVM
   env and/or sub-800ms round trips to revisit.
 
+## GECKO COVERAGE (todo 25 — robinhood + full network audit, 2026-10-06)
+
+Per-provider slug map lives in `provider-quote.fetchers.ts`
+(`GECKO_NETWORK_SLUGS` + `GECKO_SUPPORTED_CHAINS`); the catalog
+mirror is `ChainInfo.geckoTerminalSlug` (informational, zero
+consumers). All slugs below verified live via `GET /networks`
+(pages 1-3, ~226 networks).
+
+| Our chain | Gecko slug    | Snapshot consults gecko | Verdict                                                                                        |
+| --------- | ------------- | ----------------------- | ---------------------------------------------------------------------------------------------- |
+| ethereum  | `eth`         | yes                     | include (pre-existing)                                                                         |
+| solana    | `solana`      | yes                     | include (pre-existing)                                                                         |
+| bsc       | `bsc`         | yes                     | include (pre-existing)                                                                         |
+| base      | `base`        | yes                     | include (pre-existing)                                                                         |
+| arbitrum  | `arbitrum`    | yes                     | include (slug existed, fetcher never consulted it — fixed)                                     |
+| polygon   | `polygon_pos` | yes                     | include (slug existed, fetcher never consulted it — fixed)                                     |
+| robinhood | `robinhood`   | yes                     | include (this todo; pool fallback carries FDV)                                                 |
+| optimism  | `optimism`    | no                      | exclude-with-reason: no `STATIC_CHAINS` row (snapshot 404s first); slug mapped for catalog day |
+| unichain  | `unichain`    | no                      | exclude-with-reason: same as optimism (owner cases noted; include when catalog lands)          |
+
+Pool fallback rule (`selectPoolQuote`, pure, never throws): token
+`/info` first; when price or fdv is null, ONE extra call to
+`GET /networks/{network}/tokens/{address}/pools` fills ONLY the gaps
+from the highest-`reserve_in_usd` pool whose relationship id matches
+our address — pool `fdv_usd` is base-token FDV, so a quote-side token
+takes price only, never fdv (same misattribution class as todo 20).
+Info miss → null (no phantom tokens); pools miss/throw → info quote
+survives. Live proof: STAGEVEIL `0xcf7f…f3597` (DexScreener 0 pairs
+even cross-chain) → symbol/holders via info + FDV `3471.76` via pool
+`robinhood_0x9269…ef60` (reserve $5737; higher-fdv pools with ~$0
+reserve correctly lose). Extra call costs one gecko request only on
+the fdv/price-null path (free tier ~10-30 req/min — the common
+info-complete path is unchanged).
+
 ## SECURITY (P46, todo 10)
 
 Scoped API keys (`src/auth/`): `read` (GET chains/providers/addresses/

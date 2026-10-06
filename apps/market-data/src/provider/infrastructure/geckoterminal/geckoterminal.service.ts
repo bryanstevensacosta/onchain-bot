@@ -4,8 +4,10 @@ import { DataProviderPort } from '../../domain/data-provider.port';
 import type { GeckoTerminalConfig } from './geckoterminal.config';
 import { GECKOTERMINAL_CONFIG } from './geckoterminal.config';
 import type {
+  GeckoTerminalPoolResource,
   GeckoTerminalResponse,
   GeckoTerminalTokenInfo,
+  GeckoPoolQuote,
 } from './geckoterminal.types';
 
 const BASE = 'https://api.geckoterminal.com/api/v2';
@@ -68,6 +70,30 @@ export class GeckoTerminalService extends DataProviderPort {
   }
 
   // ─────────────────────────────────────────────
+  //  Token pools (pool-by-address resolution)
+  // ─────────────────────────────────────────────
+
+  public async getTokenPools(
+    networkSlug: string,
+    address: string,
+  ): Promise<ReadonlyArray<GeckoTerminalPoolResource> | null> {
+    try {
+      const { data } = await axios.get<{
+        readonly data: ReadonlyArray<GeckoTerminalPoolResource>;
+      }>(`${BASE}/networks/${networkSlug}/tokens/${address}/pools`, {
+        timeout: 8_000,
+      });
+      return Array.isArray(data.data) ? data.data : null;
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.status === 404) return null;
+      this.logger.debug(
+        `GeckoTerminal getTokenPools failed: ${(err as Error).message}`,
+      );
+      return null;
+    }
+  }
+
+  // ─────────────────────────────────────────────
   //  Mapping helpers
   // ─────────────────────────────────────────────
 
@@ -98,4 +124,61 @@ export class GeckoTerminalService extends DataProviderPort {
         : null,
     };
   }
+}
+
+function toFiniteNumber(value: unknown): number | null {
+  const parsed = typeof value === 'number' ? value : parseFloat(String(value));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function poolSideAddress(
+  ref: { readonly data?: { readonly id?: string } | null } | null | undefined,
+): string | null {
+  const id = ref?.data?.id;
+  if (typeof id !== 'string' || id.length === 0) return null;
+  return id.split('_').pop()?.toLowerCase() ?? null;
+}
+
+export function selectPoolQuote(
+  pools: ReadonlyArray<GeckoTerminalPoolResource> | null | undefined,
+  address: string,
+): GeckoPoolQuote | null {
+  if (
+    !Array.isArray(pools) ||
+    typeof address !== 'string' ||
+    address.length === 0
+  ) {
+    return null;
+  }
+  const list: ReadonlyArray<GeckoTerminalPoolResource> = pools;
+  const wanted = address.toLowerCase();
+  let best: GeckoTerminalPoolResource | null = null;
+  let bestSide: 'base' | 'quote' | null = null;
+  let bestReserve = Number.NEGATIVE_INFINITY;
+  for (const pool of list) {
+    if (pool === null || typeof pool !== 'object') continue;
+    const baseAddr = poolSideAddress(pool.relationships?.base_token);
+    const quoteAddr = poolSideAddress(pool.relationships?.quote_token);
+    const side =
+      baseAddr === wanted ? 'base' : quoteAddr === wanted ? 'quote' : null;
+    if (side === null) continue;
+    const reserve =
+      toFiniteNumber(pool.attributes?.reserve_in_usd) ??
+      Number.NEGATIVE_INFINITY;
+    if (best === null || reserve > bestReserve) {
+      best = pool;
+      bestSide = side;
+      bestReserve = reserve;
+    }
+  }
+  if (best === null || bestSide === null) return null;
+  const priceRaw =
+    bestSide === 'base'
+      ? best.attributes?.base_token_price_usd
+      : best.attributes?.quote_token_price_usd;
+  return {
+    fdvUsd:
+      bestSide === 'base' ? toFiniteNumber(best.attributes?.fdv_usd) : null,
+    priceUsd: toFiniteNumber(priceRaw),
+  };
 }

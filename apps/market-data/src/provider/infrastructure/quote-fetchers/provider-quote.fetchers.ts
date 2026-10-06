@@ -1,5 +1,8 @@
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
-import { GeckoTerminalService } from 'provider/infrastructure/geckoterminal';
+import {
+  GeckoTerminalService,
+  selectPoolQuote,
+} from 'provider/infrastructure/geckoterminal';
 import { BirdeyeService } from 'provider/infrastructure/birdeye';
 import { CcxtService } from 'provider/infrastructure/ccxt';
 import { CoinGeckoService } from 'provider/infrastructure/coingecko';
@@ -35,7 +38,7 @@ function rpcAmountToUi(
   return Number.isFinite(ui) ? ui : null;
 }
 
-/** GeckoTerminal network slugs differ from the catalog chain ids. */
+/** GeckoTerminal network slugs verified live 2026-10-06 via `GET /networks`. */
 const GECKO_NETWORK_SLUGS: Record<string, string> = {
   ethereum: 'eth',
   solana: 'solana',
@@ -43,7 +46,21 @@ const GECKO_NETWORK_SLUGS: Record<string, string> = {
   base: 'base',
   arbitrum: 'arbitrum',
   polygon: 'polygon_pos',
+  optimism: 'optimism',
+  unichain: 'unichain',
+  robinhood: 'robinhood',
 };
+
+/** Our chains whose snapshots may consult GeckoTerminal (dexter plan todo 25). */
+const GECKO_SUPPORTED_CHAINS: ReadonlyArray<string> = [
+  'ethereum',
+  'solana',
+  'bsc',
+  'base',
+  'arbitrum',
+  'polygon',
+  'robinhood',
+];
 
 export interface ProviderQuoteDeps {
   readonly dexscreener: DexScreenerService;
@@ -191,17 +208,31 @@ export function buildProviderQuoteFetchers(
 
   const geckoterminal: QuoteFetcher = {
     name: 'geckoterminal',
-    supportsChains: ['ethereum', 'solana', 'bsc', 'base'],
+    supportsChains: [...GECKO_SUPPORTED_CHAINS],
     fetch: async (chain: string, address: string) => {
       const slug = GECKO_NETWORK_SLUGS[chain] ?? chain;
       const info = await deps.geckoterminal.getTokenInfo(slug, address);
       if (info === null) {
         return null;
       }
+      let priceUsd = toNumber(info.priceUsd);
+      let fdvUsd = toNumber(info.fdvUsd);
+      const needsPool = priceUsd === null || fdvUsd === null;
+      const getPools = deps.geckoterminal.getTokenPools?.bind(
+        deps.geckoterminal,
+      );
+      if (needsPool && typeof getPools === 'function') {
+        const pools = await getPools(slug, address);
+        const pick = selectPoolQuote(pools, address);
+        if (pick !== null) {
+          priceUsd ??= pick.priceUsd;
+          fdvUsd ??= pick.fdvUsd;
+        }
+      }
       const quote: Partial<SnapshotQuote> = {
-        priceUsd: toNumber(info.priceUsd),
+        priceUsd,
         marketCapUsd: toNumber(info.marketCapUsd),
-        fdvUsd: toNumber(info.fdvUsd),
+        fdvUsd,
         volume24hUsd: toNumber(info.volumeUsdH24),
         priceChange24h: toNumber(info.priceChangePercentH24),
         holders: toNumber(info.holders),

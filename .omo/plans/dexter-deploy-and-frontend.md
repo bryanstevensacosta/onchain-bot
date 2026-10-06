@@ -227,6 +227,13 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartAddressL
       Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; `0x968B` resuelve (preview/smoke); tier caido → siguiente responde (specs).
       QA scenarios: happy + failure (todos los tiers caidos → null honesto). Evidence .omo/evidence/task-fe-fallback-tiers.log
       Commit: Y | feat(market-data-rpc): tiers fallback + robinhood (docs AGENTS+CHANGELOG)
+- [x] 25. Cobertura GeckoTerminal: robinhood + auditoria de networks (Wave 1 follow-up, evidencia 0xcF7f 2026-10-06)
+      What to do / Must NOT do: Mapear `robinhood` en el adapter GeckoTerminal (slug de red + resolucion de pool por address; verificar contra pool live `robinhood_0x9269…` FDV $3471) + AUDITAR todas las networks que soportamos en DexScreener/alchemy contra las del adapter Gecko (unichain aparecio en casos del owner — incluirla si falta; listar gaps, no dejar ninguna sin veredicto incluye/excluye-con-motivo). Specs: robinhood resuelve (fixture pool real), unmapped-network → comportamiento actual intacto (sin crash), resto de networks sin regresion. Docs: market-data AGENTS (tabla cobertura por provider si existe, ADD-only) + CHANGELOG. NO tocar DexScreener/alchemy/dexter/frontend/backend/gateway/workflows/`.kiro`/migrations/DB. NO keys nuevas (GeckoTerminal es keyless en nuestro uso).
+      Parallelization: Wave 1 follow-up (1 worker) | Blocked by: — | Blocks: —
+      References: `apps/market-data/src/provider/infrastructure/geckoterminal/` (mapeo actual), pool live `robinhood_0x9269be45b3b5e1526db43b8b5be282ac97fde1214e8a7e0cf75362dad4eeef60`, caso `0xcF7f...f3597` (STAGEVEIL).
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; snapshot robinhood/`0xcF7f` trae FDV via Gecko (live); auditoria escrita en notepad con veredicto por network.
+      QA scenarios: happy (robinhood resuelve) + failure (network sin mapear → igual que antes). Evidence .omo/evidence/task-fe-gecko-nets.log
+      Commit: Y | feat(market-data-gecko): cobertura robinhood + auditoria (docs AGENTS+CHANGELOG)
 
 ### Wave 0 — guion local owner (10 min, dexter `:4060` + frontend `:5173`)
 
@@ -288,6 +295,7 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartAddressL
 | 3 staging rollout     | 2 + OK operativo | 4            | —                    |
 | 4 prod rollout        | 3 + OK owner     | —            | —                    |
 | 24 fallback           | —                | —            | 2                    |
+| 25 gecko-nets         | —                | —            | 2                    |
 
 ## Commit strategy
 

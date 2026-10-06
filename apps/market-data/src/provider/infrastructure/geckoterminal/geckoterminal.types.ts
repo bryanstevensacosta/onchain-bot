@@ -39,3 +39,41 @@ export interface GeckoTerminalTokenInfo {
   readonly volumeUsdH24: number | null;
   readonly priceChangePercentH24: number | null;
 }
+
+/**
+ * Pool attributes we read (dexter plan todo 25 — pool-by-address
+ * resolution for chains where token `/info` carries no price/FDV,
+ * e.g. robinhood STAGEVEIL: info returns identity + holders with
+ * null price/fdv while the pool carries `fdv_usd: 3471.76`).
+ */
+export interface GeckoTerminalPoolAttributes {
+  readonly address: string;
+  readonly base_token_price_usd: string | null;
+  readonly quote_token_price_usd: string | null;
+  readonly fdv_usd: string | null;
+  readonly reserve_in_usd: string | null;
+}
+
+export interface GeckoTerminalPoolTokenRef {
+  readonly data?: { readonly id?: string } | null;
+}
+
+export interface GeckoTerminalPoolResource {
+  readonly id: string;
+  readonly type: string;
+  readonly attributes: GeckoTerminalPoolAttributes;
+  readonly relationships?: {
+    readonly base_token?: GeckoTerminalPoolTokenRef | null;
+    readonly quote_token?: GeckoTerminalPoolTokenRef | null;
+  } | null;
+}
+
+export interface GeckoTerminalPoolsResponse {
+  readonly data: ReadonlyArray<GeckoTerminalPoolResource>;
+}
+
+/** Side-aware pool pick: numbers only, nulls where the side forbids. */
+export interface GeckoPoolQuote {
+  readonly fdvUsd: number | null;
+  readonly priceUsd: number | null;
+}
