@@ -7,6 +7,8 @@ export type {
   JsonRpcResponse,
   JsonRpcError,
   SolanaBalanceResponse,
+  SolanaBase64AccountResponse,
+  SolanaBase64AccountValue,
   SolanaTokenAccount,
   SolanaTransactionResponse,
 } from './fluxrpc.types.js';

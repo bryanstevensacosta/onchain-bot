@@ -9,6 +9,114 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **EVM RPC fallback tiers + Robinhood coverage (dexter plan todo 24):**
+  `AlchemyService.rpcCallForChain` now walks fallback tiers per call
+  (first non-null wins, never throws): Alchemy (only when
+  `ALCHEMY_API_KEY` set) → dRPC free (`DRPC_NETWORKS` slugs for
+  ethereum/base/bsc/arbitrum/polygon/optimism via
+  `https://lb.drpc.live/<network>/<key>`, skipped silently without a
+  key — owner creates one at drpc.org) → keyless public RPC
+  (launchpad-table URL) → honest `null`. Per-tier timeouts (Alchemy
+  8s, `EVM_RPC_TIER_TIMEOUT_MS` 5s elsewhere) + `served-by=<tier>`
+  debug log for quota decisions. Coverage: NEW
+  `EVM_CHAIN_TRANSPORTS.robinhood` (`robinhood-mainnet`, chainId
+  4663, Multicall3 verified PRESENT via live `eth_getCode`
+  2026-10-06) + DexScreener slug `robinhood` (live 2026-10-06:
+  `0x968B…5583` resolves to the `uniswap` v4 NYMA/ETH pair, liq
+  ~$6K) + dexscreener fetcher `supportsChains`. Specs: tier order
+  with tier-down mocks, Robinhood NYMA fixture, all-down → null.
+  Legacy mainnet-only `rpcCall` untouched (backend prober contract).
+  Boundary: `STATIC_CHAINS` still lacks robinhood, so chain-qualified
+  snapshots 404 unknown-chain until a catalog todo lands.
+
+- **Direct fast-path wire-up (dexter plan todo 22, serve seam):**
+  NEW `snapshot/application/direct-fast-path.service.ts` tries the
+  Lane E/S on-chain readers FIRST under a HARD 800ms deadline while
+  the aggregator fan-out runs concurrently; sane direct values serve
+  a partial card immediately (dev holdings skipped and marked) and
+  the in-flight fan-out completes in background for the log-only
+  tolerance check. Any miss falls back to the byte-identical fan-out
+  path (existing specs pin it with the fast path mocked null).
+  Measured 2026-10-06: p95 cold <800ms missed on live routes
+  (Helius 2-round paths over budget; Alchemy 403 on all EVM
+  subdomains in this env); reader-level parity proven live
+  (-3.8bps pump, -27.6bps Raydium vs aggregator, tolerance 100bps).
+
+- **On-chain EVM readers + tolerance (dexter plan todo 22, Lane E):**
+  NEW `provider/infrastructure/onchain/` files only (no snapshot-core
+  edits, no wiring yet): `evm-pools.codec.ts` (pure ABI decode —
+  V2 getReserves/token0/token1, ERC20 decimals/totalSupply, V3
+  slot0/liquidity/fee, V4 StateView getSlot0/getLiquidity + BigInt
+  price math; selectors derived 2026-10-05 via
+  `keccak256(signature)[:4]`, live cross-checked; uninitialized
+  V3/V4 `sqrtPriceX96 == 0` and double-zero V2 reserves decode to
+  `null`; fee semantics documented — V2 reserve ratio is a PRE-FEE
+  mid, V3/V4 `sqrtPriceX96` is fee-FREE spot),
+  `onchain-evm.reader.ts` (`OnchainEvmReaderService` over the frozen
+  Lane T `MulticallClient.tryAggregate` + `ChainRpc` existence gate:
+  V2/V3 views with decimals per leg, V4 via StateView lens in ONE
+  batch with caller-supplied decimals; StateView verified on
+  ethereum + base only, other chains resolve `null`
+  (`v4-lens-unverified`); every method BigInt-first, fail-open
+  `null`, never throws), `evm-tolerance.ts`
+  (`selectPreferredQuote` at the snapshot seam: defined direct
+  fields win over the aggregator quote, direct `null` returns the
+  aggregator quote verbatim, `priceUsd` divergence beyond 100 bps
+  is a `Logger.warn` metric only — never gates the render).
+  Live-verified 2026-10-05 with ONE `eth_call` tryAggregate
+  (getReserves + token0/token1) on DexScreener-discovered Uniswap
+  V2 WETH/USDC `0xB4e16d…C9Dc` (ethereum): legs confirmed
+  USDC/WETH, reserves ~10.51M/~3892 vs ~$21.03M DexScreener
+  liquidity. QPS budget + quota owner (`ALCHEMY_API_KEY` holder)
+  in the codec header.
+
+- **On-chain transport foundation (dexter plan todo 22, Lane T):**
+  chunked Solana `getMultipleAccounts` (≤100/batch, parallel chunks,
+  per-chunk fail-open nulls — never whole-batch null/throw; frozen
+  `BatchAccountsClient.getMultiple`); multi-chain Alchemy
+  (`EVM_CHAIN_TRANSPORTS`: ethereum/base/bsc/arbitrum/polygon/
+  optimism/unichain subdomains; frozen `ChainRpc.getCode`/
+  `getTransactionCount`/`ethCall(chain, ...)` with AbortSignal;
+  single-arg `getCode(address)` mainnet form kept for the backend
+  prober); NEW `MulticallService.tryAggregate` (Multicall3
+  `0xcA11…CA11`, per-call ok passthrough, aggregate miss → parallel
+  per-call fallback, unsupported chains all-false; frozen
+  `MulticallClient`); FluxRPC `getAccountInfo` base64 beside
+  jsonParsed. QPS budget assumptions in code comments.
+
+- **No-negative-cache + `nullReason` counter (dexter plan todo 19a,
+  robust-nulls S):** pending snapshots are NEVER cached at any of
+  the three writers — `AddressSnapshotService` skips `cache.set` on
+  `status: 'pending'` (no short-TTL fallback needed: the store
+  honors any TTL), the edge `CacheInterceptor` skips `status:
+'pending'` bodies, and `CacheService.getOrSet` takes a `shouldCache`
+  gate the batch edge sets to "not pending" (default preserves
+  always-write for other callers). The P12 repeat now re-touches
+  providers (`x-cache: MISS`) instead of serving a frozen HIT.
+  History still persists pending rows (19b SWR reads them). New
+  `SnapshotNullMetricsService` counts the miss flavor
+  (`no-market`/`transient`/`cached`, derived never stored; metric
+  only — no cron, no scan; runbook line in AGENTS).
+
+- **Pair-side attribution fix (dexter plan todo 20, root fix for
+  the USDC→PUMP mislabel):** `DexScreenerPairSummary` now carries
+  BOTH `baseToken` and `quoteToken` (`toPairSummary` plumbs the
+  quote side, null-safe when the pair carries none) and the
+  dexscreener quote fetcher side-verifies identity — the requested
+  mint must equal one side's address (case-insensitive) and that
+  side's symbol/name wins; a pair with our mint on neither side is
+  discarded (null, never throws). Repo-wide `baseToken` audit:
+  geckoterminal (`getTokenInfo`) and birdeye (`getTokenOverview`)
+  query per-address endpoints (mint-bound by construction, no
+  change); backend `dexscreener.adapter` + `ticker-resolver`
+  excluded by design (other app, other plan). The legacy
+  cross-chain `getBestPairSummary` is `@deprecated`
+  (side-unverified; kept working, no new callers). Liquidity pick
+  untouched. Failing-first:
+  `provider-quote-pair-side.spec.ts` (plumbing both modes +
+  quote/base/neither-discard/case-insensitive); `cascade-order` +
+  `supply` + `chain-honest` stubs now carry side addresses.
+
 - **Chain-honest snapshots (dexter plan todo 18, root fix for
   fabricated multi-chain ties):** `DexScreenerService` gains
   `DEXSCREENER_CHAIN_SLUGS` (our 6 chain ids map 1:1 to DexScreener

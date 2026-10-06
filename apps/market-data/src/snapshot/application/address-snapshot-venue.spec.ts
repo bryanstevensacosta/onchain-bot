@@ -2,7 +2,8 @@ import { Test } from '@nestjs/testing';
 import { ConfigModule } from '@nestjs/config';
 import { SnapshotModule } from '../snapshot.module';
 import { AddressSnapshotService } from './address-snapshot.service';
-import { LaunchpadDetectorService } from 'provider/launchpad/application/launchpad-detector.service';
+import { DirectFastPathService } from './direct-fast-path.service';
+import { LaunchpadDetectorService } from 'launchpad/application/launchpad-detector.service';
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
 import { DEXSCREENER_CONFIG } from 'provider/infrastructure/dexscreener/dexscreener.config';
 import { SNAPSHOT_QUOTE_PROVIDERS } from '../domain/snapshot-quote.types';
@@ -34,6 +35,9 @@ async function buildService(
       getBestPairSummaryForChain: async () =>
         bestPair === null ? null : bestPair,
     })
+    // No live readers in fallback-contract specs.
+    .overrideProvider(DirectFastPathService)
+    .useValue({ tryResolve: async () => null })
     .compile();
   return module.get(AddressSnapshotService);
 }

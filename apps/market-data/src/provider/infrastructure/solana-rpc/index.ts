@@ -6,6 +6,10 @@ export type {
   TokenAccountEntry,
   GetTokenLargestAccountsResult,
   AccountInfoResult,
+  BatchAccountsClient,
 } from './solana-rpc.types';
-export { SolanaRpcService } from './solana-rpc.service';
+export {
+  GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE,
+  SolanaRpcService,
+} from './solana-rpc.service';
 export { SolanaRpcModule } from './solana-rpc.module';

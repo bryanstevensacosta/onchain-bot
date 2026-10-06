@@ -72,4 +72,13 @@ export const STATIC_CHAINS: ReadonlyArray<ChainInfo> = [
     geckoTerminalSlug: 'polygon_pos',
     logoUrl: '/api/v1/chains/polygon/logo',
   },
+  {
+    id: 'robinhood',
+    family: 'EVM',
+    displayName: 'Robinhood Chain',
+    nativeSymbol: 'ETH',
+    explorerUrl: 'https://robin.etherscan.io',
+    geckoTerminalSlug: null,
+    logoUrl: '/api/v1/chains/robinhood/logo',
+  },
 ];

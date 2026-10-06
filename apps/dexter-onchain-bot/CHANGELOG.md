@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Pending-vs-not-found split + 10s market-data timeout (dexter
+  plan todo 19a, robust-nulls S):** the pipeline reads
+  `MarketDataSnapshot.status` (already end-to-end, no replumbing)
+  at the `hasIdentity` sites and gains the `pending` outcome
+  variant — pending shells answer `pending`, client nulls and
+  ready-without-identity stay frozen `not-found`. Pinned wire
+  contract over HTTP 200 (never 429/202 bare):
+  `{ error: 'Token pending — retry shortly', address, pending: true }`
+  on `GET /dexter/token` and preview (1:1, `PreviewUnresolvedShape.
+pending?`); `resolve()` still returns null for pending (bot
+  generic message stands, accepted). Frontend renders the pending
+  copy (`Token data pending for … — retry shortly`, never `Token
+not found`). `MARKET_DATA_TIMEOUT_MS` default 2000→10000 (cold
+  fan-out ~2s, Telegram tolerates ~60s; `.env.*templates` updated).
+
+- **Pair-side identity regression spec (dexter plan todo 20 —
+  spec only, zero logic changes):** new
+  `token-scan-pair-side.spec.ts` pins the dexter end of the
+  market-data side-verification contract — a snapshot carrying the
+  quote-side identity (USDC mint in a PUMP/USDC pool) resolves with
+  `symbol == 'USDC'` / `!= 'PUMP'`, `name == 'USD Coin'`
+  (explicit + bare paths), and base-side identity still passes
+  through (PUMP stays PUMP). Identity asserts only, never address
+  equality (tautological). The fix itself lives in market-data
+  (summary `quoteToken` + fetcher side check); dexter copies the
+  already-correct identity.
+
 - \*\*Best-candidate auto-resolve with disclosure + `w/mo/y` ages
   (plan todo 17 — deliberate reversal of never-first-hit): the
   bare-address sweep now picks the highest-liquidity candidate

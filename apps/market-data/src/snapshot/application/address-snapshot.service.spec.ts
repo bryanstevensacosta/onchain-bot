@@ -2,7 +2,8 @@ import { Test } from '@nestjs/testing';
 import { ConfigModule } from '@nestjs/config';
 import { SnapshotModule } from '../snapshot.module';
 import { AddressSnapshotService } from './address-snapshot.service';
-import { LaunchpadDetectorService } from 'provider/launchpad/application/launchpad-detector.service';
+import { DirectFastPathService } from './direct-fast-path.service';
+import { LaunchpadDetectorService } from 'launchpad/application/launchpad-detector.service';
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
 import { SNAPSHOT_QUOTE_PROVIDERS } from '../domain/snapshot-quote.types';
 
@@ -31,6 +32,11 @@ describe('AddressSnapshotService (snapshot per kind)', () => {
         getBestPairSummary: async () => null,
         getBestPairSummaryForChain: async () => null,
       })
+      // Fallback contract pin: the pre-wire fan-out path runs with
+      // the fast path disabled (fast-path behavior lives in the
+      // dedicated fast-path specs — no live readers here).
+      .overrideProvider(DirectFastPathService)
+      .useValue({ tryResolve: async () => null })
       .compile();
     snapshots = module.get(AddressSnapshotService);
   });

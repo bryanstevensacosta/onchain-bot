@@ -75,15 +75,17 @@ export class PreviewTemplateRequestDto {
  * that is not an object with string `address`/`chain`/`symbol` → 400;
  * unknown placeholders in a draft → 400 + valid list; bad timeframe →
  * 400; unresolvable addresses propagate the pipeline shapes
- * (`Ambiguous…` / `Invalid address…` / `Token not found`).
+ * (`Ambiguous…` / `Invalid address…` / `Token not found`, plus the
+ * pending shape `{ error: 'Token pending — retry shortly', address,
+ * pending: true }` — 1:1 with `GET /dexter/token`, HTTP 200).
  *
  * Success gains `token: ResolvedToken` (pipeline-resolved for the
  * `address` path, echoed snapshot for the `token` path) — the live
  * editor resolves once via `address`, then re-renders drafts with the
  * returned `token` (pipeline skipped, same text). Unresolved shapes
- * carry NO `token` field (byte-identical to before).
- *
- * v1 sin auth como /dexter/token — same unauthenticated regime as the
+  * carry NO `token` field (byte-identical to before).
+  *
+  * v1 sin auth como /dexter/token — same unauthenticated regime as the
  * existing `/dexter/*` lookup surface; auth arrives in a later phase.
  */
 @Controller('api/dexter/templates/preview')

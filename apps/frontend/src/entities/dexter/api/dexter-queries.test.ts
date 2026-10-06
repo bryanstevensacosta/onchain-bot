@@ -207,6 +207,15 @@ describe('isPreviewUnresolved', () => {
     ).toBe(true);
   });
 
+  it('flags the pending shape as unresolved (guard unchanged)', () => {
+    expect(
+      isPreviewUnresolved({
+        error: 'Token pending — retry shortly',
+        address: 'So1111',
+        pending: true,
+      }),
+    ).toBe(true);
+  });
   it('passes rendered results through', () => {
     expect(
       isPreviewUnresolved({

@@ -235,7 +235,7 @@ apps/market-data/
   src/chain/             # HEXAGONAL (todos 2+12, P50): domain/ (ChainInfo + STATIC_CHAINS, incl. logoUrl) + application/ (DetectChainService + ports/) + infrastructure/ (static catalog + probers); root files are @deprecated compat re-exports
   src/chain-logo/        # NEW (chain-logo resolver): domain/ (TrustWallet/CoinGecko id maps + placeholder PNG + logoUrl builder) + application/ (ChainLogoFetcherPort + ChainLogoService fetch-ONCE file store) + infrastructure/ (HttpChainLogoFetcher, global fetch, 8s timeout) + ChainLogoModule (ports only — HTTP lives in gateway/ per P43)
   src/provider/          # HEXAGONAL (provider-hex): domain/ (port + descriptors + health VOs) + application/ (registry + checker; failover policy re-exports aggregators/) + infrastructure/ (todos 4+16, P47: 14 canonical adapters + ProvidersModule + R1 `quote-fetchers/` — provider-quote + outbound token-bucket gate from snapshot/); root files are compat re-exports
-  src/provider/launchpad/ # NEW (dexter-launchpad Wave 1, Lane D): `LaunchpadModule` (imports SolanaRpcModule, exports detector + `LAUNCHPAD_DETECTOR` port) + domain/ (`launchpad-info.ts` `LaunchpadInfo{id,name,url}`, `launchpad-table.ts` ratified table as data: R1 §5 ORDER arrays, program IDs + factory sets, marker allowlists, canonical URLs with pump.fun `/coin/` pinned, defined.fi fallback, `EVM_RECEIPT_EXCLUDED` presale rows, keyless EVM transports) + application/ (`launchpad-detector.service.ts`: ordered strategies, FIRST match wins, 10s timeout, never throws; Solana ONE batch + heaven REST, EVM bankr/mintclub API + ONE Blockscout creation + ONE receipt vs factory table) + infrastructure/ (`solana-pda.ts` zero-dep `findProgramAddress`); `solana-rpc.service.ts` gains `getMultipleAccounts` batch; `snapshot.launchpad` resolved live per call (never persisted, detector `@Optional()` with explicit-token inject)
+  src/launchpad/ # NEW (dexter-launchpad Wave 1, Lane D): `LaunchpadModule` (imports SolanaRpcModule, exports detector + `LAUNCHPAD_DETECTOR` port) + domain/ (`launchpad-info.ts` `LaunchpadInfo{id,name,url}`, `launchpad-table.ts` ratified table as data: R1 §5 ORDER arrays, program IDs + factory sets, marker allowlists, canonical URLs with pump.fun `/coin/` pinned, defined.fi fallback, `EVM_RECEIPT_EXCLUDED` presale rows, keyless EVM transports) + application/ (`launchpad-detector.service.ts`: ordered strategies, FIRST match wins, 10s timeout, never throws; Solana ONE batch + heaven REST, EVM bankr/mintclub API + ONE Blockscout creation + ONE receipt vs factory table) + infrastructure/ (`solana-pda.ts` zero-dep `findProgramAddress`); `solana-rpc.service.ts` gains `getMultipleAccounts` batch; `snapshot.launchpad` resolved live per call (never persisted, detector `@Optional()` with explicit-token inject)
   src/cache/ + src/rate-limiter/  # DEPRECATED (R1): compat re-exports only (`cache/*` + `rate-limiter/*` aliases resolve under `src/shared/infrastructure/`)
   src/gateway/           # HEXAGONAL (todos 2+12, P50, P43): domain/ (edge policy: 60/min budget + batch cap/TTL + cache-key builders) + application/ (rate-limit guard) + infrastructure/http/ (the ONLY feature controllers) + infrastructure/ws/ (todo 11, P49: MarketDataWsGateway, Socket.IO namespace /market-data over the stream/ broker); the api/http/ + api/ws/ compat re-export shims were REMOVED (gateway-dedupe: zero consumers, canonical is infrastructure/)
   src/stream/            # NEW (todo 11, P49): StreamModule + domain/ (stream types + policy + ExchangeWsPort: one-conn-per-exchange contract) + application/ (ExchangeConnectionManager single-conn multiplex + backoff, StreamBrokerService auth/subs/backpressure/cleanup) + infrastructure/ (in-memory driver default + ccxt.pro driver operator-gated + factory on MARKET_DATA_STREAM_DRIVER)
@@ -265,7 +265,7 @@ batch-50 + `GatewayRateLimitGuard`; auth via global `ApiKeyGuard`).
 `src/provider/infrastructure/` (todo 4, C-DATA-01 + P47 + todo 16 P48
 ccxt — never earlier, never under `address/`). Holders resolves through
 `DevHoldingsPort` (R1). Origin-launchpad detection lives in
-`src/provider/launchpad/` (dexter-launchpad Wave 1, Lane D:
+`src/launchpad/` (dexter-launchpad Wave 1, Lane D:
 `LaunchpadDetectorService` behind `LAUNCHPAD_DETECTOR`, input
 `(chain, address)` only — zero market-data dependency; ordered
 brand-before-infra strategies, 10s overall timeout, never throws;
@@ -281,6 +281,16 @@ snapshot carries an explicit chain, so the dexscreener quote fetcher
   `null` — never a sibling chain's data, never a network call for an
   unmapped slug. The legacy cross-chain `getBestPairSummary` stays for
   bare/unknown-chain callers only (best-effort mode, pinned in spec).
+  Pair-side attribution (dexter plan todo 20): the best-liquidity pair
+  may carry the requested mint on EITHER side, so `DexScreenerPairSummary`
+  carries BOTH `baseToken` and `quoteToken` and the dexscreener quote
+  fetcher is the ONLY identity step — the mint must equal one side's
+  address (case-insensitive) and that side's symbol/name wins; a pair
+  with our mint on neither side is discarded (null, never throws).
+  The legacy `getBestPairSummary` is `@deprecated` (cross-chain +
+  side-unverified; mocked by gateway specs, kept working, no new
+  callers). Backend `dexscreener.adapter` + `ticker-resolver` keep
+  their own reads (other app, other plan — excluded here by design).
   Every module is hexagonal (domain/ +
   application/ + infrastructure/) with its pre-hex roots kept as
   `@deprecated` compat re-exports (removal at cutover, todo 8).
@@ -585,6 +595,180 @@ coverage target >80% (pure units, no I/O).
   specs red before impl (missing modules), green after (+3 suites /
   +16 tests, 55/199 total).
 
+## TRANSPORT (Lane T, dexter plan todo 22 — on-chain fast-path foundation)
+
+Fail-open everywhere, timeouts via AbortController (a race alone never
+cancels the socket). Frozen Lane S/E reader contracts — DO NOT rename:
+`BatchAccountsClient.getMultiple` (`solana-rpc.types.ts`),
+`ChainRpc.getCode/getTransactionCount/ethCall` (`alchemy.chains.ts`),
+`MulticallClient.tryAggregate` (`multicall.service.ts`).
+
+- Solana: `getMultipleAccounts` chunks ≤100 in ONE parallel round and
+  concatenates in order; a dead chunk resolves per-address `null`s
+  (never whole-batch `null`, never throws). 150 PDAs = 2 calls.
+- EVM: ONE table `EVM_CHAIN_TRANSPORTS` drives endpoints
+  (`eth/base/bnb→bnb-mainnet/arb/polygon/opt/unichain` subdomains) and
+  Multicall3 support. Multicall3 `0xcA11…CA11` (verified 7/7 on
+  2026-10-05) batches `eth_call`s with tryAggregate semantics (one
+  revert never fails the batch); aggregate miss/timeout (7.5 s abort)
+  falls back to parallel per-call `eth_call`s (5 s abort each).
+  Robinhood has NO row (unverified — all-false fail-open).
+- FluxRPC: `getAccountInfo` reads `base64` (struct-decodable) beside
+  the untouched `jsonParsed` batch reads (unusable for structs).
+- QPS budget (assumptions in code): Alchemy free ≈ 300M CU/mo; one
+  20-call aggregate ≈ 26 CU flat (vs 26×N individual);
+  `eth_getCode`/`eth_getTransactionCount` ≈ 20 CU each. Quota owner:
+  whoever holds `ALCHEMY_API_KEY`.
+
+## RPC FALLBACK TIERS + ROBINHOOD (todo 24 — supersedes the Robinhood-NO-row note above)
+
+Every chain-routed EVM call (`AlchemyService.rpcCallForChain`, feeding
+`ChainRpc` + `MulticallService`) walks tiers per call, first
+non-null wins: Alchemy (only when `ALCHEMY_API_KEY` set) → dRPC free
+(only when `DRPC_API_KEY` set AND the chain has a verified
+`DRPC_NETWORKS` slug) → keyless public RPC (launchpad-table URL,
+always available) → honest `null`. Unknown chain ⇒ `null` zero
+network. JSON-RPC errors and null results fall through (never stop
+the chain); each tier has its own timeout (Alchemy 8s,
+`EVM_RPC_TIER_TIMEOUT_MS` 5s elsewhere); success logs
+`evm-rpc <chain> <method> served-by=<tier>` (debug) for quota
+decisions. Owner action: create a free key at drpc.org and set
+`DRPC_API_KEY` (see `.env.example`) — without it the tier skips
+silently. dRPC slugs verified: ethereum/base/bsc/arbitrum/polygon/
+optimism; robinhood + unichain have NO dRPC row (unverified — never
+guessed). Robinhood coverage: `EVM_CHAIN_TRANSPORTS.robinhood`
+(`robinhood-mainnet`, chainId 4663, Multicall3 verified PRESENT via
+`eth_getCode` 2026-10-06: full bytecode, `eth_chainId` → `0x1237`) +
+DexScreener slug `robinhood` (live 2026-10-06:
+`GET /token-pairs/v1/robinhood/0x968B…5583` → 200, `uniswap` v4
+NYMA/ETH, liq ~$6K — fixture pinned in
+`dexscreener-robinhood.spec.ts`). Boundary: `STATIC_CHAINS` has no
+robinhood row, so `GET /snapshot(chain=robinhood)` still 404s
+unknown-chain (catalog row is a separate todo, not this one).
+
+## ONCHAIN READERS (Lane S, dexter plan todo 22 — Solana fast-path)
+
+`src/provider/infrastructure/onchain/` decodes pool state straight
+from chain accounts (pump curve, Raydium AMMv4/CPMM/CLMM, Orca
+Whirlpool, Meteora DLMM/DBC) plus token supply/holders/metadata —
+no aggregators, no indexer, no gRPC, no new deps (Buffer/DataView +
+repo `solana-pda.ts` only). Family dispatch is by account OWNER
+program (CPMM/CLMM share the `PoolState` discriminator, so the
+discriminator alone never selects the family); every decoder is
+discriminator + length guarded and returns `null` (never throws) on
+unknown/short/uninitialized data. Program IDs are R1 pins or
+on-chain-observed + IDL-cross-checked (see `solana-program-ids.ts`:
+CLMM lives at `CAMMCzo5...`, DLMM at `...VaPwxo`, CPMM at
+`...QB5qKP1C` — the strings from memory were wrong and are
+documented there as such). Findings that constrain callers: AMMv4
+`poolOpenTime` reads 0 on live legacy pools (not an init signal);
+Raydium `status` reads 0 on live CPMM/CLMM pools (not an init
+signal); DBC `isMigrated` pools still decode (post-migration
+leftovers — aggregator decides freshness). Token-2022: base-82B
+header identical to classic SPL, extensions past byte 82 flagged via
+`hasExtensions`. `OnchainSolanaReaderService` composes pool views
+(vault/mint batch + supply-for-decimals) and token basics
+(supply + largest-accounts + metadata PDA in ONE `Promise.all`).
+NOT wired into the snapshot pipeline (later todo); holders live
+fixture pending (public-RPC `getTokenLargestAccounts` 429-walled —
+spec uses labeled synthetic holder math until the capture lands).
+
+## EVM READERS (Lane E, dexter plan todo 22 — EVM fast-path)
+
+`src/provider/infrastructure/onchain/evm-pools.codec.ts` (pure ABI
+decode: V2 getReserves/token0/token1, ERC20 decimals/totalSupply, V3
+slot0/liquidity/fee, V4 StateView getSlot0/getLiquidity + price math)
+
+- `onchain-evm.reader.ts` (`OnchainEvmReaderService`: V2/V3/V4 views
+  over the frozen Lane T `MulticallClient.tryAggregate` + `ChainRpc`
+  existence gate, BigInt-first, decimals per leg, never throws) +
+  `evm-tolerance.ts` (direct-vs-aggregator bps check at the snapshot
+  seam, log-only). NEW files only — Lane S files and the onchain barrel
+  untouched; snapshot/aggregator/gateway byte-identical (no wiring yet).
+
+* Selectors DERIVED 2026-10-05 (`keccak256(signature)[:4]`, env
+  pycryptodome — no new dep), not memorized: the live probe below
+  closed the loop on `getReserves=0x0902f1ac`, the recomputed
+  `tryAggregate` selector matches Lane T's `bce38bd7` byte-for-byte,
+  and derivation corrected memory on V3 `liquidity` (`0x1a686502`,
+  not `0x1a686774`).
+* Live proof (ONE probe, public RPC, rate-limit friendly):
+  DexScreener-discovered Uniswap V2 WETH/USDC
+  `0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc` (ethereum) via
+  tryAggregate returned reserve0=10543620724770 (~10.54M USDC) /
+  reserve1=3881028913582414867556 (~3881 WETH) / fresh timestamp —
+  plausible vs ~$21M DexScreener liquidity. Pinned as
+  `LIVE_V2_TRYAGGREGATE_RETURN` in `evm-pools.codec.spec.ts`.
+* Uninitialized rule: V3/V4 `sqrtPriceX96 == 0` -> `null`; V2
+  double-zero reserves -> `null`. Fee semantics: V2 reserve ratio is a
+  PRE-FEE mid (execution haircut `V2_DEFAULT_FEE_BPS`, v2-INCLUSIVE);
+  V3 slot0 / V4 lens quote fee-FREE spot (add `fee`/`lpFee` on top,
+  v4-EXCLUSIVE).
+* V4 lens per chain: StateView verified ONLY on ethereum + base
+  (official v4 deployments table); bsc/arbitrum/polygon/optimism/
+  unichain resolve `null` (`v4-lens-unverified`) — no invented rows.
+* Tolerance seam: `selectPreferredQuote(direct, aggregator)` merges
+  defined direct fields over today's fan-out (partial direct never
+  blanks good fields; direct `null` returns the aggregator quote
+  verbatim); `priceUsd` divergence beyond `TOLERANCE_DEFAULT_BPS`
+  (100 = 1%) is a `Logger.warn` ONLY — no metric infra, no gates,
+  render never blocked. Home is `onchain/` (not `snapshot/`) so the
+  lane ships with zero snapshot-core edits; adoption is one line in
+  `getSnapshot` post-merge, pre-`history.save` (documented in file).
+* QPS budget lives in the codec header (per-view ~= 72 CU worst /
+  ~= 46 CU steady; readers never poll — a future integrator owns
+  cadence: 100 pools x 30s ~= 153 CU/s OVER free ~115 CU/s).
+  Quota owner: whoever holds `ALCHEMY_API_KEY`.
+
+## DIRECT FAST-PATH (wire-up, dexter plan todo 22 — serve order + deadlines)
+
+`snapshot/application/direct-fast-path.service.ts` (NEW) + a seam in
+`AddressSnapshotService.getSnapshot` (fast branch + `buildSnapshot`
+extraction; the fallback call reproduces the old inline behavior
+exactly — existing specs pin it with the fast path mocked null).
+
+- Order per request (cache-HIT still returns first, unchanged):
+  fan-out starts IMMEDIATELY and concurrently; the on-chain readers
+  race `DIRECT_FAST_PATH_DEADLINE_MS` (800ms) against it. Sane
+  direct values serve at direct speed (partial card: direct
+  price/liquidity/holders/supply/identity, N/A nulls elsewhere, dev
+  holdings skipped and marked); the in-flight fan-out completes in
+  background for the log-only tolerance check (no second run, no
+  history/cache/registry writes from the background leg). ANY direct
+  miss awaits the already-running fan-out — fallback pays ~zero
+  direct penalty on fast misses and ~800ms only when readers hang
+  to the deadline (measured: concurrent fallback totals improved
+  ~6.1s to ~3.3s on WIF-class colds by removing the old sequential
+  wait — the remainder is launchpad/dev/venue tail, not fan-out).
+- Deadline enforcement is race-based (frozen Lane T transports take
+  no external signal; abandoned sockets die on their own internal
+  timeouts). Latency discipline inside the budget: discovery, pool,
+  basics, launchpad and the lean anchor all start at t0; launchpad
+  is take-if-ready (slow detector resolves null, never waits); the
+  pump pool leg is skipped when discovery names the curve PDA
+  itself (duplicate read). Union-typed ctor params carry explicit
+  `@Inject` (else Nest emits `Object` metadata and resolves null —
+  same latent pattern as the pre-existing `cache`/`assets`/
+  `nullMetrics` params: observed during wire-up, NOT changed).
+- Coverage (honest): Solana pump-PDA (no discovery needed),
+  Solana pools via DexScreener pairAddress (owner dispatch),
+  EVM V2/V3 via best-pair discovery (V4 poolIds not discoverable).
+  USD only against a stable leg or a pinned native anchor (lean
+  1-round Raydium CLMM SOL/USDC, AMM fallback; ethereum WETH/USDC
+  Lane-E-verified). Anything else resolves null (not covered).
+- MEASURED 2026-10-06 (alt-port :4171, 15 colds, evidence
+  `.omo/evidence/task-fe-onchain-wire.log`): p95 cold <800ms MISSED
+  on all live routes — direct legs always hit the 800ms deadline
+  (Helius 2-sequential-round paths ~= 900-1200ms typical; Alchemy
+  403 on ALL EVM subdomains — app has no enabled networks, so EVM
+  direct always nulls here), and cold totals (~2.6-3.4s) are
+  launchpad/dev/venue-tail-dominated. Reader-level parity PROVEN
+  live (real Helius through real reader code): pump-curve -3.8bps,
+  Raydium AMM -27.6bps vs aggregator (tolerance 100bps); pumpswap
+  pool resolves null (unsupported family, fail-open). Serve-level
+  parity had zero samples (no fast serve fired) — needs a keyed EVM
+  env and/or sub-800ms round trips to revisit.
+
 ## SECURITY (P46, todo 10)
 
 Scoped API keys (`src/auth/`): `read` (GET chains/providers/addresses/
@@ -680,3 +864,20 @@ English per `RELEASE-FLOW.md` (P39). Stale knowledge base = failed todo.
   `token/application/services`; cache/rate-limiter → own modules;
   shared-kernel → `shared/`; chain probers → `chain/`. Variante B stays
   a gated later phase — no module invented without a mapping row.
+
+- Pending semantics + no-negative-cache (dexter plan todo 19a,
+  robust-nulls S): `status: 'pending'` means every provider failed or
+  yielded nothing — a TRANSIENT shell, not a verdict. Pending
+  snapshots are NEVER cached at any of the three writers (service
+  `AddressSnapshotService` skips `cache.set`; edge `CacheInterceptor`
+  skips `status: 'pending'` bodies; batch `getOrSet` takes a
+  `shouldCache` gate the controller sets to "not pending"), so the
+  P12 repeat re-touches providers (`x-cache: MISS`) instead of
+  serving a frozen HIT. History still persists pending rows (19b SWR
+  - fdvAth read them). `SnapshotNullMetricsService` counts the miss
+    flavor (`no-market`: every error is `'no data'`; `transient`: any
+    throw/timeout/outbound-deny; `cached`: a pre-deploy pending row
+    served from cache — must decay to 0 past deploy+60s). Metric only:
+    no cron, no periodic scan. Runbook: rising `transient` on canary
+    tokens (WIF/SOL) → check `providerErrors`; nonzero `cached` past
+    deploy+60s → a writer regressed → check the three sites above.

@@ -22,6 +22,26 @@ export interface SolanaBalanceResponse {
   readonly value: number;
 }
 
+/**
+ * `getAccountInfo` with `base64` encoding (Lane T, todo 22): raw
+ * account bytes for pool-struct decode. `jsonParsed` is unusable for
+ * structs (it only parses known program layouts); base64 carries the
+ * bytes Lane S readers decode by hand.
+ */
+export interface SolanaBase64AccountValue {
+  readonly data: readonly [string, string];
+  readonly executable: boolean;
+  readonly lamports: number;
+  readonly owner: string;
+  readonly rentEpoch: number;
+  readonly space?: number;
+}
+
+export interface SolanaBase64AccountResponse {
+  readonly context: { readonly slot: number };
+  readonly value: SolanaBase64AccountValue | null;
+}
+
 export interface SolanaTokenAccount {
   readonly account: {
     readonly data: {

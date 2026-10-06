@@ -52,15 +52,16 @@ with empty defaults (`fluxrpc.module.ts:12`).
 
 ## Key methods → code
 
-| Method                              | Code                         | Upstream                                                                                         |
-| ----------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------ |
-| `rpcCall(method, params?)` (public) | `fluxrpc.service.ts:57-85`   | Generic JSON-RPC POST `{ jsonrpc: '2.0', id: 'flux-<ts>', method, params }` → `result` or `null` |
-| `getBalance(address)`               | `fluxrpc.service.ts:96-100`  | `getBalance` `[address]` → `result.value` (lamports) or `null`                                   |
-| `getTokenAccountsByOwner(owner)`    | `fluxrpc.service.ts:107-112` | `getTokenAccountsByOwner` `[owner, { encoding: 'jsonParsed' }]`                                  |
-| `getMultipleAccounts(addresses)`    | `fluxrpc.service.ts:119-126` | `getMultipleAccounts` `[[...addresses], { encoding: 'jsonParsed' }]`                             |
-| `getTransaction(signature)`         | `fluxrpc.service.ts:137-144` | `getTransaction` `[signature, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 }]`    |
-| `getSlot()`                         | `fluxrpc.service.ts:150-152` | `getSlot` (no params) → `number` or `null`                                                       |
-| `getLatestBlockhash()`              | `fluxrpc.service.ts:156-165` | `getLatestBlockhash` → `result.value` `{ blockhash, lastValidBlockHeight }` or `null`            |
+| Method                              | Code                         | Upstream                                                                                                                                              |
+| ----------------------------------- | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rpcCall(method, params?)` (public) | `fluxrpc.service.ts:57-85`   | Generic JSON-RPC POST `{ jsonrpc: '2.0', id: 'flux-<ts>', method, params }` → `result` or `null`                                                      |
+| `getBalance(address)`               | `fluxrpc.service.ts:96-100`  | `getBalance` `[address]` → `result.value` (lamports) or `null`                                                                                        |
+| `getTokenAccountsByOwner(owner)`    | `fluxrpc.service.ts:107-112` | `getTokenAccountsByOwner` `[owner, { encoding: 'jsonParsed' }]`                                                                                       |
+| `getMultipleAccounts(addresses)`    | `fluxrpc.service.ts`         | `getMultipleAccounts` `[[...addresses], { encoding: 'jsonParsed' }]`                                                                                  |
+| `getAccountInfo(address)` (Lane T)  | `fluxrpc.service.ts`         | `getAccountInfo` `[address, { encoding: 'base64', commitment: 'confirmed' }]` — raw bytes for pool-struct decode (jsonParsed is unusable for structs) |
+| `getTransaction(signature)`         | `fluxrpc.service.ts:137-144` | `getTransaction` `[signature, { encoding: 'jsonParsed', maxSupportedTransactionVersion: 0 }]`                                                         |
+| `getSlot()`                         | `fluxrpc.service.ts:150-152` | `getSlot` (no params) → `number` or `null`                                                                                                            |
+| `getLatestBlockhash()`              | `fluxrpc.service.ts:156-165` | `getLatestBlockhash` → `result.value` `{ blockhash, lastValidBlockHeight }` or `null`                                                                 |
 
 Types: `fluxrpc.types.ts` (`JsonRpcRequest/Response`, `SolanaBalanceResponse`,
 `SolanaTokenAccount`, `SolanaTransactionResponse`). Module wiring:

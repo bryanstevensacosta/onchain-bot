@@ -1,6 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 /**
+ * Default per-call budget for market-data HTTP (env
+ * `MARKET_DATA_TIMEOUT_MS`). Cold market-data fan-out takes ~2s
+ * (parallel providers, 8s each); Telegram tolerates ~60s per update,
+ * so 10s covers cold aggregates with wide headroom while still
+ * failing fast. The old 2s budget truncated slow-but-successful
+ * cold scans into `null` → `not-found` (root-cause P14 race).
+ */
+const DEFAULT_MARKET_DATA_TIMEOUT_MS = 10_000;
+
+/**
  * market-data HTTP client (Tramo 3, todo 9, P13 — NEW).
  *
  * The ONLY market-data source for dexter-onchain-bot (todo 5 bridge,
@@ -138,8 +148,12 @@ export class MarketDataClient {
   public constructor() {
     this.baseUrl = process.env.MARKET_DATA_URL ?? 'http://localhost:4000';
     this.apiKey = process.env.MARKET_DATA_API_KEY ?? '';
-    const parsed = Number(process.env.MARKET_DATA_TIMEOUT_MS ?? 2000);
-    this.timeoutMs = Number.isNaN(parsed) ? 2000 : parsed;
+    const parsed = Number(
+      process.env.MARKET_DATA_TIMEOUT_MS ?? DEFAULT_MARKET_DATA_TIMEOUT_MS,
+    );
+    this.timeoutMs = Number.isNaN(parsed)
+      ? DEFAULT_MARKET_DATA_TIMEOUT_MS
+      : parsed;
   }
 
   public async getSnapshot(

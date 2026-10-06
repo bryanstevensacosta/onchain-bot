@@ -20,7 +20,8 @@ describe('provider-quote fetchers (supply fields)', () => {
           liquidityUsd: 50,
           volume24h: 10,
           priceChange24h: 2,
-          baseToken: { symbol: 'TKN', name: 'Token' },
+          baseToken: { address: sol, symbol: 'TKN', name: 'Token' },
+          quoteToken: { address: null, symbol: null, name: null },
         }),
       },
       geckoterminal: {

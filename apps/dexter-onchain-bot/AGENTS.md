@@ -182,25 +182,25 @@ text with no contract gets the "no veo ningún contrato" reply.
 
 ## ENV INVENTORY
 
-| Variable                                                                     | Default                                 | Meaning                                                                                                                                                           |
-| ---------------------------------------------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DEXTER_ENABLED`                                                             | `false`                                 | master switch                                                                                                                                                     |
-| `DEXTER_PORT` / `DEXTER_HOST`                                                | `4060` / `0.0.0.0`                      | bind (triplet 4060/4061/4062; dev may pin 127.0.0.1)                                                                                                              |
-| `DEXTER_BOT_TOKEN`                                                           | `''`                                    | lookup bot token (wins over legacy — direct-leg credential only since todo 6)                                                                                     |
-| `CHAIN_DEXTER_BOT_TOKEN`                                                     | `''`                                    | legacy fallback (deprecated, honored)                                                                                                                             |
-| `DEXTER_BOT_VAULT_ID`                                                        | `''`                                    | gateway vault id for this bot (todo 6; set by hand after migration)                                                                                               |
-| `BOT_USERNAME`                                                               | `''`                                    | white-label bot username for deep-links (todo 11; generic name on purpose, one value per env; `^[A-Za-z0-9_]{5,}$`, empty allowed — never a real username in git) |
-| `DEXTER_SEND_MODE`                                                           | `dual`                                  | `direct` (deprecated) \| `dual` (both legs + parity) \| `gateway` (cutover)                                                                                       |
-| `BOTS_GATEWAY_URL` / `BOTS_GATEWAY_CLIENT_ID` / `BOTS_GATEWAY_CLIENT_SECRET` | `http://localhost:4070` / `''` / `''`   | gateway base + HMAC client (empty = keyless/unsigned dev)                                                                                                         |
-| `DEXTER_INGRESS_SECRET`                                                      | `null`                                  | shared secret for `POST /dexter/ingress` (empty = unsigned dev)                                                                                                   |
-| `DEXTER_WEBHOOK_SECRET/URL`                                                  | —                                       | webhook auth + registration                                                                                                                                       |
-| `DEXTER_INGEST_MODE`                                                         | `polling`                               | `webhook` (staging/prod) or `polling` (dev)                                                                                                                       |
-| `DEXTER_POLLING_INTERVAL_MS`                                                 | `1000`                                  | poller cadence (min 100)                                                                                                                                          |
-| `MARKET_DATA_URL` / `MARKET_DATA_API_KEY` / `MARKET_DATA_TIMEOUT_MS`         | `http://localhost:4000` / `''` / `2000` | ONLY market-data source                                                                                                                                           |
-| `DEXTER_RATE_LIMIT_PER_USER`                                                 | `30`                                    | per-user commands per 60 s                                                                                                                                        |
-| `DEXTER_DEFAULT_TRADE_BUTTONS`                                               | `DEX,PHO,TRO`                           | default button set                                                                                                                                                |
-| `DATABASE_URL`                                                               | `…/onchain_bot_dexter`                  | templates/display repos: TypeORM when `DATABASE_ENABLED=true`, in-memory when `false` (chat settings still in-memory)                                             |
-| `REDIS_URL`                                                                  | `…/6387/0`                              | RESERVED (limiter is in-process)                                                                                                                                  |
+| Variable                                                                     | Default                                  | Meaning                                                                                                                                                           |
+| ---------------------------------------------------------------------------- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DEXTER_ENABLED`                                                             | `false`                                  | master switch                                                                                                                                                     |
+| `DEXTER_PORT` / `DEXTER_HOST`                                                | `4060` / `0.0.0.0`                       | bind (triplet 4060/4061/4062; dev may pin 127.0.0.1)                                                                                                              |
+| `DEXTER_BOT_TOKEN`                                                           | `''`                                     | lookup bot token (wins over legacy — direct-leg credential only since todo 6)                                                                                     |
+| `CHAIN_DEXTER_BOT_TOKEN`                                                     | `''`                                     | legacy fallback (deprecated, honored)                                                                                                                             |
+| `DEXTER_BOT_VAULT_ID`                                                        | `''`                                     | gateway vault id for this bot (todo 6; set by hand after migration)                                                                                               |
+| `BOT_USERNAME`                                                               | `''`                                     | white-label bot username for deep-links (todo 11; generic name on purpose, one value per env; `^[A-Za-z0-9_]{5,}$`, empty allowed — never a real username in git) |
+| `DEXTER_SEND_MODE`                                                           | `dual`                                   | `direct` (deprecated) \| `dual` (both legs + parity) \| `gateway` (cutover)                                                                                       |
+| `BOTS_GATEWAY_URL` / `BOTS_GATEWAY_CLIENT_ID` / `BOTS_GATEWAY_CLIENT_SECRET` | `http://localhost:4070` / `''` / `''`    | gateway base + HMAC client (empty = keyless/unsigned dev)                                                                                                         |
+| `DEXTER_INGRESS_SECRET`                                                      | `null`                                   | shared secret for `POST /dexter/ingress` (empty = unsigned dev)                                                                                                   |
+| `DEXTER_WEBHOOK_SECRET/URL`                                                  | —                                        | webhook auth + registration                                                                                                                                       |
+| `DEXTER_INGEST_MODE`                                                         | `polling`                                | `webhook` (staging/prod) or `polling` (dev)                                                                                                                       |
+| `DEXTER_POLLING_INTERVAL_MS`                                                 | `1000`                                   | poller cadence (min 100)                                                                                                                                          |
+| `MARKET_DATA_URL` / `MARKET_DATA_API_KEY` / `MARKET_DATA_TIMEOUT_MS`         | `http://localhost:4000` / `''` / `10000` | ONLY market-data source (10s: cold fan-out ~2s, Telegram tolerates ~60s)                                                                                          |
+| `DEXTER_RATE_LIMIT_PER_USER`                                                 | `30`                                     | per-user commands per 60 s                                                                                                                                        |
+| `DEXTER_DEFAULT_TRADE_BUTTONS`                                               | `DEX,PHO,TRO`                            | default button set                                                                                                                                                |
+| `DATABASE_URL`                                                               | `…/onchain_bot_dexter`                   | templates/display repos: TypeORM when `DATABASE_ENABLED=true`, in-memory when `false` (chat settings still in-memory)                                             |
+| `REDIS_URL`                                                                  | `…/6387/0`                               | RESERVED (limiter is in-process)                                                                                                                                  |
 
 ## PORTS
 
@@ -218,8 +218,11 @@ repo-wide by grep. Compose `name:` is explicit (`onchain-bot-dexter`,
   (Docker HEALTHCHECK + staging healthcheck probe it via node).
 - `POST /dexter/health` → `{ status: 'ok', ingestMode }`.
 - `GET /dexter/token?address=` → resolved card + `text`, or
-  `{ error: 'Token not found' }` (market-data down/pending → error, never
-  a partial card). Bare addresses need no chain qualifier (detect-first
+  `{ error: 'Token not found' }` (market-data down → error, never
+  a partial card), or the pending shape
+  `{ error: 'Token pending — retry shortly', address, pending: true }`
+  (HTTP 200 — market-data answered a transient pending shell; copy
+  differs from `Token not found` on purpose). Bare addresses need no chain qualifier (detect-first
   via chain-detect, else the format-narrowed solana-first sweep);
   multi-chain identity resolves best-pick (highest liquidity +
   `alternatives` disclosure, plan todo 17); zero-candidate ambiguity
@@ -393,12 +396,12 @@ todo 6 added 10 suites / 35 tests (±0 since); bare-address added
    (same as backend with `DATABASE_ENABLED=false`); the
    `onchain_bot_dexter[_staging]` DBs are provisioned but unwired.
 3. Bare lookup is detect-first + format-narrowed sweep (solana → [solana],
-   EVM → [ethereum, base, bsc, arbitrum, polygon], detect winner ordered
+   EVM → [ethereum, base, bsc, arbitrum, polygon, robinhood], detect winner ordered
    first): identity on 2+ chains resolves best-pick (highest liquidity,
    tiebreak higher FDV then first-seen — deterministic; `alternatives`
    disclose the rest, plan todo 17 — DELIBERATE reversal of the old
    never-first-hit rule). The EVM sweep is
-   sequential (5 × timeout worst case); parallelize when p95 matters.
+   sequential (6 × timeout worst case); parallelize when p95 matters.
 4. No e2e against a live bot token (unit specs + manual `GET
 /dexter/token` only); needs a sandbox bot before staging.
 5. No dexter deploy workflow / CI job yet (same as market-data staging
@@ -587,3 +590,21 @@ eth` — chain slugs as resolved, comma-space joined; `""` when ≤1
   (thresholds, floored: <7d → `Xd`, <30d → `Xw` = 7d weeks, <365d
   → `Xmo` = 30d months, else `Xy` = 365d years; d/h/m rungs
   byte-identical to todo 16).
+
+- Pending-vs-not-found split (plan todo 19a, robust-nulls S): the
+  pipeline reads `MarketDataSnapshot.status` (already end-to-end —
+  no replumbing) at the `hasIdentity` sites and gains the `pending`
+  outcome variant. Chain-qualified: identity → resolved, pending
+  shell → `pending`, client null (fetch throw / own-timeout) or
+  ready-without-identity → `not-found` (frozen). Sweep: zero hits
+  with ≥1 pending shell → `pending`; all client-null → `not-found`.
+  `resolve()` still collapses `pending` to null (ACCEPTED: the bot
+  keeps its generic reply; only `GET /dexter/token` + preview split
+  the shapes). Wire contract PINNED:
+  `{ error: 'Token pending — retry shortly', address, pending: true }`
+  over HTTP 200 — never 429/202 bare; `not-found` byte-contract
+  frozen. Preview maps 1:1 (`PreviewUnresolvedShape.pending?`,
+  frontend `isPreviewUnresolved` renders the pending copy `Token data
+pending for … — retry shortly`). `MARKET_DATA_TIMEOUT_MS` default
+  is 10s (cold fan-out ~2s, Telegram tolerates ~60s — the old 2s
+  truncated cold scans into `not-found`).

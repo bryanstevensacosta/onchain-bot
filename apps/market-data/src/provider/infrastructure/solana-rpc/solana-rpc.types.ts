@@ -56,3 +56,18 @@ export interface GetMultipleAccountsResult {
   readonly context?: { readonly slot: number };
   readonly value?: ReadonlyArray<SolanaAccountInfoValue | null>;
 }
+
+/**
+ * Stable batch-read contract for Lane S/E pool readers (Lane T, todo 22).
+ *
+ * FROZEN: `getMultiple` resolves one entry per requested address IN
+ * ORDER; unknown accounts are explicit `null` entries. Transport
+ * failures NEVER throw and NEVER fail the whole call — a failed chunk
+ * resolves to `null`s for its slice. Empty input resolves `[]` with
+ * zero RPC traffic.
+ */
+export interface BatchAccountsClient {
+  getMultiple(
+    addresses: ReadonlyArray<string>,
+  ): Promise<ReadonlyArray<SolanaAccountInfoValue | null>>;
+}

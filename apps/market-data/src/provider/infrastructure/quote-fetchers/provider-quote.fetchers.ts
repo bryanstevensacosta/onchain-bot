@@ -138,6 +138,7 @@ export function buildProviderQuoteFetchers(
       'base',
       'arbitrum',
       'polygon',
+      'robinhood',
     ],
     fetch: async (chain: string, address: string) => {
       const best = await deps.dexscreener.getBestPairSummaryForChain(
@@ -147,6 +148,33 @@ export function buildProviderQuoteFetchers(
       if (best === null) {
         return null;
       }
+      // Pair-side attribution (plan todo 20): the best-liquidity pair
+      // reports BOTH sides, but the requested mint may sit on either
+      // one (USDC in a PUMP/USDC pool sits on the quote side). Resolve
+      // identity from the matching side only — never default to base.
+      // Pair with our mint on neither side is discarded (stale/foreign
+      // row), returning null so the aggregator records `no data` and
+      // moves on; never throws.
+      //
+      // Sibling check (repo-wide `baseToken` grep): geckoterminal
+      // (`getTokenInfo`) and birdeye (`getTokenOverview`) query
+      // per-address endpoints, so their identity is mint-bound by
+      // construction — no side ambiguity there. Backend
+      // `dexscreener.adapter.ts` + `ticker-resolver` are EXCLUDED
+      // here on purpose: other app, other plan (they keep their own
+      // base-side reads until that plan lands).
+      const wanted = address.toLowerCase();
+      const baseMatch =
+        best.baseToken.address.toLowerCase() === wanted ? best.baseToken : null;
+      const quoteMatch =
+        typeof best.quoteToken.address === 'string' &&
+        best.quoteToken.address.toLowerCase() === wanted
+          ? best.quoteToken
+          : null;
+      const identity = baseMatch ?? quoteMatch;
+      if (identity === null) {
+        return null;
+      }
       const quote: Partial<SnapshotQuote> = {
         priceUsd: toNumber(best.priceUsd),
         marketCapUsd: toNumber(best.marketCap),
@@ -154,8 +182,8 @@ export function buildProviderQuoteFetchers(
         liquidityUsd: toNumber(best.liquidityUsd),
         volume24hUsd: toNumber(best.volume24h),
         priceChange24h: toNumber(best.priceChange24h),
-        symbol: best.baseToken.symbol || null,
-        name: best.baseToken.name || null,
+        symbol: identity.symbol || null,
+        name: identity.name || null,
       };
       return quote;
     },

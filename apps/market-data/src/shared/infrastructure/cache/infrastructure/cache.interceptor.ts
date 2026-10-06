@@ -17,6 +17,11 @@ const DEFAULT_TTL_SECONDS = 30;
  * Caches GET responses under `GET:<url>` for the @CacheTTL window
  * (default 30s). Emits `x-cache: HIT|MISS` so edge caching is
  * observable in tests and manual QA. Only caches 2xx object bodies.
+ *
+ * Robust-nulls (plan todo 19a): bodies with `status: 'pending'` are
+ * NEVER written — caching a pending shell freezes a transient miss
+ * for the full TTL (P12: `x-cache: HIT`, zero provider traffic).
+ * Ready bodies are cached exactly as before.
  */
 @Injectable()
 export class CacheInterceptor implements NestInterceptor {
@@ -56,7 +61,8 @@ export class CacheInterceptor implements NestInterceptor {
         if (
           response.statusCode >= 200 &&
           response.statusCode < 300 &&
-          body !== undefined
+          body !== undefined &&
+          !isPendingBody(body)
         ) {
           void this.cache.set(key, body, ttl);
         }
@@ -64,4 +70,18 @@ export class CacheInterceptor implements NestInterceptor {
       map((body) => body),
     );
   }
+}
+
+/**
+ * Pending-shell guard: a market-data snapshot (or batch item) whose
+ * `status` is `'pending'` carries zero provider data — writing it
+ * would serve a transient miss as a hit for the whole TTL.
+ */
+function isPendingBody(body: unknown): boolean {
+  if (typeof body !== 'object' || body === null) {
+    return false;
+  }
+  const record = body as Record<string, unknown>;
+  const status: unknown = record['status'];
+  return status === 'pending';
 }

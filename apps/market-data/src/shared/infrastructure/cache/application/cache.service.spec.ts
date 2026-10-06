@@ -33,4 +33,36 @@ describe('CacheService', () => {
     await service.set('k', 'v', -1);
     await expect(service.get('k')).resolves.toBeNull();
   });
+
+  it('getOrSet skips the write when shouldCache rejects (pending shells)', async () => {
+    const service = new CacheService(new InMemoryCacheAdapter());
+    let calls = 0;
+    const loader = async (): Promise<{ status: string }> => {
+      calls += 1;
+      return { status: 'pending' };
+    };
+    const gate = (value: { status: string }): boolean =>
+      value.status !== 'pending';
+    await expect(service.getOrSet('k', 60, loader, gate)).resolves.toEqual({
+      status: 'pending',
+    });
+    await expect(service.getOrSet('k', 60, loader, gate)).resolves.toEqual({
+      status: 'pending',
+    });
+    expect(calls).toBe(2);
+  });
+
+  it('getOrSet writes when shouldCache accepts (ready snapshots)', async () => {
+    const service = new CacheService(new InMemoryCacheAdapter());
+    let calls = 0;
+    const loader = async (): Promise<{ status: string }> => {
+      calls += 1;
+      return { status: 'ready' };
+    };
+    const gate = (value: { status: string }): boolean =>
+      value.status !== 'pending';
+    await service.getOrSet('k', 60, loader, gate);
+    await service.getOrSet('k', 60, loader, gate);
+    expect(calls).toBe(1);
+  });
 });

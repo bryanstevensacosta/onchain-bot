@@ -52,6 +52,11 @@ export class BatchRequestDto {
  * (`GET:/api/v1/addresses/<chain>/<address>?kind=<kind>`), so batch
  * traffic warms the single-snapshot cache and vice versa (SLO layer
  * for p95<500ms + cache warming).
+ *
+ * Robust-nulls (plan todo 19a): pending snapshots are NEVER written
+ * (the `shouldCache` gate below) — batch traffic used to re-warm GET
+ * keys with fresh pending shells, extending a transient miss into a
+ * ~30-60s outage. Ready snapshots warm exactly as before.
  */
 @UseGuards(GatewayRateLimitGuard)
 @RequireScope('snapshot')
@@ -111,6 +116,7 @@ export class AddressesBatchController {
             burnedPercent: snap.burnedPercent,
           };
         },
+        (body) => body['status'] !== 'pending',
       );
     } catch (err) {
       return {

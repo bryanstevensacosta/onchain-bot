@@ -301,6 +301,24 @@ describe('DexterPage template management (Lane B)', () => {
     );
   });
 
+  it('renders pending with its own copy, never the not-found text', () => {
+    mockAllHappy();
+    vi.mocked(dexter.usePreviewTemplate).mockReturnValue(
+      idleMutation({
+        data: {
+          error: 'Token pending — retry shortly',
+          address: 'So9999',
+          pending: true,
+        },
+      }) as unknown as ReturnType<typeof dexter.usePreviewTemplate>,
+    );
+    renderPage();
+    const unresolved = screen.getByTestId('dexter-preview-unresolved');
+    expect(unresolved).toHaveTextContent('pending for So9999');
+    expect(unresolved).toHaveTextContent('retry shortly');
+    expect(unresolved).not.toHaveTextContent('Token not found');
+  });
+
   it('enables timeframe only for c/cc with the valid hint', () => {
     mockAllHappy();
     renderPage();

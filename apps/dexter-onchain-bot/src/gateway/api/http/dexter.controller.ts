@@ -24,6 +24,10 @@ import {
  * the legacy built-in shape plus `templateUsed: null`. Error shapes
  * (ambiguous/invalid/not-found/missing-param) are byte-identical to the
  * pre-template contract.
+ *
+ * Robust-nulls (plan todo 19a): `pending` answers
+ * `{ error: 'Token pending — retry shortly', address, pending: true }`
+ * (HTTP 200) — copy differs from `Token not found` on purpose.
  */
 @Controller('dexter')
 export class DexterController {
@@ -60,6 +64,16 @@ export class DexterController {
     }
     if (outcome.status === 'not-found') {
       return { error: 'Token not found' };
+    }
+    // Robust-nulls wire contract (plan todo 19a, PINNED): pending
+    // travels as `{ error, address, pending: true }` over HTTP 200 —
+    // never 429/202 bare. The `not-found` byte-contract above is frozen.
+    if (outcome.status === 'pending') {
+      return {
+        error: 'Token pending — retry shortly',
+        address: outcome.address,
+        pending: true,
+      };
     }
     const token = outcome.token;
     const scanCard = this.formatter.formatScanCard(token);

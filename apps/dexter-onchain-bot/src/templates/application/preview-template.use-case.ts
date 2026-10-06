@@ -85,6 +85,12 @@ export interface PreviewUnresolvedShape {
   readonly error: string;
   readonly address: string;
   readonly candidates?: ReadonlyArray<string>;
+  /**
+   * Pending marker (plan todo 19a): present and `true` ONLY on the
+   * pending shape (`Token pending — retry shortly`); absent on every
+   * other unresolved shape (byte-contract frozen).
+   */
+  readonly pending?: boolean;
 }
 
 export type PreviewTemplateOutput =
@@ -198,6 +204,16 @@ export class PreviewTemplateUseCase {
       }
       if (outcome.status === 'not-found') {
         return { error: 'Token not found', address: outcome.address };
+      }
+      // Robust-nulls wire contract (plan todo 19a, PINNED): pending
+      // maps 1:1 with `GET /dexter/token` — never 429/202 bare, and
+      // `resolve()` keeps returning null for it (bot message stands).
+      if (outcome.status === 'pending') {
+        return {
+          error: 'Token pending — retry shortly',
+          address: outcome.address,
+          pending: true,
+        };
       }
       token = outcome.token;
     }

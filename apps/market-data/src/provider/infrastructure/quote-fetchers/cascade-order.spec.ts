@@ -20,7 +20,12 @@ function stubDeps(overrides: Record<string, unknown> = {}): never {
         liquidityUsd: null,
         volume24h: null,
         priceChange24h: null,
-        baseToken: { symbol: 'DEX', name: 'Dex Token' },
+        baseToken: {
+          address: 'So11111111111111111111111111111111111111112',
+          symbol: 'DEX',
+          name: 'Dex Token',
+        },
+        quoteToken: { address: null, symbol: null, name: null },
       }),
     },
     geckoterminal: { getTokenInfo: async () => null },

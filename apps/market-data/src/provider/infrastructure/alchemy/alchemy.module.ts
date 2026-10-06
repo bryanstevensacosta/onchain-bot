@@ -2,6 +2,7 @@ import { DynamicModule, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ALCHEMY_CONFIG, AlchemyConfig } from './alchemy.config';
 import { AlchemyService } from './alchemy.service';
+import { MulticallService } from './multicall.service';
 
 @Module({
   providers: [
@@ -12,8 +13,9 @@ import { AlchemyService } from './alchemy.service';
         cs.get<AlchemyConfig>('app.alchemy') ?? { apiKey: '' },
     },
     AlchemyService,
+    MulticallService,
   ],
-  exports: [AlchemyService],
+  exports: [AlchemyService, MulticallService],
 })
 export class AlchemyModule {
   public static forRoot(config: AlchemyConfig): DynamicModule {
@@ -22,8 +24,9 @@ export class AlchemyModule {
       providers: [
         { provide: ALCHEMY_CONFIG, useValue: config },
         AlchemyService,
+        MulticallService,
       ],
-      exports: [AlchemyService],
+      exports: [AlchemyService, MulticallService],
     };
   }
 }

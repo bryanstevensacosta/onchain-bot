@@ -14,7 +14,8 @@ import type { DexScreenerPair } from 'provider/infrastructure/dexscreener/dexscr
 import { buildProviderQuoteFetchers } from 'provider/infrastructure/quote-fetchers/provider-quote.fetchers';
 import { SnapshotModule } from '../snapshot.module';
 import { AddressSnapshotService } from './address-snapshot.service';
-import { LaunchpadDetectorService } from 'provider/launchpad/application/launchpad-detector.service';
+import { DirectFastPathService } from './direct-fast-path.service';
+import { LaunchpadDetectorService } from 'launchpad/application/launchpad-detector.service';
 import { SNAPSHOT_QUOTE_PROVIDERS } from '../domain/snapshot-quote.types';
 
 /**
@@ -72,20 +73,21 @@ describe('resolveDexScreenerSlug (chain-honest slug map)', () => {
     expect(resolveDexScreenerSlug(chain)).toBe(slug);
   });
 
-  it.each([['robinhood'], ['unichain'], ['bnb'], [''], ['nope']])(
+  it.each([['unichain'], ['bnb'], [''], ['nope']])(
     'resolves null for unmapped %s (never a silent cross-chain fallback)',
     (chain) => {
       expect(resolveDexScreenerSlug(chain)).toBeNull();
     },
   );
 
-  it('covers exactly the 6 catalog chains', () => {
+  it('covers exactly the 7 catalog chains (todo 24 adds robinhood)', () => {
     expect(Object.keys(DEXSCREENER_CHAIN_SLUGS).sort()).toEqual([
       'arbitrum',
       'base',
       'bsc',
       'ethereum',
       'polygon',
+      'robinhood',
       'solana',
     ]);
   });
@@ -164,7 +166,7 @@ describe('DexScreenerService.getBestPairSummaryForChain (strict mode)', () => {
     const service = await realService();
     const spy = jest.spyOn(service, 'getPairsByChain');
     await expect(
-      service.getBestPairSummaryForChain('robinhood', FF81),
+      service.getBestPairSummaryForChain('unichain', FF81),
     ).resolves.toBeNull();
     expect(spy).not.toHaveBeenCalled();
   });
@@ -224,7 +226,8 @@ describe('dexscreener quote fetcher (chain-honest regression)', () => {
           liquidityUsd: 759829.39,
           volume24h: 33208.37,
           priceChange24h: 1.5,
-          baseToken: { symbol: 'REPPO', name: 'REPPO' },
+          baseToken: { address: FF81, symbol: 'REPPO', name: 'REPPO' },
+          quoteToken: { address: null, symbol: null, name: null },
         },
       }),
     );
@@ -275,6 +278,9 @@ describe('AddressSnapshotService venue (chain-honest, 0xFf81 fixture)', () => {
         getBestPairSummaryForChain: async (chain: string) =>
           (perChain[chain] as never) ?? null,
       })
+      // No live readers in fallback-contract specs.
+      .overrideProvider(DirectFastPathService)
+      .useValue({ tryResolve: async () => null })
       .compile();
     return module.get(AddressSnapshotService);
   }

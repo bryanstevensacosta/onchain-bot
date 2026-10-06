@@ -9,7 +9,7 @@ import { RateLimiterModule } from 'rate-limiter/rate-limiter.module';
 import { AddressModule } from 'address/address.module';
 import { GatewayModule } from 'gateway/gateway.module';
 import { SNAPSHOT_QUOTE_PROVIDERS } from 'snapshot/domain/snapshot-quote.types';
-import { LaunchpadDetectorService } from 'provider/launchpad/application/launchpad-detector.service';
+import { LaunchpadDetectorService } from 'launchpad/application/launchpad-detector.service';
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
 
 const nullFetcher = {

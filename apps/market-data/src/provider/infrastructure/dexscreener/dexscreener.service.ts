@@ -24,9 +24,11 @@ const BASE = 'https://api.dexscreener.com';
  * Verified live 2026-10-04 against
  * `GET /token-pairs/v1/<slug>/0xFf81…8583d6`: every mapped slug
  * answers 200 with a JSON array (14 pairs for `base`, `[]` for the
- * rest — honest empties, never cross-chain). Any chain WITHOUT an
- * entry here resolves `null` WITHOUT touching the network — never a
- * silent cross-chain fallback (e.g. `robinhood`, `unichain`, future
+ * rest — honest empties, never cross-chain). Robinhood verified live
+ * 2026-10-06: `GET /token-pairs/v1/robinhood/0x968B…5583` answers 200
+ * with the `uniswap` v4 NYMA/ETH pair (liq ~$6K) — todo 24. Any chain
+ * WITHOUT an entry here resolves `null` WITHOUT touching the network
+ * — never a silent cross-chain fallback (e.g. `unichain`, future
  * chains). Slugs are DexScreener's, not ours (`bsc`, not `bnb`).
  */
 export const DEXSCREENER_CHAIN_SLUGS: Readonly<Record<string, string>> = {
@@ -36,6 +38,7 @@ export const DEXSCREENER_CHAIN_SLUGS: Readonly<Record<string, string>> = {
   base: 'base',
   arbitrum: 'arbitrum',
   polygon: 'polygon',
+  robinhood: 'robinhood',
 };
 
 /**
@@ -344,6 +347,14 @@ export class DexScreenerService extends DataProviderPort {
    * - `getBestPairSummaryForChain` = strict per-chain. Explicit-chain
    *   snapshot paths MUST use it; a chain with no pair resolves
    *   `null`, never a sibling chain's data.
+   *
+   * @deprecated Cross-chain + side-unverified (plan todo 20): the
+   *   summary now carries BOTH sides (`baseToken` + `quoteToken`) but
+   *   this method performs no side check — callers that report
+   *   `symbol`/`name` MUST resolve identity from the side matching
+   *   their mint (see the dexscreener quote fetcher) or use
+   *   `getBestPairSummaryForChain`. Kept working because gateway
+   *   specs mock it; do not add new callers.
    */
   public async getBestPairSummary(
     address: string,
@@ -401,6 +412,11 @@ function toPairSummary(pair: DexScreenerPair): DexScreenerPairSummary {
     dexId: pair.dexId,
     labels: [...(pair.labels ?? [])],
     baseToken: { ...pair.baseToken },
+    quoteToken: {
+      address: pair.quoteToken?.address ?? null,
+      name: pair.quoteToken?.name ?? null,
+      symbol: pair.quoteToken?.symbol ?? null,
+    },
     priceUsd: pair.priceUsd,
     priceNative: pair.priceNative,
     liquidityUsd: pair.liquidity?.usd ?? null,

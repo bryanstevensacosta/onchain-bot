@@ -135,6 +135,23 @@ export interface DexScreenerPairSummary {
     readonly name: string;
     readonly symbol: string;
   };
+  /**
+   * Quote side of the best-liquidity pair (plan todo 20,
+   * pair-side attribution fix).
+   *
+   * The summary used to carry `baseToken` only, so the identity step
+   * reported the base side unconditionally — a quote-side query (e.g.
+   * USDC in a PUMP/USDC pool) inherited the base identity
+   * (USDC -> `PUMP`). Carrying both sides lets the fetcher verify
+   * which side the requested mint is on and take that side's
+   * symbol/name. Same shape as `baseToken`, but every field nullable:
+   * upstream `quoteToken` is optional and its fields may be null.
+   */
+  readonly quoteToken: {
+    readonly address: string | null;
+    readonly name: string | null;
+    readonly symbol: string | null;
+  };
   readonly priceUsd: string | null;
   readonly priceNative: string;
   readonly liquidityUsd: number | null;
