@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import {
   METEORA_DBC_PROGRAM,
   PUMP_FUN_PROGRAM,
-} from 'provider/launchpad/domain/launchpad-table';
+} from 'launchpad/domain/launchpad-table';
 
 /**
  * Pinned Solana program IDs for the Lane S on-chain readers

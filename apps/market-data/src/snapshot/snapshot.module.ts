@@ -26,7 +26,7 @@ import { SnapshotNullMetricsService } from './application/snapshot-null-metrics.
 import { HoldersModule } from '../holders/holders.module';
 import { AggregatorsModule } from 'aggregators/aggregators.module';
 import { AssetRegistryModule } from 'asset-registry/asset-registry.module';
-import { LaunchpadModule } from 'provider/launchpad/launchpad.module';
+import { LaunchpadModule } from 'launchpad/launchpad.module';
 import { SNAPSHOT_QUOTE_PROVIDERS } from './domain/snapshot-quote.types';
 import { buildProviderQuoteFetchers } from 'provider/infrastructure/quote-fetchers/provider-quote.fetchers';
 import { SnapshotHistoryEntity } from './infrastructure/snapshot-history.entity';

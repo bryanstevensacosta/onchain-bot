@@ -1,4 +1,4 @@
-import { bytesToAddress } from 'provider/launchpad/infrastructure/solana-pda';
+import { bytesToAddress } from 'launchpad/infrastructure/solana-pda';
 
 /**
  * Null-safe binary readers for the Lane S on-chain decoders

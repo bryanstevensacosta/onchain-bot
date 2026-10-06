@@ -5,7 +5,7 @@ import { AddressSnapshotService } from './address-snapshot.service';
 import { DirectFastPathService } from './direct-fast-path.service';
 import { SnapshotHistoryRepository } from '../infrastructure/snapshot-history.repository';
 import { SNAPSHOT_HISTORY_RETENTION_DAYS } from '../infrastructure/snapshot-history.entity';
-import { LaunchpadDetectorService } from 'provider/launchpad/application/launchpad-detector.service';
+import { LaunchpadDetectorService } from 'launchpad/application/launchpad-detector.service';
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
 import {
   SNAPSHOT_QUOTE_PROVIDERS,

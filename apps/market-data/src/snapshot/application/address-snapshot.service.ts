@@ -27,8 +27,8 @@ import {
 import { SnapshotAggregatorService } from 'aggregators/application/snapshot-aggregator.service';
 import type { AggregationOutcome } from 'aggregators/application/snapshot-aggregator.service';
 import { AggregationPolicyPort } from 'aggregators/domain/aggregation-policy.port';
-import { LaunchpadDetectorService } from 'provider/launchpad/application/launchpad-detector.service';
-import type { LaunchpadInfo } from 'provider/launchpad/domain/launchpad-info';
+import { LaunchpadDetectorService } from 'launchpad/application/launchpad-detector.service';
+import type { LaunchpadInfo } from 'launchpad/domain/launchpad-info';
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
 import { toVenueOrNull, type SnapshotVenue } from '../domain/snapshot-venue';
 import { SnapshotHistoryRepository } from '../infrastructure/snapshot-history.repository';

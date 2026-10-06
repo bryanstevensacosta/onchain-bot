@@ -2,13 +2,13 @@ import { Inject, Injectable, Optional } from '@nestjs/common';
 import type { AggregationOutcome } from 'aggregators/application/snapshot-aggregator.service';
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
 import type { DexScreenerPairSummary } from 'provider/infrastructure/dexscreener';
-import { LaunchpadDetectorService } from 'provider/launchpad/application/launchpad-detector.service';
-import type { LaunchpadInfo } from 'provider/launchpad/domain/launchpad-info';
+import { LaunchpadDetectorService } from 'launchpad/application/launchpad-detector.service';
+import type { LaunchpadInfo } from 'launchpad/domain/launchpad-info';
 import {
   addressToBytes,
   findProgramAddress,
   utf8Seed,
-} from 'provider/launchpad/infrastructure/solana-pda';
+} from 'launchpad/infrastructure/solana-pda';
 import { OnchainEvmReaderService } from 'provider/infrastructure/onchain/onchain-evm.reader';
 import { OnchainSolanaReaderService } from 'provider/infrastructure/onchain/onchain-solana.reader';
 import type { OnchainPoolView } from 'provider/infrastructure/onchain/onchain-solana.reader';

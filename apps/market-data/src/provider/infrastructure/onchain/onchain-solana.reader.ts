@@ -9,7 +9,7 @@ import {
   addressToBytes,
   findProgramAddress,
   utf8Seed,
-} from 'provider/launchpad/infrastructure/solana-pda';
+} from 'launchpad/infrastructure/solana-pda';
 import { base64ToBytes } from './codec-utils';
 import { decodeMeteoraDbc, decodeMeteoraDlmm } from './meteora-pools.codec';
 import { decodeOrcaWhirlpool } from './orca-whirlpool.codec';

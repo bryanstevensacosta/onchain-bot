@@ -15,7 +15,7 @@ import { buildProviderQuoteFetchers } from 'provider/infrastructure/quote-fetche
 import { SnapshotModule } from '../snapshot.module';
 import { AddressSnapshotService } from './address-snapshot.service';
 import { DirectFastPathService } from './direct-fast-path.service';
-import { LaunchpadDetectorService } from 'provider/launchpad/application/launchpad-detector.service';
+import { LaunchpadDetectorService } from 'launchpad/application/launchpad-detector.service';
 import { SNAPSHOT_QUOTE_PROVIDERS } from '../domain/snapshot-quote.types';
 
 /**

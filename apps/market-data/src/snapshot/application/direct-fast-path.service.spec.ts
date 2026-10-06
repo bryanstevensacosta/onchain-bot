@@ -1,5 +1,5 @@
 import type { DexScreenerPairSummary } from 'provider/infrastructure/dexscreener';
-import { addressToBytes } from 'provider/launchpad/infrastructure/solana-pda';
+import { addressToBytes } from 'launchpad/infrastructure/solana-pda';
 import { anchorDiscriminator } from 'provider/infrastructure/onchain/solana-program-ids';
 import {
   DIRECT_FAST_PATH_SOURCE,

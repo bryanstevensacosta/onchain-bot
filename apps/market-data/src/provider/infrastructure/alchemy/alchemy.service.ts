@@ -17,7 +17,7 @@ import {
   isChainSupported,
   type ChainRpc,
 } from './alchemy.chains';
-import { EVM_CHAIN_TRANSPORTS as KEYLESS_EVM_TRANSPORTS } from '../../launchpad/domain/launchpad-table';
+import { EVM_CHAIN_TRANSPORTS as KEYLESS_EVM_TRANSPORTS } from '../../../launchpad/domain/launchpad-table';
 
 const BASE = 'https://eth-mainnet.g.alchemy.com/v2';
 
