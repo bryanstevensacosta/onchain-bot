@@ -66,6 +66,18 @@ describe('parseMarkdownV2', () => {
     expect(root.querySelector('em')).toBeNull();
   });
 
+  it('unescapes backend-escaped numbers (dots, minus, percent)', () => {
+    renderBody('MC 3\\.78K \\(\\-8\\.7%\\)');
+    const root = screen.getByTestId('dexter-markdown-render');
+    expect(root).toHaveTextContent('MC 3.78K (-8.7%)');
+  });
+
+  it('unescapes the remaining MarkdownV2 reserved chars', () => {
+    renderBody('a\\>b \\#tag \\+1 \\=2 \\|or\\| \\{x\\} 100\\!');
+    const root = screen.getByTestId('dexter-markdown-render');
+    expect(root).toHaveTextContent('a>b #tag +1 =2 |or| {x} 100!');
+  });
+
   it('degrades incomplete markup to plain text (never crashes)', () => {
     const { container } = renderBody('*sin cerrar y _otro sin cerrar');
     expect(container.textContent).toBe('*sin cerrar y _otro sin cerrar');

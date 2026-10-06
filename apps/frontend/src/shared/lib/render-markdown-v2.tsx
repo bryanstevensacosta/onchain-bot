@@ -11,9 +11,13 @@ import { createElement, type ReactNode } from 'react';
  * render as plain text).
  *
  * Supported subset: `*bold*` `_italic_` `` `code` `` ` ```pre``` `
- * `[text](url)` `~strike~`. Escaped marker chars (`\*`, `\_`, `\~`,
- * `` \` ``, `\[`, `\]`, `\(`, `\)`, `\\`) render literally. Unknown or
- * incomplete markup degrades to plain text and never crashes.
+ * `[text](url)` `~strike~`. Escaped reserved chars (the full MarkdownV2
+ * set `_ * [ ] ( ) ~ ` > # + - = | { } . !` plus `\\` itself —
+ * e.g. `\*`, `\_`, `\.`, `\-`, `\=`, `\!`) render literally, mirroring
+ * the backend escaper (`MessageFormatterAdapter.escapeV2` in
+ * dexter-onchain-bot message-formatter.ts, which escapes every char of
+ * that same set). Unknown or incomplete markup degrades to plain text
+ * and never crashes.
  */
 
 type Token =
@@ -21,7 +25,27 @@ type Token =
   | { kind: 'bold' | 'italic' | 'code' | 'pre' | 'strike'; text: string }
   | { kind: 'link'; text: string; href: string };
 
-const ESCAPABLE = new Set(['*', '_', '~', '`', '[', ']', '(', ')', '\\']);
+const ESCAPABLE = new Set([
+  '*',
+  '_',
+  '~',
+  '`',
+  '[',
+  ']',
+  '(',
+  ')',
+  '>',
+  '#',
+  '+',
+  '-',
+  '=',
+  '|',
+  '{',
+  '}',
+  '.',
+  '!',
+  '\\',
+]);
 
 /** Remove one level of MarkdownV2 backslash escapes (`\*` → `*`). */
 function unescapeV2(input: string): string {
