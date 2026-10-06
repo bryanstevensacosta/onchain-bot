@@ -396,12 +396,12 @@ todo 6 added 10 suites / 35 tests (±0 since); bare-address added
    (same as backend with `DATABASE_ENABLED=false`); the
    `onchain_bot_dexter[_staging]` DBs are provisioned but unwired.
 3. Bare lookup is detect-first + format-narrowed sweep (solana → [solana],
-   EVM → [ethereum, base, bsc, arbitrum, polygon], detect winner ordered
+   EVM → [ethereum, base, bsc, arbitrum, polygon, robinhood], detect winner ordered
    first): identity on 2+ chains resolves best-pick (highest liquidity,
    tiebreak higher FDV then first-seen — deterministic; `alternatives`
    disclose the rest, plan todo 17 — DELIBERATE reversal of the old
    never-first-hit rule). The EVM sweep is
-   sequential (5 × timeout worst case); parallelize when p95 matters.
+   sequential (6 × timeout worst case); parallelize when p95 matters.
 4. No e2e against a live bot token (unit specs + manual `GET
 /dexter/token` only); needs a sandbox bot before staging.
 5. No dexter deploy workflow / CI job yet (same as market-data staging

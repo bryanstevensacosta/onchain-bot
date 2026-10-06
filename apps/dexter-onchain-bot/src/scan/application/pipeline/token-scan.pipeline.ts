@@ -57,6 +57,9 @@ const EVM_CANDIDATES: ReadonlyArray<string> = [
   'bsc',
   'arbitrum',
   'polygon',
+  // robinhood last: order only breaks exact liquidity+FDV ties
+  // (first-seen wins), so appending keeps existing picks stable.
+  'robinhood',
 ];
 
 function hasIdentity(snapshot: {

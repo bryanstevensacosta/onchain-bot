@@ -144,4 +144,17 @@ describe('TokenScanPipeline bare-address support', () => {
     const token = await pipeline.resolve(`solana:${SOL}`);
     expect(token?.chain).toBe('solana');
   });
+
+  it('resolves a robinhood-only token via the bare-address sweep', async () => {
+    const { client } = makeClient({
+      snapshots: { robinhood: identity('robinhood', EVM) },
+    });
+    const pipeline = new TokenScanPipeline(client as never);
+    const detailed = await pipeline.resolveDetailed(EVM);
+    expect(detailed.status).toBe('resolved');
+    if (detailed.status === 'resolved') {
+      expect(detailed.token.chain).toBe('robinhood');
+      expect(detailed.token.address).toBe(EVM);
+    }
+  });
 });

@@ -17,6 +17,7 @@ export type ChainIdentifier =
   | 'avalanche'
   | 'arbitrum'
   | 'polygon'
+  | 'robinhood'
   | 'unknown';
 
 export interface DevWalletView {

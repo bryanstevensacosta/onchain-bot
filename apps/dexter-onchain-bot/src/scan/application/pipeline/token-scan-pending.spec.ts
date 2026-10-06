@@ -90,6 +90,7 @@ describe('TokenScanPipeline pending outcome (plan todo 19a)', () => {
         bsc: shell({ chain: 'bsc', address: EVM }),
         arbitrum: shell({ chain: 'arbitrum', address: EVM }),
         polygon: shell({ chain: 'polygon', address: EVM }),
+        robinhood: shell({ chain: 'robinhood', address: EVM }),
       }) as never,
     );
     await expect(pipeline.resolveDetailed(EVM)).resolves.toEqual({
