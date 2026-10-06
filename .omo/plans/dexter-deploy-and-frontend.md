@@ -220,6 +220,13 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartAddressL
      Acceptance criteria: healthcheck `:4062` + smoke templates/preview + evidencia.
      QA scenarios: checklist + rollback. Evidence .omo/evidence/task-dex-prod-rollout.log
      Commit: N
+- [x] 24. Fallback tiers RPC + cobertura Robinhood (Wave 1 follow-up, evidencia 0x968B 2026-10-05)
+      What to do / Must NOT do: **Cobertura (bloqueante del caso live):** fila `robinhood` en mapa DexScreener-slugs + fila en `alchemy.chains.ts` (subdominio `robinhood-mainnet`, chain 4663 — Alchemy lo soporta verificado) + verificar live `0x968B…` resuelve via Robinhood (DexScreener `robinhood` slug ya trae el par `uniswap` liq $6K). **Tiers por llamada** (orden, con timeout por tier y log de tier-sirviente para decidir cuotas con datos): Alchemy donde habilitado → dRPC free (endpoints por chain, key via env `DRPC_API_KEY` — el owner la crea; sin key el tier se salta solo, documentado) → Ankr Freemium/publicos puros (URLs ya referenciadas en codigo) → `null` honesto. NUNCA inventar cobertura: tier sin key/endpoint configurado se omite en silencio con log. Specs: orden de tiers (mock por tier caido), Robinhood resuelve `0x968B`, fallback publico sin key. Docs: AGENTS (tiers + cobertura) + CHANGELOG. NO tocar resolucion exitosa, NO gRPC, NO nuevas keys salvo leer envs.
+      Parallelization: Wave 1 follow-up (1 worker) | Blocked by: owner crea key dRPC (opcional para v1: sin key ese tier se omite) | Blocks: —
+      References: verificaciones 2026-10-05 (DexScreener `robinhood` trae el par; Alchemy soporta Robinhood; `alchemy.chains.ts` sin fila hoy), `ChainRpc` existente.
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; `0x968B` resuelve (preview/smoke); tier caido → siguiente responde (specs).
+      QA scenarios: happy + failure (todos los tiers caidos → null honesto). Evidence .omo/evidence/task-fe-fallback-tiers.log
+      Commit: Y | feat(market-data-rpc): tiers fallback + robinhood (docs AGENTS+CHANGELOG)
 
 ### Wave 0 — guion local owner (10 min, dexter `:4060` + frontend `:5173`)
 
@@ -280,6 +287,7 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartAddressL
 | 2 deploy files        | —                | 3, 4         | 1                    |
 | 3 staging rollout     | 2 + OK operativo | 4            | —                    |
 | 4 prod rollout        | 3 + OK owner     | —            | —                    |
+| 24 fallback           | —                | —            | 2                    |
 
 ## Commit strategy
 

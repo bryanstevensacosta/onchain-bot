@@ -620,6 +620,32 @@ cancels the socket). Frozen Lane S/E reader contracts — DO NOT rename:
   `eth_getCode`/`eth_getTransactionCount` ≈ 20 CU each. Quota owner:
   whoever holds `ALCHEMY_API_KEY`.
 
+## RPC FALLBACK TIERS + ROBINHOOD (todo 24 — supersedes the Robinhood-NO-row note above)
+
+Every chain-routed EVM call (`AlchemyService.rpcCallForChain`, feeding
+`ChainRpc` + `MulticallService`) walks tiers per call, first
+non-null wins: Alchemy (only when `ALCHEMY_API_KEY` set) → dRPC free
+(only when `DRPC_API_KEY` set AND the chain has a verified
+`DRPC_NETWORKS` slug) → keyless public RPC (launchpad-table URL,
+always available) → honest `null`. Unknown chain ⇒ `null` zero
+network. JSON-RPC errors and null results fall through (never stop
+the chain); each tier has its own timeout (Alchemy 8s,
+`EVM_RPC_TIER_TIMEOUT_MS` 5s elsewhere); success logs
+`evm-rpc <chain> <method> served-by=<tier>` (debug) for quota
+decisions. Owner action: create a free key at drpc.org and set
+`DRPC_API_KEY` (see `.env.example`) — without it the tier skips
+silently. dRPC slugs verified: ethereum/base/bsc/arbitrum/polygon/
+optimism; robinhood + unichain have NO dRPC row (unverified — never
+guessed). Robinhood coverage: `EVM_CHAIN_TRANSPORTS.robinhood`
+(`robinhood-mainnet`, chainId 4663, Multicall3 verified PRESENT via
+`eth_getCode` 2026-10-06: full bytecode, `eth_chainId` → `0x1237`) +
+DexScreener slug `robinhood` (live 2026-10-06:
+`GET /token-pairs/v1/robinhood/0x968B…5583` → 200, `uniswap` v4
+NYMA/ETH, liq ~$6K — fixture pinned in
+`dexscreener-robinhood.spec.ts`). Boundary: `STATIC_CHAINS` has no
+robinhood row, so `GET /snapshot(chain=robinhood)` still 404s
+unknown-chain (catalog row is a separate todo, not this one).
+
 ## ONCHAIN READERS (Lane S, dexter plan todo 22 — Solana fast-path)
 
 `src/provider/infrastructure/onchain/` decodes pool state straight

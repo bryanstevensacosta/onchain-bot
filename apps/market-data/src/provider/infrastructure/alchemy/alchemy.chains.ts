@@ -1,18 +1,18 @@
 /**
- * EVM chain transport table (Lane T, todo 22).
+ * EVM chain transport table (Lane T, todo 22; Robinhood row todo 24).
  *
  * ONE table drives both the per-chain Alchemy endpoint map and the
- * Multicall3 support map, so Robinhood (or any future chain) plugs in
- * by adding ONE row. Keys are OUR chain ids (`STATIC_CHAINS`:
+ * Multicall3 support map, so a future chain plugs in by adding ONE
+ * row. Keys are OUR chain ids (`STATIC_CHAINS`:
  * ethereum/solana/bsc/base/arbitrum/polygon — note `bsc`, never `bnb`).
  *
  * Multicall3 `0xcA11bde05977b3631167028862bE2a173976CA11` verified
  * PRESENT via `eth_getCode` on Base/ETH/BSC/Arb/OP/Poly/Unichain on
- * 2026-10-05. Robinhood has NO row: no public Alchemy slug is known
- * and its Multicall3 deployment is UNVERIFIED — `isChainSupported`
- * returns false and every transport resolves fail-open nulls until a
- * verified row lands. Never add a row without the `eth_getCode`
- * proof (a transposed address burned us once already).
+ * 2026-10-05 AND on Robinhood on 2026-10-06 (public
+ * `rpc.mainnet.chain.robinhood.com`: full runtime bytecode,
+ * `eth_chainId` → `0x1237` = 4663, bytecode carries the
+ * `tryAggregate` selector `bce38bd7`). Never add a row without the
+ * `eth_getCode` proof (a transposed address burned us once already).
  *
  * QPS BUDGET (assumptions, numeric): Alchemy free tier ≈ 300M
  * compute units/month (~115 CU/s sustained). A batched
@@ -29,6 +29,7 @@ export const MULTICALL3_ADDRESS = '0xcA11bde05977b3631167028862bE2a173976CA11';
 
 export interface EvmChainTransport {
   readonly alchemySubdomain: string;
+  readonly chainId: number;
   readonly multicall3: string | null;
 }
 
@@ -36,30 +37,42 @@ export const EVM_CHAIN_TRANSPORTS: Readonly<Record<string, EvmChainTransport>> =
   {
     ethereum: {
       alchemySubdomain: 'eth-mainnet',
+      chainId: 1,
       multicall3: MULTICALL3_ADDRESS,
     },
     base: {
       alchemySubdomain: 'base-mainnet',
+      chainId: 8453,
       multicall3: MULTICALL3_ADDRESS,
     },
     bsc: {
       alchemySubdomain: 'bnb-mainnet',
+      chainId: 56,
       multicall3: MULTICALL3_ADDRESS,
     },
     arbitrum: {
       alchemySubdomain: 'arb-mainnet',
+      chainId: 42161,
       multicall3: MULTICALL3_ADDRESS,
     },
     polygon: {
       alchemySubdomain: 'polygon-mainnet',
+      chainId: 137,
       multicall3: MULTICALL3_ADDRESS,
     },
     optimism: {
       alchemySubdomain: 'opt-mainnet',
+      chainId: 10,
       multicall3: MULTICALL3_ADDRESS,
     },
     unichain: {
       alchemySubdomain: 'unichain-mainnet',
+      chainId: 130,
+      multicall3: MULTICALL3_ADDRESS,
+    },
+    robinhood: {
+      alchemySubdomain: 'robinhood-mainnet',
+      chainId: 4663,
       multicall3: MULTICALL3_ADDRESS,
     },
   };
@@ -72,6 +85,39 @@ export function chainRpcUrl(chain: string, apiKey: string): string | null {
   const transport = EVM_CHAIN_TRANSPORTS[chain];
   if (!transport) return null;
   return `https://${transport.alchemySubdomain}.g.alchemy.com/v2/${apiKey}`;
+}
+
+/**
+ * Fallback-tier timeout (todo 24): every non-Alchemy tier attempt
+ * carries its OWN deadline — a slow tier never hangs the call, the
+ * next tier is tried instead. Alchemy keeps its historical 8s.
+ */
+export const EVM_RPC_TIER_TIMEOUT_MS = 5_000;
+
+/**
+ * Our chain id -> dRPC network slug (todo 24, tier 2).
+ *
+ * Endpoint shape per drpc.org docs:
+ * `https://lb.drpc.live/<network>/<DRPC_API_KEY>`. Slugs here are
+ * the dashboard names — a chain WITHOUT a row is NOT covered by
+ * dRPC (tier skipped silently, never guessed): Robinhood and
+ * Unichain have no verified dRPC slug, so they ride Alchemy +
+ * public only. Key via env `DRPC_API_KEY` (owner creates it; absent
+ * key skips the whole tier with a debug log).
+ */
+export const DRPC_NETWORKS: Readonly<Record<string, string>> = {
+  ethereum: 'ethereum',
+  base: 'base',
+  bsc: 'bsc',
+  arbitrum: 'arbitrum',
+  polygon: 'polygon',
+  optimism: 'optimism',
+};
+
+export function drpcRpcUrl(chain: string, apiKey: string): string | null {
+  const network = DRPC_NETWORKS[chain];
+  if (!network) return null;
+  return `https://lb.drpc.live/${network}/${apiKey}`;
 }
 
 /**

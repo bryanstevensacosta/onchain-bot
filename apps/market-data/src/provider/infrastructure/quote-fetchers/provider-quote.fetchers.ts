@@ -138,6 +138,7 @@ export function buildProviderQuoteFetchers(
       'base',
       'arbitrum',
       'polygon',
+      'robinhood',
     ],
     fetch: async (chain: string, address: string) => {
       const best = await deps.dexscreener.getBestPairSummaryForChain(

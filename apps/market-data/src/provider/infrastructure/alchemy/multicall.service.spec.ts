@@ -87,14 +87,12 @@ describe('MulticallService.tryAggregate (Lane T)', () => {
     ]);
   });
 
-  it('resolves all-false with zero RPC on unsupported chains (robinhood placeholder)', async () => {
-    const ethCall = jest.fn();
-    const res = await service(ethCall).tryAggregate('robinhood', calls);
-    expect(res).toEqual([
-      { ok: false, value: null },
-      { ok: false, value: null },
-    ]);
-    expect(ethCall).not.toHaveBeenCalled();
+  it('routes the robinhood aggregate via its verified Multicall3 row (todo 24)', async () => {
+    const ethCall = jest.fn().mockResolvedValue(successReturn(['0x01']));
+    const res = await service(ethCall).tryAggregate('robinhood', [calls[0]]);
+    expect(res).toEqual([{ ok: true, value: '0x01' }]);
+    expect(ethCall.mock.calls[0][0]).toBe('robinhood');
+    expect(ethCall.mock.calls[0][1]).toBe(MULTICALL3_ADDRESS);
   });
 
   it('resolves [] with zero RPC for empty input', async () => {

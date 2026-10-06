@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **EVM RPC fallback tiers + Robinhood coverage (dexter plan todo 24):**
+  `AlchemyService.rpcCallForChain` now walks fallback tiers per call
+  (first non-null wins, never throws): Alchemy (only when
+  `ALCHEMY_API_KEY` set) → dRPC free (`DRPC_NETWORKS` slugs for
+  ethereum/base/bsc/arbitrum/polygon/optimism via
+  `https://lb.drpc.live/<network>/<key>`, skipped silently without a
+  key — owner creates one at drpc.org) → keyless public RPC
+  (launchpad-table URL) → honest `null`. Per-tier timeouts (Alchemy
+  8s, `EVM_RPC_TIER_TIMEOUT_MS` 5s elsewhere) + `served-by=<tier>`
+  debug log for quota decisions. Coverage: NEW
+  `EVM_CHAIN_TRANSPORTS.robinhood` (`robinhood-mainnet`, chainId
+  4663, Multicall3 verified PRESENT via live `eth_getCode`
+  2026-10-06) + DexScreener slug `robinhood` (live 2026-10-06:
+  `0x968B…5583` resolves to the `uniswap` v4 NYMA/ETH pair, liq
+  ~$6K) + dexscreener fetcher `supportsChains`. Specs: tier order
+  with tier-down mocks, Robinhood NYMA fixture, all-down → null.
+  Legacy mainnet-only `rpcCall` untouched (backend prober contract).
+  Boundary: `STATIC_CHAINS` still lacks robinhood, so chain-qualified
+  snapshots 404 unknown-chain until a catalog todo lands.
+
 - **Direct fast-path wire-up (dexter plan todo 22, serve seam):**
   NEW `snapshot/application/direct-fast-path.service.ts` tries the
   Lane E/S on-chain readers FIRST under a HARD 800ms deadline while

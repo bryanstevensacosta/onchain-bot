@@ -9,8 +9,13 @@ function rpcResult(result: unknown) {
 }
 
 describe('AlchemyService multi-chain transport (Lane T)', () => {
+  const savedDrpcKey = process.env.DRPC_API_KEY;
   beforeEach(() => {
     jest.clearAllMocks();
+    delete process.env.DRPC_API_KEY;
+  });
+  afterAll(() => {
+    if (savedDrpcKey !== undefined) process.env.DRPC_API_KEY = savedDrpcKey;
   });
 
   function service() {
@@ -77,20 +82,30 @@ describe('AlchemyService multi-chain transport (Lane T)', () => {
     expect(config.signal).toBe(controller.signal);
   });
 
-  it('resolves null with zero HTTP on unsupported chains', async () => {
+  it('routes robinhood via its verified row (todo 24)', async () => {
+    mockedAxios.post.mockResolvedValueOnce(rpcResult('0x1234'));
+    const res = await service().getCode('robinhood', '0xabc');
+    expect(res).toBe('0x1234');
+    expect(mockedAxios.post.mock.calls[0][0]).toBe(
+      'https://robinhood-mainnet.g.alchemy.com/v2/test-key',
+    );
+  });
+
+  it('resolves null with zero HTTP on chains no tier covers (solana)', async () => {
     const svc = service();
-    await expect(svc.getCode('robinhood', '0xabc')).resolves.toBeNull();
+    await expect(svc.getCode('solana', '0xabc')).resolves.toBeNull();
     await expect(
-      svc.getTransactionCount('robinhood', '0xabc'),
+      svc.getTransactionCount('solana', '0xabc'),
     ).resolves.toBeNull();
-    await expect(svc.ethCall('robinhood', '0xt', '0xd')).resolves.toBeNull();
+    await expect(svc.ethCall('solana', '0xt', '0xd')).resolves.toBeNull();
     expect(mockedAxios.post).not.toHaveBeenCalled();
   });
 
-  it('resolves null with zero HTTP without an API key', async () => {
+  it('falls to the public tier without an Alchemy key (keyless alchemy skips tier 1)', async () => {
     const keyless = new AlchemyService({ apiKey: '' });
-    await expect(keyless.getCode('base', '0xabc')).resolves.toBeNull();
-    expect(mockedAxios.post).not.toHaveBeenCalled();
+    mockedAxios.post.mockResolvedValueOnce(rpcResult('0x'));
+    await expect(keyless.getCode('base', '0xabc')).resolves.toBe('0x');
+    expect(mockedAxios.post.mock.calls[0][0]).toBe('https://mainnet.base.org');
   });
 
   it('collapses JSON-RPC errors to null (fail-open)', async () => {

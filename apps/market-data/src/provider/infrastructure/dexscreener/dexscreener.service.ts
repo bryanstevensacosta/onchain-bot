@@ -24,9 +24,11 @@ const BASE = 'https://api.dexscreener.com';
  * Verified live 2026-10-04 against
  * `GET /token-pairs/v1/<slug>/0xFf81…8583d6`: every mapped slug
  * answers 200 with a JSON array (14 pairs for `base`, `[]` for the
- * rest — honest empties, never cross-chain). Any chain WITHOUT an
- * entry here resolves `null` WITHOUT touching the network — never a
- * silent cross-chain fallback (e.g. `robinhood`, `unichain`, future
+ * rest — honest empties, never cross-chain). Robinhood verified live
+ * 2026-10-06: `GET /token-pairs/v1/robinhood/0x968B…5583` answers 200
+ * with the `uniswap` v4 NYMA/ETH pair (liq ~$6K) — todo 24. Any chain
+ * WITHOUT an entry here resolves `null` WITHOUT touching the network
+ * — never a silent cross-chain fallback (e.g. `unichain`, future
  * chains). Slugs are DexScreener's, not ours (`bsc`, not `bnb`).
  */
 export const DEXSCREENER_CHAIN_SLUGS: Readonly<Record<string, string>> = {
@@ -36,6 +38,7 @@ export const DEXSCREENER_CHAIN_SLUGS: Readonly<Record<string, string>> = {
   base: 'base',
   arbitrum: 'arbitrum',
   polygon: 'polygon',
+  robinhood: 'robinhood',
 };
 
 /**

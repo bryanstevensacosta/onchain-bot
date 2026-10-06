@@ -10,7 +10,14 @@ import type {
   TransactionReceipt,
   LogEntry,
 } from './alchemy.types';
-import { chainRpcUrl, isChainSupported, type ChainRpc } from './alchemy.chains';
+import {
+  chainRpcUrl,
+  drpcRpcUrl,
+  EVM_RPC_TIER_TIMEOUT_MS,
+  isChainSupported,
+  type ChainRpc,
+} from './alchemy.chains';
+import { EVM_CHAIN_TRANSPORTS as KEYLESS_EVM_TRANSPORTS } from '../../launchpad/domain/launchpad-table';
 
 const BASE = 'https://eth-mainnet.g.alchemy.com/v2';
 
@@ -42,14 +49,21 @@ export class AlchemyService extends DataProviderPort implements ChainRpc {
 
   public readonly apiKey: string;
   private readonly rpcUrl: string;
+  private readonly drpcApiKey: string;
 
   public constructor(@Inject(ALCHEMY_CONFIG) config: AlchemyConfig) {
     super();
     this.apiKey = config.apiKey;
     this.rpcUrl = `${BASE}/${config.apiKey}`;
+    this.drpcApiKey = (process.env.DRPC_API_KEY ?? '').trim();
     if (!config.apiKey) {
       this.logger.warn(
         'ALCHEMY_API_KEY missing — Alchemy provider will return null',
+      );
+    }
+    if (!this.drpcApiKey) {
+      this.logger.debug(
+        'DRPC_API_KEY missing — dRPC tier skipped (owner: create a free key at drpc.org to enable it)',
       );
     }
   }
@@ -108,9 +122,18 @@ export class AlchemyService extends DataProviderPort implements ChainRpc {
   // ─────────────────────────────────────────────
 
   /**
-   * Per-chain JSON-RPC call. Unknown chain ⇒ `null` (never throws);
-   * supports `AbortSignal` so multicall timeouts cancel in-flight
-   * HTTP instead of merely ignoring late winners.
+   * Per-chain JSON-RPC call with fallback tiers (todo 24).
+   *
+   * Order per call, first non-null wins: Alchemy (only when
+   * `ALCHEMY_API_KEY` is set) → dRPC free (only when `DRPC_API_KEY`
+   * is set AND the chain has a verified dRPC slug — otherwise the
+   * tier is skipped silently) → keyless public RPC (launchpad-table
+   * URL, always available) → honest `null`. Unknown chain ⇒ `null`
+   * with zero network (never throws). Every tier carries its own
+   * timeout; the serving tier is debug-logged (`served-by=`) so quota
+   * decisions are made on data. Supports `AbortSignal` so multicall
+   * timeouts cancel in-flight HTTP instead of merely ignoring late
+   * winners.
    */
   public async rpcCallForChain<T>(
     chain: string,
@@ -118,37 +141,66 @@ export class AlchemyService extends DataProviderPort implements ChainRpc {
     params?: unknown[],
     options?: { readonly signal?: AbortSignal },
   ): Promise<T | null> {
-    if (!this.apiKey) return null;
-    const url = chainRpcUrl(chain, this.apiKey);
-    if (url === null) {
-      this.logger.debug(`Alchemy ${method}: unsupported chain ${chain}`);
-      return null;
-    }
-    try {
-      const body: JsonRpcRequest = {
-        jsonrpc: '2.0',
-        id: `alc-${chain}-${Date.now()}`,
-        method,
-        params,
-      };
-      const { data } = await axios.post<JsonRpcResponse<T>>(url, body, {
-        headers: { 'Content-Type': 'application/json' },
-        timeout: 8_000,
-        signal: options?.signal,
-      });
-      if (data.error) {
+    const body: JsonRpcRequest = {
+      jsonrpc: '2.0',
+      id: `alc-${chain}-${Date.now()}`,
+      method,
+      params,
+    };
+    const tiers: ReadonlyArray<{ name: string; url: string | null }> = [
+      {
+        name: 'alchemy',
+        url: this.apiKey ? chainRpcUrl(chain, this.apiKey) : null,
+      },
+      {
+        name: 'drpc',
+        url: this.drpcApiKey ? drpcRpcUrl(chain, this.drpcApiKey) : null,
+      },
+      {
+        name: 'public',
+        url: KEYLESS_EVM_TRANSPORTS[chain]?.rpcUrl ?? null,
+      },
+    ];
+    for (const tier of tiers) {
+      if (tier.url === null) continue;
+      const timeoutMs =
+        tier.name === 'alchemy' ? 8_000 : EVM_RPC_TIER_TIMEOUT_MS;
+      try {
+        const response = await axios.post<JsonRpcResponse<T>>(tier.url, body, {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: timeoutMs,
+          signal: options?.signal,
+        });
+        const data = response?.data;
+        if (!data) {
+          this.logger.debug(
+            `Alchemy ${chain} ${method} [${tier.name}] empty body`,
+          );
+          continue;
+        }
+        if (data.error) {
+          this.logger.debug(
+            `Alchemy ${chain} ${method} [${tier.name}] error [${data.error.code}]: ${data.error.message}`,
+          );
+          continue;
+        }
+        const result = data.result ?? null;
+        if (result !== null) {
+          this.logger.debug(
+            `evm-rpc ${chain} ${method} served-by=${tier.name}`,
+          );
+          return result;
+        }
+      } catch (err) {
         this.logger.debug(
-          `Alchemy ${chain} ${method} error [${data.error.code}]: ${data.error.message}`,
+          `Alchemy ${chain} ${method} [${tier.name}] failed: ${(err as Error).message}`,
         );
-        return null;
       }
-      return data.result ?? null;
-    } catch (err) {
-      this.logger.debug(
-        `Alchemy ${chain} ${method} failed: ${(err as Error).message}`,
-      );
-      return null;
     }
+    if (!isChainSupported(chain)) {
+      this.logger.debug(`Alchemy ${method}: unsupported chain ${chain}`);
+    }
+    return null;
   }
 
   public isChainSupported(chain: string): boolean {
