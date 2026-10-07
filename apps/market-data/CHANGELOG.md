@@ -9,6 +9,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Serve-stale floor, no background refresh (dexter plan todo
+  19b1, SWR without the R):** new `SnapshotHistoryRepository.
+findLatestReady(key, kind, maxAgeMs)` — exact stored-key
+  (`AddressIdVo.key` = `chain:address`) newest-`ready` lookup riding
+  the existing `(key, createdAt)` BTREE (`WHERE key+kind+ready`
+  `ORDER BY createdAt DESC LIMIT 1`; no `(chain,address)` composite
+  migration — that pair is never queried). When the live fan-out
+  fails, `AddressSnapshotService` replays that row with `stale:
+true` + `staleAsOf` (row ISO) + `staleAgeMs`, `status: 'ready'`
+  (no new status value); over-bound rows (> 24h default,
+  `SNAPSHOT_STALE_MAX_AGE_HOURS` override, `resolveStaleMaxAgeMs`
+  pinned) and pendings-only histories answer honest `pending`.
+  Stale replays are never cached (service, edge `CacheInterceptor`,
+  batch `shouldCache`) and never re-persisted — the next request
+  retries providers naturally, and no cron/queue/timer/
+  fire-and-forget exists on the path (stampede + unhandled-
+  rejection classes absent by construction). The trio travels on
+  the compat edge, batch items, and the full `AddressSnapshot`
+  (fresh: explicit `stale: false`, null as-of/age). Specs:
+  newest-ready/pendings-only/over-bound/cross-key isolation/indexed
+  query-shape (both store paths), service replay + no-cache/
+  no-repersist pins, edge + batch stale bypass. No retry/breaker
+  (19b2/19b3 lanes, disjoint files).
+
+- **Single retry with cap + jitter, exactly-one (dexter plan todo 19b2):**
+  per-fetcher wrapper `applySingleRetryFetchers` wired OUTSIDE the
+  outbound gate (policy → retry → gate → aggregate), so each attempt
+  burns from the SAME `outbound:<name>` bucket — worst case 2 × cost
+  per miss per fetcher, no phantom budget. Retries EXACTLY ONCE only
+  on timeout / 429-with-`Retry-After` / 5xx (adapters surface these as
+  `RetryableProviderError`; 404 and everything else stay `null`, never
+  retried); delay `min(Retry-After, 2000ms)` + full jitter
+  (`Retry-After: 120s` waits ~2–4s). Second failure → `null` fail-open
+  (no third attempt; exhausted retries debug-logged for 19b3). Live
+  evidence: GeckoTerminal 429 wall captured 2026-10-07
+  (`.omo/evidence/task-fe-retry.log`). Specs: `fetcher-retry.spec.ts`
+  - `retryable-provider.error.spec.ts` (24 tests: exactly-one,
+    cap-respected, 404-never, jitter statistical decorrelation). No
+    breaker wiring (19b3), no SWR/contract changes (19b1).
+
 - **Robinhood enrichment: pons leg + gecko venue (dexter plan todo 26):**
   Pons origin leg in `LaunchpadDetectorService` (robinhood-scoped,
   keyless single `GET ponsfamily.com/launchpad/<address>`: token title

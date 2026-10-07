@@ -943,3 +943,50 @@ English per `RELEASE-FLOW.md` (P39). Stale knowledge base = failed todo.
     no cron, no periodic scan. Runbook: rising `transient` on canary
     tokens (WIF/SOL) → check `providerErrors`; nonzero `cached` past
     deploy+60s → a writer regressed → check the three sites above.
+
+- Single retry with cap + jitter (dexter plan todo 19b2, NO breaker —
+  that is 19b3): per-fetcher wrapper `applySingleRetryFetchers`
+  (`provider/infrastructure/quote-fetchers/fetcher-retry.ts`), wired in
+  `AddressSnapshotService` OUTSIDE the outbound gate (policy → retry →
+  gate → aggregate). Retries EXACTLY ONCE, ONLY on timeout
+  (`ECONNABORTED`/`ETIMEDOUT`) / 429 WITH a parseable `Retry-After`
+  header / 5xx — surfaced by adapters as `RetryableProviderError`
+  (`provider/domain/retryable-provider.error.ts`); 404 and everything
+  else stay `null` and are NEVER retried. Delay
+  `min(Retry-After, 2000ms)` + full jitter (`capped + random*capped`;
+  `Retry-After: 120s` waits ~2–4s, never 120s). Same-bucket math: every
+  attempt runs the GATED fetch, so one miss costs at most 2 × cost
+  tokens from the SAME `outbound:<name>` bucket (budgets in
+  `provider-outbound-limits.ts` + `provider-descriptor.ts`, unchanged
+  — no phantom budget). Second failure → `null` fail-open (merge
+  byte-identical to a miss; exhausted retries debug-log as the signal
+  19b3 observes). Excluded by design: `solana-rpc` (own
+  primary→public fallback loop, never throws), `ccxt` (opaque lib
+  errors, no axios taxonomy). Evidence: REAL 429 loop captured live
+  2026-10-07 (GeckoTerminal: 5×200 then 35×429 with `retry-after: 0` +
+  JSON error body; our 60/min bucket does NOT mirror their ~5/burst
+  throttle) — `.omo/evidence/task-fe-retry.log`.
+
+- Serve-stale floor, NO background refresh (dexter plan todo 19b1,
+  SWR without the R): when the live fan-out fails,
+  `AddressSnapshotService` replays the newest `ready` history row
+  from `SnapshotHistoryRepository.findLatestReady(key, kind,
+maxAgeMs)` — exact stored-key (`AddressIdVo.key` =
+  `chain:address`, NOT the `snapshot:<chain>:<addr>:<kind>` service
+  cache key) equality + `status='ready'` + `ORDER BY createdAt DESC
+LIMIT 1`, riding the existing `(key, createdAt)` BTREE (no
+  composite migration: `(chain,address)` is never queried).
+  Max-age bound 24h default (`SNAPSHOT_STALE_MAX_AGE_MS`;
+  `SNAPSHOT_STALE_MAX_AGE_HOURS` override, `resolveStaleMaxAgeMs`
+  pinned with default fallback) — over-bound rows and pendings-only
+  histories answer honest `pending`. The replay carries `status:
+'ready'` (no new status value) + `stale: true` + `staleAsOf`
+  (row ISO) + `staleAgeMs` (fresh: explicit `stale: false`, nulls);
+  the trio travels on the compat edge, batch items, and the full
+  snapshot. Stale replays are never cached (service skip, edge
+  `CacheInterceptor` skip, batch `shouldCache` gate) and never
+  re-persisted (the bound window never re-anchors) — the next
+  request retries providers naturally. No cron/queue/setInterval/
+  fire-and-forget exists anywhere on this path (stampede +
+  unhandled-rejection classes absent by construction). No retry
+  (19b2) / breaker (19b3) on this path — disjoint lanes/files.

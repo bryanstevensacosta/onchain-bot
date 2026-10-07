@@ -27,8 +27,8 @@ function snapshot(status: 'pending' | 'ready') {
   };
 }
 
-function makeController(status: 'pending' | 'ready') {
-  const getSnapshot = jest.fn(async () => snapshot(status));
+function makeController(status: 'pending' | 'ready', stale = false) {
+  const getSnapshot = jest.fn(async () => ({ ...snapshot(status), stale }));
   const controller = new AddressesBatchController(
     { getSnapshot } as never,
     new CacheService(new InMemoryCacheAdapter()),
@@ -66,5 +66,17 @@ describe('AddressesBatchController (pending snapshots bypass the batch cache)', 
     await controller.getBatch(BODY);
     await controller.getBatch(BODY);
     expect(getSnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it('re-runs the loader on repeat when the snapshot is a stale replay (never frozen)', async () => {
+    const { controller, getSnapshot } = makeController('ready', true);
+    const first = await controller.getBatch(BODY);
+    const second = await controller.getBatch(BODY);
+    expect(getSnapshot).toHaveBeenCalledTimes(2);
+    expect(first.snapshots[0]).toMatchObject({ status: 'ready', stale: true });
+    expect(second.snapshots[0]).toMatchObject({
+      status: 'ready',
+      stale: true,
+    });
   });
 });

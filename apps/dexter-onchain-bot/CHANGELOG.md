@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Serve-stale pin-through, no background refresh (dexter plan
+  todo 19b1):** the client maps market-data's `stale`/`staleAsOf`/
+  `staleAgeMs` with boundary validators (`toStaleOrFalse` strict
+  `true`, ISO-gated as-of, finite non-negative age; absent fields →
+  fresh-shaped `false`/`null`/`null`, backward compatible) and the
+  pipeline sets the trio on every `ResolvedToken` (explicit `false`
+  on fresh). Stale replays resolve with the bit (identity intact);
+  preview passes the token through untouched (address + echo
+  paths) and `GET /dexter/token` spreads it onto the card, so the
+  frontend badges stale replays instead of rendering dead prices as
+  live. No refresh infra of any kind — the next request retries
+  providers naturally. Specs: client mapping + garbage rejection,
+  pipeline pin-through (stale + fresh), preview token bit,
+  controller spread.
+
 - **Pending-vs-not-found split + 10s market-data timeout (dexter
   plan todo 19a, robust-nulls S):** the pipeline reads
   `MarketDataSnapshot.status` (already end-to-end, no replumbing)

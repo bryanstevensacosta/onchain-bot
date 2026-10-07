@@ -4,6 +4,9 @@ import {
   toFdvAthAtOrNull,
   toFdvAthUsdOrNull,
   toLaunchpadOrNull,
+  toStaleAgeMsOrNull,
+  toStaleAsOfOrNull,
+  toStaleOrFalse,
   toVenueOrNull,
   type MarketDataSnapshot,
 } from '@/scan/infrastructure/market-data/market-data.client';
@@ -264,6 +267,9 @@ export class TokenScanPipeline implements ScanPipeline {
       readonly venue?: unknown;
       readonly fdvAthUsd?: unknown;
       readonly fdvAthAt?: unknown;
+      readonly stale?: unknown;
+      readonly staleAsOf?: unknown;
+      readonly staleAgeMs?: unknown;
     },
     alternatives: ReadonlyArray<TokenAlternative> = [],
   ): ResolvedToken {
@@ -294,6 +300,9 @@ export class TokenScanPipeline implements ScanPipeline {
       venue: toVenueOrNull(snapshot.venue),
       fdvAthUsd: toFdvAthUsdOrNull(snapshot.fdvAthUsd),
       fdvAthAt: toFdvAthAtOrNull(snapshot.fdvAthAt),
+      stale: toStaleOrFalse(snapshot.stale),
+      staleAsOf: toStaleAsOfOrNull(snapshot.staleAsOf),
+      staleAgeMs: toStaleAgeMsOrNull(snapshot.staleAgeMs),
       alternatives,
     };
   }

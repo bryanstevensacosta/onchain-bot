@@ -100,6 +100,17 @@ export interface ResolvedToken {
   readonly fdvAthUsd?: number | null;
   readonly fdvAthAt?: string | null;
   /**
+   * Serve-stale marker (dexter plan todo 19b1): `true` ONLY when
+   * market-data replayed its newest ready row (live fan-out failed).
+   * Always set by the pipeline (explicit `false` on fresh) so the
+   * bit is spec-assertable at every boundary; optional only so older
+   * literals keep compiling. `staleAsOf` (history-row ISO) +
+   * `staleAgeMs` (>= 0) ride with it, both `null` on fresh.
+   */
+  readonly stale?: boolean | null;
+  readonly staleAsOf?: string | null;
+  readonly staleAgeMs?: number | null;
+  /**
    * Other chains where the same address resolved (dexter best-pick,
    * plan todo 17): present (possibly empty) on bare-sweep resolutions,
    * absent on explicit `chain:address` resolutions. The renderer

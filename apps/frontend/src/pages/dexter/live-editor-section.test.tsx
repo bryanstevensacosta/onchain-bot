@@ -294,6 +294,38 @@ describe('LiveEditorSection', () => {
     expect(previewMock()).not.toHaveBeenCalled();
   });
 
+  it('badges a stale replay with its age on the live result', async () => {
+    const mutateAsync = vi.fn().mockResolvedValue({
+      ...LOAD_OUTPUT,
+      token: {
+        ...TOKEN,
+        stale: true,
+        staleAsOf: '2026-10-06T12:00:00.000Z',
+        staleAgeMs: 50 * 60 * 60 * 1000,
+      },
+    });
+    hookMock().mockReturnValue(idleHook(mutateAsync));
+    renderEditor();
+    loadAddress();
+    await act(async () => {});
+
+    const result = screen.getByTestId('dexter-live-result');
+    expect(result).toHaveTextContent('BONK');
+    const badge = screen.getByTestId('dexter-live-stale-data');
+    expect(badge).toHaveTextContent('Stale data from 2d ago');
+  });
+
+  it('shows no stale badge on a fresh live result', async () => {
+    const mutateAsync = vi.fn().mockResolvedValue(LOAD_OUTPUT);
+    hookMock().mockReturnValue(idleHook(mutateAsync));
+    renderEditor();
+    loadAddress();
+    await act(async () => {});
+
+    expect(screen.getByTestId('dexter-live-result')).toBeInTheDocument();
+    expect(screen.queryByTestId('dexter-live-stale-data')).toBeNull();
+  });
+
   it('shows the pending copy when the address resolves to a pending shell', async () => {
     const mutateAsync = vi.fn().mockResolvedValue({
       error: 'Token pending — retry shortly',

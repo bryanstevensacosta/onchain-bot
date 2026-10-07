@@ -608,3 +608,20 @@ eth` — chain slugs as resolved, comma-space joined; `""` when ≤1
 pending for … — retry shortly`). `MARKET_DATA_TIMEOUT_MS` default
   is 10s (cold fan-out ~2s, Telegram tolerates ~60s — the old 2s
   truncated cold scans into `not-found`).
+
+- Serve-stale pin-through, no background refresh (plan todo 19b1):
+  market-data replays its newest ready row (24h bound) with
+  `stale: true` + `staleAsOf` + `staleAgeMs` when its fan-out fails;
+  the client validates the trio at the boundary (strict `true`,
+  ISO-gated as-of, finite non-negative age; absent → fresh-shaped
+  `false`/`null`/`null`) and the pipeline sets it on every
+  `ResolvedToken` (explicit `false` on fresh — never `undefined`).
+  `hasIdentity` resolution is untouched (stale rows carry identity,
+  so they resolve); `resolve()` returns the stale token on the bot
+  path unchanged. Preview passes the token through (address path +
+  token-echo path — no use-case logic change); `GET /dexter/token`
+  spreads it onto the card. Freshness honesty rides the bit alone:
+  frontend badges stale replays (`Stale data from X ago`, preview +
+  live editor) and never renders them as live. No refresh infra of
+  any kind on this path (no cron/queue/timer/fire-and-forget) —
+  the next request retries providers naturally.

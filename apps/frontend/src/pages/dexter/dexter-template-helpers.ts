@@ -68,6 +68,32 @@ export function extractDexterErrorBody(err: unknown): ExtractedError {
 }
 
 /**
+ * Format a stale replay age for the disclosure badge (dexter plan
+ * todo 19b1): `staleAgeMs` → `just now` / `Xm ago` / `Xh ago` /
+ * `Xd ago`. Non-finite/negative/null ages fall back to `staleAsOf`
+ * (ISO date part) and then to `some time ago` — the badge always
+ * renders copy, never a raw number. English (dexter page convention).
+ */
+export function formatStaleAge(
+  staleAgeMs: number | null | undefined,
+  staleAsOf?: string | null,
+): string {
+  if (typeof staleAgeMs === 'number' && Number.isFinite(staleAgeMs)) {
+    const age = Math.max(0, Math.floor(staleAgeMs));
+    if (age < 60_000) return 'just now';
+    const minutes = Math.floor(age / 60_000);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 48) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
+  }
+  if (typeof staleAsOf === 'string' && staleAsOf.length >= 10) {
+    return `on ${staleAsOf.slice(0, 10)}`;
+  }
+  return 'some time ago';
+}
+
+/**
  * Map a mutation failure to an English operator message. 409 (duplicate /
  * active / last) and 400 (unknown placeholder + `valid` list, immutable
  * command, XOR, timeframe) get distinct messages; anything else falls

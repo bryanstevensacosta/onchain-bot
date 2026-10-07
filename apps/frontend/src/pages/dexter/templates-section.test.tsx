@@ -281,6 +281,60 @@ describe('DexterPage template management (Lane B)', () => {
     expect(result.querySelector('strong')).toHaveTextContent('BONK');
   });
 
+  it('badges a stale replay with its age, never as live data', () => {
+    mockAllHappy();
+    vi.mocked(dexter.usePreviewTemplate).mockReturnValue(
+      idleMutation({
+        data: {
+          text: '*WIF* | dogwifhat',
+          truncated: false,
+          parseMode: 'MarkdownV2',
+          placeholdersUsed: ['symbol'],
+          unknown: [],
+          token: {
+            address: 'So1111',
+            chain: 'solana',
+            symbol: 'WIF',
+            stale: true,
+            staleAsOf: '2026-10-06T12:00:00.000Z',
+            staleAgeMs: 3 * 60 * 60 * 1000,
+          },
+        },
+      }) as unknown as ReturnType<typeof dexter.usePreviewTemplate>,
+    );
+    renderPage();
+    const result = screen.getByTestId('dexter-preview-result');
+    expect(result).toHaveTextContent('WIF');
+    const badge = screen.getByTestId('dexter-preview-stale');
+    expect(badge).toHaveTextContent('Stale data from 3h ago');
+  });
+
+  it('shows no stale badge on a fresh preview (stale:false, absent trio)', () => {
+    mockAllHappy();
+    vi.mocked(dexter.usePreviewTemplate).mockReturnValue(
+      idleMutation({
+        data: {
+          text: '*WIF* | dogwifhat',
+          truncated: false,
+          parseMode: 'MarkdownV2',
+          placeholdersUsed: ['symbol'],
+          unknown: [],
+          token: {
+            address: 'So1111',
+            chain: 'solana',
+            symbol: 'WIF',
+            stale: false,
+            staleAsOf: null,
+            staleAgeMs: null,
+          },
+        },
+      }) as unknown as ReturnType<typeof dexter.usePreviewTemplate>,
+    );
+    renderPage();
+    expect(screen.getByTestId('dexter-preview-result')).toBeInTheDocument();
+    expect(screen.queryByTestId('dexter-preview-stale')).toBeNull();
+  });
+
   it('shows the unresolved preview state with candidates', () => {
     mockAllHappy();
     vi.mocked(dexter.usePreviewTemplate).mockReturnValue(

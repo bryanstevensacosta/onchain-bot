@@ -22,8 +22,8 @@
  * cost ~20 CU each. Existence-check-first (2 × 20 CU) gates the
  * aggregate: a dead address costs 40 CU, never a full fan-out.
  * Quota owner: whoever holds `ALCHEMY_API_KEY` (see `.env.example`);
- * 429/over-quota collapses to null here, retry/backoff lives in the
- * aggregator (todo 19b), not in this transport.
+ *   429/over-quota collapses to null here; retry/backoff lives in the
+ *   per-fetcher single-retry wrapper (todo 19b2), not in this transport.
  */
 export const MULTICALL3_ADDRESS = '0xcA11bde05977b3631167028862bE2a173976CA11';
 

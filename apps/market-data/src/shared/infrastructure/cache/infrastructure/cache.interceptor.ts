@@ -22,6 +22,11 @@ const DEFAULT_TTL_SECONDS = 30;
  * NEVER written — caching a pending shell freezes a transient miss
  * for the full TTL (P12: `x-cache: HIT`, zero provider traffic).
  * Ready bodies are cached exactly as before.
+ * Serve-stale (dexter plan todo 19b1): bodies with `stale: true`
+ * are NEVER written either — a stale body replays history, and
+ * caching the replay would delay the natural provider retry that
+ * the next request must perform. Fresh (`stale: false`) ready
+ * bodies cache exactly as before.
  */
 @Injectable()
 export class CacheInterceptor implements NestInterceptor {
@@ -62,7 +67,7 @@ export class CacheInterceptor implements NestInterceptor {
           response.statusCode >= 200 &&
           response.statusCode < 300 &&
           body !== undefined &&
-          !isPendingBody(body)
+          !isNonCacheableBody(body)
         ) {
           void this.cache.set(key, body, ttl);
         }
@@ -73,15 +78,17 @@ export class CacheInterceptor implements NestInterceptor {
 }
 
 /**
- * Pending-shell guard: a market-data snapshot (or batch item) whose
- * `status` is `'pending'` carries zero provider data — writing it
- * would serve a transient miss as a hit for the whole TTL.
+ * Pending-shell + stale-replay guard: a market-data snapshot (or
+ * batch item) whose `status` is `'pending'` carries zero provider
+ * data, and one whose `stale` is `true` replays history — writing
+ * either would serve a transient miss (or a frozen replay) as a hit
+ * for the whole TTL instead of retrying providers next request.
  */
-function isPendingBody(body: unknown): boolean {
+function isNonCacheableBody(body: unknown): boolean {
   if (typeof body !== 'object' || body === null) {
     return false;
   }
   const record = body as Record<string, unknown>;
-  const status: unknown = record['status'];
-  return status === 'pending';
+  if (record['status'] === 'pending') return true;
+  return record['stale'] === true;
 }

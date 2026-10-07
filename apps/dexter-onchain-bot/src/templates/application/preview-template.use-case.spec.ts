@@ -357,6 +357,34 @@ describe('PreviewTemplateUseCase (todo 7 dry-run preview)', () => {
     });
   });
 
+  it('stale resolution carries the bit on the preview token (honesty rides the bit)', async () => {
+    const staleToken: ResolvedToken = {
+      ...TOKEN,
+      stale: true,
+      staleAsOf: '2026-10-06T12:00:00.000Z',
+      staleAgeMs: 3_600_000,
+    };
+    const { useCase } = await setup({
+      resolveDetailed: jest.fn(
+        async (address: string): Promise<ResolveOutcome> => ({
+          status: 'resolved',
+          token: { ...staleToken, address },
+        }),
+      ),
+    });
+    const output = await useCase.execute({
+      draft: { command: 'ca', bodyMarkdown: BODY },
+      address: SOL_ADDRESS,
+    });
+    expect(isResult(output)).toBe(true);
+    if (!isResult(output)) {
+      throw new Error('expected a rendered result');
+    }
+    expect(output.token.stale).toBe(true);
+    expect(output.token.staleAsOf).toBe('2026-10-06T12:00:00.000Z');
+    expect(output.token.staleAgeMs).toBe(3_600_000);
+  });
+
   it('token snapshot renders identical text to the address path (pipeline skipped)', async () => {
     const { useCase, pipeline } = await setup();
     const spy = (pipeline as { resolveDetailed: jest.Mock }).resolveDetailed;

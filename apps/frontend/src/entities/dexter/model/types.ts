@@ -67,6 +67,16 @@ export interface ResolvedTokenSnapshot {
   readonly address: string;
   readonly chain: string;
   readonly symbol: string;
+  /**
+   * Serve-stale marker (dexter plan todo 19b1): `true` ONLY when the
+   * backend replayed history (market-data fan-out failed) — dead
+   * prices must never render as live, so the UI badges them.
+   */
+  readonly stale?: boolean | null;
+  /** History-row ISO the stale replay was served from (`null` fresh). */
+  readonly staleAsOf?: string | null;
+  /** Serve-time age of the replay in ms (`null` fresh). */
+  readonly staleAgeMs?: number | null;
   readonly name?: string | null;
   readonly marketCapUsd?: number | null;
   readonly fdvUsd?: number | null;

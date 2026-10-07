@@ -26,6 +26,12 @@ import { RequireScope } from 'auth/application/require-scope.decorator';
  * the snapshot service — never a silent null to the client). Edge
  * policies mirror `AddressesController` (P43): global x-api-key auth,
  * 60/min rate-limit, 30s cache (the SLO layer for p95<500ms).
+ *
+ * Serve-stale (dexter plan todo 19b1): `stale`/`staleAsOf`/
+ * `staleAgeMs` travel verbatim — `stale: true` means the body replays
+ * the newest ready history row (fan-out failed); the edge NEVER
+ * caches such bodies (`CacheInterceptor` skips them like pendings),
+ * so the next request retries providers.
  */
 @UseGuards(GatewayRateLimitGuard)
 @UseInterceptors(CacheInterceptor)
@@ -73,6 +79,9 @@ export class MarketDataSnapshotController {
       fdvAthUsd: snap.fdvAth?.fdvUsd ?? null,
       fdvAthAt: snap.fdvAth?.at ?? null,
       status: snap.status,
+      stale: snap.stale,
+      staleAsOf: snap.staleAsOf,
+      staleAgeMs: snap.staleAgeMs,
       providers: snap.providers,
       sources: snap.sources,
       providerErrors: snap.providerErrors,

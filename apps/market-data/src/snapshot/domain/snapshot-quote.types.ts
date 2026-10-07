@@ -108,3 +108,31 @@ export const SNAPSHOT_PROVIDER_TIMEOUT_MS = 8_000;
 
 /** Hot-result cache TTL in seconds (mirrors the 30s edge cache). */
 export const SNAPSHOT_CACHE_TTL_SECONDS = 30;
+
+/**
+ * Serve-stale max age in hours (dexter plan todo 19b1, SWR floor).
+ *
+ * A `ready` history row older than this is NOT served stale — the
+ * caller gets an honest `pending`/`null` instead of a dead price.
+ * Pinned number, not a placeholder: 24h keeps a token's last-known
+ * card across a full provider outage day while bounding drift.
+ * Override via `SNAPSHOT_STALE_MAX_AGE_HOURS` (non-finite/<=0 values
+ * fall back to this default).
+ */
+export const SNAPSHOT_STALE_MAX_AGE_HOURS = 24;
+
+/** Serve-stale max age in milliseconds (derived from the hours bound). */
+export const SNAPSHOT_STALE_MAX_AGE_MS =
+  SNAPSHOT_STALE_MAX_AGE_HOURS * 60 * 60 * 1000;
+
+/**
+ * Resolve the serve-stale bound from an env string (hours) with the
+ * pinned default as fallback. Pure (spec-pinned): unset/blank/
+ * non-numeric/<=0 → default.
+ */
+export function resolveStaleMaxAgeMs(raw: string | undefined): number {
+  if (raw === undefined) return SNAPSHOT_STALE_MAX_AGE_MS;
+  const hours = Number((raw ?? '').trim());
+  if (!Number.isFinite(hours) || hours <= 0) return SNAPSHOT_STALE_MAX_AGE_MS;
+  return hours * 60 * 60 * 1000;
+}

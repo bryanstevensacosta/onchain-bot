@@ -108,6 +108,23 @@ describe('DexterController bare-address lookup (explicit errors, no silent guess
     expect(body['error']).not.toBe('Token not found');
   });
 
+  it('spreads the stale bit onto a resolved card (no silent fresh)', async () => {
+    const controller = makeController({
+      status: 'resolved',
+      token: {
+        ...TOKEN,
+        stale: true,
+        staleAsOf: '2026-10-06T12:00:00.000Z',
+        staleAgeMs: 3_600_000,
+      },
+    });
+    const body = (await controller.getToken(SOL)) as Record<string, unknown>;
+    expect(body['stale']).toBe(true);
+    expect(body['staleAsOf']).toBe('2026-10-06T12:00:00.000Z');
+    expect(body['staleAgeMs']).toBe(3_600_000);
+    expect(body['text']).toBe('CARD');
+  });
+
   it('keeps requiring the address param', async () => {
     const controller = makeController({ status: 'not-found', address: '' });
     const body = (await controller.getToken('')) as Record<string, unknown>;

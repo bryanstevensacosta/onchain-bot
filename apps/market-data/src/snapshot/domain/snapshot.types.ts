@@ -29,6 +29,28 @@ export interface AddressSnapshot extends SnapshotQuote {
   readonly kind: AddressKind;
   readonly key: string;
   readonly status: 'pending' | 'ready';
+  /**
+   * Serve-stale marker (dexter plan todo 19b1, SWR floor): `true`
+   * ONLY when this snapshot replays the newest `ready` history row
+   * because the live fan-out failed — the prices may be dead. Fresh
+   * snapshots carry `false` explicitly (spec-asserted at every
+   * boundary; never `undefined`). `status` stays in
+   * `{pending,ready}` (no new status value): stale rows answer
+   * `ready` + this bit, so downstream `hasIdentity` resolution is
+   * untouched and honesty rides on the bit alone.
+   */
+  readonly stale: boolean;
+  /**
+   * ISO timestamp of the history row replayed (`createdAt`), `null`
+   * on fresh snapshots. Renders as "data from X ago" downstream.
+   */
+  readonly staleAsOf: string | null;
+  /**
+   * `Date.now() - staleAsOf` in ms at serve time, `null` on fresh
+   * snapshots. Always `<= SNAPSHOT_STALE_MAX_AGE_MS` when `stale`
+   * is true (over-bound rows answer honest `pending`, never stale).
+   */
+  readonly staleAgeMs: number | null;
   /** Registry id from `asset_registry` (contract+chain), null when unregistered. */
   readonly assetId: string | null;
   /**

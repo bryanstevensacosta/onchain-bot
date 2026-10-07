@@ -12,6 +12,7 @@ import {
   DEXTER_TIMEFRAMES,
   TIMEFRAME_COMMANDS,
   englishMutationError,
+  formatStaleAge,
 } from './dexter-template-helpers';
 
 type PreviewMode = 'active' | 'id' | 'draft';
@@ -239,6 +240,13 @@ export function PreviewSection({
             <RenderMarkdownV2 body={result.text} />
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            {result.token?.stale === true && (
+              <span data-testid="dexter-preview-stale">
+                <Badge tone="yellow">
+                  {`Stale data from ${formatStaleAge(result.token.staleAgeMs, result.token.staleAsOf)}`}
+                </Badge>
+              </span>
+            )}
             {result.truncated && <Badge tone="yellow">truncated</Badge>}
             {result.placeholdersUsed.map((key) => (
               <Badge key={key} tone="blue">

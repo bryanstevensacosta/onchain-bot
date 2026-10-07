@@ -17,6 +17,7 @@ import { RenderMarkdownV2 } from '@/shared/lib/render-markdown-v2';
 import {
   DEXTER_COMMANDS,
   englishMutationError,
+  formatStaleAge,
 } from './dexter-template-helpers';
 
 /** Keystroke idle time before re-rendering from the frozen snapshot. */
@@ -401,6 +402,13 @@ export function LiveEditorSection() {
               data-testid="dexter-live-placeholders"
               className="flex flex-wrap items-center gap-2"
             >
+              {liveResult.token?.stale === true && (
+                <span data-testid="dexter-live-stale-data">
+                  <Badge tone="yellow">
+                    {`Stale data from ${formatStaleAge(liveResult.token.staleAgeMs, liveResult.token.staleAsOf)}`}
+                  </Badge>
+                </span>
+              )}
               {liveResult.truncated && (
                 <span data-testid="dexter-live-truncated">
                   <Badge tone="yellow">truncated</Badge>

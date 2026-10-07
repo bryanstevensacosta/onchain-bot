@@ -105,6 +105,28 @@ export function toFdvAthAtOrNull(raw: unknown): string | null {
   return Number.isNaN(Date.parse(raw)) ? null : raw;
 }
 
+/**
+ * Serve-stale trio (dexter plan todo 19b1): `stale` is `true` ONLY
+ * when market-data replayed history (fan-out failed) — anything but
+ * boolean `true` reads `false`, so older market-data answers
+ * (field absent) stay fresh-shaped. `staleAsOf` reuses the ISO rule;
+ * `staleAgeMs` must be a finite number >= 0, else `null`.
+ */
+export function toStaleOrFalse(raw: unknown): boolean {
+  return raw === true;
+}
+
+export function toStaleAsOfOrNull(raw: unknown): string | null {
+  if (typeof raw !== 'string' || raw === '') return null;
+  return Number.isNaN(Date.parse(raw)) ? null : raw;
+}
+
+export function toStaleAgeMsOrNull(raw: unknown): number | null {
+  return typeof raw === 'number' && Number.isFinite(raw) && raw >= 0
+    ? raw
+    : null;
+}
+
 export interface MarketDataSnapshot {
   readonly chain: string;
   readonly address: string;
@@ -126,6 +148,9 @@ export interface MarketDataSnapshot {
   readonly devWallets: ReadonlyArray<DevWalletSnapshot> | null;
   readonly devPctSupply: number | null;
   readonly status: string | null;
+  readonly stale?: boolean | null;
+  readonly staleAsOf?: string | null;
+  readonly staleAgeMs?: number | null;
   readonly launchpad?: MarketDataLaunchpad | null;
   readonly venue?: MarketDataVenue | null;
   readonly fdvAthUsd?: number | null;
@@ -199,6 +224,9 @@ export class MarketDataClient {
         devPctSupply:
           typeof body.devPctSupply === 'number' ? body.devPctSupply : null,
         status: body.status ?? null,
+        stale: toStaleOrFalse(body.stale),
+        staleAsOf: toStaleAsOfOrNull(body.staleAsOf),
+        staleAgeMs: toStaleAgeMsOrNull(body.staleAgeMs),
         launchpad: toLaunchpadOrNull(body.launchpad),
         venue: toVenueOrNull(body.venue),
         fdvAthUsd: toFdvAthUsdOrNull(body.fdvAthUsd),

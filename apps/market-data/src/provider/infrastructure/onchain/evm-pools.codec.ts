@@ -63,7 +63,8 @@
  *   That decision is documented here so it cannot be silently inherited.
  * - Quota owner: whoever holds `ALCHEMY_API_KEY` (see `.env.example`).
  *   429/over-quota collapses to `null` in the transport; retry/backoff
- *   lives in the aggregator (todo 19b), never in these decoders.
+ *   lives in the per-fetcher single-retry wrapper (todo 19b2), never
+ *   in these decoders.
  */
 
 const strip0x = (hex: string): string =>

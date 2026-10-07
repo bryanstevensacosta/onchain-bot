@@ -6,6 +6,19 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ### Added
 
+- **Stale-data disclosure badge (dexter plan todo 19b1):**
+  `ResolvedTokenSnapshot` gains the serve-stale trio (`stale?`/
+  `staleAsOf?`/`staleAgeMs?`, all optional — backend always sets
+  them, older shapes stay fresh). `PreviewSection`
+  (`dexter-preview-stale`) + `LiveEditorSection`
+  (`dexter-live-stale-data`, distinct from the existing
+  `dexter-live-stale` frozen-snapshot reload hint) badge stale
+  replays `Stale data from X ago` via `formatStaleAge`
+  (`dexter-template-helpers.ts`: `just now`/`Xm`/`Xh`/`Xd` rungs,
+  as-of-date/generic fallbacks, English per dexter page
+  convention). Fresh previews render no badge. Tests: helper unit
+  spec + both section specs (badge + no-badge cases).
+
 - Dexter template-management data layer (Wave 1 Lane A, no UI yet):
   new `entities/dexter/` slice (`model/types.ts`:
   `MessageTemplateView`/`DisplayMapView`/`PlaceholdersView`/

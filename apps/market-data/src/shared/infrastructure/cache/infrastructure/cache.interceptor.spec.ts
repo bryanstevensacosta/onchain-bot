@@ -64,6 +64,38 @@ describe('CacheInterceptor (pending bodies bypass the edge cache)', () => {
     expect(response.setHeader).toHaveBeenCalledWith('x-cache', 'MISS');
   });
 
+  it('serves a stale replay through WITHOUT writing (next request retries providers)', async () => {
+    const cache = {
+      get: jest.fn(async () => null),
+      set: jest.fn(async () => undefined),
+    };
+    const { interceptor, response } = makeInterceptor(cache);
+    const body = { status: 'ready', stale: true, priceUsd: 1.5 };
+    const out = await lastValueFrom(
+      await interceptor.intercept(contextFor(response), {
+        handle: () => of(body),
+      } as never),
+    );
+    expect(out).toEqual(body);
+    expect(cache.set).not.toHaveBeenCalled();
+    expect(response.setHeader).toHaveBeenCalledWith('x-cache', 'MISS');
+  });
+
+  it('keeps caching fresh ready bodies carrying stale:false', async () => {
+    const cache = {
+      get: jest.fn(async () => null),
+      set: jest.fn(async () => undefined),
+    };
+    const { interceptor, response } = makeInterceptor(cache);
+    const body = { status: 'ready', stale: false, priceUsd: 1.5 };
+    await lastValueFrom(
+      await interceptor.intercept(contextFor(response), {
+        handle: () => of(body),
+      } as never),
+    );
+    expect(cache.set).toHaveBeenCalledTimes(1);
+  });
+
   it('serves an edge HIT without touching the handler', async () => {
     const cached = { status: 'ready', priceUsd: 9 };
     const cache = {

@@ -21,6 +21,7 @@ import {
   SNAPSHOT_QUOTE_PROVIDERS,
   SNAPSHOT_QUOTE_FIELDS,
   emptySnapshotQuote,
+  resolveStaleMaxAgeMs,
   type QuoteFetcher,
   type SnapshotQuote,
 } from '../domain/snapshot-quote.types';
@@ -43,6 +44,7 @@ import {
   SnapshotNullMetricsService,
 } from './snapshot-null-metrics.service';
 import { applyOutboundRateLimit } from 'provider/infrastructure/quote-fetchers/rate-limited-fetchers';
+import { applySingleRetryFetchers } from 'provider/infrastructure/quote-fetchers/fetcher-retry';
 import { DevHoldingsPort } from '../../holders/domain/holdings.port';
 import { AssetResolverService } from 'asset-registry/application/asset-resolver.service';
 import {
@@ -79,6 +81,15 @@ const roundMs = (ms: number | null): string =>
 @Injectable()
 export class AddressSnapshotService {
   private readonly logger = new Logger(AddressSnapshotService.name);
+  /**
+   * Serve-stale bound (dexter plan todo 19b1): ready rows older than
+   * this never replay. Env `SNAPSHOT_STALE_MAX_AGE_HOURS`, default
+   * 24h (`SNAPSHOT_STALE_MAX_AGE_MS`). Read once at construction —
+   * no per-request config lookup on the hot path.
+   */
+  private readonly staleMaxAgeMs: number = resolveStaleMaxAgeMs(
+    process.env['SNAPSHOT_STALE_MAX_AGE_HOURS'],
+  );
 
   public constructor(
     private readonly catalog: ChainCatalogPort,
@@ -267,6 +278,13 @@ export class AddressSnapshotService {
       (name: string) =>
         resolveProviderOutboundBudget(this.providers.listProviders(), name),
     );
+    // Single retry OUTSIDE the gate (dexter plan todo 19b2): each attempt
+    // runs the GATED fetch, so the retry burns from the SAME
+    // `outbound:<name>` bucket — worst case 2 x cost per miss per
+    // fetcher, never a phantom budget. Sibling 19b1 (stale floor
+    // below) untouched: stale serves only when the fanned-out result
+    // below is pending, retry or not.
+    const retried = applySingleRetryFetchers(gated);
     // Direct fast-path FIRST (todo 22 wire-up): the fan-out starts
     // IMMEDIATELY and the on-chain readers race a HARD deadline
     // against it. Sane direct values serve at direct speed while the
@@ -275,7 +293,7 @@ export class AddressSnapshotService {
     // timeout, insane values) awaits the already-running fan-out —
     // the fallback path below is byte-identical and pays ~zero
     // direct penalty when the miss is fast (instant-null coverage).
-    const fanoutP = this.aggregator.aggregate(known.id, input.value, gated);
+    const fanoutP = this.aggregator.aggregate(known.id, input.value, retried);
     const fastStartedAt = performance.now();
     const fast =
       this.fastPath === null
@@ -442,12 +460,56 @@ export class AddressSnapshotService {
         devPctSupply = null;
       }
     }
+    // Serve-stale floor (dexter plan todo 19b1, NO background
+    // refresh by design): the request that finds providers down
+    // replays the newest ready history row WITH the stale bit; the
+    // NEXT request retries providers naturally (stale is never
+    // cached, never re-persisted — see below). No cron/queue/timer/
+    // fire-and-forget exists on this path, so the stampede and
+    // unhandled-rejection classes are absent by construction.
+    if (outcome.allFailed && devWallets === null) {
+      const staleRow = await this.history.findLatestReady(
+        id.key,
+        kind,
+        this.staleMaxAgeMs,
+      );
+      if (staleRow !== null) {
+        return {
+          chain: id.chain,
+          address: id.address,
+          kind: id.kind,
+          key: id.key,
+          status: 'ready',
+          stale: true,
+          staleAsOf: staleRow.createdAt,
+          staleAgeMs: Date.now() - Date.parse(staleRow.createdAt),
+          assetId: await this.resolveAssetId(
+            knownId,
+            inputValue,
+            staleRow.quote,
+          ),
+          launchpad,
+          venue,
+          fdvAth,
+          providers: supporting,
+          sources: [...staleRow.sources],
+          providerErrors,
+          ...emptySnapshotQuote(),
+          ...staleRow.quote,
+          devWallets: staleRow.quote.devWallets ?? null,
+          devPctSupply: staleRow.quote.devPctSupply ?? null,
+        };
+      }
+    }
     const snapshot: AddressSnapshot = {
       chain: id.chain,
       address: id.address,
       kind: id.kind,
       key: id.key,
       status: outcome.allFailed && devWallets === null ? 'pending' : 'ready',
+      stale: false,
+      staleAsOf: null,
+      staleAgeMs: null,
       assetId: await this.resolveAssetId(knownId, inputValue, outcome.quote),
       launchpad,
       venue,
@@ -481,7 +543,10 @@ export class AddressSnapshotService {
       // The store honors any TTL (`CachePort.set` takes `ttlSeconds`,
       // in-memory applies it verbatim), so skip-write needs no
       // short-TTL fallback. History still persists pending rows (19b
-      // SWR + fdvAth read them).
+      // SWR + fdvAth read them). Stale-served snapshots never reach
+      // this line (early return above: no re-persist, no cache write
+      // — the bound window never re-anchors and the next request
+      // retries providers).
       await this.cache.set(cacheKey, snapshot, SNAPSHOT_CACHE_TTL_SECONDS);
     }
     if (snapshot.status === 'pending') {

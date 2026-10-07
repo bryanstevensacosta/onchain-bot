@@ -168,13 +168,33 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartAddressL
       Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes en AMBOS apps; P12-repeat re-toca providers; pending distinguible por API en 3 superficies; QA live opcional.
       QA scenarios: happy + failure (429→null existente intacto). Evidence .omo/evidence/task-fe-robust-nulls-a.log
       Commit: Y | fix(market-data-nulls): no-negative-cache + split pendiente (docs AGENTS+CHANGELOG)
-- [ ] 19b. Nulos robustos M: SWR + retry-jitter + breaker half-open (Wave 1 follow-up, SOLO tras 19a verde)
-      What to do / Must NOT do: Stale-while-revalidate desde historial: NUEVA query `findLatestReady(chain,address)` (la actual solo tiene `listRecent(50)`/`findFdvAth`/`count` — insuficiente) + filtro `status='ready'` obligatorio (el historial PERSISTE pendings) + contrato `stale:true` en la respuesta + bound de staleness documentado. Retry con jitter honrando `Retry-After` (ubicacion: wrapper de fetcher, no agregador). Breaker: cool-offullo en el registry donde vive el contador hoy ciego (`provider-registry.service.ts:73-79`) o cablear el `CircuitBreakerService` existente bajo `shared/` (decision documentada, una sola). Specs por mecanismo (SWR-ready/filter/stale-bound, retry-jitter, breaker abre/cierra). Docs: AGENTS + CHANGELOG. NO reabrir 19a; si algo de 19a cruje, fix-forward separado.
-      Parallelization: Wave 1 follow-up (1 worker) | Blocked by: 19a verde | Blocks: —
-      References: `snapshot-history.repository.ts:65-134` (lo que hay), `snapshot-aggregator.service.ts:60-69` (sin loop hoy), notepad §7.
-      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes en AMBOS apps; SWR sirve ready-stale con bit visible; breaker abre/cierra en specs.
-      QA scenarios: happy + failure (sin ready → null honesto, cool-off respeta Retry-After). Evidence .omo/evidence/task-fe-robust-nulls-b.log
-      Commit: Y | feat(market-data-nulls): swr + retry + breaker (docs AGENTS+CHANGELOG)
+- [x] 19b1. SWR-serve-stale + contrato stale end-to-end (sin refresh en background)
+      What to do / Must NOT do: NUEVA query `findLatestReady` por `key` EXACTA (`key = snapshot:<chain>:<addr>:<kind>` determinista via `AddressIdVo`, aprovecha indice existente `(key,createdAt)` — jamas scan por `(chain,address)` salvo que el mismo commit traiga migracion de indice compuesto, prohibido sin ella). Filtro `status='ready'` obligatorio + bound de staleness documentado (ready mas viejo que X → `null` honesto; X en config con default, p. ej. 24h — numero pineado, no placeholder). Servir stale SIN refresh en background (sin cron/queue/setInterval/fire-and-forget: el refresh ocurre natural en el proximo request; nada de stampedes que disenar). Bit `stale:true` + `staleAsOf/age` pineado end-to-end (snapshot → dexter client → ResolvedToken → preview → tipos frontend + disclosure UI minima: badge/copy "datos de hace X" — el renderer sin bit miente precios muertos como vivos, prohibido). Filtro ready excluye pendings persistidos. Docs: AGENTS + CHANGELOG.
+      Parallelization: solo | Blocked by: 19a verde | Blocks: —
+      References: `snapshot-history.repository.ts` (solo `listRecent/count/findFdvAth/deleteOlderThan` hoy), `snapshot-history.entity.ts:27-29` (indices existentes), `AddressIdVo` (key determinista), `MarketDataSnapshot`/port/frontend types (capas a extender con `stale`).
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes en AMBOS apps; stale servido con bit visible + bound respetado; sin ready → null honesto.
+      QA scenarios: happy (stale+bit) + failure (solo-pendings→null, over-bound→null). Evidence .omo/evidence/task-fe-swr.log
+      Commit: Y | feat(market-data-swr): serve-stale + contrato stale (docs AGENTS+CHANGELOG)
+- [x] 19b2. Retry con cap + jitter, exactamente-uno (Wave 1 follow-up)
+      What to do / Must NOT do: Wrapper de fetcher (NO agregador): reintento EXACTAMENTE-UNO solo ante timeout/429-con-header/5xx (jamas 404/`no data`); delay `min(parseRetryAfter(headers),2000ms)` + full jitter (axios-retry NO capea solo — el cap es nuestro, pineado); cuenta contra el mismo bucket outbound (mismo presupuesto, no suma fantasma); math documentada (peor caso 2 req/miss vs loop-N actual). Pre-req EVIDENCIA: capturar loop-429 real (scratch: body + Retry-After + QPS del limiter en ese minuto) o rebajar el lenguaje a `code-proven` (sin claim `probado` sin captura).
+      Parallelization: solo | Blocked by: — (puede ir en paralelo con 19b1) | Blocks: —
+      References: fetcher wrappers (ubicacion exacta a descubrir: NO agregador), `provider-outbound-limits.ts`, `provider-descriptor.ts:37-125` (presupuestos), docs keyless (CoinGecko IP-shared, GeckoTerminal 30/min).
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; specs: retry-uno-solo, cap-respetado, 404-sin-retry, jitter-decorrelaciona.
+      QA scenarios: happy + failure (Retry-After:120s → espera 2s, no 120s). Evidence .omo/evidence/task-fe-retry.log
+      Commit: Y | feat(market-data-retry): un reintento con cap (docs AGENTS+CHANGELOG)
+- [ ] 19b3. Breaker cableado como skip + half-open de una sonda (Wave 1 follow-up)
+      What to do / Must NOT do: Pine UNA: store memoria + reset-on-deploy ACEPTADO y documentado (o Redis — una sola, documentada, no las dos); thresholds (p. ej. 5 fails → 30s cool-off, consistente con defaults existentes); gate en wrapper (`canExecute` → fetcher NO contribuye, jamas throw/gate-bloqueante: fail-open preservado); half-open = UNA sonda al fetcher mas barato (no fan-out completo); metrica de estado. Flapping bajo outage parcial: documentado (cool-off fijo, sin adaptativo). Docs: AGENTS + CHANGELOG.
+      Parallelization: solo | Blocked by: 19b2 (retry define la senal que el breaker observa) | Blocks: —
+      References: `CircuitBreakerService` (`shared/.../circuit-breaker.service.ts:21-72`) vs `ProviderRegistryService.recordFailure` (`:73-79`, hoy ciego) — UNA sola via, documentada.
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; specs abre/cierra/half-open/flapping.
+      QA scenarios: happy + failure (deploy resetea — aceptado y avisado). Evidence .omo/evidence/task-fe-breaker.log
+      Commit: Y | feat(market-data-breaker): cableado real (docs AGENTS+CHANGELOG)
+- [ ] 27. Auditoria keys Moralis 401 + Mobula 403 (checklist owner-gated, puede ser cero-codigo)
+      What to do / Must NOT do: Checklist ejecutable por el OWNER (no por worker sin accesos): duenos de cada key + links de dashboards + rutas por env en droplet (`.env` vs `.env.staging` vs `environment:` compose — el template avisa que no hay deploy workflow de market-data, resolver destino ANTES) + pasos de rotacion (mint → gracia dual-key → dependientes → revoke, segun ciclo de vida `AGENTS.md:840-855`) + smokes exactos (holders + markets sin 401/403) + regla downgrade (holders/analytics nullable ya es la arquitectura — sin codigo). NOMBRES de vars solo, jamas valores, en ningun lado. Si el owner niega accesos: cerrar como `wontfix-documentado` con la regla downgrade citada (cero codigo, valido).
+      Parallelization: owner | Blocked by: accesos owner | Blocks: —
+      References: templates `.env*` (placeholders vacios citados), pm2 logs 2026-10-06 (401/403 citados como vistos, NO como evidencia adjunta — marcarlos `no re-verificables` hasta captura scratch).
+      Acceptance criteria: keys rotadas + smokes verdes, O wontfix-documentado con firma owner. Evidence .omo/evidence/task-keys-audit.log (solo si hay rotacion).
+      Commit: N (operativa) salvo codigo necesario → `fix(market-data-keys): ...`
 - [x] 20. Atribucion pair-side EN MARKET-DATA (Wave 1 follow-up, bug critico — retarget post-review: el codigo vive ahi, no en dexter)
       What to do / Must NOT do: Side-verify en `provider-quote.fetchers.ts:157-158` (toma `best.baseToken` sin mirar lado) + `dexscreener.service.ts:375-392` (`getBestPairSummaryForChain`) y `:348-360` (legacy cross-chain — decidir: deprecar con motivo o mantener con side-check; hoy lo mockean gateway specs = tiene llamadas): el mint consultado debe igualar `baseToken.address` o `quoteToken.address`; si es quote, tomar ese lado. PLUMBING PREVIO OBLIGATORIO: `DexScreenerPairSummary` (`dexscreener.types.ts:123-146`) + `toPairSummary` (`:395-413`) solo llevan `baseToken` — extender con `quoteToken` primero (sin esto el fix es inimplementable en el fetcher). Dexter: SOLO regression spec (`symbol`/`name`: USDC-mint → `symbol != 'PUMP'`/`== 'USDC'`) — NADA de logica dexter (su cliente copia lo ya-correcto). Backend `dexscreener.adapter.ts:78-79` + `ticker-resolver:68` EXCLUIDOS con motivo (otra app, otro plan). Docs: market-data AGENTS (regla lado-verificado) + CHANGELOG; dexter linea CHANGELOG si aplica. NO cambiar pick por liquidez (ortogonal).
       Parallelization: Wave 1 follow-up (1 worker, rapido) | Blocked by: — | Blocks: —
@@ -293,7 +313,9 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartAddressL
 | 17 best-pick          | 1,13             | —            | 2                    |
 | 18 chain-honest       | 17               | —            | 2                    |
 | 19a robust S          | —                | 19b          | 2                    |
-| 19b robust M          | 19a              | —            | 2                    |
+| 19b1 swr              | 19a              | —            | 2                    |
+| 19b2 retry            | —                | —            | 2                    |
+| 19b3 breaker          | 19b2             | —            | 2                    |
 | 20 pair-side          | —                | —            | 2                    |
 | 21 latency            | 19a              | —            | 2                    |
 | 22 onchain-direct     | 21               | —            | 2                    |
@@ -304,6 +326,7 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartAddressL
 | 24 fallback           | —                | —            | 2                    |
 | 25 gecko-nets         | —                | —            | 2                    |
 | 26 robinhood-enrich   | —                | —            | 2                    |
+| 27 keys-audit         | owner            | —            | 2                    |
 
 ## Commit strategy
 

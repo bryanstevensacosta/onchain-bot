@@ -133,6 +133,52 @@ export class SnapshotHistoryRepository {
     return best;
   }
 
+  /**
+   * Newest `ready` row for one snapshot key within the staleness
+   * bound (dexter plan todo 19b1, SWR floor).
+   *
+   * KEY STRATEGY: `key` is the EXACT stored history key
+   * (`AddressIdVo.key` = `chain:address`, lowercased) — NOT the
+   * service cache key (`snapshot:<chain>:<addr>:<kind>`). The
+   * equality predicate rides the existing
+   * `ix_snapshot_history_key_created (key, createdAt)` BTREE
+   * (key-equality prefix + `createdAt DESC LIMIT 1`); no composite
+   * `(chain,address)` migration is needed because `(chain,address)`
+   * is never queried. `status='ready'` excludes persisted pendings;
+   * a newest-ready older than `maxAgeMs` answers `null` (honest
+   * pending downstream, never a dead price). Pure age check in TS on
+   * both paths (single rule, fake-timer pinnable).
+   */
+  public async findLatestReady(
+    key: string,
+    kind: string,
+    maxAgeMs: number,
+  ): Promise<SnapshotHistoryRow | null> {
+    let candidate: SnapshotHistoryRow | null = null;
+    if (this.store === undefined || this.store === null) {
+      for (let index = this.rows.length - 1; index >= 0; index -= 1) {
+        const row = this.rows[index];
+        if (row.key === key && row.kind === kind && row.status === 'ready') {
+          candidate = row;
+          break;
+        }
+      }
+    } else {
+      const entities = await this.store.find({
+        where: { key, kind, status: 'ready' },
+        order: { createdAt: 'DESC' },
+        take: 1,
+      });
+      const rows = entities.map((entity) => toHistoryRow(entity));
+      candidate = rows.length > 0 ? rows[0] : null;
+    }
+    if (candidate === null) return null;
+    const createdMs = Date.parse(candidate.createdAt);
+    if (Number.isNaN(createdMs)) return null;
+    if (Date.now() - createdMs > maxAgeMs) return null;
+    return candidate;
+  }
+
   public async deleteOlderThan(cutoff: Date): Promise<number> {
     if (this.store === undefined || this.store === null) {
       const before = this.rows.length;

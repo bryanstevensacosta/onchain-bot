@@ -57,6 +57,10 @@ export class BatchRequestDto {
  * (the `shouldCache` gate below) — batch traffic used to re-warm GET
  * keys with fresh pending shells, extending a transient miss into a
  * ~30-60s outage. Ready snapshots warm exactly as before.
+ * Serve-stale (dexter plan todo 19b1): stale bodies (`stale: true`,
+ * replayed history) are NEVER written either — the next request must
+ * retry providers, not serve a frozen replay. The stale trio travels
+ * in every item so the bit survives the batch surface.
  */
 @UseGuards(GatewayRateLimitGuard)
 @RequireScope('snapshot')
@@ -99,6 +103,9 @@ export class AddressesBatchController {
             kind: snap.kind,
             key: snap.key,
             status: snap.status,
+            stale: snap.stale,
+            staleAsOf: snap.staleAsOf,
+            staleAgeMs: snap.staleAgeMs,
             providers: snap.providers,
             sources: snap.sources,
             providerErrors: snap.providerErrors,
@@ -116,7 +123,7 @@ export class AddressesBatchController {
             burnedPercent: snap.burnedPercent,
           };
         },
-        (body) => body['status'] !== 'pending',
+        (body) => body['status'] !== 'pending' && body['stale'] !== true,
       );
     } catch (err) {
       return {
