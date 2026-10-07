@@ -33,6 +33,33 @@ const PUBLIC_SOLANA_RPC = 'https://api.mainnet.solana.com';
 export const GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE = 100;
 
 /**
+ * Hostname-only rendering of an RPC URL for logs (dexter plan todo
+ * 28): the keyed Helius URL carries the key in path/query — logs
+ * must never carry it. Unparseable input renders a fixed token.
+ */
+const redactRpcHost = (url: string): string => {
+  try {
+    return new URL(url).hostname || 'unparseable';
+  } catch {
+    return 'unparseable';
+  }
+};
+
+/**
+ * Key/quota distress signal (dexter plan todo 28): 401/403/429 or a
+ * quota-flavoured message. Anything else stays a quiet debug (fail-open).
+ */
+const isKeyOrQuotaSignal = (code: unknown, message: string): boolean => {
+  if (code === 401 || code === 403 || code === 429) return true;
+  return /quota|rate[\s-]?limit|unauthorized|forbidden|too many requests|exceed/i.test(
+    message,
+  );
+};
+
+const SOLANA_KEY_RUNBOOK =
+  'check HELIUS_RPC_URL_MAINNET validity + Helius free-tier budget (10 rps); runbook: apps/market-data/AGENTS.md "Helius free-tier math"';
+
+/**
  * Solana JSON-RPC provider.
  *
  * Primary: Helius RPC URL from config. Fallback: public Solana RPC
@@ -40,7 +67,9 @@ export const GET_MULTIPLE_ACCOUNTS_CHUNK_SIZE = 100;
  *
  * Exposes `getTokenSupply` (total supply) + `getTokenLargestAccounts`
  * (holders data) and `getAccountInfo` (chain probing) as lightweight
- * JSON-RPC 2.0 calls. No key needed (public RPC) — free tier.
+ * JSON-RPC 2.0 calls. Plain RPC only — NO DAS/enhanced methods in
+ * this hot path (Helius free tier ~10 rps effective; `HeliusService`
+ * owns DAS, out of blast radius, never called here).
  */
 @Injectable()
 export class SolanaRpcService
@@ -55,9 +84,13 @@ export class SolanaRpcService
   public constructor(@Inject(SOLANA_RPC_CONFIG) config: SolanaRpcConfig) {
     super();
     this.primaryRpcUrl = config.primaryRpcUrl ?? null;
-    if (!this.primaryRpcUrl) {
-      this.logger.debug(
-        'No primary RPC URL configured — will use public Solana RPC',
+    if (this.primaryRpcUrl) {
+      this.logger.log(
+        `Solana RPC mode: keyed (primary host=${redactRpcHost(this.primaryRpcUrl)}, public fallback armed)`,
+      );
+    } else {
+      this.logger.log(
+        'Solana RPC mode: public-only (HELIUS_RPC_URL_MAINNET unset — set it to route via keyed Helius; Solana legs stay on the public RPC until then)',
       );
     }
   }
@@ -197,6 +230,7 @@ export class SolanaRpcService
     method: string,
     params: ReadonlyArray<unknown>,
   ): Promise<T | null> {
+    const tier = rpcUrl === this.primaryRpcUrl ? 'primary' : 'public';
     try {
       const { data } = await axios.post<JsonRpcResponse<T>>(
         rpcUrl,
@@ -204,12 +238,28 @@ export class SolanaRpcService
         { headers: { 'Content-Type': 'application/json' }, timeout: 10_000 },
       );
       if (data.error) {
-        this.logger.debug(`RPC ${method} error: ${data.error.message}`);
+        if (isKeyOrQuotaSignal(data.error.code, data.error.message)) {
+          this.logger.warn(
+            `solana-rpc ${method} key/quota signal on ${tier} [${String(data.error.code)}]: ${data.error.message} — ${SOLANA_KEY_RUNBOOK}`,
+          );
+        } else {
+          this.logger.debug(`RPC ${method} error: ${data.error.message}`);
+        }
         return null;
       }
+      this.logger.debug(`solana-rpc ${method} served-by=${tier}`);
       return data.result ?? null;
     } catch (err) {
-      if (axios.isAxiosError(err) && err.response?.status === 404) return null;
+      if (axios.isAxiosError(err)) {
+        const status = err.response?.status;
+        if (status === 404) return null;
+        if (isKeyOrQuotaSignal(status, (err as Error).message)) {
+          this.logger.warn(
+            `solana-rpc ${method} key/quota signal on ${tier} (http ${String(status ?? 'no-status')}): ${(err as Error).message} — ${SOLANA_KEY_RUNBOOK}`,
+          );
+          return null;
+        }
+      }
       this.logger.debug(`RPC ${method} failed: ${(err as Error).message}`);
       return null;
     }

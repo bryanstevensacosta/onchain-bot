@@ -1,4 +1,4 @@
-import { Inject, Injectable, Optional } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import type { AggregationOutcome } from 'aggregators/application/snapshot-aggregator.service';
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
 import type { DexScreenerPairSummary } from 'provider/infrastructure/dexscreener';
@@ -47,8 +47,9 @@ import {
  *   (supply/holders/metadata) ride along in parallel.
  * - EVM: DexScreener best-pair discovery is REQUIRED (a token
  *   address alone cannot name its pair) + V2/V3 reads (labels hint
- *   the family, else both race and first-sane wins). V4 is NOT
- *   discoverable (pairAddress is not a poolId) -> fallback.
+ *   the family, else both race and first-sane wins). V4 poolIds
+ *   (64-hex pairAddress) are shape-guarded to fail-open null —
+ *   full V4 routing needs a lens + decimals this seam lacks.
  * - USD rule: price is served ONLY against a USD-stable leg
  *   (pinned per chain, `EVM_STABLES` / `SOL_STABLES`) or via a
  *   pinned native-anchor pool read (SOL/USDC on solana, WETH/USDC
@@ -170,6 +171,34 @@ const isSaneLiquidity = (value: number | null): value is number =>
 const lower = (address: string): string => address.trim().toLowerCase();
 
 /**
+ * V4 poolId shape check (dexter plan todo 28, Robinhood 64-hex fix).
+ *
+ * Uniswap V4 pools are named by a bytes32 poolId (64 hex chars), NOT
+ * by an EVM address (40 hex). DexScreener reports that poolId in
+ * `pairAddress`, and the V2/V3 readers below take the value as an
+ * `eth_call`/`eth_getCode` target — a 64-hex target answers `-32602
+ * (hex string has length 64, want 40)` on EVERY tier (alchemy + dRPC
+ * + public), i.e. a wasted walk that can only fail. Guard here, at
+ * the single seam, fail-open `null`.
+ *
+ * Full V4 routing (`getV4PoolView` + `encodeBytes32ArgCall`, both
+ * verified to exist) does NOT apply at this seam: it needs a
+ * verified StateView lens for the chain (`v4StateViewForChain` has
+ * ethereum/base rows only — robinhood has NO row) PLUS both leg
+ * decimals (discovery carries none, and this seam owns no decimals
+ * source). Neither holds for the motivating Robinhood case, so the
+ * v4 branch resolves to the same fail-open `null` with a distinct
+ * log — no tier walk, no invented lens/decimals. Follow-up (a new
+ * todo, NOT this one): verify lens rows per chain + plumb leg
+ * decimals, then route `getV4PoolView(chain, poolId, dec0, dec1)`.
+ */
+const isBytes32PoolId = (value: string): boolean => {
+  const raw = value.trim();
+  const hex = raw.startsWith('0x') || raw.startsWith('0X') ? raw.slice(2) : raw;
+  return /^[0-9a-fA-F]{64}$/.test(hex);
+};
+
+/**
  * USD value of `reserve` (raw bigint) of a leg KNOWN to be a USD
  * proxy (stable mint, 1 unit ~= $1). `decimals` null -> null.
  */
@@ -184,6 +213,8 @@ const stableReserveUsd = (
 
 @Injectable()
 export class DirectFastPathService {
+  private readonly logger = new Logger(DirectFastPathService.name);
+
   public constructor(
     @Optional()
     @Inject(DexScreenerService)
@@ -529,6 +560,16 @@ export class DirectFastPathService {
       discovery.quoteToken.address !== null &&
       lower(discovery.quoteToken.address) === mint;
     if (!baseIsMint && !quoteIsMint) return null;
+    // 64-hex guard (todo 28): a bytes32 poolId is not an address —
+    // V2/V3 readers would burn every RPC tier on -32602. V4 routing
+    // does not apply at this seam (no lens row for most chains incl.
+    // robinhood; no leg decimals from discovery) -> fail-open null.
+    if (isBytes32PoolId(discovery.pairAddress)) {
+      this.logger.debug(
+        `resolveEvm v4-poolId skip (64-hex, no tier walk): ${chain} ${address}`,
+      );
+      return null;
+    }
     const labels = discovery.labels.map((label) => label.toLowerCase());
     const families: ReadonlyArray<'v2' | 'v3'> = labels.includes('v3')
       ? ['v3']

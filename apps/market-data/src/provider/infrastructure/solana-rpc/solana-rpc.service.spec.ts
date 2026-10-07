@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { Logger } from '@nestjs/common';
 import { SolanaRpcService } from './solana-rpc.service';
 
 jest.mock('axios');
@@ -153,5 +154,128 @@ describe('SolanaRpcService.getMultipleAccounts (batch PDA reads)', () => {
     const res = await svc.getMultiple(['A']);
     expect(res).toHaveLength(1);
     expect(res?.[0]).toMatchObject({ owner: 'prog1' });
+  });
+});
+
+describe('SolanaRpcService keyed-vs-public mode (todo 28)', () => {
+  let logSpy: jest.SpyInstance;
+  let debugSpy: jest.SpyInstance;
+  let warnSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    logSpy = jest
+      .spyOn(Logger.prototype, 'log')
+      .mockImplementation(() => undefined);
+    debugSpy = jest
+      .spyOn(Logger.prototype, 'debug')
+      .mockImplementation(() => undefined);
+    warnSpy = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    logSpy.mockRestore();
+    debugSpy.mockRestore();
+    warnSpy.mockRestore();
+  });
+
+  it('keyed boot logs the hostname but never the key material', () => {
+    const keyed = 'https://mainnet.helius-rpc.com/?api-key=SECRET-KEY-MATERIAL';
+    new SolanaRpcService({ primaryRpcUrl: keyed });
+    const lines = logSpy.mock.calls.map((c) => String(c[0]));
+    expect(lines.some((l) => l.includes('keyed'))).toBe(true);
+    expect(lines.some((l) => l.includes('mainnet.helius-rpc.com'))).toBe(true);
+    expect(lines.some((l) => l.includes('SECRET-KEY-MATERIAL'))).toBe(false);
+  });
+
+  it('public boot names the missing HELIUS_RPC_URL_MAINNET var', () => {
+    new SolanaRpcService({});
+    const lines = logSpy.mock.calls.map((c) => String(c[0]));
+    expect(lines.some((l) => l.includes('public-only'))).toBe(true);
+    expect(lines.some((l) => l.includes('HELIUS_RPC_URL_MAINNET'))).toBe(true);
+  });
+
+  it('successful probes log served-by=primary then served-by=public on fallback', async () => {
+    mockedAxios.post
+      .mockRejectedValueOnce(new Error('primary down'))
+      .mockResolvedValueOnce(
+        rpcResult({ context: { slot: 2 }, value: [null] }),
+      );
+    const svc = new SolanaRpcService({
+      primaryRpcUrl: 'https://primary.example',
+    });
+    await svc.getMultipleAccounts(['A']);
+    const lines = debugSpy.mock.calls.map((c) => String(c[0]));
+    expect(lines.some((l) => l.includes('served-by=public'))).toBe(true);
+  });
+
+  it('primary success logs served-by=primary', async () => {
+    mockedAxios.post.mockResolvedValueOnce(
+      rpcResult({ context: { slot: 1 }, value: [null] }),
+    );
+    const svc = new SolanaRpcService({
+      primaryRpcUrl: 'https://primary.example',
+    });
+    await svc.getMultipleAccounts(['A']);
+    const lines = debugSpy.mock.calls.map((c) => String(c[0]));
+    expect(lines.some((l) => l.includes('served-by=primary'))).toBe(true);
+  });
+
+  it('HTTP 429 warns with the runbook pointer instead of staying debug-silent', async () => {
+    (mockedAxios.isAxiosError as unknown as jest.Mock).mockReturnValue(true);
+    const axiosErr = Object.assign(
+      new Error('Request failed with status code 429'),
+      {
+        isAxiosError: true,
+        response: { status: 429 },
+      },
+    );
+    mockedAxios.post.mockRejectedValue(axiosErr);
+    const svc = new SolanaRpcService({
+      primaryRpcUrl: 'https://primary.example',
+    });
+    await svc.getMultipleAccounts(['A']);
+    const lines = warnSpy.mock.calls.map((c) => String(c[0]));
+    expect(
+      lines.some((l) => l.includes('429') && l.includes('AGENTS.md')),
+    ).toBe(true);
+  });
+
+  it('JSON-RPC quota-flavoured errors warn; plain errors stay debug', async () => {
+    mockedAxios.post.mockResolvedValueOnce({
+      data: {
+        jsonrpc: '2.0',
+        id: 'solana-rpc',
+        error: {
+          code: -32005,
+          message: 'Node is behind by 42 slots, quota exceeded',
+        },
+      },
+    });
+    const svc = new SolanaRpcService({
+      primaryRpcUrl: 'https://primary.example',
+    });
+    await svc.getMultipleAccounts(['A']);
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  it('HTTP 404 stays silent null (no warn — not a key signal)', async () => {
+    (mockedAxios.isAxiosError as unknown as jest.Mock).mockReturnValue(true);
+    const axiosErr = Object.assign(
+      new Error('Request failed with status code 404'),
+      {
+        isAxiosError: true,
+        response: { status: 404 },
+      },
+    );
+    mockedAxios.post.mockRejectedValue(axiosErr);
+    const svc = new SolanaRpcService({
+      primaryRpcUrl: 'https://primary.example',
+    });
+    const res = await svc.getMultipleAccounts(['A']);
+    expect(res).toEqual([null]);
+    expect(warnSpy).not.toHaveBeenCalled();
   });
 });

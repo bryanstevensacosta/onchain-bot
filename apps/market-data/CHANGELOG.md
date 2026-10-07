@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Helius-keyed routing observability + Robinhood 64-hex fix
+  (dexter plan todo 28):** `SolanaRpcService` boots LOUD
+  (`Logger.log`): `keyed (primary host=<hostname>)` when
+  `HELIUS_RPC_URL_MAINNET` routes the primary path, else
+  `public-only` naming the missing var — hostname-only redaction,
+  key material never logged. Every probe logs `served-by=
+<primary|public>` (debug, same contract as EVM `evm-rpc`); 401/
+  403/429 or quota-flavoured errors `warn` with the runbook pointer.
+  Routing itself is the pre-existing seam (`app.config.ts` →
+  `SOLANA_RPC_CONFIG`; already spec-pinned) — this lane adds only
+  observability. STATUS: var empty/absent at lane time →
+  keyed routing PENDING-OWNER (public-only verified live).
+  `DirectFastPathService.resolveEvm` shape-guards V4 poolIds
+  (64-hex `pairAddress` → fail-open `null`, zero reader calls, no
+  `-32602` tier walk); full V4 routing verified non-applicable at
+  this seam (no lens row for robinhood, no leg decimals from
+  discovery — follow-up todo). Pinned fixtures in
+  `measurement-fixtures.spec.ts` (14 rows from
+  `task-p95-measure.log`). Free-tier math pinned: Helius ~10 rps,
+  plain JSON-RPC only in the hot path (no DAS/enhanced).
+  `HeliusService` untouched.
+
 - **Serve-stale floor, no background refresh (dexter plan todo
   19b1, SWR without the R):** new `SnapshotHistoryRepository.
 findLatestReady(key, kind, maxAgeMs)` — exact stored-key

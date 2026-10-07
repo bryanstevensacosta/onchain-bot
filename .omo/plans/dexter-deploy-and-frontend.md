@@ -190,11 +190,11 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartAddressL
       QA scenarios: happy + failure (deploy resetea — aceptado y avisado). Evidence .omo/evidence/task-fe-breaker.log
       Commit: Y | feat(market-data-breaker): cableado real (docs AGENTS+CHANGELOG)
 - [ ] 27. Auditoria keys Moralis 401 + Mobula 403 (checklist owner-gated, puede ser cero-codigo)
-      What to do / Must NOT do: Checklist ejecutable por el OWNER (no por worker sin accesos): duenos de cada key + links de dashboards + rutas por env en droplet (`.env` vs `.env.staging` vs `environment:` compose — el template avisa que no hay deploy workflow de market-data, resolver destino ANTES) + pasos de rotacion (mint → gracia dual-key → dependientes → revoke, segun ciclo de vida `AGENTS.md:840-855`) + smokes exactos (holders + markets sin 401/403) + regla downgrade (holders/analytics nullable ya es la arquitectura — sin codigo). NOMBRES de vars solo, jamas valores, en ningun lado. Si el owner niega accesos: cerrar como `wontfix-documentado` con la regla downgrade citada (cero codigo, valido).
+      What to do / Must NOT do: Checklist OWNER-GATED (sin accesos del worker no hay codigo): duenos + links dashboards Moralis/Mobula + rutas por env en droplet (`.env` vs `.env.staging` vs `environment:` — resolver destino ANTES, el template avisa que no hay deploy workflow) + pasos rotacion (mint → gracia dual-key → dependientes → revoke, ciclo `AGENTS.md:840-855`) + smokes exactos (holders + markets sin 401/403) + regla downgrade (nullable ya es arquitectura). NOMBRES de vars solo, jamas valores, en ningun lado. Sin accesos → `wontfix-documentado` con firma owner (valido, sin codigo).
       Parallelization: owner | Blocked by: accesos owner | Blocks: —
-      References: templates `.env*` (placeholders vacios citados), pm2 logs 2026-10-06 (401/403 citados como vistos, NO como evidencia adjunta — marcarlos `no re-verificables` hasta captura scratch).
-      Acceptance criteria: keys rotadas + smokes verdes, O wontfix-documentado con firma owner. Evidence .omo/evidence/task-keys-audit.log (solo si hay rotacion).
-      Commit: N (operativa) salvo codigo necesario → `fix(market-data-keys): ...`
+      References: templates `.env*` (placeholders), logs 401/403 citados como vistos-no-adjuntos (marcar `no re-verificables`).
+      Acceptance criteria: rotacion + smokes verdes, O wontfix firmado. Evidence .omo/evidence/task-keys-audit.log (solo si hay rotacion).
+      Commit: N (operativa) salvo codigo → `fix(market-data-keys): ...`
 - [x] 20. Atribucion pair-side EN MARKET-DATA (Wave 1 follow-up, bug critico — retarget post-review: el codigo vive ahi, no en dexter)
       What to do / Must NOT do: Side-verify en `provider-quote.fetchers.ts:157-158` (toma `best.baseToken` sin mirar lado) + `dexscreener.service.ts:375-392` (`getBestPairSummaryForChain`) y `:348-360` (legacy cross-chain — decidir: deprecar con motivo o mantener con side-check; hoy lo mockean gateway specs = tiene llamadas): el mint consultado debe igualar `baseToken.address` o `quoteToken.address`; si es quote, tomar ese lado. PLUMBING PREVIO OBLIGATORIO: `DexScreenerPairSummary` (`dexscreener.types.ts:123-146`) + `toPairSummary` (`:395-413`) solo llevan `baseToken` — extender con `quoteToken` primero (sin esto el fix es inimplementable en el fetcher). Dexter: SOLO regression spec (`symbol`/`name`: USDC-mint → `symbol != 'PUMP'`/`== 'USDC'`) — NADA de logica dexter (su cliente copia lo ya-correcto). Backend `dexscreener.adapter.ts:78-79` + `ticker-resolver:68` EXCLUIDOS con motivo (otra app, otro plan). Docs: market-data AGENTS (regla lado-verificado) + CHANGELOG; dexter linea CHANGELOG si aplica. NO cambiar pick por liquidez (ortogonal).
       Parallelization: Wave 1 follow-up (1 worker, rapido) | Blocked by: — | Blocks: —
@@ -261,6 +261,20 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartAddressL
       Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; STAGEVEIL con venue no-vacio (si (b) viable) y/o Pons resuelto (si (a) viable); limites documentados si no.
       QA scenarios: happy + failure (RPC caido→null intacto). Evidence .omo/evidence/task-fe-robinhood-enrich.log
       Commit: Y | feat(dexter-robinhood): pata pons + venue gecko (docs AGENTS+CHANGELOG)
+- [x] 28. Wins baratos p95: Helius-keyed Solana + bug Robinhood Address + re-medir (Wave 1 follow-up, evidencia p95 2026-10-07)
+      What to do / Must NOT do: **(a) Helius por el seam correcto (UNA linea de env, cero codigo):** setear `HELIUS_RPC_URL_MAINNET=<keyed URL>` como `solanaRpc.primaryRpcUrl` (`app.config.ts:67-68` ya lo cablea; verificar). PROHIBIDO tocar `HeliusService` (sin `getMultipleAccounts`/supply/generic-RPC; compartido con `dev-holdings` + backend `ticker-resolver` — fuera del blast radius). `HELIUS_API_KEY` sola NO enruta nada (leccion review). Solana-only (tiers EVM intactos). **(b) Bug Robinhood 64-hex (forma conocida, verificar igual):** `resolveEvm` solo intenta familias `v2/v3` contra `discovery.pairAddress`; pool v4 (`poolId` bytes32) cae en default → `-32602`. Fix: length-guard + rama v4 que enruta `poolId` al calldata (usar `getV4PoolView` + `encodeBytes32ArgCall` existentes si aplican — verificar, no asumir). Auditar TODOS los `ethCall/getCode/tryAggregate` writers por el mismo patron (grep + log del valor + metodo). **(c) Fixtures pineados (no memoria):** LINK/USDC/PEPE/UNI/SHIB/BONK/JUP/NYMA + 2 pump verificables por metodo (los 3 mints viejos se declaran re-derivables, no pineados) + Robinhood necesita ≥3 fixtures antes de p95 con sentido (si no, reportar n=1 sin estadistica). Metodo: address distinta por probe, `x-cache: MISS` requerido, spacing ≥8s, `GET /api/market-data/snapshot` end-to-end `time_total`. **(d) Key-validity ruidosa:** modo keyed-vs-public en log de arranque (host redactado) + `served-by=` por probe; 401/quota → `warn` con runbook pointer (no debug silencioso). Helius free math documentada (10 rps; NADA de DAS/enhanced en hot path). Specs: routing-keyed, bug-64hex regresion, fixtures pineados. Docs: AGENTS + CHANGELOG (ADD-only).
+      Parallelization: Wave 1 follow-up (1 worker) | Blocked by: — | Blocks: 29
+      References: `solana-rpc.service.ts:221-226` (seam), `app.config.ts:67-68` (ya cableado), `direct-fast-path.service.ts:533-558` (resolveEvm), `.omo/evidence/task-p95-measure.log` (baseline 5.248s/11.404s).
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; keyed-vs-public visible en logs; bug 64-hex con regresion; tabla p95 re-medida (pase o no — observacional, prohibido asertar p95 en specs).
+      QA scenarios: matar primaria (override a host inalcanzable) → public fallback probado; 64-hex → `null` fail-open (si el fix no aplica a algun sitio, documentado). Evidence .omo/evidence/task-fe-p95-quickwins.log
+      Commit: Y | perf(market-data-p95): helius-keyed + robinhood-fix (docs AGENTS+CHANGELOG)
+- [ ] 29. Paralelizar cola buildSnapshot + diagnostico EVM-miss (Wave 1 follow-up, GATED: solo si la re-medicion del 28 sigue >800ms)
+      What to do / Must NOT do: GATE OBJETIVO (no auto-juicio): procede SOLO si p95-cold-overall post-28 >800ms Y mediana-tail (totalMs−directMs−fanoutMs) >1000ms en ≥10 probes validos; si no, cerrarse como `wontfix-measured` con tabla comparativa (juzga el owner sobre evidencia, no el worker). Cola con CAPS: concurrencia max 3 (p-limit o chunks), timeout 400ms por extra con `allSettled` + degrade-a-null (nunca bloquear card), budget compartido (`provider-outbound-limits.ts`: extras × QPS ≤ tier, math escrita). Spans SIN lib nueva: extender campos timing existentes (`discoveryMs` + `directMs` por familia + `served-by=` ya en `alchemy.service.ts:133-134`); el worker reporta los 3 numeros discriminantes (discovery? V2/V3-read? anchor?) ANTES de cambiar paths. Breaker: UNA via (store memoria + reset-on-deploy aceptado y documentado, thresholds p. ej. 5 fails→30s, gate `canExecute`=skip-no-throw, half-open = UNA sonda al fetcher mas barato + metrica). Marcar `stale` propagation dexter→preview→UI si la cola toca freshness (o `N/A` explicito si no aplica).
+      Parallelization: Wave 1 follow-up (1 worker) | Blocked by: 28 (tabla comparativa) + gate objetivo arriba | Blocks: —
+      References: `address-snapshot.service.ts:424-462` (cola secuencial actual), `snapshot-aggregator.service.ts:51-69` (allSettled sin gate), `provider-registry.service.ts:73-79` (contador ciego) vs `CircuitBreakerService` (existente sin cablear).
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; tabla antes/despues obligatoria; cool-off respeta `Retry-After` con cap.
+      QA scenarios: extras a 0ms (override en spec) → card renderiza sin ellos + nota `providerErrors`; flapping documentado. Evidence .omo/evidence/task-fe-p95-tail.log
+      Commit: Y | perf(market-data-tail): cola paralela + breaker (docs AGENTS+CHANGELOG)
 
 ### Wave 0 — guion local owner (10 min, dexter `:4060` + frontend `:5173`)
 
@@ -294,39 +308,41 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartAddressL
 
 ### Dependency matrix
 
-| Todo                  | Depends on       | Blocks       | Can parallelize with |
-| --------------------- | ---------------- | ------------ | -------------------- |
-| 0 local testing       | —                | nada tecnico | —                    |
-| 1 frontend UI         | (recomendado: 0) | 5            | 2                    |
-| 5 live editor         | 1                | —            | 2                    |
-| 6 english UI          | —                | —            | 2, 5                 |
-| 7 live save           | 1, 5, 6          | —            | 2                    |
-| 8 version badge       | 1, 6             | —            | 2                    |
-| 9 seed files          | —                | —            | 2                    |
-| 10 dev-db-on          | —                | —            | —                    |
-| 11 bot-start-link     | 1                | —            | 2                    |
-| 12 bot-profile-source | 11               | —            | 2                    |
-| 13 number-policy      | 1                | —            | 2                    |
-| 14 venue-line         | 1                | —            | 2                    |
-| 15 alpha-catalog      | 1                | —            | 2                    |
-| 16 fdv-ath            | 1                | —            | 2                    |
-| 17 best-pick          | 1,13             | —            | 2                    |
-| 18 chain-honest       | 17               | —            | 2                    |
-| 19a robust S          | —                | 19b          | 2                    |
-| 19b1 swr              | 19a              | —            | 2                    |
-| 19b2 retry            | —                | —            | 2                    |
-| 19b3 breaker          | 19b2             | —            | 2                    |
-| 20 pair-side          | —                | —            | 2                    |
-| 21 latency            | 19a              | —            | 2                    |
-| 22 onchain-direct     | 21               | —            | 2                    |
-| 23 full-direct        | owner-keys       | —            | 2                    |
-| 2 deploy files        | —                | 3, 4         | 1                    |
-| 3 staging rollout     | 2 + OK operativo | 4            | —                    |
-| 4 prod rollout        | 3 + OK owner     | —            | —                    |
-| 24 fallback           | —                | —            | 2                    |
-| 25 gecko-nets         | —                | —            | 2                    |
-| 26 robinhood-enrich   | —                | —            | 2                    |
-| 27 keys-audit         | owner            | —            | 2                    |
+| Todo                    | Depends on       | Blocks       | Can parallelize with |
+| ----------------------- | ---------------- | ------------ | -------------------- |
+| 0 local testing         | —                | nada tecnico | —                    |
+| 1 frontend UI           | (recomendado: 0) | 5            | 2                    |
+| 5 live editor           | 1                | —            | 2                    |
+| 6 english UI            | —                | —            | 2, 5                 |
+| 7 live save             | 1, 5, 6          | —            | 2                    |
+| 8 version badge         | 1, 6             | —            | 2                    |
+| 9 seed files            | —                | —            | 2                    |
+| 10 dev-db-on            | —                | —            | —                    |
+| 11 bot-start-link       | 1                | —            | 2                    |
+| 12 bot-profile-source   | 11               | —            | 2                    |
+| 13 number-policy        | 1                | —            | 2                    |
+| 14 venue-line           | 1                | —            | 2                    |
+| 15 alpha-catalog        | 1                | —            | 2                    |
+| 16 fdv-ath              | 1                | —            | 2                    |
+| 17 best-pick            | 1,13             | —            | 2                    |
+| 18 chain-honest         | 17               | —            | 2                    |
+| 19a robust S            | —                | 19b          | 2                    |
+| 19b1 swr                | 19a              | —            | 2                    |
+| 19b2 retry              | —                | —            | 2                    |
+| 19b3 breaker            | 19b2             | —            | 2                    |
+| 20 pair-side            | —                | —            | 2                    |
+| 21 latency              | 19a              | —            | 2                    |
+| 22 onchain-direct       | 21               | —            | 2                    |
+| 23 full-direct          | owner-keys       | —            | 2                    |
+| 2 deploy files          | —                | 3, 4         | 1                    |
+| 3 staging rollout       | 2 + OK operativo | 4            | —                    |
+| 4 prod rollout          | 3 + OK owner     | —            | —                    |
+| 24 fallback             | —                | —            | 2                    |
+| 25 gecko-nets           | —                | —            | 2                    |
+| 26 robinhood-enrich     | —                | —            | 2                    |
+| 27 keys-audit           | owner            | —            | 2                    |
+| 28 helius-robinhood-fix | —                | —            | 2                    |
+| 29 tail-parallel        | 28               | —            | 2                    |
 
 ## Commit strategy
 

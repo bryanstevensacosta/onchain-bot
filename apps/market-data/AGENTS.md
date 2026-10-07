@@ -831,6 +831,59 @@ token · pons</title>` with zero canonical tags (unknown addresses DO
   non-empty with no new table on either side. Venue NEVER feeds
   `launchpad` (spec-pinned separation); `dexId` ≠ `launchpad.id`.
 
+## HELIUS-KEYED ROUTING + 64-HEX FIX (todo 28, 2026-10-07)
+
+- Helius via the correct seam (ONE env line, zero code): set
+  `HELIUS_RPC_URL_MAINNET=<keyed URL>` and `SolanaRpcService`
+  routes its primary path through it (`app.config.ts` maps the var
+  to `solanaRpc.primaryRpcUrl`; the module wires it to
+  `SOLANA_RPC_CONFIG`; `HELIUS_API_KEY` alone routes NOTHING).
+  Solana-only (EVM tiers untouched). `HeliusService`
+  (DAS/enhanced) is NEVER touched — shared with `dev-holdings` +
+  backend `ticker-resolver`, out of blast radius. STATUS at lane
+  time: var empty/absent (shell + PM2 `describe`, name-only read)
+  → keyed routing PENDING-OWNER; all lanes below hold in
+  public-only mode.
+- Keyed-vs-public is LOUD at boot: `SolanaRpcService` ctor logs via
+  `Logger.log` (not debug) `Solana RPC mode: keyed (primary
+host=<hostname>, public fallback armed)` or `public-only
+(HELIUS_RPC_URL_MAINNET unset — …)`. Hostname-only redaction
+  (`redactRpcHost`): the keyed URL carries the key in path/query,
+  so logs never carry more than the hostname. Every probe logs
+  `solana-rpc <method> served-by=<primary|public>` (debug, same
+  `served-by=` contract as the EVM `evm-rpc …` line) so quota
+  decisions are made on data. 401/403/429 or quota-flavoured
+  messages `warn` with the runbook pointer (never debug-silent);
+  404 and plain transport errors stay quiet fail-open nulls.
+- Helius free-tier math (pinned, numeric): ~10 rps effective on
+  free. Hot-path budget: worst case 150 pool PDAs = 2 parallel
+  `getMultipleAccounts` calls (≤100/chunk) per snapshot — noise
+  against 10 rps; public fallback is 40 req/10s per IP rolling, a
+  2-call burst is ~5% of that window. Plain JSON-RPC ONLY in this
+  hot path (`getMultipleAccounts`/`getTokenSupply`/
+  `getTokenLargestAccounts`/`getAccountInfo`) — NO DAS/enhanced
+  methods here, ever.
+- Robinhood 64-hex fix (`DirectFastPathService.resolveEvm`, the
+  single seam): Uniswap V4 pools are named by bytes32 poolId (64
+  hex), reported by DexScreener in `pairAddress`. The V2/V3 readers
+  take that value as an `eth_call`/`eth_getCode` target → `-32602
+(length 64, want 40)` on EVERY tier (verified shape from the
+  p95 log). `isBytes32PoolId` guards first: 64-hex → fail-open
+  `null` with a distinct debug line, ZERO reader calls (no tier
+  walk). Full V4 routing (`getV4PoolView` + `encodeBytes32ArgCall`,
+  both verified to exist) does NOT apply at this seam: it needs a
+  verified StateView lens (`v4StateViewForChain`: ethereum/base
+  only — robinhood has NO row) plus both leg decimals (discovery
+  carries none). Follow-up (new todo): verify lens rows per chain
+  - plumb decimals, then route. Audit of ALL other
+    `ethCall`/`getCode`/`tryAggregate` writers (lane log): the only
+    other callers are the reader internals (decoded 40-hex legs,
+    constant lens — safe by construction) and the multicall fallback
+    (fail-open `ok:false`); backend adapters excluded (other app).
+    Pinned fixtures: `measurement-fixtures.spec.ts` (14 rows from
+    `task-p95-measure.log`, never memory); re-measurement table:
+    `.omo/evidence/task-fe-p95-quickwins.log`.
+
 ## SECURITY (P46, todo 10)
 
 Scoped API keys (`src/auth/`): `read` (GET chains/providers/addresses/
