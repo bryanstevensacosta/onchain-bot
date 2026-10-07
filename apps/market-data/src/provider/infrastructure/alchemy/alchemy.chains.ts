@@ -100,10 +100,11 @@ export const EVM_RPC_TIER_TIMEOUT_MS = 5_000;
  * Endpoint shape per drpc.org docs:
  * `https://lb.drpc.live/<network>/<DRPC_API_KEY>`. Slugs here are
  * the dashboard names — a chain WITHOUT a row is NOT covered by
- * dRPC (tier skipped silently, never guessed): Robinhood and
- * Unichain have no verified dRPC slug, so they ride Alchemy +
- * public only. Key via env `DRPC_API_KEY` (owner creates it; absent
- * key skips the whole tier with a debug log).
+ * dRPC (tier skipped silently, never guessed). Unichain (`unichain`,
+ * `eth_chainId` → `0x82` = 130) and Robinhood (`robinhood`,
+ * `eth_chainId` → `0x1237` = 4663) verified live 2026-10-07 via
+ * public `https://<slug>.drpc.org`. Key via env `DRPC_API_KEY`
+ * (owner creates it; absent key skips the whole tier with a debug log).
  */
 export const DRPC_NETWORKS: Readonly<Record<string, string>> = {
   ethereum: 'ethereum',
@@ -112,6 +113,8 @@ export const DRPC_NETWORKS: Readonly<Record<string, string>> = {
   arbitrum: 'arbitrum',
   polygon: 'polygon',
   optimism: 'optimism',
+  unichain: 'unichain',
+  robinhood: 'robinhood',
 };
 
 export function drpcRpcUrl(chain: string, apiKey: string): string | null {

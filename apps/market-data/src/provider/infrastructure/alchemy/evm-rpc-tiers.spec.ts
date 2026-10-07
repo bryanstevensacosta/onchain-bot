@@ -100,22 +100,26 @@ describe('AlchemyService fallback tiers (todo 24)', () => {
     expect(mockedAxios.post).toHaveBeenCalledTimes(3);
   });
 
-  it('routes robinhood through alchemy then public (no dRPC slug: tier skipped)', async () => {
+  it('routes robinhood through alchemy then dRPC then public (slug live-verified 2026-10-07)', async () => {
     mockedAxios.post
       .mockRejectedValueOnce(new Error('alchemy down'))
+      .mockRejectedValueOnce(new Error('drpc down'))
       .mockResolvedValueOnce(rpcResult('0x0707'));
-    // No dRPC slug for robinhood: tier 2 is skipped by table, so the
-    // public tier answers second with only 2 HTTP calls total.
+    // dRPC slug for robinhood verified live: tier 2 is dRPC, so the
+    // public tier answers third with 3 HTTP calls total.
     const res = await service('k', 'dk').getCode(
       'robinhood',
       '0x968Be0c1A394Bf1cE239E3b40909eC0F9d4f5583',
     );
     expect(res).toBe('0x0707');
-    expect(mockedAxios.post).toHaveBeenCalledTimes(2);
+    expect(mockedAxios.post).toHaveBeenCalledTimes(3);
     expect(mockedAxios.post.mock.calls[0][0]).toBe(
       'https://robinhood-mainnet.g.alchemy.com/v2/k',
     );
     expect(mockedAxios.post.mock.calls[1][0]).toBe(
+      'https://lb.drpc.live/robinhood/dk',
+    );
+    expect(mockedAxios.post.mock.calls[2][0]).toBe(
       'https://rpc.mainnet.chain.robinhood.com',
     );
   });

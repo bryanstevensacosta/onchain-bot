@@ -55,15 +55,20 @@ describe('EVM chain transports (Lane T table)', () => {
     });
   });
 
-  it('builds dRPC URLs only for verified slugs (robinhood/unichain skipped, never guessed)', () => {
+  it('builds dRPC URLs for all verified slugs (incl. unichain/robinhood, live-verified 2026-10-07)', () => {
     expect(drpcRpcUrl('base', 'dk')).toBe('https://lb.drpc.live/base/dk');
     expect(drpcRpcUrl('ethereum', 'dk')).toBe(
       'https://lb.drpc.live/ethereum/dk',
     );
-    expect(drpcRpcUrl('robinhood', 'dk')).toBeNull();
-    expect(drpcRpcUrl('unichain', 'dk')).toBeNull();
+    expect(drpcRpcUrl('unichain', 'dk')).toBe(
+      'https://lb.drpc.live/unichain/dk',
+    );
+    expect(drpcRpcUrl('robinhood', 'dk')).toBe(
+      'https://lb.drpc.live/robinhood/dk',
+    );
     expect(drpcRpcUrl('solana', 'dk')).toBeNull();
-    expect(DRPC_NETWORKS['robinhood']).toBeUndefined();
+    expect(DRPC_NETWORKS['unichain']).toBe('unichain');
+    expect(DRPC_NETWORKS['robinhood']).toBe('robinhood');
   });
 
   it('pins the fallback-tier timeout', () => {
