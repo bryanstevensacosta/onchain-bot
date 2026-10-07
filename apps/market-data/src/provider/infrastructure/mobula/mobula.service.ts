@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
+import { throwIfRetryableProviderError } from '../../domain/retryable-provider.error';
 import { DataProviderPort } from '../../domain/data-provider.port';
 import type { MobulaConfig } from './mobula.config';
 import { MOBULA_CONFIG } from './mobula.config';
@@ -88,6 +89,9 @@ export class MobulaService extends DataProviderPort {
       return data.data?.[0]?.base ?? null;
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 404) return null;
+      // 19b2: transient (timeout / 429-with-Retry-After / 5xx) surfaces
+      // for the per-fetcher single retry; absence stays null.
+      throwIfRetryableProviderError(err, 'mobula');
       this.logger.debug(
         `Mobula getTokenMarkets failed: ${(err as Error).message}`,
       );

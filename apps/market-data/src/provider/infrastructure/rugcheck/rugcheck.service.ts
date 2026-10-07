@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
+import { throwIfRetryableProviderError } from '../../domain/retryable-provider.error';
 import { DataProviderPort } from '../../domain/data-provider.port';
 import type { RugCheckConfig } from './rugcheck.config';
 import { RUGCHECK_CONFIG } from './rugcheck.config';
@@ -41,6 +42,9 @@ export class RugCheckService extends DataProviderPort {
       if (axios.isAxiosError(err) && err.response?.status === 404) {
         return null;
       }
+      // 19b2: transient (timeout / 429-with-Retry-After / 5xx) surfaces
+      // for the per-fetcher single retry; absence stays null.
+      throwIfRetryableProviderError(err, 'rugcheck');
       this.logger.debug(`RugCheck API failed: ${(err as Error).message}`);
       return null;
     }

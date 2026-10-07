@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
+import { throwIfRetryableProviderError } from '../../domain/retryable-provider.error';
 import { DataProviderPort } from '../../domain/data-provider.port';
 import type { GeckoTerminalConfig } from './geckoterminal.config';
 import { GECKOTERMINAL_CONFIG } from './geckoterminal.config';
@@ -62,6 +63,9 @@ export class GeckoTerminalService extends DataProviderPort {
       return this.toTokenInfo(data.data.attributes);
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 404) return null;
+      // 19b2: transient (timeout / 429-with-Retry-After / 5xx) surfaces
+      // for the per-fetcher single retry; absence stays null.
+      throwIfRetryableProviderError(err, 'geckoterminal');
       this.logger.debug(
         `GeckoTerminal getTokenInfo failed: ${(err as Error).message}`,
       );
@@ -86,6 +90,8 @@ export class GeckoTerminalService extends DataProviderPort {
       return Array.isArray(data.data) ? data.data : null;
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 404) return null;
+      // 19b2: same transient surfacing as getTokenInfo above.
+      throwIfRetryableProviderError(err, 'geckoterminal');
       this.logger.debug(
         `GeckoTerminal getTokenPools failed: ${(err as Error).message}`,
       );

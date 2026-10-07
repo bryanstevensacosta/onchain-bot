@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
+import { throwIfRetryableProviderError } from '../../domain/retryable-provider.error';
 import { DataProviderPort } from '../../domain/data-provider.port';
 import type { CoinGeckoConfig } from './coingecko.config';
 import { COINGECKO_CONFIG } from './coingecko.config';
@@ -82,6 +83,9 @@ export class CoinGeckoService extends DataProviderPort {
       };
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 404) return null;
+      // 19b2: transient (timeout / 429-with-Retry-After / 5xx) surfaces
+      // for the per-fetcher single retry; absence stays null.
+      throwIfRetryableProviderError(err, 'coingecko');
       this.logger.debug(
         `CoinGecko getTokenContractInfo failed: ${(err as Error).message}`,
       );

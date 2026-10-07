@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
+import { throwIfRetryableProviderError } from '../../domain/retryable-provider.error';
 import { DataProviderPort } from '../../domain/data-provider.port';
 import type { DexScreenerConfig } from './dexscreener.config';
 import { DEXSCREENER_CONFIG } from './dexscreener.config';
@@ -177,6 +178,10 @@ export class DexScreenerService extends DataProviderPort {
       return null;
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 404) return null;
+      // 19b2: timeout / 429-with-Retry-After / 5xx surface as a typed
+      // error for the per-fetcher single retry (fetcher path only —
+      // sibling methods keep the legacy null collapse).
+      throwIfRetryableProviderError(err, 'dexscreener');
       this.logger.debug(
         `DexScreener getPairsByChain failed: ${(err as Error).message}`,
       );

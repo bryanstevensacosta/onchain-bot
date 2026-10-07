@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
+import { throwIfRetryableProviderError } from '../../domain/retryable-provider.error';
 import { DataProviderPort } from '../../domain/data-provider.port';
 import type { MoralisConfig } from './moralis.config';
 import { MORALIS_CONFIG } from './moralis.config';
@@ -92,6 +93,8 @@ export class MoralisService extends DataProviderPort {
       };
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 404) return null;
+      // 19b2: transient surfaces for the per-fetcher single retry.
+      throwIfRetryableProviderError(err, 'moralis');
       this.logger.debug(`Moralis /analytics failed: ${(err as Error).message}`);
       return null;
     }
@@ -135,6 +138,8 @@ export class MoralisService extends DataProviderPort {
       return { holders, top10HolderPercent: top10 };
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 404) return null;
+      // 19b2: same transient surfacing as /analytics above.
+      throwIfRetryableProviderError(err, 'moralis');
       this.logger.debug(`Moralis /holders failed: ${(err as Error).message}`);
       return null;
     }

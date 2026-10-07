@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
+import { throwIfRetryableProviderError } from '../../domain/retryable-provider.error';
 import { DataProviderPort } from '../../domain/data-provider.port';
 import type { BirdeyeConfig } from './birdeye.config';
 import { BIRDEYE_CONFIG } from './birdeye.config';
@@ -72,6 +73,9 @@ export class BirdeyeService extends DataProviderPort {
       return data.data;
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 404) return null;
+      // 19b2: transient (timeout / 429-with-Retry-After / 5xx) surfaces
+      // for the per-fetcher single retry; absence stays null.
+      throwIfRetryableProviderError(err, 'birdeye');
       this.logger.debug(
         `Birdeye /token_overview failed: ${(err as Error).message}`,
       );
