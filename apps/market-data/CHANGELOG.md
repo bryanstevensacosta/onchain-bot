@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Parallel tail + wired breaker + EVM-miss spans (dexter plan
+  todo 29):** `AddressSnapshotService.buildSnapshot` races the three
+  tail extras (launchpad / venue / dev-holdings) under one shared
+  budget — max 3 in flight (chunked `runTailCapped`), 400ms per extra,
+  degrade-to-null with explicit `tail:<extra>` notes (card never
+  blocked); fdvAth stays sequential (read-before-save rule). Serve logs
+  carry `tailMs=` + `breakerSkipped=`. The existing
+  `CircuitBreakerService` (5 fails → 30s cool-off, memory store with
+  reset-on-deploy accepted) gates the fan-out fail-open
+  (skip-not-throw); half-open admits a single cheapest probe; state via
+  `breakerStates()` + transition logs; throws-only signal with a
+  documented `'no data'` blind spot. `DirectFastPathResult.timings`
+  gains nullable `v2Ms`/`v3Ms`/`anchorMs` + a one-line `direct-miss …
+stage=…` debug per EVM-miss leg (numbers reported before any
+  read-path change). Stale propagation N/A (wait-time change only —
+  19b1 contract untouched). Specs: tail caps/timeout/degrade + breaker
+  open/close/half-open/flapping/no-data/unknown-name.
+
 - **Helius-keyed routing observability + Robinhood 64-hex fix
   (dexter plan todo 28):** `SolanaRpcService` boots LOUD
   (`Logger.log`): `keyed (primary host=<hostname>)` when

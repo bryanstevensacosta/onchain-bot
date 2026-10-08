@@ -884,6 +884,61 @@ host=<hostname>, public fallback armed)` or `public-only
     `task-p95-measure.log`, never memory); re-measurement table:
     `.omo/evidence/task-fe-p95-quickwins.log`.
 
+## TAIL PARALLEL + BREAKER + EVM-MISS SPANS (todo 29, 2026-10-07)
+
+- Parallel tail (`AddressSnapshotService.buildSnapshot`): the three
+  extras (launchpad / venue / dev-holdings) race under ONE shared
+  budget — max `SNAPSHOT_TAIL_CONCURRENCY = 3` in flight (chunked
+  `runTailCapped`; no p-limit-style helper exists in this app, so the
+  10-line local IS the helper), 400ms per extra
+  (`SNAPSHOT_TAIL_EXTRA_TIMEOUT_MS`), degrade-to-null on timeout OR
+  throw (timeouts named `tail:<extra>` in `providerErrors`, card never
+  blocked). fdvAth stays SEQUENTIAL (indexed history read, no
+  outbound; read-before-save is the todo-16 cold-start rule).
+  Pre-resolved legs (fast-path serve) cost zero tasks. Both serve logs
+  carry `tailMs=` + `breakerSkipped=`.
+- Shared outbound math (pinned in `provider-outbound-limits.ts`):
+  worst case ~10 outbound calls per cold snapshot (launchpad ≤4, venue
+  ≤2, dev ≤3 solana-only), spread over tiers; each extra abandoned at
+  400ms, never retried — bursts cannot stack past one 400ms window.
+- Breaker — ONE way (19b3): the existing `CircuitBreakerService`
+  (defaults: 5 consecutive failures → 30s cool-off) gates the fan-out
+  (`canExecute === false` REMOVES the fetcher for that snapshot with an
+  explicit skip note — fail-open, never throws). Registry
+  `recordFailure` counters stay TELEMETRY-only (gateway `listStatus`),
+  never a gate. Memory store + reset-on-deploy ACCEPTED (deploy wipes
+  counts — flapping providers get a clean slate per deploy). Observed
+  signal = THROWS only (timeout / outbound-deny / adapter errors);
+  `'no data'` is conservatively ignored (an exhausted 19b2 retry
+  collapses to the same `'no data'` as honest-empty — documented blind
+  spot, no new taxonomy). Success = contributed OR ran-clean-without-
+  contributing (aggregate-settled fanout only — fast-path in-flight
+  fetchers are never prematurely blessed). Half-open = SINGLE cheapest
+  probe (first half-open fetcher in policy order; the rest skip until
+  the probe settles). Flapping = fixed cool-off re-open, no adaptive
+  backoff. State metric: `breakerStates()` + transition logs
+  (`breaker open` warn / `half-open probe admitted` + `breaker closed`
+  log). Specs: open / close / half-open-single-probe / flapping /
+  no-data-neutral / unknown-name-parity.
+- EVM-miss spans (no new tracing lib): `DirectFastPathResult.timings`
+  gains nullable `v2Ms` / `v3Ms` / `anchorMs` (per-family reads +
+  native-anchor leg; Solana leaves them null by design); every EVM-miss
+  leg logs ONE `direct-miss chain=… stage=… discoveryMs=… v2Ms=…
+v3Ms=… anchorMs=…` debug line (stages: no-reader / no-discovery /
+  side-mismatch / v4-poolId / aborted / no-priced-view). Tier
+  attribution reuses the existing `evm-rpc served-by=` lines (same
+  chain + address). Read-path rule: the three numbers get REPORTED
+  before any read-path change (lane evidence log); inconclusive →
+  document + leave the leg alone.
+- STALE propagation: N/A (explicit). The tail changes WAIT time, not
+  freshness semantics: extras were always nullable fail-open (slow =
+  null, same as absent), `status`/`stale` trio + 19b1 floor untouched
+  (stale replays still bypass the tail notes path identically —
+  `providerErrors` rides along). No dexter / preview / UI contract
+  change, so no marking through dexter→preview→UI. If a future lane
+  makes an extra STALENESS-bearing (e.g. cached launchpad), that lane
+  owns the 19b1-style marking.
+
 ## SECURITY (P46, todo 10)
 
 Scoped API keys (`src/auth/`): `read` (GET chains/providers/addresses/

@@ -92,6 +92,19 @@ export interface DirectFastPathResult {
     readonly directMs: number;
     readonly launchpadMs: number | null;
     readonly totalMs: number;
+    /**
+     * EVM-miss spans (dexter plan todo 29 — no new tracing lib, these
+     * three nullable fields ARE the spans). Per-family on-chain read
+     * ms (null = that family never ran); `anchorMs` = the native-anchor
+     * extra leg inside the V2 path (null = stable-quoted or never
+     * reached). The Solana path leaves all three null (its miss class
+     * is pool-view-or-nothing, already covered by discoveryMs). Misses
+     * never surface timings (tryResolve returns null) — the
+     * `direct-miss … stage=…` debug line carries the same numbers.
+     */
+    readonly v2Ms: number | null;
+    readonly v3Ms: number | null;
+    readonly anchorMs: number | null;
   };
 }
 
@@ -169,6 +182,10 @@ const isSaneLiquidity = (value: number | null): value is number =>
   value < MAX_SANE_LIQUIDITY_USD;
 
 const lower = (address: string): string => address.trim().toLowerCase();
+
+/** Span helper: nullable ms renders as `n/a` (never crashes the line). */
+const roundSpanMs = (ms: number | null): string =>
+  ms === null ? 'n/a' : String(Math.round(ms));
 
 /**
  * V4 poolId shape check (dexter plan todo 28, Robinhood 64-hex fix).
@@ -399,6 +416,11 @@ export class DirectFastPathService {
         discoveryMs,
         directMs: performance.now() - directStart,
         launchpadMs: null,
+        // Solana miss class is pool-view-or-nothing (covered by
+        // discoveryMs above) — no per-family legs to attribute.
+        v2Ms: null,
+        v3Ms: null,
+        anchorMs: null,
       },
     };
   }
@@ -545,21 +567,58 @@ export class DirectFastPathService {
   ): Promise<FastPartial | null> {
     const reader = this.evmReader;
     const discoveryService = this.dexscreener;
-    if (reader === null || discoveryService === null) {
+    // Single miss exit: every EVM-miss leg reports its stage + the
+    // three discriminating numbers (discovery? V2/V3-read? anchor?)
+    // on ONE debug line — the numbers get REPORTED before any read
+    // path changes (todo 29 gate: fix the leg the numbers point to,
+    // else document + leave it alone). Tier attribution comes from
+    // the existing `evm-rpc served-by=` debug lines (same chain +
+    // address, no new field needed).
+    const miss = (
+      stage: string,
+      spans: {
+        discoveryMs: number | null;
+        v2Ms: number | null;
+        v3Ms: number | null;
+        anchorMs: number | null;
+      },
+    ): null => {
+      this.logger.debug(
+        `direct-miss chain=${chain} stage=${stage} ` +
+          `discoveryMs=${roundSpanMs(spans.discoveryMs)} ` +
+          `v2Ms=${roundSpanMs(spans.v2Ms)} v3Ms=${roundSpanMs(spans.v3Ms)} ` +
+          `anchorMs=${roundSpanMs(spans.anchorMs)}`,
+      );
       return null;
+    };
+    const noSpans = {
+      discoveryMs: null as number | null,
+      v2Ms: null as number | null,
+      v3Ms: null as number | null,
+      anchorMs: null as number | null,
+    };
+    if (reader === null || discoveryService === null) {
+      return miss('no-reader', noSpans);
     }
     const t0 = performance.now();
     const discovery = await discoveryService
       .getBestPairSummaryForChain(chain, address)
       .catch(() => null);
     const discoveryMs = performance.now() - t0;
-    if (discovery === null || signal.aborted) return null;
+    if (discovery === null || signal.aborted) {
+      return miss(signal.aborted ? 'aborted' : 'no-discovery', {
+        ...noSpans,
+        discoveryMs,
+      });
+    }
     const mint = lower(address);
     const baseIsMint = lower(discovery.baseToken.address) === mint;
     const quoteIsMint =
       discovery.quoteToken.address !== null &&
       lower(discovery.quoteToken.address) === mint;
-    if (!baseIsMint && !quoteIsMint) return null;
+    if (!baseIsMint && !quoteIsMint) {
+      return miss('side-mismatch', { ...noSpans, discoveryMs });
+    }
     // 64-hex guard (todo 28): a bytes32 poolId is not an address —
     // V2/V3 readers would burn every RPC tier on -32602. V4 routing
     // does not apply at this seam (no lens row for most chains incl.
@@ -568,7 +627,7 @@ export class DirectFastPathService {
       this.logger.debug(
         `resolveEvm v4-poolId skip (64-hex, no tier walk): ${chain} ${address}`,
       );
-      return null;
+      return miss('v4-poolId', { ...noSpans, discoveryMs });
     }
     const labels = discovery.labels.map((label) => label.toLowerCase());
     const families: ReadonlyArray<'v2' | 'v3'> = labels.includes('v3')
@@ -588,21 +647,55 @@ export class DirectFastPathService {
             },
             () => false,
           );
+    // Per-family spans: each family's wall time is stamped separately
+    // so an EVM-miss attributes to V2 vs V3 (the `direct-miss` line
+    // reports whichever ran; the un-run family stays null).
+    let v2Ms: number | null = null;
+    let v3Ms: number | null = null;
+    let anchorMs: number | null = null;
+    const timeFamily = async <T>(
+      family: 'v2' | 'v3',
+      work: Promise<T>,
+    ): Promise<T> => {
+      const started = performance.now();
+      try {
+        return await work;
+      } finally {
+        const elapsed = performance.now() - started;
+        if (family === 'v2') {
+          v2Ms = elapsed;
+        } else {
+          v3Ms = elapsed;
+        }
+      }
+    };
     const views = await Promise.all(
       families.map((family) =>
         family === 'v2'
-          ? reader.getV2PoolView(chain, discovery.pairAddress).catch(() => null)
-          : reader
-              .getV3PoolView(chain, discovery.pairAddress)
-              .catch(() => null),
+          ? timeFamily(
+              'v2',
+              reader
+                .getV2PoolView(chain, discovery.pairAddress)
+                .catch(() => null),
+            )
+          : timeFamily(
+              'v3',
+              reader
+                .getV3PoolView(chain, discovery.pairAddress)
+                .catch(() => null),
+            ),
       ),
     );
-    if (signal.aborted) return null;
+    if (signal.aborted) {
+      return miss('aborted', { discoveryMs, v2Ms, v3Ms, anchorMs });
+    }
     for (const view of views) {
       if (view === null) continue;
       const priced =
         'legs' in view
-          ? await this.priceEvmV2View(chain, mint, view, signal)
+          ? await this.priceEvmV2View(chain, mint, view, signal, (ms) => {
+              anchorMs = ms;
+            })
           : this.priceEvmV3View(chain, mint, view);
       if (priced === null) continue;
       const launchReady = await Promise.race([
@@ -647,10 +740,13 @@ export class DirectFastPathService {
           discoveryMs,
           directMs: performance.now() - directStart,
           launchpadMs: null,
+          v2Ms,
+          v3Ms,
+          anchorMs,
         },
       };
     }
-    return null;
+    return miss('no-priced-view', { discoveryMs, v2Ms, v3Ms, anchorMs });
   }
 
   private async priceEvmV2View(
@@ -672,6 +768,7 @@ export class DirectFastPathService {
       readonly price1Per0: number | null;
     },
     signal: AbortSignal,
+    onAnchorMs?: (ms: number) => void,
   ): Promise<{
     priceUsd: number;
     liquidityUsd: number | null;
@@ -723,9 +820,11 @@ export class DirectFastPathService {
     const tokenLeg =
       wnativeLeg === null ? null : wnativeLeg === leg0 ? leg1 : leg0;
     if (wnativeLeg === null || tokenLeg === null) return null;
+    const anchorStarted = performance.now();
     const anchorView = await this.evmReader
       .getV2PoolView(chain, anchorPool)
       .catch(() => null);
+    onAnchorMs?.(performance.now() - anchorStarted);
     if (anchorView === null || signal.aborted) return null;
     const anchorLegs = anchorView.legs;
     const anchorStable = stables.includes(lower(anchorLegs[0].token))

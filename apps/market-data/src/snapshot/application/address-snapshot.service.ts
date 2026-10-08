@@ -47,6 +47,7 @@ import { applyOutboundRateLimit } from 'provider/infrastructure/quote-fetchers/r
 import { applySingleRetryFetchers } from 'provider/infrastructure/quote-fetchers/fetcher-retry';
 import { DevHoldingsPort } from '../../holders/domain/holdings.port';
 import { AssetResolverService } from 'asset-registry/application/asset-resolver.service';
+import { CircuitBreakerService } from 'shared/infrastructure/rate-limiter/application/circuit-breaker.service';
 import {
   DIRECT_FAST_PATH_DEADLINE_MS,
   DirectFastPathService,
@@ -59,6 +60,71 @@ import {
 /** Log helper: nullable ms renders as `n/a` (never crashes the line). */
 const roundMs = (ms: number | null): string =>
   ms === null ? 'n/a' : String(Math.round(ms));
+
+/**
+ * Snapshot-tail budgets (dexter plan todo 29 — the tail is the
+ * launchpad/venue/dev extras that run AFTER the quote fan-out; the
+ * 28 re-measurement attributes ~2.5-6s of cold p95 to this tail).
+ */
+export const SNAPSHOT_TAIL_CONCURRENCY = 3;
+export const SNAPSHOT_TAIL_EXTRA_TIMEOUT_MS = 400;
+
+/** Breaker key namespace (disjoint from the `outbound:` buckets). */
+export const snapshotBreakerKey = (name: string): string =>
+  `snapshot-fetcher:${name}`;
+
+/**
+ * Chunked parallel runner (todo 29: no p-limit-style helper exists in
+ * this app — verified by grep, so this 10-line local IS the helper).
+ * Runs at most `concurrency` tasks at once, preserves order, never
+ * throws when the tasks themselves never throw (each tail task is
+ * catch-all by construction).
+ */
+export async function runTailCapped<T>(
+  tasks: ReadonlyArray<() => Promise<T>>,
+  concurrency: number,
+): Promise<Array<T>> {
+  const results = new Array<T>(tasks.length);
+  const cap = Math.max(1, Math.min(concurrency, tasks.length));
+  for (let start = 0; start < tasks.length; start += cap) {
+    const chunk = tasks.slice(start, start + cap);
+    const settled = await Promise.allSettled(chunk.map((task) => task()));
+    for (let i = 0; i < chunk.length; i += 1) {
+      const outcome = settled[i];
+      if (outcome.status === 'fulfilled') {
+        results[start + i] = outcome.value;
+      }
+    }
+  }
+  return results;
+}
+
+const TAIL_TIMEOUT = Symbol('tail-timeout');
+
+/**
+ * Per-extra tail budget (todo 29): the extra resolves to its value or
+ * to the timeout sentinel after `SNAPSHOT_TAIL_EXTRA_TIMEOUT_MS` — the
+ * card NEVER waits on an extra. The abandoned work keeps its own
+ * (longer) internal timeout and is catch-all, so no unhandled
+ * rejection and no lingering await: the race already observed it.
+ */
+function withTailBudget<T>(
+  work: Promise<T>,
+  ms: number = SNAPSHOT_TAIL_EXTRA_TIMEOUT_MS,
+): Promise<T | typeof TAIL_TIMEOUT> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const guard = new Promise<typeof TAIL_TIMEOUT>((resolve) => {
+    timer = setTimeout(() => resolve(TAIL_TIMEOUT), ms);
+    if (typeof timer.unref === 'function') {
+      timer.unref();
+    }
+  });
+  return Promise.race([work, guard]).finally(() => {
+    if (timer !== null) {
+      clearTimeout(timer);
+    }
+  });
+}
 
 /**
  * AddressSnapshotService (Tramo 3, P45; canonical home todo 12, P50;
@@ -128,7 +194,23 @@ export class AddressSnapshotService {
     @Optional()
     @Inject(DirectFastPathService)
     private readonly fastPath: DirectFastPathService | null = null,
+    // Breaker (dexter plan todo 29, 19b3): THE one gating path. The
+    // existing CircuitBreakerService (in-memory Map, constructed with
+    // its defaults: 5 consecutive failures -> 30s cool-off) is wired
+    // here; the registry `recordFailure` counters stay TELEMETRY-only
+    // (`listStatus` for the gateway, never a gate) — one way, never
+    // both. Memory store + reset-on-deploy ACCEPTED: a deploy wipes
+    // the failure counts, so a flapping provider gets a clean slate
+    // per deploy (documented, not hidden). Fail-open everywhere:
+    // `canExecute === false` SKIPS the fetcher (explicit
+    // `providerErrors` note), never throws, never blocks the card.
+    @Optional()
+    @Inject(CircuitBreakerService)
+    private readonly breaker: CircuitBreakerService | null = null,
   ) {}
+
+  /** In-flight half-open probe key (at most ONE globally — the single cheapest-fetcher probe). */
+  private halfOpenProbeInFlight: string | null = null;
 
   private async resolveAssetId(
     chain: string,
@@ -217,6 +299,64 @@ export class AddressSnapshotService {
     }
   }
 
+  /**
+   * Breaker gate (todo 29, fail-open skip-not-throw). Fetchers whose
+   * breaker is open are REMOVED from this snapshot's fan-out (the skip
+   * is named in `providerErrors` downstream — never silent, never a
+   * throw). Half-open admits a SINGLE probe: the first half-open
+   * fetcher in policy (cheapest-first) order goes through while a
+   * probe is in flight; the rest skip until it settles. Without an
+   * injected breaker this is the identity (zero behavior change, so
+   * all pre-breaker specs stay green untouched).
+   */
+  private applyBreakerGate(fetchers: ReadonlyArray<QuoteFetcher>): {
+    readonly admitted: ReadonlyArray<QuoteFetcher>;
+    readonly skipped: ReadonlyArray<string>;
+    readonly halfOpenKey: string | null;
+  } {
+    if (this.breaker === null || this.breaker === undefined) {
+      return { admitted: fetchers, skipped: [], halfOpenKey: null };
+    }
+    const admitted: Array<QuoteFetcher> = [];
+    const skipped: Array<string> = [];
+    let halfOpenKey: string | null = null;
+    const probeBusy = this.halfOpenProbeInFlight !== null;
+    for (const fetcher of fetchers) {
+      const key = snapshotBreakerKey(fetcher.name);
+      if (!this.breaker.canExecute(key)) {
+        skipped.push(fetcher.name);
+        continue;
+      }
+      if (this.breaker.getState(key) === 'half-open') {
+        if (probeBusy || halfOpenKey !== null) {
+          skipped.push(fetcher.name);
+          continue;
+        }
+        halfOpenKey = key;
+        this.halfOpenProbeInFlight = key;
+        this.logger.log(
+          `breaker half-open probe admitted (single cheapest): ${fetcher.name}`,
+        );
+      }
+      admitted.push(fetcher);
+    }
+    return { admitted, skipped, halfOpenKey };
+  }
+
+  /**
+   * Breaker state metric (todo 29): per-fetcher circuit state for the
+   * future `/metrics` exporter (mirrors `SnapshotNullMetricsService`
+   * — counts there, states here). Unknown fetchers read `closed`.
+   */
+  public breakerStates(): Record<string, string> {
+    const states: Record<string, string> = {};
+    for (const provider of this.providers.listProviders()) {
+      states[provider.name] =
+        this.breaker?.getState(snapshotBreakerKey(provider.name)) ?? 'closed';
+    }
+    return states;
+  }
+
   public async getSnapshot(
     input: AddressSnapshotInput,
   ): Promise<AddressSnapshot> {
@@ -284,7 +424,12 @@ export class AddressSnapshotService {
     // fetcher, never a phantom budget. Sibling 19b1 (stale floor
     // below) untouched: stale serves only when the fanned-out result
     // below is pending, retry or not.
-    const retried = applySingleRetryFetchers(gated);
+    // Breaker sits between the outbound wrap and the retry (todo 29:
+    // policy -> outbound-gate -> breaker-skip -> retry -> aggregate):
+    // a skipped fetcher never runs, so it burns neither retry delay
+    // nor outbound budget.
+    const breakerGate = this.applyBreakerGate(gated);
+    const retried = applySingleRetryFetchers(breakerGate.admitted);
     // Direct fast-path FIRST (todo 22 wire-up): the fan-out starts
     // IMMEDIATELY and the on-chain readers race a HARD deadline
     // against it. Sane direct values serve at direct speed while the
@@ -293,7 +438,20 @@ export class AddressSnapshotService {
     // timeout, insane values) awaits the already-running fan-out —
     // the fallback path below is byte-identical and pays ~zero
     // direct penalty when the miss is fast (instant-null coverage).
-    const fanoutP = this.aggregator.aggregate(known.id, input.value, retried);
+    const fanoutP = this.aggregator
+      .aggregate(known.id, input.value, retried)
+      .finally(() => {
+        // Half-open probe release: the probe is the FETCHER call, which
+        // is done when the aggregate settles (the aggregate itself never
+        // rejects — allSettled inside). Release exactly our own key so a
+        // concurrent snapshot's probe is never stolen.
+        if (
+          breakerGate.halfOpenKey !== null &&
+          this.halfOpenProbeInFlight === breakerGate.halfOpenKey
+        ) {
+          this.halfOpenProbeInFlight = null;
+        }
+      });
     const fastStartedAt = performance.now();
     const fast =
       this.fastPath === null
@@ -304,7 +462,7 @@ export class AddressSnapshotService {
           );
     const directMs = Math.round(performance.now() - fastStartedAt);
     if (fast !== null) {
-      const snapshot = await this.buildSnapshot({
+      const built = await this.buildSnapshot({
         knownId: known.id,
         inputValue: input.value,
         cacheKey,
@@ -315,11 +473,15 @@ export class AddressSnapshotService {
         launchpad: { resolved: true, value: fast.launchpad },
         venue: { resolved: true, value: fast.venue },
         skipDevHoldings: true,
+        breakerSkipped: breakerGate.skipped,
+        breakerAdmitted: [],
+        outcomeIsAggregate: false,
       });
       this.logger.log(
         `direct-fast-path chain=${known.id} served=fast directMs=${directMs} ` +
           `discoveryMs=${roundMs(fast.timings.discoveryMs)} ` +
-          `kindMs=${kindMs} ` +
+          `kindMs=${kindMs} tailMs=${built.tailMs} ` +
+          `breakerSkipped=${breakerGate.skipped.length} ` +
           `totalMs=${Math.round(performance.now() - startedAt)}`,
       );
       this.compareToleranceInBackground(
@@ -328,12 +490,12 @@ export class AddressSnapshotService {
         input.value,
         fast.outcome.quote,
       );
-      return snapshot;
+      return built.snapshot;
     }
     const fanoutStartedAt = performance.now();
     const outcome = await fanoutP;
     const fanoutMs = Math.round(performance.now() - fanoutStartedAt);
-    const snapshot = await this.buildSnapshot({
+    const built = await this.buildSnapshot({
       knownId: known.id,
       inputValue: input.value,
       cacheKey,
@@ -344,13 +506,17 @@ export class AddressSnapshotService {
       launchpad: { resolved: false, value: null },
       venue: { resolved: false, value: null },
       skipDevHoldings: false,
+      breakerSkipped: breakerGate.skipped,
+      breakerAdmitted: breakerGate.admitted.map((fetcher) => fetcher.name),
+      outcomeIsAggregate: true,
     });
     this.logger.log(
       `direct-fast-path chain=${known.id} served=fanout directMs=${directMs} ` +
-        `fanoutMs=${fanoutMs} kindMs=${kindMs} ` +
+        `fanoutMs=${fanoutMs} kindMs=${kindMs} tailMs=${built.tailMs} ` +
+        `breakerSkipped=${breakerGate.skipped.length} ` +
         `totalMs=${Math.round(performance.now() - startedAt)}`,
     );
-    return snapshot;
+    return built.snapshot;
   }
 
   /**
@@ -418,47 +584,198 @@ export class AddressSnapshotService {
       readonly value: SnapshotVenue | null;
     };
     readonly skipDevHoldings: boolean;
-  }): Promise<AddressSnapshot> {
+    readonly breakerSkipped: ReadonlyArray<string>;
+    /**
+     * Names admitted through the breaker gate for THIS snapshot's
+     * aggregate. The fast path passes [] (its aggregate is still in
+     * flight in background — nobody observes it, same as the registry
+     * today).
+     */
+    readonly breakerAdmitted: ReadonlyArray<string>;
+    /**
+     * True only when `outcome` is the settled aggregate (fanout path).
+     * Gates the idle-success rule below: on the fast path the admitted
+     * fetchers may still be in flight, so a success there would be
+     * premature (it could close an open breaker with no real probe).
+     */
+    readonly outcomeIsAggregate: boolean;
+  }): Promise<{ readonly snapshot: AddressSnapshot; readonly tailMs: number }> {
     const { knownId, inputValue, cacheKey, kind, id, supporting, outcome } =
       args;
-    const launchpad = args.launchpad.resolved
-      ? args.launchpad.value
-      : await this.resolveLaunchpad(knownId, inputValue);
-    const venue = args.venue.resolved
-      ? args.venue.value
-      : await this.resolveVenue(knownId, inputValue);
+    const tailStartedAt = performance.now();
+    // Parallel tail (todo 29): the three extras race under ONE shared
+    // budget — max SNAPSHOT_TAIL_CONCURRENCY in flight, 400ms each,
+    // degrade-to-null. Pre-resolved legs (fast-path serve) cost zero
+    // tasks. fdvAth stays SEQUENTIAL below: it is an indexed history
+    // read (no outbound, microseconds), and the read-before-save order
+    // is the cold-start correctness rule (todo 16) — parallelizing it
+    // would buy nothing and risk the ordering.
+    const tailNotes: Record<string, string> = {};
+    const runExtra = async <T>(
+      name: 'launchpad' | 'venue' | 'dev',
+      work: Promise<T | null>,
+    ): Promise<T | null> => {
+      try {
+        const raced = await withTailBudget(work);
+        if (raced === TAIL_TIMEOUT) {
+          tailNotes[`tail:${name}`] =
+            `timeout (tail budget ${SNAPSHOT_TAIL_EXTRA_TIMEOUT_MS}ms) — degraded to null, fail-open`;
+          return null;
+        }
+        return raced;
+      } catch {
+        return null;
+      }
+    };
+    const tailTasks: Array<() => Promise<unknown>> = [];
+    const tailSlots: Array<'launchpad' | 'venue' | 'dev'> = [];
+    if (!args.launchpad.resolved) {
+      tailSlots.push('launchpad');
+      tailTasks.push(() =>
+        runExtra('launchpad', this.resolveLaunchpad(knownId, inputValue)),
+      );
+    }
+    if (!args.venue.resolved) {
+      tailSlots.push('venue');
+      tailTasks.push(() =>
+        runExtra('venue', this.resolveVenue(knownId, inputValue)),
+      );
+    }
+    const wantDev =
+      kind === 'token' &&
+      this.devHoldings !== null &&
+      this.devHoldings !== undefined &&
+      !args.skipDevHoldings;
+    if (wantDev) {
+      tailSlots.push('dev');
+      tailTasks.push(async () => {
+        try {
+          return await runExtra(
+            'dev',
+            this.devHoldings?.resolve(knownId, inputValue) ??
+              Promise.resolve(null),
+          );
+        } catch {
+          return null;
+        }
+      });
+    }
+    const tailValues = await runTailCapped(
+      tailTasks,
+      SNAPSHOT_TAIL_CONCURRENCY,
+    );
+    let launchpad = args.launchpad.resolved ? args.launchpad.value : null;
+    let venue = args.venue.resolved ? args.venue.value : null;
+    let devWallets: AddressSnapshot['devWallets'] = null;
+    let devPctSupply: number | null = null;
+    const devErrors: Record<string, string> = {};
+    for (let i = 0; i < tailSlots.length; i += 1) {
+      const slot = tailSlots[i];
+      const value = tailValues[i];
+      if (slot === 'launchpad') {
+        launchpad = (value as LaunchpadInfo | null) ?? null;
+      } else if (slot === 'venue') {
+        venue = (value as SnapshotVenue | null) ?? null;
+      } else if (value !== null && value !== undefined) {
+        const dev = value as {
+          readonly devWallets?: AddressSnapshot['devWallets'];
+          readonly devPctSupply?: number | null;
+          readonly providerErrors?: Record<string, string>;
+        };
+        devWallets = dev.devWallets ?? null;
+        devPctSupply = dev.devPctSupply ?? null;
+        for (const [k, v] of Object.entries(dev.providerErrors ?? {})) {
+          devErrors[`dev:${k}`] = v;
+        }
+      }
+    }
+    const tailMs = Math.round(performance.now() - tailStartedAt);
     // FDV ATH is strictly historical: read BEFORE the current row is
     // persisted, so cold-start (no history) resolves null and the
     // in-flight FDV is never substituted as ATH (spec-pinned).
     const fdvAth = await this.history.findFdvAth(knownId, inputValue);
+    const knownFetcherNames = new Set(
+      this.providers.listProviders().map((provider) => provider.name),
+    );
     for (const source of outcome.sources) {
       this.providers.recordSuccess(source, 0);
+      // Breaker observes TRANSPORT failures only (todo 29): a source
+      // that contributed is a success by definition. Unknown names
+      // (e.g. `onchain-direct` on the fast path) are not fetchers and
+      // never touch the breaker — same guard the registry applies via
+      // its descriptor map.
+      if (knownFetcherNames.has(source)) {
+        const key = snapshotBreakerKey(source);
+        const before = this.breaker?.getState(key);
+        this.breaker?.recordSuccess(key);
+        if (before !== undefined && before !== null && before !== 'closed') {
+          this.logger.log(`breaker closed: ${source}`);
+        }
+      }
     }
     for (const name of Object.keys(outcome.errors)) {
       if (!outcome.sources.includes(name)) {
         this.providers.recordFailure(name);
+        // KNOWN BLIND SPOT (documented, not hidden): an exhausted 19b2
+        // retry collapses to fulfilled-null, so the aggregator records
+        // the SAME `'no data'` as an honest empty — the breaker cannot
+        // tell a 429-storm from no-market without a new taxonomy, and
+        // inventing one here would churn the merge contract. The
+        // breaker therefore counts only THROWS (timeout / outbound-deny
+        // / adapter errors) and stays conservative on `'no data'`.
+        if (knownFetcherNames.has(name) && outcome.errors[name] !== 'no data') {
+          const key = snapshotBreakerKey(name);
+          this.breaker?.recordFailure(key);
+          if (
+            this.breaker?.getState(key) === 'open' &&
+            this.breaker !== null &&
+            this.breaker !== undefined
+          ) {
+            this.logger.warn(
+              `breaker open: ${name} (5 consecutive transport failures — 30s cool-off, skips fail-open; resets on deploy)`,
+            );
+          }
+        }
       }
     }
-    let devWallets: AddressSnapshot['devWallets'] = null;
-    let devPctSupply: number | null = null;
+    // Idle-success (fanout path only): an admitted fetcher that ran
+    // clean but contributed NOTHING (another fetcher won every field)
+    // is transport-healthy — the half-open probe it carried PROVED the
+    // provider is back, so the breaker closes. Contribution-based
+    // success above would leave the breaker half-open forever when a
+    // recovered provider keeps losing the merge. (Registry keeps its
+    // pre-existing sources-only accounting — untouched.)
+    if (args.outcomeIsAggregate) {
+      for (const name of args.breakerAdmitted) {
+        if (!knownFetcherNames.has(name)) {
+          continue;
+        }
+        if (outcome.sources.includes(name) || name in outcome.errors) {
+          continue;
+        }
+        const key = snapshotBreakerKey(name);
+        const before = this.breaker?.getState(key);
+        this.breaker?.recordSuccess(key);
+        if (before !== undefined && before !== null && before !== 'closed') {
+          this.logger.log(`breaker closed: ${name}`);
+        }
+      }
+    }
     const providerErrors: Record<string, string> = { ...outcome.errors };
+    for (const name of args.breakerSkipped) {
+      providerErrors[name] =
+        'breaker skip (open 30s cool-off or half-open probe busy) — fail-open (resets on deploy)';
+    }
+    for (const [k, v] of Object.entries(tailNotes)) {
+      providerErrors[k] = v;
+    }
     if (args.skipDevHoldings && kind === 'token') {
       // Fast card: dev holdings need their own aggregator round trip,
       // outside the 800ms budget by design — marked, never silent.
       providerErrors['dev:fast-path'] = 'skipped (fast-path budget)';
     }
-    if (kind === 'token' && this.devHoldings && !args.skipDevHoldings) {
-      try {
-        const dev = await this.devHoldings.resolve(knownId, inputValue);
-        devWallets = dev.devWallets ?? null;
-        devPctSupply = dev.devPctSupply;
-        for (const [k, v] of Object.entries(dev.providerErrors)) {
-          providerErrors[`dev:${k}`] = v;
-        }
-      } catch {
-        devWallets = null;
-        devPctSupply = null;
-      }
+    for (const [k, v] of Object.entries(devErrors)) {
+      providerErrors[k] = v;
     }
     // Serve-stale floor (dexter plan todo 19b1, NO background
     // refresh by design): the request that finds providers down
@@ -474,7 +791,7 @@ export class AddressSnapshotService {
         this.staleMaxAgeMs,
       );
       if (staleRow !== null) {
-        return {
+        const stale: AddressSnapshot = {
           chain: id.chain,
           address: id.address,
           kind: id.kind,
@@ -499,6 +816,7 @@ export class AddressSnapshotService {
           devWallets: staleRow.quote.devWallets ?? null,
           devPctSupply: staleRow.quote.devPctSupply ?? null,
         };
+        return { snapshot: stale, tailMs };
       }
     }
     const snapshot: AddressSnapshot = {
@@ -554,6 +872,6 @@ export class AddressSnapshotService {
         deriveSnapshotNullReason({ servedFromCache: false, providerErrors }),
       );
     }
-    return snapshot;
+    return { snapshot, tailMs };
   }
 }
