@@ -5,7 +5,9 @@ import type { SolanaRpcConfig } from './solana-rpc.config';
 import { SOLANA_RPC_CONFIG } from './solana-rpc.config';
 import {
   chainstackSolanaRpcUrl,
+  isChainstackChainAllowed,
   isFreeBTierSkippedMethod,
+  parseChainstackChains,
   shyftSolanaRpcUrl,
 } from '../alchemy/alchemy.chains';
 import type {
@@ -94,12 +96,16 @@ export class SolanaRpcService
 
   public readonly primaryRpcUrl: string | null;
   private readonly chainstackApiKey: string;
+  private readonly chainstackChains: ReadonlySet<string> | null;
   private readonly shyftApiKey: string;
 
   public constructor(@Inject(SOLANA_RPC_CONFIG) config: SolanaRpcConfig) {
     super();
     this.primaryRpcUrl = config.primaryRpcUrl ?? null;
     this.chainstackApiKey = (config.chainstackApiKey ?? '').trim();
+    this.chainstackChains = parseChainstackChains(
+      config.chainstackChains ?? process.env.CHAINSTACK_CHAINS,
+    );
     this.shyftApiKey = (config.shyftApiKey ?? '').trim();
     if (this.primaryRpcUrl) {
       this.logger.log(
@@ -309,7 +315,16 @@ export class SolanaRpcService
         name: 'shyft',
         url: shyftSolanaRpcUrl(this.shyftApiKey),
       });
-    if (!carved && this.chainstackApiKey)
+    const chainstackAllowed = isChainstackChainAllowed(
+      'solana',
+      this.chainstackChains,
+    );
+    if (this.chainstackApiKey && !chainstackAllowed) {
+      this.logger.debug(
+        'Chainstack tier skipped for chain solana (not in CHAINSTACK_CHAINS allowlist)',
+      );
+    }
+    if (!carved && this.chainstackApiKey && chainstackAllowed)
       tiers.push({
         name: 'chainstack',
         url: chainstackSolanaRpcUrl(this.chainstackApiKey),

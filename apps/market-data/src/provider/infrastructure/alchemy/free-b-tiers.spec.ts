@@ -5,7 +5,9 @@ import {
   chainstackEvmRpcUrl,
   chainstackSolanaRpcUrl,
   freeBCallsForColdExplicitChainSnapshot,
+  isChainstackChainAllowed,
   isFreeBTierSkippedMethod,
+  parseChainstackChains,
   shyftSolanaRpcUrl,
 } from './alchemy.chains';
 import { AlchemyService } from './alchemy.service';
@@ -30,12 +32,20 @@ function solanaResult(value: unknown) {
 describe('free-B providers (dexter plan todo 30a)', () => {
   const savedDrpc = process.env.DRPC_API_KEY;
   const savedChainstack = process.env.CHAINSTACK_API_KEY;
+  const savedChains = process.env.CHAINSTACK_CHAINS;
 
-  function evmService(apiKey = 'k', drpcKey?: string, chainstackKey?: string) {
+  function evmService(
+    apiKey = 'k',
+    drpcKey?: string,
+    chainstackKey?: string,
+    chainstackChains?: string,
+  ) {
     if (drpcKey === undefined) delete process.env.DRPC_API_KEY;
     else process.env.DRPC_API_KEY = drpcKey;
     if (chainstackKey === undefined) delete process.env.CHAINSTACK_API_KEY;
     else process.env.CHAINSTACK_API_KEY = chainstackKey;
+    if (chainstackChains === undefined) delete process.env.CHAINSTACK_CHAINS;
+    else process.env.CHAINSTACK_CHAINS = chainstackChains;
     return new AlchemyService({ apiKey });
   }
 
@@ -49,6 +59,8 @@ describe('free-B providers (dexter plan todo 30a)', () => {
     if (savedChainstack !== undefined)
       process.env.CHAINSTACK_API_KEY = savedChainstack;
     else delete process.env.CHAINSTACK_API_KEY;
+    if (savedChains !== undefined) process.env.CHAINSTACK_CHAINS = savedChains;
+    else delete process.env.CHAINSTACK_CHAINS;
   });
 
   it('pins the Chainstack EVM host matrix (doc-proven + *-extrapolated, no robinhood row)', () => {
@@ -189,5 +201,116 @@ describe('free-B providers (dexter plan todo 30a)', () => {
     expect(solana <= FREEB_QPS_REFERENCE.shyftRpcRps).toBe(true);
     expect(solana <= FREEB_QPS_REFERENCE.chainstackSolanaRps).toBe(true);
     expect(FREEB_QPS_REFERENCE.shyftIndexRps).toBe(0);
+  });
+
+  it('parses CHAINSTACK_CHAINS tolerantly (trim, lowercase, ignore empties)', () => {
+    expect(parseChainstackChains(undefined)).toBeNull();
+    expect(parseChainstackChains('')).toBeNull();
+    expect(parseChainstackChains('  ,,  ')).toBeNull();
+    expect(parseChainstackChains('Solana')).toEqual(new Set(['solana']));
+    expect(parseChainstackChains(' base ,,ETHEREUM, ')).toEqual(
+      new Set(['base', 'ethereum']),
+    );
+  });
+
+  it('defaults off: unset allowlist serves every Chainstack row', () => {
+    expect(isChainstackChainAllowed('base', null)).toBe(true);
+    expect(isChainstackChainAllowed('solana', null)).toBe(true);
+    expect(isChainstackChainAllowed('base', undefined)).toBe(true);
+    expect(
+      isChainstackChainAllowed('base', parseChainstackChains(undefined)),
+    ).toBe(true);
+  });
+
+  it('ignores malformed entries (empties/case/whitespace never allowlist)', () => {
+    const allowlist = parseChainstackChains(' , , BASE ,,  ,');
+    expect(allowlist).toEqual(new Set(['base']));
+    expect(isChainstackChainAllowed('base', allowlist)).toBe(true);
+    expect(isChainstackChainAllowed('BASE', allowlist)).toBe(true);
+    expect(isChainstackChainAllowed(' ethereum ', allowlist)).toBe(false);
+    expect(isChainstackChainAllowed('', allowlist)).toBe(false);
+  });
+
+  it('EVM allowlist honored: unlisted chain skips Chainstack with zero network (spy)', async () => {
+    mockedAxios.post
+      .mockRejectedValueOnce(new Error('alchemy down'))
+      .mockRejectedValueOnce(new Error('drpc down'))
+      .mockResolvedValueOnce(rpcResult('0x0c'));
+    const res = await evmService('k', 'dk', 'ck', 'solana').ethCall(
+      'base',
+      '0xt',
+      '0xd',
+    );
+    expect(res).toBe('0x0c');
+    expect(mockedAxios.post).toHaveBeenCalledTimes(3);
+    const urls = mockedAxios.post.mock.calls.map((c) => String(c[0]));
+    expect(urls).toEqual([
+      'https://base-mainnet.g.alchemy.com/v2/k',
+      'https://lb.drpc.live/base/dk',
+      'https://mainnet.base.org',
+    ]);
+    expect(urls.some((u) => u.includes('core.chainstack.com'))).toBe(false);
+  });
+
+  it('EVM allowlist honored: listed chain still serves Chainstack (spy)', async () => {
+    mockedAxios.post
+      .mockRejectedValueOnce(new Error('alchemy down'))
+      .mockRejectedValueOnce(new Error('drpc down'))
+      .mockRejectedValueOnce(new Error('chainstack down'))
+      .mockResolvedValueOnce(rpcResult('0x0d'));
+    const res = await evmService('k', 'dk', 'ck', 'Base').ethCall(
+      'base',
+      '0xt',
+      '0xd',
+    );
+    expect(res).toBe('0x0d');
+    expect(mockedAxios.post).toHaveBeenCalledTimes(4);
+    const urls = mockedAxios.post.mock.calls.map((c) => String(c[0]));
+    expect(urls[2]).toBe('https://base-mainnet.core.chainstack.com/ck');
+  });
+
+  it('Solana allowlist honored: unlisted solana skips Chainstack with zero network (spy)', async () => {
+    mockedAxios.post
+      .mockRejectedValueOnce(new Error('primary down'))
+      .mockRejectedValueOnce(new Error('shyft down'))
+      .mockResolvedValueOnce(solanaResult([null]));
+    const svc = new SolanaRpcService({
+      primaryRpcUrl: 'https://primary.example',
+      shyftApiKey: 'sk',
+      chainstackApiKey: 'ck',
+      chainstackChains: 'base,ethereum',
+    });
+    const res = await svc.getMultipleAccounts(['A']);
+    expect(res).toEqual([null]);
+    expect(mockedAxios.post).toHaveBeenCalledTimes(3);
+    const urls = mockedAxios.post.mock.calls.map((c) => String(c[0]));
+    expect(urls).toEqual([
+      'https://primary.example',
+      'https://rpc.shyft.to/?api_key=sk',
+      'https://api.mainnet.solana.com',
+    ]);
+    expect(urls.some((u) => u.includes('core.chainstack.com'))).toBe(false);
+  });
+
+  it('Solana allowlist honored: listed solana still serves Chainstack (spy)', async () => {
+    mockedAxios.post
+      .mockRejectedValueOnce(new Error('primary down'))
+      .mockRejectedValueOnce(new Error('shyft down'))
+      .mockResolvedValueOnce(solanaResult([null]));
+    const svc = new SolanaRpcService({
+      primaryRpcUrl: 'https://primary.example',
+      shyftApiKey: 'sk',
+      chainstackApiKey: 'ck',
+      chainstackChains: ' Solana ',
+    });
+    const res = await svc.getMultipleAccounts(['A']);
+    expect(res).toEqual([null]);
+    expect(mockedAxios.post).toHaveBeenCalledTimes(3);
+    const urls = mockedAxios.post.mock.calls.map((c) => String(c[0]));
+    expect(urls).toEqual([
+      'https://primary.example',
+      'https://rpc.shyft.to/?api_key=sk',
+      'https://solana-mainnet.core.chainstack.com/ck',
+    ]);
   });
 });

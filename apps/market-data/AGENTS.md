@@ -318,7 +318,10 @@ adapter returns null, never throws). `AppModule` loads them via
 `cs.get('app.*')` resolves undefined and all keyed adapters stay dark.
 `solanaRpc.primaryRpcUrl` reuses `HELIUS_RPC_URL_MAINNET` (public-RPC
 fallback otherwise); moralis quote fetcher is EVM-only (solana
-snapshots correctly skip it).
+snapshots correctly skip it). `CHAINSTACK_CHAINS` (empty = all rows)
+pins which chains may call the Chainstack free tier — free allows ONE
+chain per endpoint, so unlisted rows skip silently instead of burning
+seconds on 401s.
 Staging prep status (todo 8, prep only): `docker-compose.staging.yml` +
 `.env.staging.template` landed DRY-RUN (host `:4001`, DB
 `onchain_bot_market_data_staging`); pending operator decision: staging

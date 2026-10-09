@@ -21,10 +21,11 @@ export interface AppConfig {
     primaryRpcUrl?: string;
     fallbackRpcUrl: string;
     chainstackApiKey: string;
+    chainstackChains?: string;
     shyftApiKey: string;
   };
   drpc: { apiKey: string };
-  chainstack: { apiKey: string };
+  chainstack: { apiKey: string; chains?: string };
   shyft: { apiKey: string };
 }
 
@@ -76,6 +77,7 @@ export function buildAppConfig(
       primaryRpcUrl: env.HELIUS_RPC_URL_MAINNET || undefined,
       fallbackRpcUrl: 'https://api.mainnet.solana.com',
       chainstackApiKey: env.CHAINSTACK_API_KEY ?? '',
+      chainstackChains: env.CHAINSTACK_CHAINS || undefined,
       shyftApiKey: env.SHYFT_API_KEY ?? '',
     },
     drpc: {
@@ -83,6 +85,7 @@ export function buildAppConfig(
     },
     chainstack: {
       apiKey: env.CHAINSTACK_API_KEY ?? '',
+      chains: env.CHAINSTACK_CHAINS || undefined,
     },
     shyft: {
       apiKey: env.SHYFT_API_KEY ?? '',

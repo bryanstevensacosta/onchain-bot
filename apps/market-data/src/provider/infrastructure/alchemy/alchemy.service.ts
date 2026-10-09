@@ -15,7 +15,9 @@ import {
   chainstackEvmRpcUrl,
   drpcRpcUrl,
   EVM_RPC_TIER_TIMEOUT_MS,
+  isChainstackChainAllowed,
   isChainSupported,
+  parseChainstackChains,
   type ChainRpc,
 } from './alchemy.chains';
 import { EVM_CHAIN_TRANSPORTS as KEYLESS_EVM_TRANSPORTS } from '../../../launchpad/domain/launchpad-table';
@@ -52,6 +54,7 @@ export class AlchemyService extends DataProviderPort implements ChainRpc {
   private readonly rpcUrl: string;
   private readonly drpcApiKey: string;
   private readonly chainstackApiKey: string;
+  private readonly chainstackChains: ReadonlySet<string> | null;
 
   public constructor(@Inject(ALCHEMY_CONFIG) config: AlchemyConfig) {
     super();
@@ -59,6 +62,9 @@ export class AlchemyService extends DataProviderPort implements ChainRpc {
     this.rpcUrl = `${BASE}/${config.apiKey}`;
     this.drpcApiKey = (process.env.DRPC_API_KEY ?? '').trim();
     this.chainstackApiKey = (process.env.CHAINSTACK_API_KEY ?? '').trim();
+    this.chainstackChains = parseChainstackChains(
+      process.env.CHAINSTACK_CHAINS,
+    );
     if (!config.apiKey) {
       this.logger.warn(
         'ALCHEMY_API_KEY missing — Alchemy provider will return null',
@@ -159,6 +165,15 @@ export class AlchemyService extends DataProviderPort implements ChainRpc {
       method,
       params,
     };
+    const chainstackAllowed = isChainstackChainAllowed(
+      chain,
+      this.chainstackChains,
+    );
+    if (this.chainstackApiKey && !chainstackAllowed) {
+      this.logger.debug(
+        `Chainstack tier skipped for chain ${chain} (not in CHAINSTACK_CHAINS allowlist)`,
+      );
+    }
     const tiers: ReadonlyArray<{ name: string; url: string | null }> = [
       {
         name: 'alchemy',
@@ -170,9 +185,10 @@ export class AlchemyService extends DataProviderPort implements ChainRpc {
       },
       {
         name: 'chainstack',
-        url: this.chainstackApiKey
-          ? chainstackEvmRpcUrl(chain, this.chainstackApiKey)
-          : null,
+        url:
+          this.chainstackApiKey && chainstackAllowed
+            ? chainstackEvmRpcUrl(chain, this.chainstackApiKey)
+            : null,
       },
       {
         name: 'public',

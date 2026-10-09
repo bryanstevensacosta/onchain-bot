@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Chainstack chain allowlist (`CHAINSTACK_CHAINS`):** Chainstack
+  free allows ONE chain per endpoint, so comma-separated `CHAINSTACK_CHAINS`
+  (e.g. `solana`; empty default = all rows, today's behavior) gates the
+  Chainstack tier rows (EVM `rpcCallForChain` + Solana `buildRpcUrls`) —
+  non-listed chains skip SILENTLY with a debug log (zero network, same
+  skip-if-absent discipline). Parsing tolerant (trim, lowercase, ignore
+  empties). Env empty in `.env.example`; `app.config.ts` gains
+  `chainstack.chains` + `solanaRpc.chainstackChains`. Specs:
+  allowlist honored (spy), default-off, malformed ignored.
+
 - **Discovery cache with migration invalidation (dexter plan todo
   30b):** `DiscoveryCacheService.resolveDiscovery(chain, mint)`
   caches `(chain,mint)→{pairAddress,dexId}` in a new `discovery_cache`

@@ -226,6 +226,40 @@ export function chainstackSolanaRpcUrl(apiKey: string): string {
   return `https://${CHAINSTACK_SOLANA_HOST}.core.chainstack.com/${apiKey}`;
 }
 
+/**
+ * Chainstack free-tier chain allowlist (one chain per endpoint on the
+ * free plan — unlisted rows would burn seconds on 401s).
+ *
+ * `CHAINSTACK_CHAINS` is a comma-separated list of OUR chain slugs
+ * (e.g. `solana`, `base`). Parsing is tolerant: entries are trimmed
+ * + lowercased, empties ignored. Unset/empty ⇒ `null` = ALL rows
+ * (today's behavior, default-off / backward compat).
+ */
+export function parseChainstackChains(
+  raw: string | undefined | null,
+): ReadonlySet<string> | null {
+  if (raw === undefined || raw === null) return null;
+  const entries = raw
+    .split(',')
+    .map((entry) => entry.trim().toLowerCase())
+    .filter((entry) => entry.length > 0);
+  if (entries.length === 0) return null;
+  return new Set(entries);
+}
+
+/**
+ * Allowlist check for one Chainstack tier row. `null` allowlist =
+ * default-off (every row serves). Non-listed chains skip SILENTLY
+ * (callers debug-log, zero network).
+ */
+export function isChainstackChainAllowed(
+  chain: string,
+  allowlist: ReadonlySet<string> | null | undefined,
+): boolean {
+  if (allowlist === null || allowlist === undefined) return true;
+  return allowlist.has(chain.trim().toLowerCase());
+}
+
 export function shyftSolanaRpcUrl(apiKey: string): string {
   return `https://rpc.shyft.to/?api_key=${apiKey}`;
 }

@@ -4,5 +4,6 @@ export interface SolanaRpcConfig {
   readonly primaryRpcUrl?: string;
   readonly fallbackRpcUrl?: string;
   readonly chainstackApiKey?: string;
+  readonly chainstackChains?: string;
   readonly shyftApiKey?: string;
 }
