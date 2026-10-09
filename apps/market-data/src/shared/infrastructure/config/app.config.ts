@@ -17,7 +17,15 @@ export interface AppConfig {
   };
   fluxrpc: { apiKey: string; rpcUrl: string; wsUrl?: string };
   pumpdev: { apiKey: string; walletPublic: string; walletPrivate: string };
-  solanaRpc: { primaryRpcUrl?: string; fallbackRpcUrl: string };
+  solanaRpc: {
+    primaryRpcUrl?: string;
+    fallbackRpcUrl: string;
+    chainstackApiKey: string;
+    shyftApiKey: string;
+  };
+  drpc: { apiKey: string };
+  chainstack: { apiKey: string };
+  shyft: { apiKey: string };
 }
 
 export function buildAppConfig(
@@ -67,6 +75,17 @@ export function buildAppConfig(
     solanaRpc: {
       primaryRpcUrl: env.HELIUS_RPC_URL_MAINNET || undefined,
       fallbackRpcUrl: 'https://api.mainnet.solana.com',
+      chainstackApiKey: env.CHAINSTACK_API_KEY ?? '',
+      shyftApiKey: env.SHYFT_API_KEY ?? '',
+    },
+    drpc: {
+      apiKey: env.DRPC_API_KEY ?? '',
+    },
+    chainstack: {
+      apiKey: env.CHAINSTACK_API_KEY ?? '',
+    },
+    shyft: {
+      apiKey: env.SHYFT_API_KEY ?? '',
     },
   };
 }

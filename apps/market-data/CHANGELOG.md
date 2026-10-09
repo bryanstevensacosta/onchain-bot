@@ -9,6 +9,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Discovery cache with migration invalidation (dexter plan todo
+  30b):** `DiscoveryCacheService.resolveDiscovery(chain, mint)`
+  caches `(chain,mint)→{pairAddress,dexId}` in a new `discovery_cache`
+  table (`1774000000000-CreateDiscoveryCache` migration, in-memory
+  fallback when DB-less) and verifies each hit with the pinned
+  tripwire `getPairByAddress(chainId, pairAddress)` (exactly 1 HTTP,
+  never re-discovery) — a verified hit serves tripwire-fresh numbers
+  with zero `token-pairs` calls (the measured 640–978ms discovery
+  leg). Invalidation on tripwire `dexId` mismatch (or null
+  tripwire — dead vs transient are indistinguishable, fail-open to
+  re-discovery), on-chain `migrated:true` (Solana fast path calls
+  `invalidateDiscovery(chain,mint)`; next scan re-discovers the pool
+  and re-pins, promote-once; EVM backstopped by the tripwire), and
+  30d lazy TTL on read + janitor (`DiscoveryCacheJanitorService`,
+  no cron; contrast pinned: discovery 30d vs history 90d). Cached
+  `dexId` never flows into `launchpad.id` (venue vs origin
+  vocabularies, spec-asserted). Wired cache-first into fast-path
+  Solana/EVM discovery, `resolveVenue`, and the dexscreener quote
+  fetcher (optional dep with direct fallback; tiers/transports and
+  detector logic untouched; null discoveries never pinned). Specs:
+  2nd-scan spy (zero `getPairsByChain`/`getBestPairSummaryForChain`
+  - tripwire-once), mismatch, null-tripwire, empty-miss, unmapped,
+    pump-curve→pool migration, TTL-expiry, separation,
+    partial-surface fallback.
+
+- **Free-B RPC providers behind ChainRpc (dexter plan todo 30a):**
+  EVM `rpcCallForChain` gains the Chainstack tier (Alchemy → dRPC →
+  Chainstack → public, skip-if-absent on `CHAINSTACK_API_KEY`, dRPC-copy,
+  `served-by=` labelled); Solana tiers go `{name,url}` (Helius primary →
+  Shyft → Chainstack → public) with per-method carve-outs (index/holders
+  legs never touch free tiers; Shyft Index 0/s, holders excluded,
+  Chainstack Solana 5 RPS). Matrix pinned in `alchemy.chains.ts`
+  (Shyft Solana-only; Chainstack EVM+Solana with `*`-asterisks, no
+  robinhood/avalanche row); Moralis-nodes closed as wontfix-documented
+  (no builder export; probe recipe pinned for the owner); QPS-math as a
+  test on the `cold explicit-chain snapshot` shape (bare-sweep multiplier
+  noted); `launchpad-detector receiptTo` excluded with grep-proof reason;
+  no kill-switch. Specs: `free-b-tiers.spec.ts` (tier order, skips,
+  carve-outs, QPS). Env: `CHAINSTACK_API_KEY=` + `SHYFT_API_KEY=` empty
+  in `.env.example`; `app.config.ts` gains `drpc/chainstack/shyft`
+  namespaces.
+
 - **Parallel tail + wired breaker + EVM-miss spans (dexter plan
   todo 29):** `AddressSnapshotService.buildSnapshot` races the three
   tail extras (launchpad / venue / dev-holdings) under one shared

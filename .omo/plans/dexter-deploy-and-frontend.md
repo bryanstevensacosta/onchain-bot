@@ -275,6 +275,20 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartAddressL
       Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; tabla antes/despues obligatoria; cool-off respeta `Retry-After` con cap.
       QA scenarios: extras a 0ms (override en spec) → card renderiza sin ellos + nota `providerErrors`; flapping documentado. Evidence .omo/evidence/task-fe-p95-tail.log
       Commit: Y | perf(market-data-tail): cola paralela + breaker (docs AGENTS+CHANGELOG)
+- [x] 30a. Providers free-B: Chainstack + Shyft (+Moralis-nodes si probe verde) tras ChainRpc (Wave 1 follow-up)
+      What to do / Must NOT do: Dispatch explicito: `alchemy.service.ts:rpcCallForChain` (EVM) + `solana-rpc.service.ts:buildRpcUrls+callRpc` (Solana) + `launchpad-detector.service.ts:371-449` direct-axios receipt path (route through tiered `rpcCallForChain` OR exclude with grep-proof reason — worker decides, documents) + `alchemy.chains.ts` (builders + cobertura) + `app.config.ts` + `.env.example` (CHAINSTACK_API_KEY, SHYFT_API_KEY — vacias). Matriz provider×chain pineada (Shyft=Solana-only; Chainstack=EVM+Solana-con-asteriscos-5RPS-sin-holders; dRPC=EVM; Moralis-nodes probe-or-delete: name exact probe URL+auth+expected chainIds, or `wontfix-documentado` — no middle ground). Solana tiers as `{name,url}` shape (not bare strings, for `served-by=` labeling) + per-method carve-outs (Chainstack-free/Shyft-free SKIP index/holders methods). Patrón skip-if-absent copia literal dRPC + `served-by=` (skip-if-absent already covers disable — no new env surface). QPS-math COMO TEST: reference scan shape = `cold explicit-chain snapshot` (bare-sweep multiplier noted) — unit que aserta llamadas-por-scan ≤ presupuesto del tier (regresion permanente, no comentario). Techos REALES (Chainstack Solana 5 RPS, Shyft Index 0/s, holders excluido). Specs + gate: owner-keys = implement-with-skips, `wontfix-documentado` exit per provider (no blocked-vibes, no unconditional live-proof demand; ≥1 leg live keyed por provider donde haya key, si no skip+report). Docs: AGENTS + CHANGELOG (ADD-only).
+      Parallelization: solo | Blocked by: owner-keys (sin ellas: skips + report) | Blocks: —
+      References: `rpcCallForChain:138-204`, `buildRpcUrls`, `provider-outbound-limits.ts`, docs oficiales (Chainstack/Shyft/dRPC tiers).
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; tiers responden live donde haya key; test QPS-math verde.
+      QA scenarios: happy (tier sirve) + failure (sin key → skip, tier caido → siguiente). Evidence .omo/evidence/task-fe-free-b-providers.log
+      Commit: Y | feat(market-data-rpc): providers free-b (docs AGENTS+CHANGELOG)
+- [x] 30b. Discovery-cache con invalidez por migracion (Wave 1 follow-up)
+      What to do / Must NOT do: Cache `(chain,mint)→{pairAddress,dexId}` SEPARADO del cache de numeros, con tripwire PINNED as existing `getPairByAddress(chainId, pairAddress)` (exactly 1 HTTP; NO re-discovery: si `dexId` coincide, el par sigue vivo). Invalidez: (i) tripwire discrepa, (ii) signal seam `resolveDiscovery → discovery-cache delete(chain,mint)` (new method, file named by worker), (iii) `migrated` best-effort (DBC confirmed, others backstopped by tripwire), (iv) 30d async. Store DECIDED: DB table + migration + janitor + lazy-TTL 30d (no memory alternative). Graduados promueven curva→pool una vez y re-pinean. Specs: 2nd scan spy asserts ZERO `getPairsByChain`/`getBestPairSummaryForChain` calls + separation (cached `dexId` never flows into `launchpad.id`) + migracion-invalida (fixture pump→pool) + tripwire-1-call. Retention contrast: 30d vs 90d history (`SNAPSHOT_HISTORY_RETENTION_DAYS=90`). Docs: AGENTS + CHANGELOG (ADD-only).
+      Parallelization: solo | Blocked by: — (puede ir ANTES que 30a: es el win mayor medido 640-978ms) | Blocks: —
+      References: `getBestPairSummaryForChain` (re-resuelve hoy), `launchpad-info.ts:4-5` (origen vs venue), `SNAPSHOT_HISTORY_RETENTION_DAYS=90` (contraste con bound propio).
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; 2do scan sin discovery (medido); migracion invalida probada.
+      QA scenarios: happy (cache ahorra) + failure (tripwire discrepa, migracion). Evidence .omo/evidence/task-fe-discovery-cache.log
+      Commit: Y | feat(market-data-discovery): cache con invalidez (docs AGENTS+CHANGELOG)
 
 ### Wave 0 — guion local owner (10 min, dexter `:4060` + frontend `:5173`)
 
@@ -343,6 +357,8 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartAddressL
 | 27 keys-audit           | owner            | —            | 2                    |
 | 28 helius-robinhood-fix | —                | —            | 2                    |
 | 29 tail-parallel        | 28               | —            | 2                    |
+| 30a providers           | owner-keys       | —            | 2                    |
+| 30b disccache           | —                | —            | 2                    |
 
 ## Commit strategy
 

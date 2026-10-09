@@ -12,6 +12,7 @@ import type {
 } from './alchemy.types';
 import {
   chainRpcUrl,
+  chainstackEvmRpcUrl,
   drpcRpcUrl,
   EVM_RPC_TIER_TIMEOUT_MS,
   isChainSupported,
@@ -50,12 +51,14 @@ export class AlchemyService extends DataProviderPort implements ChainRpc {
   public readonly apiKey: string;
   private readonly rpcUrl: string;
   private readonly drpcApiKey: string;
+  private readonly chainstackApiKey: string;
 
   public constructor(@Inject(ALCHEMY_CONFIG) config: AlchemyConfig) {
     super();
     this.apiKey = config.apiKey;
     this.rpcUrl = `${BASE}/${config.apiKey}`;
     this.drpcApiKey = (process.env.DRPC_API_KEY ?? '').trim();
+    this.chainstackApiKey = (process.env.CHAINSTACK_API_KEY ?? '').trim();
     if (!config.apiKey) {
       this.logger.warn(
         'ALCHEMY_API_KEY missing — Alchemy provider will return null',
@@ -64,6 +67,11 @@ export class AlchemyService extends DataProviderPort implements ChainRpc {
     if (!this.drpcApiKey) {
       this.logger.debug(
         'DRPC_API_KEY missing — dRPC tier skipped (owner: create a free key at drpc.org to enable it)',
+      );
+    }
+    if (!this.chainstackApiKey) {
+      this.logger.debug(
+        'CHAINSTACK_API_KEY missing — Chainstack tier skipped (owner: create a free key at chainstack.com to enable it)',
       );
     }
   }
@@ -122,13 +130,17 @@ export class AlchemyService extends DataProviderPort implements ChainRpc {
   // ─────────────────────────────────────────────
 
   /**
-   * Per-chain JSON-RPC call with fallback tiers (todo 24).
+   * Per-chain JSON-RPC call with fallback tiers (todo 24 + free-B todo 30a).
    *
    * Order per call, first non-null wins: Alchemy (only when
    * `ALCHEMY_API_KEY` is set) → dRPC free (only when `DRPC_API_KEY`
    * is set AND the chain has a verified dRPC slug — otherwise the
-   * tier is skipped silently) → keyless public RPC (launchpad-table
-   * URL, always available) → honest `null`. Unknown chain ⇒ `null`
+   * tier is skipped silently) → Chainstack free-B (only when
+   * `CHAINSTACK_API_KEY` is set AND the chain has a pinned host in
+   * `CHAINSTACK_EVM_HOSTS` — `*`-rows are convention-extrapolated,
+   * fail-open; robinhood/avalanche have no row and skip) → keyless
+   * public RPC (launchpad-table URL, always available) → honest
+   * `null`. Unknown chain ⇒ `null`
    * with zero network (never throws). Every tier carries its own
    * timeout; the serving tier is debug-logged (`served-by=`) so quota
    * decisions are made on data. Supports `AbortSignal` so multicall
@@ -155,6 +167,12 @@ export class AlchemyService extends DataProviderPort implements ChainRpc {
       {
         name: 'drpc',
         url: this.drpcApiKey ? drpcRpcUrl(chain, this.drpcApiKey) : null,
+      },
+      {
+        name: 'chainstack',
+        url: this.chainstackApiKey
+          ? chainstackEvmRpcUrl(chain, this.chainstackApiKey)
+          : null,
       },
       {
         name: 'public',

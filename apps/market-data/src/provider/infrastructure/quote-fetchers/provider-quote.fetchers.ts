@@ -14,6 +14,7 @@ import type {
   QuoteFetcher,
   SnapshotQuote,
 } from 'snapshot/domain/snapshot-quote.types';
+import type { DexScreenerPairSummary } from 'provider/infrastructure/dexscreener/dexscreener.types';
 
 function toNumber(value: unknown): number | null {
   if (typeof value === 'number') {
@@ -72,6 +73,20 @@ export interface ProviderQuoteDeps {
   readonly moralis: MoralisService;
   readonly rugcheck: RugCheckService;
   readonly solanaRpc: SolanaRpcService;
+  /**
+   * Discovery cache (dexter plan todo 30b, optional): cache-first
+   * discovery with tripwire verification. Absent (every existing
+   * caller/spec) -> direct `getBestPairSummaryForChain`, byte-
+   * identical. Structural type on purpose — the provider layer
+   * never imports from snapshot/; the snapshot module passes the
+   * real `DiscoveryCacheService` (structurally compatible).
+   */
+  readonly discoveryCache?: {
+    resolveDiscovery(
+      chain: string,
+      address: string,
+    ): Promise<DexScreenerPairSummary | null>;
+  };
 }
 
 /**
@@ -158,10 +173,13 @@ export function buildProviderQuoteFetchers(
       'robinhood',
     ],
     fetch: async (chain: string, address: string) => {
-      const best = await deps.dexscreener.getBestPairSummaryForChain(
-        chain,
-        address,
-      );
+      // Discovery cache first (dexter plan todo 30b): tripwire-
+      // verified cached discovery on hit, direct strict discovery
+      // otherwise. Side-verification below is unchanged either way.
+      const best =
+        deps.discoveryCache !== undefined && deps.discoveryCache !== null
+          ? await deps.discoveryCache.resolveDiscovery(chain, address)
+          : await deps.dexscreener.getBestPairSummaryForChain(chain, address);
       if (best === null) {
         return null;
       }

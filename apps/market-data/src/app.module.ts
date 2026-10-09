@@ -11,6 +11,8 @@ import {
 } from './shared/infrastructure/config/database.config';
 import { SnapshotHistoryEntity } from './snapshot/infrastructure/snapshot-history.entity';
 import { CreateSnapshotHistory1772000000000 } from './snapshot/infrastructure/migrations/1772000000000-CreateSnapshotHistory';
+import { DiscoveryCacheEntity } from './snapshot/infrastructure/discovery-cache.entity';
+import { CreateDiscoveryCache1774000000000 } from './snapshot/infrastructure/migrations/1774000000000-CreateDiscoveryCache';
 import { AssetRegistryEntity } from './asset-registry/infrastructure/asset-registry.entity';
 import { CreateAssetRegistry1773000000000 } from './asset-registry/infrastructure/migrations/1773000000000-CreateAssetRegistry';
 import { AssetRegistryModule } from './asset-registry/asset-registry.module';
@@ -62,10 +64,15 @@ import { appConfig } from './shared/infrastructure/config/app.config';
                 url: database.url,
                 synchronize: database.synchronize,
                 migrationsRun: false,
-                entities: [SnapshotHistoryEntity, AssetRegistryEntity],
+                entities: [
+                  SnapshotHistoryEntity,
+                  AssetRegistryEntity,
+                  DiscoveryCacheEntity,
+                ],
                 migrations: [
                   CreateSnapshotHistory1772000000000,
                   CreateAssetRegistry1773000000000,
+                  CreateDiscoveryCache1774000000000,
                 ],
               };
             },

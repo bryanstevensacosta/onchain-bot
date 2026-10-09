@@ -3,6 +3,11 @@ import axios from 'axios';
 import { DataProviderPort } from '../../domain/data-provider.port';
 import type { SolanaRpcConfig } from './solana-rpc.config';
 import { SOLANA_RPC_CONFIG } from './solana-rpc.config';
+import {
+  chainstackSolanaRpcUrl,
+  isFreeBTierSkippedMethod,
+  shyftSolanaRpcUrl,
+} from '../alchemy/alchemy.chains';
 import type {
   AccountInfoResult,
   BatchAccountsClient,
@@ -60,10 +65,18 @@ const SOLANA_KEY_RUNBOOK =
   'check HELIUS_RPC_URL_MAINNET validity + Helius free-tier budget (10 rps); runbook: apps/market-data/AGENTS.md "Helius free-tier math"';
 
 /**
- * Solana JSON-RPC provider.
+ * Solana JSON-RPC provider (free-B tiers todo 30a).
  *
- * Primary: Helius RPC URL from config. Fallback: public Solana RPC
- * on transport errors only (404 / protocol errors short-circuit to null).
+ * Tiers per call, first well-formed answer wins (skip-if-absent,
+ * dRPC-copy: empty key ⇒ tier skipped with a debug log, no
+ * kill-switch): Helius primary (config) → Shyft free-B (Solana-only,
+ * `SHYFT_API_KEY`) → Chainstack free-B (`CHAINSTACK_API_KEY`,
+ * 5 RPS shared) → public Solana RPC (always). Per-method carve-outs:
+ * free-B tiers are SKIPPED for index/holders legs
+ * (`isFreeBTierSkippedMethod` — `getTokenLargestAccounts` /
+ * `getProgramAccounts`; Shyft Index 0/s, holders excluded on both).
+ * Tiers travel as `{name,url}` (not bare strings) so `served-by=`
+ * labels the winner.
  *
  * Exposes `getTokenSupply` (total supply) + `getTokenLargestAccounts`
  * (holders data) and `getAccountInfo` (chain probing) as lightweight
@@ -80,10 +93,14 @@ export class SolanaRpcService
   protected readonly logger = new Logger(SolanaRpcService.name);
 
   public readonly primaryRpcUrl: string | null;
+  private readonly chainstackApiKey: string;
+  private readonly shyftApiKey: string;
 
   public constructor(@Inject(SOLANA_RPC_CONFIG) config: SolanaRpcConfig) {
     super();
     this.primaryRpcUrl = config.primaryRpcUrl ?? null;
+    this.chainstackApiKey = (config.chainstackApiKey ?? '').trim();
+    this.shyftApiKey = (config.shyftApiKey ?? '').trim();
     if (this.primaryRpcUrl) {
       this.logger.log(
         `Solana RPC mode: keyed (primary host=${redactRpcHost(this.primaryRpcUrl)}, public fallback armed)`,
@@ -91,6 +108,16 @@ export class SolanaRpcService
     } else {
       this.logger.log(
         'Solana RPC mode: public-only (HELIUS_RPC_URL_MAINNET unset — set it to route via keyed Helius; Solana legs stay on the public RPC until then)',
+      );
+    }
+    if (!this.shyftApiKey) {
+      this.logger.debug(
+        'SHYFT_API_KEY missing — Shyft tier skipped (owner: create a free key at shyft.to to enable it)',
+      );
+    }
+    if (!this.chainstackApiKey) {
+      this.logger.debug(
+        'CHAINSTACK_API_KEY missing — Chainstack tier skipped (owner: create a free key at chainstack.com to enable it)',
       );
     }
   }
@@ -103,10 +130,10 @@ export class SolanaRpcService
   public async getTokenSupply(
     mintAddress: string,
   ): Promise<GetTokenSupplyResult['value'] | null> {
-    const rpcUrls = this.buildRpcUrls();
-    for (const url of rpcUrls) {
+    const rpcUrls = this.buildRpcUrls('getTokenSupply');
+    for (const tier of rpcUrls) {
       const result = await this.callRpc<GetTokenSupplyResult>(
-        url,
+        tier,
         'getTokenSupply',
         [mintAddress],
       );
@@ -123,10 +150,10 @@ export class SolanaRpcService
   public async getTokenLargestAccounts(
     mintAddress: string,
   ): Promise<ReadonlyArray<TokenAccountEntry> | null> {
-    const rpcUrls = this.buildRpcUrls();
-    for (const url of rpcUrls) {
+    const rpcUrls = this.buildRpcUrls('getTokenLargestAccounts');
+    for (const tier of rpcUrls) {
       const result = await this.callRpc<GetTokenLargestAccountsResult>(
-        url,
+        tier,
         'getTokenLargestAccounts',
         [mintAddress],
       );
@@ -143,10 +170,10 @@ export class SolanaRpcService
   public async getAccountInfo(
     address: string,
   ): Promise<AccountInfoResult['value'] | null> {
-    const rpcUrls = this.buildRpcUrls();
-    for (const url of rpcUrls) {
+    const rpcUrls = this.buildRpcUrls('getAccountInfo');
+    for (const tier of rpcUrls) {
       const result = await this.callRpc<AccountInfoResult>(
-        url,
+        tier,
         'getAccountInfo',
         [address, { encoding: 'base58', commitment: 'confirmed' }],
       );
@@ -212,10 +239,10 @@ export class SolanaRpcService
   private async fetchChunk(
     chunk: ReadonlyArray<string>,
   ): Promise<ReadonlyArray<SolanaAccountInfoValue | null>> {
-    const rpcUrls = this.buildRpcUrls();
-    for (const url of rpcUrls) {
+    const rpcUrls = this.buildRpcUrls('getMultipleAccounts');
+    for (const tier of rpcUrls) {
       const result = await this.callRpc<GetMultipleAccountsResult>(
-        url,
+        tier,
         'getMultipleAccounts',
         [[...chunk], { encoding: 'base64', commitment: 'confirmed' }],
       );
@@ -226,11 +253,12 @@ export class SolanaRpcService
     return chunk.map(() => null);
   }
   private async callRpc<T>(
-    rpcUrl: string,
+    tier: SolanaRpcTier,
     method: string,
     params: ReadonlyArray<unknown>,
   ): Promise<T | null> {
-    const tier = rpcUrl === this.primaryRpcUrl ? 'primary' : 'public';
+    const rpcUrl = tier.url;
+    const tierName = tier.name;
     try {
       const { data } = await axios.post<JsonRpcResponse<T>>(
         rpcUrl,
@@ -240,14 +268,14 @@ export class SolanaRpcService
       if (data.error) {
         if (isKeyOrQuotaSignal(data.error.code, data.error.message)) {
           this.logger.warn(
-            `solana-rpc ${method} key/quota signal on ${tier} [${String(data.error.code)}]: ${data.error.message} — ${SOLANA_KEY_RUNBOOK}`,
+            `solana-rpc ${method} key/quota signal on ${tierName} [${String(data.error.code)}]: ${data.error.message} — ${SOLANA_KEY_RUNBOOK}`,
           );
         } else {
           this.logger.debug(`RPC ${method} error: ${data.error.message}`);
         }
         return null;
       }
-      this.logger.debug(`solana-rpc ${method} served-by=${tier}`);
+      this.logger.debug(`solana-rpc ${method} served-by=${tierName}`);
       return data.result ?? null;
     } catch (err) {
       if (axios.isAxiosError(err)) {
@@ -255,7 +283,7 @@ export class SolanaRpcService
         if (status === 404) return null;
         if (isKeyOrQuotaSignal(status, (err as Error).message)) {
           this.logger.warn(
-            `solana-rpc ${method} key/quota signal on ${tier} (http ${String(status ?? 'no-status')}): ${(err as Error).message} — ${SOLANA_KEY_RUNBOOK}`,
+            `solana-rpc ${method} key/quota signal on ${tierName} (http ${String(status ?? 'no-status')}): ${(err as Error).message} — ${SOLANA_KEY_RUNBOOK}`,
           );
           return null;
         }
@@ -266,12 +294,32 @@ export class SolanaRpcService
   }
 
   /**
-   * Returns [primary, fallback] URLs, skipping any that are null.
+   * Tiered `{name,url}` URLs for one RPC method (free-B todo 30a):
+   * Helius primary → Shyft → Chainstack → public. Free-B tiers are
+   * skipped when the key is absent (skip-if-absent, dRPC-copy) and
+   * always skipped for index/holders legs (carve-out).
    */
-  private buildRpcUrls(): readonly string[] {
-    const urls: string[] = [];
-    if (this.primaryRpcUrl) urls.push(this.primaryRpcUrl);
-    urls.push(PUBLIC_SOLANA_RPC);
-    return urls;
+  private buildRpcUrls(method: string): readonly SolanaRpcTier[] {
+    const tiers: SolanaRpcTier[] = [];
+    if (this.primaryRpcUrl)
+      tiers.push({ name: 'primary', url: this.primaryRpcUrl });
+    const carved = isFreeBTierSkippedMethod(method);
+    if (!carved && this.shyftApiKey)
+      tiers.push({
+        name: 'shyft',
+        url: shyftSolanaRpcUrl(this.shyftApiKey),
+      });
+    if (!carved && this.chainstackApiKey)
+      tiers.push({
+        name: 'chainstack',
+        url: chainstackSolanaRpcUrl(this.chainstackApiKey),
+      });
+    tiers.push({ name: 'public', url: PUBLIC_SOLANA_RPC });
+    return tiers;
   }
+}
+
+export interface SolanaRpcTier {
+  readonly name: string;
+  readonly url: string;
 }

@@ -141,3 +141,132 @@ export interface ChainRpc {
     block?: string,
   ): Promise<string | null>;
 }
+
+/**
+ * Free-B providers (dexter plan todo 30a) — Chainstack + Shyft
+ * (+ Moralis-nodes probe-or-delete, closed as wontfix below).
+ *
+ * Provider × chain matrix (pinned):
+ * - Shyft = Solana-only (`https://rpc.shyft.to/?api_key=<key>`,
+ *   docs.shyft.to "Shyft RPCs"; free: RPC ~20 req/s, Index 1 req/s —
+ *   our hot path uses plain RPC only, index legs are carved out).
+ * - Chainstack = EVM + Solana with asterisks. Global-Node shape
+ *   `https://<host>/<AUTH_KEY>` (docs.chainstack.com: base/ethereum
+ *   curl examples carry the key as the trailing path segment; web3
+ *   plugin: base endpoint + base key = full endpoint). Doc-PROVEN
+ *   hosts: `ethereum-mainnet`, `base-mainnet`, `solana-mainnet`.
+ *   `*`-rows below follow the same `<slug>-mainnet` convention
+ *   (extrapolated, fail-open on first 404 — never throws): bsc*,
+ *   arbitrum*, polygon*, optimism*, unichain*. NO Chainstack row for
+ *   robinhood/avalanche/solana-devnet (no host evidence — tier
+ *   skipped for those chains, next tier serves).
+ * - dRPC = EVM (existing `DRPC_NETWORKS`; unichain/robinhood rows
+ *   live-verified 2026-10-07).
+ * - Moralis-nodes = WONTFIX-DOCUMENTED (no middle ground per todo):
+ *   Moralis Speedy Nodes are sunset; the successor (Moralis Nodes /
+ *   Grove-backed) has no verified free-tier JSON-RPC shape for our
+ *   chains, and Moralis VALUE already flows via the keyed Data API
+ *   (`MoralisService`, deep-index). Guessing a node URL + auth would
+ *   burn quota on 401s. Owner probe recipe (do not implement without
+ *   it): `POST <candidate-node-url>` + header
+ *   `X-API-Key: <MORALIS_API_KEY>` + body
+ *   `{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}` —
+ *   expect `0x1/0x2105/0x38/0xa4e1/0x89/0xa` per chain; only on exact
+ *   matches add a `moralisNodesRpcUrl(chain, key)` row + tier. Until
+ *   then this file intentionally exports NO Moralis node builder
+ *   (grep `moralisNodesRpcUrl` → 0 hits is the pin).
+ *
+ * Ceilings REALES (fail-open, never asserted live in specs):
+ * Chainstack Solana 5 RPS shared; Shyft free RPC 20/s, Index 1/s
+ * (index legs carved to 0/s — we never call them); holders
+ * (`getTokenLargestAccounts`) excluded on both free tiers.
+ *
+ * QPS-math reference shape = `cold explicit-chain snapshot` (one
+ * chain, address unknown to cache/history): the per-scan RPC-call
+ * count below is asserted in `free-b-tiers.spec.ts`; the bare-sweep
+ * multiplier (one cold scan per candidate chain) is noted there, not
+ * hidden. No kill-switch: skip-if-absent (empty key ⇒ tier skipped
+ * with a debug log, dRPC-copy pattern) already covers disable — no
+ * new env surface beyond the two keys.
+ *
+ * launchpad-detector `receiptTo` EXCLUDED with reason (grep-proof):
+ * that path posts `eth_getTransactionReceipt` to the keyless
+ * `EVM_CHAIN_TRANSPORTS[chain].rpcUrl` (launchpad-table) gated by a
+ * Blockscout creation lookup (≤1 receipt call per cold EVM detect).
+ * It is NOT routed through tiered `rpcCallForChain` because (a) the
+ * detector owns no ChainRpc dep and gaining one risks a module cycle
+ * (`LaunchpadModule` imports only `SolanaRpcModule`), (b) receipt-by-
+ * txHash has different rate semantics than chain-state reads, (c) the
+ * task's MUST-NOT list freezes detector logic. Exclusion is
+ * deliberate: `grep receiptTo launchpad-detector` stays keyless;
+ * free-B tiers serve the EVM fast-path/readers instead.
+ */
+export const CHAINSTACK_EVM_HOSTS: Readonly<Record<string, string>> = {
+  ethereum: 'ethereum-mainnet',
+  base: 'base-mainnet',
+  bsc: 'bsc-mainnet',
+  arbitrum: 'arbitrum-mainnet',
+  polygon: 'polygon-mainnet',
+  optimism: 'optimism-mainnet',
+  unichain: 'unichain-mainnet',
+};
+
+export const CHAINSTACK_SOLANA_HOST = 'solana-mainnet';
+
+export function chainstackEvmRpcUrl(
+  chain: string,
+  apiKey: string,
+): string | null {
+  const host = CHAINSTACK_EVM_HOSTS[chain];
+  if (!host) return null;
+  return `https://${host}.core.chainstack.com/${apiKey}`;
+}
+
+export function chainstackSolanaRpcUrl(apiKey: string): string {
+  return `https://${CHAINSTACK_SOLANA_HOST}.core.chainstack.com/${apiKey}`;
+}
+
+export function shyftSolanaRpcUrl(apiKey: string): string {
+  return `https://rpc.shyft.to/?api_key=${apiKey}`;
+}
+
+/** Free-tier per-method carve-outs: index/holders legs never touch free tiers. */
+export const FREEB_TIER_SKIPPED_METHODS: ReadonlyArray<string> = [
+  'getTokenLargestAccounts',
+  'getProgramAccounts',
+];
+
+export function isFreeBTierSkippedMethod(method: string): boolean {
+  return FREEB_TIER_SKIPPED_METHODS.includes(method);
+}
+
+/**
+ * QPS-math reference (asserted in `free-b-tiers.spec.ts`):
+ * cold explicit-chain snapshot RPC legs that may hit free-B tiers.
+ * Solana: getMultipleAccounts(1 chunked round) + getTokenSupply(1);
+ * holders carved to 0. EVM (via rpcCallForChain): ≤3 chain-state
+ * reads per scan (getCode + nonce + aggregate); ×2 worst case under
+ * the exactly-one retry cap (todo 19b2). Bare-sweep note: a bare
+ * address fans out one cold scan per candidate chain — multiply, do
+ * not hide. Budgets: CHAINSTACK_SOLANA_RPS=5, SHYFT_RPC_RPS=20,
+ * SHYFT_INDEX_RPS=0 (carved).
+ */
+export const FREEB_QPS_REFERENCE = {
+  shape: 'cold explicit-chain snapshot',
+  solanaRpcLegs: 2,
+  evmRpcLegsPerScan: 3,
+  retryMultiplierMax: 2,
+  chainstackSolanaRps: 5,
+  shyftRpcRps: 20,
+  shyftIndexRps: 0,
+} as const;
+
+export function freeBCallsForColdExplicitChainSnapshot(
+  kind: 'solana' | 'evm',
+): number {
+  const legs =
+    kind === 'solana'
+      ? FREEB_QPS_REFERENCE.solanaRpcLegs
+      : FREEB_QPS_REFERENCE.evmRpcLegsPerScan;
+  return legs * FREEB_QPS_REFERENCE.retryMultiplierMax;
+}

@@ -19,6 +19,7 @@ import { SolanaRpcService } from 'provider/infrastructure/solana-rpc';
 import type { BatchAccountsClient } from 'provider/infrastructure/solana-rpc/solana-rpc.types';
 import { toVenueOrNull } from 'snapshot/domain/snapshot-venue';
 import type { SnapshotVenue } from 'snapshot/domain/snapshot-venue';
+import { DiscoveryCacheService } from './discovery-cache.service';
 import {
   emptySnapshotQuote,
   type SnapshotQuote,
@@ -252,7 +253,58 @@ export class DirectFastPathService {
     @Optional()
     @Inject(SolanaRpcService)
     private readonly accounts: BatchAccountsClient | null = null,
+    // Discovery cache (dexter plan todo 30b): cache-first discovery
+    // with tripwire verification. Null in unit specs -> direct
+    // `getBestPairSummaryForChain` (byte-identical fallback).
+    @Optional()
+    @Inject(DiscoveryCacheService)
+    private readonly discoveryCache: DiscoveryCacheService | null = null,
   ) {}
+
+  /**
+   * Discovery seam (dexter plan todo 30b): cached discovery first,
+   * direct strict per-chain discovery as the fallback (and when the
+   * cache service is absent, e.g. unit specs built by hand).
+   */
+  private discover(
+    chain: string,
+    address: string,
+  ): Promise<DexScreenerPairSummary | null> {
+    if (
+      this.discoveryCache !== null &&
+      this.discoveryCache !== undefined &&
+      this.dexscreener !== null &&
+      this.dexscreener !== undefined
+    ) {
+      return this.discoveryCache.resolveDiscovery(chain, address);
+    }
+    if (this.dexscreener === null || this.dexscreener === undefined) {
+      return Promise.resolve(null);
+    }
+    return this.dexscreener.getBestPairSummaryForChain(chain, address);
+  }
+
+  /**
+   * Migration invalidation seam (dexter plan todo 30b (ii)): a pool
+   * view reporting `migrated: true` (DBC-confirmed graduation,
+   * curve -> pool) drops the cached discovery row NOW; the next
+   * scan's miss re-discovers the pool and re-pins (promote-once).
+   * Fail-open: a cache error never blocks the card. EVM legs have
+   * no migrated signal — they are backstopped by the tripwire.
+   */
+  private async invalidateOnMigration(
+    chain: string,
+    address: string,
+  ): Promise<void> {
+    if (this.discoveryCache === null || this.discoveryCache === undefined) {
+      return;
+    }
+    try {
+      await this.discoveryCache.invalidateDiscovery(chain, address);
+    } catch {
+      // Fail-open: the tripwire catches the stale row next scan.
+    }
+  }
 
   public async tryResolve(
     request: DirectFastPathRequest,
@@ -316,9 +368,7 @@ export class DirectFastPathService {
     const discoveryP: Promise<DexScreenerPairSummary | null> =
       this.dexscreener === null
         ? Promise.resolve(null)
-        : this.dexscreener
-            .getBestPairSummaryForChain('solana', mint)
-            .catch(() => null);
+        : this.discover('solana', mint).catch(() => null);
     // No-intermediary leg: curve PDA derives FROM the mint (local
     // derivation, one batch read). Runs even when discovery dies.
     // Derived FIRST: when discovery names the same account the pool
@@ -372,6 +422,9 @@ export class DirectFastPathService {
     const view =
       this.viewForMint(poolView, mint) ?? this.viewForMint(pdaView, mint);
     if (view === null) return null;
+    if (view.migrated) {
+      await this.invalidateOnMigration('solana', mint);
+    }
     const directStart = performance.now();
     const priced = await this.priceSolanaView(view, reader, signal, leanAnchor);
     if (priced === null || signal.aborted) return null;
@@ -601,9 +654,7 @@ export class DirectFastPathService {
       return miss('no-reader', noSpans);
     }
     const t0 = performance.now();
-    const discovery = await discoveryService
-      .getBestPairSummaryForChain(chain, address)
-      .catch(() => null);
+    const discovery = await this.discover(chain, address).catch(() => null);
     const discoveryMs = performance.now() - t0;
     if (discovery === null || signal.aborted) {
       return miss(signal.aborted ? 'aborted' : 'no-discovery', {

@@ -1098,3 +1098,65 @@ LIMIT 1`, riding the existing `(key, createdAt)` BTREE (no
   fire-and-forget exists anywhere on this path (stampede +
   unhandled-rejection classes absent by construction). No retry
   (19b2) / breaker (19b3) on this path — disjoint lanes/files.
+
+- Free-B providers behind ChainRpc (dexter plan todo 30a):
+  `AlchemyService.rpcCallForChain` tiers Alchemy → dRPC → Chainstack
+  (`CHAINSTACK_API_KEY`, hosts in `CHAINSTACK_EVM_HOSTS`; `*`-rows
+  convention-extrapolated, robinhood/avalanche have no row and skip)
+  → public; `SolanaRpcService` tiers Helius primary → Shyft
+  (`SHYFT_API_KEY`, Solana-only `https://rpc.shyft.to/?api_key=`)
+  → Chainstack (`https://solana-mainnet.core.chainstack.com/`)
+  → public, as `{name,url}` tiers for `served-by=` labels.
+  Per-method carve-outs: free-B tiers never serve index/holders legs
+  (`isFreeBTierSkippedMethod`: `getTokenLargestAccounts`,
+  `getProgramAccounts`; Shyft Index 0/s, holders excluded, Chainstack
+  Solana 5 RPS). Skip-if-absent is the dRPC-copy (empty key ⇒ tier
+  skipped with a debug log — no kill-switch, no new env surface
+  beyond the two keys). `launchpad-detector receiptTo` EXCLUDED by
+  design (keyless single-shot receipt path, no ChainRpc dep, detector
+  logic frozen — grep `receiptTo` stays keyless). Moralis-nodes =
+  wontfix-documented (no `moralisNodesRpcUrl` export; Speedy sunset,
+  no verified free node shape; value flows via the Data API; owner
+  probe recipe pinned in `alchemy.chains.ts`). QPS-math lives as a
+  test (`free-b-tiers.spec.ts`): reference shape `cold
+explicit-chain snapshot` (Solana 2 legs / EVM ≤3 reads, ×2 retry
+  cap; bare-sweep fans out per candidate chain — multiplied, not
+  hidden). Owner-keys lane: implement-with-skips (≥1 leg live keyed
+  per provider where a key exists, else skip+report; never demand
+  unconditional live proof).
+
+- Discovery cache with migration invalidation (dexter plan todo 30b):
+  `DiscoveryCacheService.resolveDiscovery(chain, mint)` (snapshot/
+  application) is the cache-first discovery seam: DB row
+  `(chain,mint)→{pairAddress,dexId}` (`discovery_cache` table +
+  `1774000000000-CreateDiscoveryCache` migration; in-memory map when
+  DB-less) verified by the pinned tripwire
+  `DexScreenerService.getPairByAddress(chainId, pairAddress)`
+  (exactly 1 HTTP, never re-discovery). Hit + `dexId` match serves a
+  summary built from the live tripwire pair (numbers are tripwire-
+  fresh, never cached) with ZERO `token-pairs` calls; miss,
+  tripwire-mismatch, null-tripwire (dead pair and transient error are
+  indistinguishable — fail-open to re-discovery), or absent tripwire
+  method (partial hand-mocks) re-discovers via strict
+  `getBestPairSummaryForChain` and re-pins (null discoveries are
+  NEVER pinned — honest empty re-probes, same rule as 19a).
+  Invalidation: (i) tripwire mismatch, (ii) on-chain `migrated:true`
+  (DBC-confirmed graduation curve→pool: the Solana fast path calls
+  `invalidateDiscovery(chain,mint)` — the resolve→delete seam — and
+  the next scan re-discovers + re-pins, promote-once; EVM legs have
+  no migrated signal and are backstopped by the tripwire),
+  (iii) 30d lazy TTL checked on every read (`find` deletes + misses
+  past the bound; `DiscoveryCacheJanitorService` prunes unread rows
+  — same constant, no cron). RETENTION CONTRAST (pinned): discovery
+  30d (`DISCOVERY_CACHE_TTL_DAYS`) vs history 90d
+  (`SNAPSHOT_HISTORY_RETENTION_DAYS=90`) — discovery rots faster.
+  SEPARATION (pinned): cached `dexId` is venue vocabulary and NEVER
+  flows into `launchpad.id` (origin vocabulary, `launchpad-info.ts`)
+  — separate tables/seams, spec-asserted. Consumers: fast-path
+  Solana/EVM discovery, `resolveVenue`, and the dexscreener quote
+  fetcher (optional structural dep, direct fallback — tier/transport
+  logic untouched). Specs: `discovery-cache.service.spec.ts`
+  (2nd-scan zero-calls + tripwire-once + mismatch + null-tripwire +
+  empty-miss + unmapped + pump→pool + separation + partial-surface),
+  `discovery-cache.repository.spec.ts` (TTL/janitor primitives),
+  `discovery-cache-janitor.service.spec.ts` (30d vs 90d).

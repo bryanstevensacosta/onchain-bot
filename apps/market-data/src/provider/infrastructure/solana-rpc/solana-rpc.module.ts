@@ -21,6 +21,9 @@ const DEFAULT_CONFIG: SolanaRpcConfig = {
         fallbackRpcUrl:
           cs.get<string>('app.solanaRpc.fallbackRpcUrl') ??
           DEFAULT_CONFIG.fallbackRpcUrl,
+        chainstackApiKey:
+          cs.get<string>('app.solanaRpc.chainstackApiKey') ?? '',
+        shyftApiKey: cs.get<string>('app.solanaRpc.shyftApiKey') ?? '',
       }),
     },
     SolanaRpcService,

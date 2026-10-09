@@ -31,6 +31,10 @@ import { SNAPSHOT_QUOTE_PROVIDERS } from './domain/snapshot-quote.types';
 import { buildProviderQuoteFetchers } from 'provider/infrastructure/quote-fetchers/provider-quote.fetchers';
 import { SnapshotHistoryEntity } from './infrastructure/snapshot-history.entity';
 import { SnapshotHistoryRepository } from './infrastructure/snapshot-history.repository';
+import { DiscoveryCacheEntity } from './infrastructure/discovery-cache.entity';
+import { DiscoveryCacheRepository } from './infrastructure/discovery-cache.repository';
+import { DiscoveryCacheService } from './application/discovery-cache.service';
+import { DiscoveryCacheJanitorService } from './application/discovery-cache-janitor.service';
 
 /**
  * SnapshotModule (Tramo 3, todo 12, P50; market-data restructure:
@@ -63,7 +67,12 @@ import { SnapshotHistoryRepository } from './infrastructure/snapshot-history.rep
     LaunchpadModule,
     RateLimiterModule,
     ...(isDatabaseEnabled()
-      ? [TypeOrmModule.forFeature([SnapshotHistoryEntity])]
+      ? [
+          TypeOrmModule.forFeature([
+            SnapshotHistoryEntity,
+            DiscoveryCacheEntity,
+          ]),
+        ]
       : []),
   ],
   providers: [
@@ -71,6 +80,9 @@ import { SnapshotHistoryRepository } from './infrastructure/snapshot-history.rep
     SnapshotHistoryJanitorService,
     SnapshotHistoryRepository,
     SnapshotNullMetricsService,
+    DiscoveryCacheRepository,
+    DiscoveryCacheService,
+    DiscoveryCacheJanitorService,
     DirectFastPathService,
     // On-chain readers (todo 22 wire-up): built from the frozen Lane T
     // transports via factories (interface-typed ctor params need
@@ -99,6 +111,7 @@ import { SnapshotHistoryRepository } from './infrastructure/snapshot-history.rep
         MoralisService,
         RugCheckService,
         SolanaRpcService,
+        DiscoveryCacheService,
       ],
       useFactory: (
         dexscreener: DexScreenerService,
@@ -110,6 +123,7 @@ import { SnapshotHistoryRepository } from './infrastructure/snapshot-history.rep
         moralis: MoralisService,
         rugcheck: RugCheckService,
         solanaRpc: SolanaRpcService,
+        discoveryCache: DiscoveryCacheService,
       ) =>
         buildProviderQuoteFetchers({
           dexscreener,
@@ -121,6 +135,7 @@ import { SnapshotHistoryRepository } from './infrastructure/snapshot-history.rep
           moralis,
           rugcheck,
           solanaRpc,
+          discoveryCache,
         }),
     },
   ],
@@ -128,6 +143,9 @@ import { SnapshotHistoryRepository } from './infrastructure/snapshot-history.rep
     AddressSnapshotService,
     SnapshotHistoryJanitorService,
     SnapshotHistoryRepository,
+    DiscoveryCacheRepository,
+    DiscoveryCacheService,
+    DiscoveryCacheJanitorService,
   ],
 })
 export class SnapshotModule {}

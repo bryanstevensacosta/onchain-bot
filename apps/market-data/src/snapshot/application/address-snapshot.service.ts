@@ -56,6 +56,7 @@ import {
   selectPreferredQuote,
   TOLERANCE_DEFAULT_BPS,
 } from 'provider/infrastructure/onchain/evm-tolerance';
+import { DiscoveryCacheService } from './discovery-cache.service';
 
 /** Log helper: nullable ms renders as `n/a` (never crashes the line). */
 const roundMs = (ms: number | null): string =>
@@ -207,6 +208,12 @@ export class AddressSnapshotService {
     @Optional()
     @Inject(CircuitBreakerService)
     private readonly breaker: CircuitBreakerService | null = null,
+    // Discovery cache (dexter plan todo 30b): cache-first discovery
+    // with tripwire verification. Null in hand-built specs -> direct
+    // `getBestPairSummaryForChain` (byte-identical fallback).
+    @Optional()
+    @Inject(DiscoveryCacheService)
+    private readonly discoveryCache: DiscoveryCacheService | null = null,
   ) {}
 
   /** In-flight half-open probe key (at most ONE globally — the single cheapest-fetcher probe). */
@@ -270,10 +277,13 @@ export class AddressSnapshotService {
   ): Promise<SnapshotVenue | null> {
     if (this.dexscreener !== null && this.dexscreener !== undefined) {
       try {
-        const best = await this.dexscreener.getBestPairSummaryForChain(
-          chain,
-          address,
-        );
+        // Discovery cache first (dexter plan todo 30b): tripwire-
+        // verified cached discovery, zero `token-pairs` calls on hit;
+        // direct strict discovery when the cache service is absent.
+        const best =
+          this.discoveryCache !== null && this.discoveryCache !== undefined
+            ? await this.discoveryCache.resolveDiscovery(chain, address)
+            : await this.dexscreener.getBestPairSummaryForChain(chain, address);
         if (best !== null) {
           return toVenueOrNull({ dexId: best.dexId, labels: best.labels });
         }
