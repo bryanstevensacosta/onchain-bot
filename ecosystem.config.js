@@ -207,7 +207,7 @@ module.exports = {
       DATABASE_URL:
         'postgres://onchain_bot:onchain_bot@localhost:5432/dexter_db',
       REDIS_URL: 'redis://localhost:6379/5',
-      DATABASE_SYNCHRONIZE: 'true',
+      DATABASE_SYNCHRONIZE: 'false',
       ENCRYPTION_KEY:
         'dev-dummy-encryption-key-00000000000000000000000000000000',
     }),
