@@ -1,6 +1,9 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { MessageFormatterAdapter } from '@/scan/infrastructure/formatter/message-formatter';
-import type { ResolvedToken } from '@/scan/domain/ports/scan-pipeline.port';
+import type {
+  LaunchpadInfo,
+  ResolvedToken,
+} from '@/scan/domain/ports/scan-pipeline.port';
 import { BotIdentityService } from '@/settings/application/bot-identity.service';
 import {
   PLACEHOLDERS_BY_COMMAND,
@@ -22,6 +25,28 @@ export const DISPLAY_RESOLVER = Symbol('DISPLAY_RESOLVER');
  */
 export interface DisplayResolverPort {
   resolve(placeholderKey: string, matchValue: string): string;
+}
+
+/** DisplayMap dimension for operator-chosen launchpad display names. */
+export const LAUNCHPAD_NAME_DISPLAY_KEY = 'launchpadName';
+
+/**
+ * Display-only launchpad name: DisplayMap `launchpadName` override wins,
+ * detector `name` is the fallback. Whitespace/empty override falls back
+ * (never blank); null launchpad renders `""`. Canonical `id` never changes.
+ */
+export function resolveLaunchpadDisplayName(
+  launchpad: LaunchpadInfo | null | undefined,
+  resolver?: DisplayResolverPort | null,
+): string {
+  if (!launchpad) return '';
+  const detectorName = typeof launchpad.name === 'string' ? launchpad.name : '';
+  const raw =
+    typeof launchpad.id === 'string'
+      ? (resolver?.resolve(LAUNCHPAD_NAME_DISPLAY_KEY, launchpad.id) ?? '')
+      : '';
+  const override = typeof raw === 'string' ? raw.trim() : '';
+  return override !== '' ? override : detectorName;
 }
 
 /** Values accepted by `render`: token snapshot + chart timeframe. */
@@ -232,12 +257,18 @@ export class TemplateRendererService {
         );
       }
       case 'launchpadText': {
-        return esc(values.launchpad?.name ?? '');
+        return esc(
+          resolveLaunchpadDisplayName(values.launchpad, this.displayResolver),
+        );
       }
       case 'launchpadTextLink': {
         const launchpad = values.launchpad;
         if (!launchpad) return '';
-        return `[${esc(launchpad.name)}](${launchpad.url})`;
+        const display = resolveLaunchpadDisplayName(
+          launchpad,
+          this.displayResolver,
+        );
+        return `[${esc(display)}](${launchpad.url})`;
       }
       case 'launchpadIcon': {
         const launchpad = values.launchpad;
@@ -250,7 +281,11 @@ export class TemplateRendererService {
         const emoji =
           this.displayResolver?.resolve('launchpad', launchpad.id) ?? '';
         if (!emoji) {
-          return `[${esc(launchpad.name)}](${launchpad.url})`;
+          const display = resolveLaunchpadDisplayName(
+            launchpad,
+            this.displayResolver,
+          );
+          return `[${esc(display)}](${launchpad.url})`;
         }
         return `[${emoji}](${launchpad.url})`;
       }
@@ -308,7 +343,18 @@ export class TemplateRendererService {
       case 'venue':
       case 'venueTech':
       case 'venueLine': {
-        const texts = resolveVenueTexts(values.launchpad, values.venue);
+        const launchpad = values.launchpad;
+        const launchpadForVenue =
+          launchpad == null
+            ? launchpad
+            : {
+                ...launchpad,
+                name: resolveLaunchpadDisplayName(
+                  launchpad,
+                  this.displayResolver,
+                ),
+              };
+        const texts = resolveVenueTexts(launchpadForVenue, values.venue);
         const text =
           key === 'venue'
             ? texts.venue

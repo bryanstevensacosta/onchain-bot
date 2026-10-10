@@ -523,6 +523,20 @@ todo 6 added 10 suites / 35 tests (±0 since); bare-address added
   `.omo/notepads/dexter-launchpad-r1.md` §§1-2 + §8 (source of truth;
   detector lives in market-data `src/provider/launchpad/`).
 
+- Display-only launchpad name override (display-name lane): DisplayMap
+  dimension `launchpadName` (`matchValue` = canonical `launchpad.id`,
+  case-insensitive trim like the existing resolver; `display` = the
+  operator-chosen name, e.g. `pump-fun` → `Pump`). The renderer
+  centralizes `resolveLaunchpadDisplayName(launchpad, resolver)` and
+  uses it everywhere the name surfaces (`launchpadText`,
+  `launchpadTextLink` text, `launchpadIconLink` fallback text, `venue`
+  - `venueLine` origin branch). Override wins; missing/whitespace
+    display falls back to the detector `name` (never blank). Detector
+    output, DB rows and `launchpad.id` never change (taste, not data).
+    Example row (operator creates via UI/API when wanted, never
+    auto-seeded): `{placeholderKey:'launchpadName',
+matchValue:'pump-fun', display:'Pump'}`.
+
 - Manual mint→launchpad overrides (plan todo 37): curated table
   `dexter_launchpad_overrides` (`mint` unique + `launchpad_id` +
   nullable `note` + `created_at`; migration

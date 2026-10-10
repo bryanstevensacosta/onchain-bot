@@ -35,12 +35,23 @@ export const MAX_DISPLAY_LENGTH = 40;
  */
 export const LAUNCHPAD_DISPLAY_KEY = 'launchpad';
 
+/**
+ * Display-only launchpad name override dimension (display-name lane).
+ * NOT a template `{{key}}` — the renderer calls
+ * `resolve('launchpadName', launchpad.id)` via the centralized
+ * `resolveLaunchpadDisplayName` helper; rows arrive via API/UI seeds,
+ * e.g. (`launchpadName`, `pump-fun`, `Pump`). Detector output,
+ * DB rows and `launchpad.id` never change (taste, not data).
+ */
+export const LAUNCHPAD_NAME_DISPLAY_KEY = 'launchpadName';
+
 /** Every placeholder key a DisplayMap row may attach to (closed union). */
 export const DISPLAY_PLACEHOLDER_KEYS: readonly string[] = [
   ...BASE_TOKEN_PLACEHOLDERS,
   ...DERIVED_PLACEHOLDERS,
   TIMEFRAME_PLACEHOLDER,
   LAUNCHPAD_DISPLAY_KEY,
+  LAUNCHPAD_NAME_DISPLAY_KEY,
 ];
 
 export class DisplayMapValidationError extends Error {

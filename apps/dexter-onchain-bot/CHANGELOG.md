@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Display-only launchpad name override (display-name lane):**
+  DisplayMap dimension `launchpadName` with the centralized renderer
+  helper `resolveLaunchpadDisplayName(launchpad, resolver)` (override
+  wins, detector `name` fallback, whitespace/empty override falls
+  back, never blank). Consumed by `launchpadText`,
+  `launchpadTextLink` text, `launchpadIconLink` fallback text, `venue`
+  - `venueLine` origin branch. Detector output, DB rows and
+    `launchpad.id` never change. Example row (operator-created via
+    UI/API, never auto-seeded): `{placeholderKey:'launchpadName',
+matchValue:'pump-fun', display:'Pump'}`.
+
 - **Manual mint→launchpad override table (dexter plan todo 37):**
   curated `dexter_launchpad_overrides` (`mint` unique,
   `launchpad_id`, nullable `note`, `created_at`; new migration) with
