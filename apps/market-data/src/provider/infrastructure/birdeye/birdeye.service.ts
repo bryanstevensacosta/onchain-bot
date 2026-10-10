@@ -11,9 +11,59 @@ import type {
   BirdeyeTradesData,
   BirdeyeHolderProfileData,
   BirdeyeHolderPositionsData,
+  BirdeyeTokenSecurityData,
 } from './birdeye.types';
 
 const BASE = 'https://public-api.birdeye.so';
+
+/**
+ * Our chain id -> Birdeye `x-chain` header value (dexter plan todo 31).
+ *
+ * Supported `x-chain` values per `birdeye/README.md` (docs.birdeye.so):
+ * solana/ethereum/arbitrum/avalanche/bsc/optimism/polygon/base/zksync/
+ * monad/hyperevm/aptos/fogo/mantle/megaeth/robinhood/sui. `optimism`
+ * is mapped for catalog day (Birdeye serves it, but `STATIC_CHAINS`
+ * has no row so snapshots 404 before any fetcher runs); `unichain`
+ * is DELIBERATELY unmapped (Birdeye lists no such chain — never
+ * invent coverage). Chains WITHOUT an entry resolve `null` WITHOUT
+ * touching the network — never a wrong-`x-chain` query.
+ */
+export const BIRDEYE_CHAIN_SLUGS: Readonly<Record<string, string>> = {
+  solana: 'solana',
+  ethereum: 'ethereum',
+  bsc: 'bsc',
+  base: 'base',
+  arbitrum: 'arbitrum',
+  polygon: 'polygon',
+  optimism: 'optimism',
+  robinhood: 'robinhood',
+};
+
+/**
+ * Our chains whose snapshots may consult Birdeye (dexter plan todo 31):
+ * the `BIRDEYE_CHAIN_SLUGS` entries that also exist in `STATIC_CHAINS`
+ * (1→7 effective chains — the biggest single coverage delta in the
+ * audit matrix; optimism stays mapped-but-unqueried until the catalog
+ * lands, same precedent as `GECKO_SUPPORTED_CHAINS`).
+ */
+export const BIRDEYE_SUPPORTED_CHAINS: ReadonlyArray<string> = [
+  'solana',
+  'ethereum',
+  'bsc',
+  'base',
+  'arbitrum',
+  'polygon',
+  'robinhood',
+];
+
+/**
+ * Resolve our chain id to its Birdeye `x-chain` value, or `null` when
+ * the chain has no mapping (honest null — the caller must NOT fall
+ * back to a default chain header).
+ */
+export function resolveBirdeyeChain(chain: string): string | null {
+  return BIRDEYE_CHAIN_SLUGS[chain] ?? null;
+}
 
 /**
  * Birdeye market data provider — Solana focused.
@@ -61,12 +111,14 @@ export class BirdeyeService extends DataProviderPort {
     chain: string = 'solana',
   ): Promise<BirdeyeTokenOverviewData | null> {
     if (!this.apiKey) return null;
+    const xChain = resolveBirdeyeChain(chain);
+    if (xChain === null) return null;
     try {
       const { data } = await axios.get<
         BirdeyeResponse<BirdeyeTokenOverviewData>
       >(`${BASE}/defi/token_overview`, {
         params: { address },
-        headers: { 'X-API-KEY': this.apiKey, 'x-chain': chain },
+        headers: { 'X-API-KEY': this.apiKey, 'x-chain': xChain },
         timeout: 8_000,
       });
       if (!data.success || !data.data) return null;
@@ -94,12 +146,14 @@ export class BirdeyeService extends DataProviderPort {
     chain: string = 'solana',
   ): Promise<BirdeyePriceData | null> {
     if (!this.apiKey) return null;
+    const xChain = resolveBirdeyeChain(chain);
+    if (xChain === null) return null;
     try {
       const { data } = await axios.get<BirdeyeResponse<BirdeyePriceData>>(
         `${BASE}/defi/price`,
         {
           params: { address },
-          headers: { 'X-API-KEY': this.apiKey, 'x-chain': chain },
+          headers: { 'X-API-KEY': this.apiKey, 'x-chain': xChain },
           timeout: 8_000,
         },
       );
@@ -125,6 +179,8 @@ export class BirdeyeService extends DataProviderPort {
     limit: number = 50,
   ): Promise<BirdeyeTradesData | null> {
     if (!this.apiKey) return null;
+    const xChain = resolveBirdeyeChain(chain);
+    if (xChain === null) return null;
     try {
       const { data } = await axios.get<BirdeyeResponse<BirdeyeTradesData>>(
         `${BASE}/defi/txs/token`,
@@ -136,7 +192,7 @@ export class BirdeyeService extends DataProviderPort {
             txType: 'swap',
             sortType: 'desc',
           },
-          headers: { 'X-API-KEY': this.apiKey, 'x-chain': chain },
+          headers: { 'X-API-KEY': this.apiKey, 'x-chain': xChain },
           timeout: 8_000,
         },
       );
@@ -158,12 +214,14 @@ export class BirdeyeService extends DataProviderPort {
     chain: string = 'solana',
   ): Promise<BirdeyeHolderProfileData | null> {
     if (!this.apiKey) return null;
+    const xChain = resolveBirdeyeChain(chain);
+    if (xChain === null) return null;
     try {
       const { data } = await axios.get<
         BirdeyeResponse<BirdeyeHolderProfileData>
       >(`${BASE}/token/v1/holder_profile`, {
         params: { address },
-        headers: { 'X-API-KEY': this.apiKey, 'x-chain': chain },
+        headers: { 'X-API-KEY': this.apiKey, 'x-chain': xChain },
         timeout: 8_000,
       });
       if (!data.success || !data.data) return null;
@@ -187,12 +245,14 @@ export class BirdeyeService extends DataProviderPort {
     limit: number = 10,
   ): Promise<BirdeyeHolderPositionsData | null> {
     if (!this.apiKey) return null;
+    const xChain = resolveBirdeyeChain(chain);
+    if (xChain === null) return null;
     try {
       const { data } = await axios.get<
         BirdeyeResponse<BirdeyeHolderPositionsData>
       >(`${BASE}/token/v1/holder_positions`, {
         params: { address, labels: 'dev', limit: String(limit), offset: '0' },
-        headers: { 'X-API-KEY': this.apiKey, 'x-chain': chain },
+        headers: { 'X-API-KEY': this.apiKey, 'x-chain': xChain },
         timeout: 8_000,
       });
       if (!data.success || !data.data) return null;
@@ -201,6 +261,45 @@ export class BirdeyeService extends DataProviderPort {
       if (axios.isAxiosError(err) && err.response?.status === 404) return null;
       this.logger.debug(
         `Birdeye /holder_positions failed: ${(err as Error).message}`,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Token security scan — ownership/mint-freeze authorities, LP locks,
+   * honeypot/sellability flags (dexter plan todo 31, keyed, 25 CU per
+   * call — the spendiest Birdeye leg here, so it is NEVER called in
+   * the per-snapshot quote fetcher; `SnapshotQuote` carries no
+   * security columns and mapping it there would need a snapshot-core
+   * change. Available as the security-aggregator input).
+   *
+   * No key or unmapped chain -> null, never throws. All chains except
+   * Sui per the endpoint docs.
+   *
+   * @see https://docs.birdeye.so/reference/* (`/defi/token_security`)
+   */
+  public async getTokenSecurity(
+    address: string,
+    chain: string = 'solana',
+  ): Promise<BirdeyeTokenSecurityData | null> {
+    if (!this.apiKey) return null;
+    const xChain = resolveBirdeyeChain(chain);
+    if (xChain === null) return null;
+    try {
+      const { data } = await axios.get<
+        BirdeyeResponse<BirdeyeTokenSecurityData>
+      >(`${BASE}/defi/token_security`, {
+        params: { address },
+        headers: { 'X-API-KEY': this.apiKey, 'x-chain': xChain },
+        timeout: 8_000,
+      });
+      if (!data.success || !data.data) return null;
+      return data.data;
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.status === 404) return null;
+      this.logger.debug(
+        `Birdeye /token_security failed: ${(err as Error).message}`,
       );
       return null;
     }

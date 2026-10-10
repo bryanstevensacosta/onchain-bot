@@ -118,11 +118,11 @@ describe('DexScreener robinhood coverage (todo 24, 0x968B fixture)', () => {
     expect(quote?.liquidityUsd).toBe(6070.2);
   });
 
-  it('still resolves null with zero network for slugs without a row (unichain)', async () => {
+  it('still resolves null with zero network for slugs without a row (optimism — unichain mapped since todo 31)', async () => {
     const service = await realService();
     const spy = jest.spyOn(axios, 'get');
     await expect(
-      service.getBestPairSummaryForChain('unichain', NYMA),
+      service.getBestPairSummaryForChain('optimism', NYMA),
     ).resolves.toBeNull();
     expect(spy).not.toHaveBeenCalled();
   });

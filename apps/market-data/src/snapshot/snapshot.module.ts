@@ -11,6 +11,8 @@ import { GeckoTerminalService } from 'provider/infrastructure/geckoterminal';
 import { BirdeyeService } from 'provider/infrastructure/birdeye';
 import { CcxtService } from 'provider/infrastructure/ccxt';
 import { CoinGeckoService } from 'provider/infrastructure/coingecko';
+import { DefiLlamaService } from 'provider/infrastructure/defillama';
+import { EtherscanService } from 'provider/infrastructure/etherscan';
 import { MobulaService } from 'provider/infrastructure/mobula';
 import { MoralisService } from 'provider/infrastructure/moralis';
 import { RugCheckService } from 'provider/infrastructure/rugcheck';
@@ -112,6 +114,8 @@ import { DiscoveryCacheJanitorService } from './application/discovery-cache-jani
         RugCheckService,
         SolanaRpcService,
         DiscoveryCacheService,
+        DefiLlamaService,
+        EtherscanService,
       ],
       useFactory: (
         dexscreener: DexScreenerService,
@@ -124,6 +128,8 @@ import { DiscoveryCacheJanitorService } from './application/discovery-cache-jani
         rugcheck: RugCheckService,
         solanaRpc: SolanaRpcService,
         discoveryCache: DiscoveryCacheService,
+        defillama: DefiLlamaService,
+        etherscan: EtherscanService,
       ) =>
         buildProviderQuoteFetchers({
           dexscreener,
@@ -136,6 +142,8 @@ import { DiscoveryCacheJanitorService } from './application/discovery-cache-jani
           rugcheck,
           solanaRpc,
           discoveryCache,
+          defillama,
+          etherscan,
         }),
     },
   ],

@@ -161,7 +161,7 @@ describe('DiscoveryCacheService', () => {
   it('unmapped chain answers null with zero network (never cross-chain)', async () => {
     const { dexscreener, service } = harness();
     await expect(
-      service.resolveDiscovery('unichain', MINT),
+      service.resolveDiscovery('optimism', MINT),
     ).resolves.toBeNull();
     expect(dexscreener.getPairByAddress).not.toHaveBeenCalled();
     expect(dexscreener.getPairsByChain).not.toHaveBeenCalled();

@@ -5,7 +5,9 @@ import { BirdeyeModule } from './birdeye/birdeye.module';
 import { CcxtModule } from './ccxt/ccxt.module';
 import { CoinGeckoModule } from './coingecko/coingecko.module';
 import { CoinMarketCapModule } from './coinmarketcap/coinmarketcap.module';
+import { DefiLlamaModule } from './defillama/defillama.module';
 import { DexScreenerModule } from './dexscreener/dexscreener.module';
+import { EtherscanModule } from './etherscan/etherscan.module';
 import { FluxRpcModule } from './fluxrpc/fluxrpc.module';
 import { GeckoTerminalModule } from './geckoterminal/geckoterminal.module';
 import { HeliusModule } from './helius/helius.module';
@@ -32,6 +34,8 @@ import { SolanaRpcModule } from './solana-rpc/solana-rpc.module';
     CoinGeckoModule,
     CoinMarketCapModule,
     DexScreenerModule,
+    DefiLlamaModule,
+    EtherscanModule,
     FluxRpcModule,
     GeckoTerminalModule,
     HeliusModule,
@@ -48,6 +52,8 @@ import { SolanaRpcModule } from './solana-rpc/solana-rpc.module';
     CoinGeckoModule,
     CoinMarketCapModule,
     DexScreenerModule,
+    DefiLlamaModule,
+    EtherscanModule,
     FluxRpcModule,
     GeckoTerminalModule,
     HeliusModule,

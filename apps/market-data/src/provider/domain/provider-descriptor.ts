@@ -42,13 +42,30 @@ export const DEFAULT_PROVIDERS: ReadonlyArray<ProviderDescriptor> = [
   {
     name: 'dexscreener',
     kind: 'market',
-    supportsChains: ['ethereum', 'solana', 'bsc', 'base'],
+    supportsChains: [
+      'ethereum',
+      'solana',
+      'bsc',
+      'base',
+      'arbitrum',
+      'polygon',
+      'robinhood',
+      'unichain',
+    ],
     rateLimitPerMin: 60,
   },
   {
     name: 'geckoterminal',
     kind: 'market',
-    supportsChains: ['ethereum', 'solana', 'bsc', 'base'],
+    supportsChains: [
+      'ethereum',
+      'solana',
+      'bsc',
+      'base',
+      'arbitrum',
+      'polygon',
+      'robinhood',
+    ],
     rateLimitPerMin: 60,
   },
   {
@@ -66,7 +83,15 @@ export const DEFAULT_PROVIDERS: ReadonlyArray<ProviderDescriptor> = [
   {
     name: 'birdeye',
     kind: 'market',
-    supportsChains: ['solana'],
+    supportsChains: [
+      'solana',
+      'ethereum',
+      'bsc',
+      'base',
+      'arbitrum',
+      'polygon',
+      'robinhood',
+    ],
     rateLimitPerMin: 60,
   },
   {
@@ -116,6 +141,36 @@ export const DEFAULT_PROVIDERS: ReadonlyArray<ProviderDescriptor> = [
     name: 'rugcheck',
     kind: 'security',
     supportsChains: ['solana'],
+    rateLimitPerMin: 60,
+  },
+  {
+    // Dexter plan todo 32: keyless price leg (6 STATIC chains;
+    // optimism/unichain mapped-but-unqueried until the catalog lands).
+    name: 'defillama',
+    kind: 'market',
+    supportsChains: [
+      'ethereum',
+      'solana',
+      'bsc',
+      'base',
+      'arbitrum',
+      'polygon',
+    ],
+    rateLimitPerMin: 60,
+  },
+  {
+    // Dexter plan todo 32: keyed holders leg (EVM STATIC chains;
+    // optimism/unichain mapped-but-unqueried until the catalog lands).
+    name: 'etherscan',
+    kind: 'market',
+    supportsChains: [
+      'ethereum',
+      'bsc',
+      'base',
+      'arbitrum',
+      'polygon',
+      'robinhood',
+    ],
     rateLimitPerMin: 60,
   },
   {

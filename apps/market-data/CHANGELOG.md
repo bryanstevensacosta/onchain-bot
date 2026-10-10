@@ -9,6 +9,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **New providers: DeFiLlama + Etherscan V2, conditionals measured
+  (dexter plan todo 32):** coverage-probe gate first (8 chains,
+  keyless where possible) — DeFiLlama `coins.llama.fi`
+  `prices/current` INCLUDED on 7 chains (ethereum/solana/bsc/base/
+  arbitrum/polygon + optimism/unichain mapped-for-catalog-day;
+  `robinhood` EXCLUDED with proof) as the last free fetcher leg
+  (`priceUsd` + mint-bound `symbol` only, confidence floor 0.5,
+  1 call/scan, 60/min bucket); `/chart/{coin}` proven coarse
+  (1-point series) so `getChartMax` stays service-level and the
+  fan-out never calls it (ATH-history rule: `fdvAth` stays own 90d
+  history). Etherscan V2 (`ETHERSCAN_API_KEY`, skip-if-absent
+  zero-network) as the last leg overall: `tokenholdercount` →
+  `holders` only (PRO-gated, free-key nulls expected);
+  `tokensupply` (raw base units, never UI-mapped) and `getsourcecode`
+  (no quote column) stay service-level with the reason pinned;
+  4663-on-free-key gate closed as `wontfix-documentado` (no key;
+  Robinhood/Arc free window expires 2026-10-15). Conditionals
+  measured, none wired: Jupiter Price V3 loses the bake-off
+  (p50 1.088s vs dex 0.705s / gecko 0.748s, zero new token class —
+  OUT documented); 1inch key-gated (401 keyless, SKIP documented);
+  CoinPaprika listed-only (CHALE search empty, no address→id path,
+  no ATH column — OUT documented). Precedence: both wired legs
+  LAST (fallback-after-incumbents); best-pick/venue untouched. Specs:
+  27 new (service + legs + QPS-math-as-test + order pins).
+
+- **Top-5 exploitation of existing providers (dexter plan todo 31):**
+  five legs over current adapters, zero new vendors/keys — (1)
+  DexScreener `search` + batch `tokens/v1` fetcher fallbacks
+  (strict → search → tokens/v1, shared strict
+  `selectBestPairSummaryForSlug` + pair-side check; `getTokensInfo`
+  fixed to the live bare-array shape) + `unichain` slug (map +
+  fetcher + registry descriptor); (2) GeckoTerminal `search/pools`
+  - `tokens/multi` (≤30) + `simple/token_price` (≤30) fetcher legs
+    (info → multi → search on info-null; pools → simple on
+    price-gap); (3) RugCheck `search` fetcher fallback (exact-mint
+    `holders` + `marketCapUsd` on summary-miss) + `stats/new_tokens`
+    feed-only pre-warm input (never per-snapshot); (4) Birdeye
+    `supportsChains` 1→7 with `x-chain` mapping (optimism
+    mapped-for-catalog-day, unichain deliberately unmapped) +
+    `token_security` service method (25 CU, fetcher-excluded:
+    `SnapshotQuote` has no security columns); (5) Mobula
+    `token/price` fetcher fallback (markets-hit byte-identical) +
+    batch `POST token/price` (≤500, positional `error` slots
+    dropped). Quota rule: every leg fires only on the previous leg's
+    null; 429/403 fail-open null. Specs: 40 new (per-leg behavior +
+    no-regression spy pins).
+
 - **Chainstack chain allowlist (`CHAINSTACK_CHAINS`):** Chainstack
   free allows ONE chain per endpoint, so comma-separated `CHAINSTACK_CHAINS`
   (e.g. `solana`; empty default = all rows, today's behavior) gates the

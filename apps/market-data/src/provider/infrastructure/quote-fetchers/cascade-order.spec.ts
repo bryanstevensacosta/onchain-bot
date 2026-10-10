@@ -58,10 +58,12 @@ describe('ccxt-first cascade order (P48-bis)', () => {
       'geckoterminal',
       'solana-rpc',
       'rugcheck',
+      'defillama',
       'birdeye',
       'coingecko',
       'mobula',
       'moralis',
+      'etherscan',
     ]);
   });
 

@@ -834,6 +834,92 @@ token · pons</title>` with zero canonical tags (unknown addresses DO
   non-empty with no new table on either side. Venue NEVER feeds
   `launchpad` (spec-pinned separation); `dexId` ≠ `launchpad.id`.
 
+## TOP-5 PROVIDER EXPLOITATION (todo 31, 2026-10-09)
+
+Five legs over EXISTING providers (zero new vendors/keys). Rule for
+all: each leg fires ONLY on the previous leg's null (common paths
+cost exactly what they cost before), 404/absence stays null,
+429/403 fail-open null (never throw except the 19b2
+`RetryableProviderError` transient class, which still propagates to
+the single-retry wrapper). Optional-method guards keep older hand
+stub deps compiling (same precedent as the `getTokenPools` leg).
+
+| #   | Provider                                    | New leg                                                            | Wiring                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Quota                                                                                     | Latency vs incumbent                                                                                                                               |
+| --- | ------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | DexScreener (keyless, 60/min/endpoint)      | `search` fallback + `tokens/v1` fallback + `unichain` slug         | fetcher: strict → `search(address)` → `getTokensInfo(slug, address)`, all through shared `selectBestPairSummaryForSlug` (strict `chainId === slug` + best-liquidity) + todo-20 side check; `getTokensInfo` fixed to the live bare-array shape (was `{ pairs }`-only → null for every input, same dead-leg class as todo 18); slug map + fetcher + registry descriptor gain `unichain` (live: `search?q=unichain` → 2 `chainId: 'unichain'` rows)                                                                                     | worst case 3 calls/miss on ONE shared `outbound:dexscreener` bucket (hits still 1)        | strict-hit path unchanged; miss path trades ≤2 extra keyless calls for symbol-typed / thin-pair coverage the strict route misses                   |
+| 2   | GeckoTerminal (keyless, ~10-30/min)         | `search/pools` + `tokens/multi` (≤30) + `simple/token_price` (≤30) | fetcher: info → multi (strict address match) → search (pool numbers only, identity stays null) on info-null; pools (existing) → simple-price on price-gap; `GECKO_SUPPORTED_CHAINS` UNCHANGED (optimism/unichain stay mapped-but-unqueried — catalog gates first)                                                                                                                                                                                                                                                                    | each fires only on null; multi/simple slice to 30 client-side                             | multi collapses batch fan-out ~30×; simple is the cheapest poll (no metadata overhead); search is the Gecko-only discovery leg (STAGEVEIL-pattern) |
+| 3   | RugCheck (keyless, no published hard quota) | `search` fallback + `stats/new_tokens` feed                        | fetcher: summary hit unchanged (search NOT called); summary miss → `search(address)` exact-mint match contributes `holders` + `marketCapUsd` only (near-miss discarded); `getNewTokens` is feed-only (pre-warm input, NEVER called per-snapshot — quota discipline); blank queries return null zero-network                                                                                                                                                                                                                          | search only on summary-miss                                                               | discovery-race time: pending→ready on first touch for report-less mints                                                                            |
+| 4   | Birdeye (keyed, CU-metered)                 | `supportsChains` 1→7 + `x-chain` + `token_security`                | `BIRDEYE_CHAIN_SLUGS` (1:1 for the 7 `STATIC_CHAINS` ids + `optimism` mapped-for-catalog-day; `unichain` DELIBERATELY unmapped — Birdeye lists no such chain); all 5 methods route through `resolveBirdeyeChain` (unmapped → null zero-network, never a wrong-`x-chain` query); fetcher + registry descriptor widen to `BIRDEYE_SUPPORTED_CHAINS`; `token_security` (25 CU) is service-only — NEVER in the fetcher (`SnapshotQuote` has no security columns; mapping it needs a snapshot-core change, out of scope)                  | 25 CU/security call — the spendiest Birdeye leg here; monitor via `GET /utils/v1/credits` | biggest chain-coverage delta in the matrix (EVM snapshots gain a second keyed leg where only Moralis/Mobula/CoinGecko served)                      |
+| 5   | Mobula (keyed, demo rate-limited)           | `token/price` fallback + batch `POST token/price` (≤500)           | fetcher: markets hit byte-identical (price leg fires ONLY on its null) contributing price/mcap/fdv/liquidity/identity; literal path is `/token/price` (docs-page slug `token-price` is NOT the path; USD-suffix naming, unlike `token/markets` camelCase); batch posts `{ items }`, matches slots by echoed `address` (positional `error` slots dropped), caps 500 + drops unmapped-chain entries client-side; `CHAIN_MAP` UNCHANGED (robinhood/unichain/optimism unproven — demo 403s `token/price` on free, never invent coverage) | price leg 1 cheap call on miss path only; batch 1 call per ≤500                           | single-snapshot: cheap second chance instead of null; batch endpoints: 1 call replaces N× heavies                                                  |
+
+Specs: `dexscreener-top5` (10), `geckoterminal-top5` (9),
+`rugcheck-top5` (7), `birdeye-top5` (7), `mobula-top5` (7) — each
+pins new behavior + no-regression (fallback legs NOT called on the
+incumbent hit, via spies — the quota proof) + fail-open nulls.
+Evidence: `.omo/evidence/task-fe-exploit-top5.log`.
+
+## NEW PROVIDERS — DEFILLAMA + ETHERSCAN V2 (+ CONDITIONALS MEASURED) (todo 32, 2026-10-09)
+
+Coverage-probe gate FIRST (keyless where possible, 8 chains:
+ethereum/solana/bsc/base/arbitrum/polygon/optimism/unichain/robinhood;
+evidence `.omo/evidence/task-fe-newprov.log`):
+
+| Candidate                                                         | Probe                                                                                                                               | Verdict                                                                                                                                                                                                                                   |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| DeFiLlama `coins.llama.fi` `prices/current` (keyless, 0.63-0.79s) | 9-coin batch + per-token retests                                                                                                    | INCLUDE 7 chains (eth/sol/bsc/base/arb/poly/opt/uni — arb via USDC, poly via bridged-USDC); EXCLUDE `robinhood` (WETH-predeploy + STAGEVEIL both empty); per-token variance real (ARB/POL/WMATIC miss while siblings hit) → fallback-only |
+| DeFiLlama `/chart/{coin}` (keyless, 0.61-0.64s)                   | WETH ±90d `start=`                                                                                                                  | WEAK (1-point coarse series both calls) → service method only, NEVER in the fan-out (ATH stays own-history, ATH-history rule below)                                                                                                       |
+| Etherscan V2 (key REQUIRED)                                       | no-key `chainid=1 stats/ethprice` → `0/NOTOK/'Missing/Invalid API Key'` (shape pinned); NO key in shell or `.env` (names-only read) | IMPLEMENT-WITH-SKIP (skip-if-absent, zero network); 4663-on-free-key gate = `wontfix-documentado` (unverifiable keyless; free Robinhood/Arc window EXPIRES 2026-10-15 per docs, then Lite $49+ or re-verify)                              |
+| Jupiter Price V3 (keyless-first, 0.5 RPS spacing)                 | `api.jup.ag` + `lite-api.jup.ag` wSOL → 200 both (1.07s/1.38s)                                                                      | BAKE-OFF then OUT (below) — Solana-only by design, needs no key today (`x-api-key` in docs, unenforced from this IP)                                                                                                                      |
+| 1inch Spot Price                                                  | keyless `api.1inch.dev/price/v1.1/1/…` → 401 `Unauthorized`                                                                         | SKIP-DOCUMENTED (key-gated, no owner key; auth https://business.1inch.com/portal/documentation/apis/authentication, product https://business.1inch.com/products/price) — no bake possible, no code                                        |
+| CoinPaprika (keyless)                                             | `tickers/eth-ethereum` 200 (price + `ath_price` 4946.22) + `search?q=CHALE` → 0 currencies                                          | OUT-DOCUMENTED (listed-only proven: no address→id path without a curated registry = invented coverage; and `SnapshotQuote` has no ATH column — wiring ATH needs a snapshot-core change, out of scope) — no code                           |
+
+Bake-off (todo-28 method: distinct-address probes, ≥8s spacing, all
+HTTP 200; fixtures JUP/wSOL/USDC-sol from the Jupiter docs — no memory
+addresses; n=3 per leg, p50 = median; owner judges on the table):
+
+| Leg                      | ms (n=3)              | p50    | Coverage class                                                |
+| ------------------------ | --------------------- | ------ | ------------------------------------------------------------- |
+| Jupiter Pro price        | 1.107 / 1.021 / 1.088 | 1.088s | Solana majors only (omits unreliable — quality, not coverage) |
+| DexScreener token-pairs  | 0.705 / 0.713 / 0.685 | 0.705s | same majors + venue/liq (already wired, first)                |
+| GeckoTerminal token-info | 0.870 / 0.728 / 0.748 | 0.748s | same majors + supplies/holders (already wired)                |
+
+Verdict: Jupiter does NOT win (delta +383ms vs dex / +340ms vs gecko,
+zero new token class — Solana majors already carry 5+ legs; Jupiter
+also omits exactly the illiquid tokens incumbents miss, so marginal
+coverage ≈ 0). OUT, re-open if heuristic corroboration is wanted.
+1inch/CoinPaprika out/skip per the gate table (no bake possible).
+
+Wired legs (both LAST — fallback-after-incumbents; merge is
+first-non-null in order, so they only fill gaps; best-pick/venue
+untouched — liquidity/venue never come from these legs):
+
+- DeFiLlama (free, last-free): `prices/current` → `priceUsd` +
+  mint-bound `symbol` ONLY (no mcap/fdv/liq on this surface);
+  confidence floor 0.5 (probes 0.99); 1 call/scan; bucket 60/min.
+- Etherscan V2 (keyed, last-overall): `tokenholdercount` → `holders`
+  ONLY (PRO-gated: free-key nulls expected). `tokensupply` stays raw
+  base units (never mapped to `totalSupply` — unit poison without
+  decimals) and `getsourcecode` has no quote column — both
+  service-level, documented, never in the fan-out. 1 call/scan;
+  bucket 60/min; free 3/s + 100k/day + `Retry-After` cap per 19b2.
+- ATH-history rule: NO ATH source changes in this lane (chart unwired,
+  Mobula `token-ath` unwired in todo 31) — `fdvAth` stays own 90d
+  history; any future ATH-source wiring must annotate or reset the
+  window HERE first.
+- Owner-keys checklist: `ETHERSCAN_API_KEY` (https://etherscan.io/apis;
+  rotation extends the todo-27 cycle) · `JUPITER_API_KEY`
+  (https://portal.jup.ag — only if Jupiter re-opens; keyless works
+  today) · 1inch key (https://business.1inch.com/portal/registration —
+  only if 1inch re-opens). Names only, never values, nowhere.
+
+Specs: `defillama-newprov` (11: slugs, confidence, chart-max +
+weakness pin, retryable) + `etherscan-newprov` (9: chainids incl.
+4663, skip-if-absent, action pins, NOTOK-collapse, retryable) +
+`provider-quote-newprov` (7: order-last, gap fills, incumbent-wins,
+keyless-skip, QPS-math-as-test) + `cascade-order.spec` retargeted
+(defillama last-free, etherscan last-overall).
+Evidence: `.omo/evidence/task-fe-newprov.log`.
+
 ## HELIUS-KEYED ROUTING + 64-HEX FIX (todo 28, 2026-10-07)
 
 - Helius via the correct seam (ONE env line, zero code): set

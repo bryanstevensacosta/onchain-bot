@@ -66,3 +66,17 @@ export interface BirdeyeHolderPositionsData {
   readonly items: ReadonlyArray<BirdeyeHolderPosition>;
   readonly hasMore?: boolean;
 }
+
+/**
+ * Token security scan result (`GET /defi/token_security`, 25 CU).
+ *
+ * Shape note (honest): the endpoint docs enumerate the security
+ * dimensions (ownership/mint/LP/sellability) but this lane verified no
+ * live response schema against the keyed endpoint (no key use in
+ * probes), so the type stays open — consumers read known fields
+ * defensively. `address` echoes the queried mint when present.
+ */
+export interface BirdeyeTokenSecurityData {
+  readonly address?: string | null;
+  readonly [field: string]: unknown;
+}

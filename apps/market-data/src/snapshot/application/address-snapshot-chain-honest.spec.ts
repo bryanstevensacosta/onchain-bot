@@ -73,14 +73,14 @@ describe('resolveDexScreenerSlug (chain-honest slug map)', () => {
     expect(resolveDexScreenerSlug(chain)).toBe(slug);
   });
 
-  it.each([['unichain'], ['bnb'], [''], ['nope']])(
+  it.each([['optimism'], ['bnb'], [''], ['nope']])(
     'resolves null for unmapped %s (never a silent cross-chain fallback)',
     (chain) => {
       expect(resolveDexScreenerSlug(chain)).toBeNull();
     },
   );
 
-  it('covers exactly the 7 catalog chains (todo 24 adds robinhood)', () => {
+  it('covers exactly the 8 catalog chains (todo 31 adds unichain)', () => {
     expect(Object.keys(DEXSCREENER_CHAIN_SLUGS).sort()).toEqual([
       'arbitrum',
       'base',
@@ -89,6 +89,7 @@ describe('resolveDexScreenerSlug (chain-honest slug map)', () => {
       'polygon',
       'robinhood',
       'solana',
+      'unichain',
     ]);
   });
 });
@@ -166,7 +167,7 @@ describe('DexScreenerService.getBestPairSummaryForChain (strict mode)', () => {
     const service = await realService();
     const spy = jest.spyOn(service, 'getPairsByChain');
     await expect(
-      service.getBestPairSummaryForChain('unichain', FF81),
+      service.getBestPairSummaryForChain('optimism', FF81),
     ).resolves.toBeNull();
     expect(spy).not.toHaveBeenCalled();
   });

@@ -1,11 +1,20 @@
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
 import {
+  resolveDexScreenerSlug,
+  selectBestPairSummaryForSlug,
+} from 'provider/infrastructure/dexscreener/dexscreener.service';
+import {
   GeckoTerminalService,
   selectPoolQuote,
 } from 'provider/infrastructure/geckoterminal';
 import { BirdeyeService } from 'provider/infrastructure/birdeye';
+import { BIRDEYE_SUPPORTED_CHAINS } from 'provider/infrastructure/birdeye/birdeye.service';
 import { CcxtService } from 'provider/infrastructure/ccxt';
 import { CoinGeckoService } from 'provider/infrastructure/coingecko';
+import { DefiLlamaService } from 'provider/infrastructure/defillama';
+import { DEFILLAMA_SUPPORTED_CHAINS } from 'provider/infrastructure/defillama/defillama.service';
+import { EtherscanService } from 'provider/infrastructure/etherscan';
+import { ETHERSCAN_SUPPORTED_CHAINS } from 'provider/infrastructure/etherscan/etherscan.service';
 import { MobulaService } from 'provider/infrastructure/mobula';
 import { MoralisService } from 'provider/infrastructure/moralis';
 import { RugCheckService } from 'provider/infrastructure/rugcheck';
@@ -74,6 +83,14 @@ export interface ProviderQuoteDeps {
   readonly rugcheck: RugCheckService;
   readonly solanaRpc: SolanaRpcService;
   /**
+   * New-provider legs (dexter plan todo 32, optional): absent (every
+   * pre-existing caller/spec) -> the legs skip silently, byte-identical
+   * (same precedent as `discoveryCache` + the todo-31 optional-method
+   * guards). The snapshot module passes the real services.
+   */
+  readonly defillama?: DefiLlamaService;
+  readonly etherscan?: EtherscanService;
+  /**
    * Discovery cache (dexter plan todo 30b, optional): cache-first
    * discovery with tripwire verification. Absent (every existing
    * caller/spec) -> direct `getBestPairSummaryForChain`, byte-
@@ -107,10 +124,12 @@ export const QUOTE_FETCHER_COST_TIER: Readonly<
   geckoterminal: 'free',
   'solana-rpc': 'free',
   rugcheck: 'free',
+  defillama: 'free',
   birdeye: 'keyed',
   coingecko: 'keyed',
   mobula: 'keyed',
   moralis: 'keyed',
+  etherscan: 'keyed',
 };
 
 /**
@@ -171,15 +190,52 @@ export function buildProviderQuoteFetchers(
       'arbitrum',
       'polygon',
       'robinhood',
+      'unichain',
     ],
     fetch: async (chain: string, address: string) => {
       // Discovery cache first (dexter plan todo 30b): tripwire-
       // verified cached discovery on hit, direct strict discovery
       // otherwise. Side-verification below is unchanged either way.
-      const best =
+      //
+      // Fallback legs (dexter plan todo 31, keyless 60/min/endpoint —
+      // each fires ONLY on the previous leg's null, so the common
+      // strict-hit path costs exactly 1 call as before): `search`
+      // answers symbol-typed / thin-pair addresses the strict
+      // `token-pairs/v1` route misses, and `tokens/v1` (batch-shaped,
+      // single address here) covers rows the search index skips.
+      // Every leg shares `selectBestPairSummaryForSlug` (strict
+      // `chainId === slug` filter + best-liquidity pick), and the
+      // pair-side identity check below applies to all three — no leg
+      // can smuggle a cross-chain or foreign-mint row. Adapters keep
+      // their own null-collapse; `RetryableProviderError` still
+      // propagates to the 19b2 single-retry wrapper (never swallowed).
+      const slug = resolveDexScreenerSlug(chain);
+      if (slug === null) {
+        return null;
+      }
+      const strict =
         deps.discoveryCache !== undefined && deps.discoveryCache !== null
           ? await deps.discoveryCache.resolveDiscovery(chain, address)
           : await deps.dexscreener.getBestPairSummaryForChain(chain, address);
+      let best = strict;
+      // Optional-method guards (same precedent as the geckoterminal
+      // `getTokenPools` leg below): hand-rolled stub deps in older
+      // specs only implement `getBestPairSummaryForChain` — the
+      // fallback legs skip silently there instead of throwing.
+      const searchPairs = deps.dexscreener.search?.bind(deps.dexscreener);
+      if (best === null && typeof searchPairs === 'function') {
+        const searched = await searchPairs(address);
+        best =
+          searched === null
+            ? null
+            : selectBestPairSummaryForSlug(searched, slug);
+      }
+      const tokensInfo = deps.dexscreener.getTokensInfo?.bind(deps.dexscreener);
+      if (best === null && typeof tokensInfo === 'function') {
+        const infos = await tokensInfo(slug, address);
+        best =
+          infos === null ? null : selectBestPairSummaryForSlug(infos, slug);
+      }
       if (best === null) {
         return null;
       }
@@ -229,9 +285,43 @@ export function buildProviderQuoteFetchers(
     supportsChains: [...GECKO_SUPPORTED_CHAINS],
     fetch: async (chain: string, address: string) => {
       const slug = GECKO_NETWORK_SLUGS[chain] ?? chain;
-      const info = await deps.geckoterminal.getTokenInfo(slug, address);
+      // Optional-method guards (todo 31 legs; same precedent as the
+      // `getTokenPools` leg): older stub deps implement `getTokenInfo`
+      // only — new legs skip silently there instead of throwing.
+      const getMulti = deps.geckoterminal.getTokensMulti?.bind(
+        deps.geckoterminal,
+      );
+      const getSimple = deps.geckoterminal.getSimpleTokenPrice?.bind(
+        deps.geckoterminal,
+      );
+      const searchPools = deps.geckoterminal.searchPools?.bind(
+        deps.geckoterminal,
+      );
+      let info = await deps.geckoterminal.getTokenInfo(slug, address);
+      if (info === null && typeof getMulti === 'function') {
+        const batch = await getMulti(slug, [address]);
+        const wanted = address.toLowerCase();
+        info =
+          batch?.find(
+            (entry) =>
+              typeof entry.address === 'string' &&
+              entry.address.toLowerCase() === wanted,
+          ) ?? null;
+      }
       if (info === null) {
-        return null;
+        // Gecko-only discovery leg (dexter plan todo 31, keyless):
+        // the token `/info` route 404s but the pool index already
+        // carries the pair (STAGEVEIL-pattern) — pool numbers only,
+        // identity stays null (never invented).
+        if (typeof searchPools !== 'function') return null;
+        const found = await searchPools(address);
+        const pick = selectPoolQuote(found, address);
+        if (pick === null) return null;
+        const quote: Partial<SnapshotQuote> = {
+          priceUsd: pick.priceUsd,
+          fdvUsd: pick.fdvUsd,
+        };
+        return quote;
       }
       let priceUsd = toNumber(info.priceUsd);
       let fdvUsd = toNumber(info.fdvUsd);
@@ -246,6 +336,10 @@ export function buildProviderQuoteFetchers(
           priceUsd ??= pick.priceUsd;
           fdvUsd ??= pick.fdvUsd;
         }
+      }
+      if (priceUsd === null && typeof getSimple === 'function') {
+        const prices = await getSimple(slug, [address]);
+        priceUsd = prices?.[address.toLowerCase()] ?? null;
       }
       const quote: Partial<SnapshotQuote> = {
         priceUsd,
@@ -308,7 +402,7 @@ export function buildProviderQuoteFetchers(
 
   const birdeye: QuoteFetcher = {
     name: 'birdeye',
-    supportsChains: ['solana'],
+    supportsChains: [...BIRDEYE_SUPPORTED_CHAINS],
     fetch: async (chain: string, address: string) => {
       const overview = await deps.birdeye.getTokenOverview(address, chain);
       if (overview === null) {
@@ -341,16 +435,45 @@ export function buildProviderQuoteFetchers(
     ],
     fetch: async (chain: string, address: string) => {
       const markets = await deps.mobula.getTokenMarkets(address, chain);
-      if (markets === null) {
+      if (markets !== null) {
+        const quote: Partial<SnapshotQuote> = {
+          priceUsd: toNumber(markets.priceUSD),
+          liquidityUsd: toNumber(markets.approximateReserveUSD),
+          marketCapUsd: toNumber(markets.marketCapUSD),
+          fdvUsd: toNumber(markets.marketCapDilutedUSD),
+          top10HolderPercent: toNumber(markets.top10HoldingsPercentage),
+          totalSupply: toNumber(markets.totalSupply),
+        };
+        return quote;
+      }
+      // Cheap price fallback (dexter plan todo 31, keyed latency leg):
+      // the heavy `token/markets` view missed, but the pool-based
+      // `token/price` leg may still serve price + mcap + liquidity in
+      // one cheap call instead of a null. Existing markets-hit path
+      // above is byte-identical (the leg fires ONLY on its null).
+      const getPrice = deps.mobula.getTokenPrice?.bind(deps.mobula);
+      if (typeof getPrice !== 'function') return null;
+      const priced = await getPrice(address, chain);
+      if (priced === null) return null;
+      const priceUsd = toNumber(priced.priceUSD);
+      const marketCapUsd = toNumber(priced.marketCapUSD);
+      const fdvUsd = toNumber(priced.marketCapDilutedUSD);
+      const liquidityUsd = toNumber(priced.liquidityUSD);
+      if (
+        priceUsd === null &&
+        marketCapUsd === null &&
+        fdvUsd === null &&
+        liquidityUsd === null
+      ) {
         return null;
       }
       const quote: Partial<SnapshotQuote> = {
-        priceUsd: toNumber(markets.priceUSD),
-        liquidityUsd: toNumber(markets.approximateReserveUSD),
-        marketCapUsd: toNumber(markets.marketCapUSD),
-        fdvUsd: toNumber(markets.marketCapDilutedUSD),
-        top10HolderPercent: toNumber(markets.top10HoldingsPercentage),
-        totalSupply: toNumber(markets.totalSupply),
+        priceUsd,
+        marketCapUsd,
+        fdvUsd,
+        liquidityUsd,
+        symbol: priced.symbol ?? null,
+        name: priced.name ?? null,
       };
       return quote;
     },
@@ -384,15 +507,33 @@ export function buildProviderQuoteFetchers(
     supportsChains: ['solana'],
     fetch: async (_chain: string, address: string) => {
       const summary = await deps.rugcheck.getSummary(address);
-      if (summary === null) {
-        return null;
+      if (summary !== null) {
+        const locked = (summary.lockedLiquidity ?? []).map(
+          (entry) => entry.percent,
+        );
+        const quote: Partial<SnapshotQuote> = {
+          lockedLiquidityPercent:
+            locked.length > 0 ? Math.max(...locked) : null,
+          burnedPercent: toNumber(summary.burnedPercent),
+        };
+        return quote;
       }
-      const locked = (summary.lockedLiquidity ?? []).map(
-        (entry) => entry.percent,
-      );
+      // Search fallback (dexter plan todo 31, keyless): no report for
+      // this mint, but the search index may rank it (legit-first) with
+      // holders + mcap on the row. Exact-mint match only — a near
+      // miss is a different token, never a substitute. `getNewTokens`
+      // is NOT called here (feed, not per-address — quota discipline).
+      const searchRows = deps.rugcheck.search?.bind(deps.rugcheck);
+      if (typeof searchRows !== 'function') return null;
+      const rows = await searchRows(address);
+      const match = rows?.find((row) => row?.mint === address) ?? null;
+      if (match === null) return null;
+      const holders = toNumber(match.holders);
+      const marketCapUsd = toNumber(match.mcap);
+      if (holders === null && marketCapUsd === null) return null;
       const quote: Partial<SnapshotQuote> = {
-        lockedLiquidityPercent: locked.length > 0 ? Math.max(...locked) : null,
-        burnedPercent: toNumber(summary.burnedPercent),
+        holders,
+        marketCapUsd,
       };
       return quote;
     },
@@ -446,15 +587,79 @@ export function buildProviderQuoteFetchers(
     },
   };
 
+  /**
+   * DeFiLlama keyless price leg (dexter plan todo 32, LAST free leg —
+   * fallback-after-incumbents: the merge is first-non-null in order,
+   * so this only fills price gaps the five free legs above leave).
+   * `prices/current` carries price + mint-bound symbol ONLY (no
+   * mcap/fdv/liq on this surface, ever). Chart/ATH is deliberately
+   * NOT called here (coarse 1-point series proven 2026-10-09 — ATH
+   * stays own-history per the ATH-history rule). Absent service (every
+   * pre-existing stub) -> null without network.
+   */
+  const defillama: QuoteFetcher = {
+    name: 'defillama',
+    supportsChains: [...DEFILLAMA_SUPPORTED_CHAINS],
+    fetch: async (chain: string, address: string) => {
+      if (deps.defillama === undefined || deps.defillama === null) {
+        return null;
+      }
+      const priced = await deps.defillama.getPrice(chain, address);
+      if (priced === null) {
+        return null;
+      }
+      const priceUsd = toNumber(priced.price);
+      if (priceUsd === null) {
+        return null;
+      }
+      const quote: Partial<SnapshotQuote> = {
+        priceUsd,
+        symbol:
+          typeof priced.symbol === 'string' && priced.symbol.length > 0
+            ? priced.symbol
+            : null,
+      };
+      return quote;
+    },
+  };
+
+  /**
+   * Etherscan V2 keyed holders leg (dexter plan todo 32, LAST leg
+   * overall — fallback-after-incumbents). Maps ONLY the exact holder
+   * count (`action=tokenholdercount`, PRO-gated so free-key answers
+   * are null — expected, documented). Supply (`tokensupply`, raw base
+   * units without decimals) and verified (`getsourcecode`, no
+   * `SnapshotQuote` column) stay service-level, never mapped — mapping
+   * either would poison `totalSupply` or invent a column. Absent
+   * service OR absent key -> null without network.
+   */
+  const etherscan: QuoteFetcher = {
+    name: 'etherscan',
+    supportsChains: [...ETHERSCAN_SUPPORTED_CHAINS],
+    fetch: async (chain: string, address: string) => {
+      if (deps.etherscan === undefined || deps.etherscan === null) {
+        return null;
+      }
+      const holders = await deps.etherscan.getTokenHolderCount(chain, address);
+      if (holders === null) {
+        return null;
+      }
+      const quote: Partial<SnapshotQuote> = { holders };
+      return quote;
+    },
+  };
+
   return [
     ccxt,
     dexscreener,
     geckoterminal,
     solanaRpc,
     rugcheck,
+    defillama,
     birdeye,
     coingecko,
     mobula,
     moralis,
+    etherscan,
   ];
 }

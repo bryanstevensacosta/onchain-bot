@@ -27,6 +27,9 @@ export interface AppConfig {
   drpc: { apiKey: string };
   chainstack: { apiKey: string; chains?: string };
   shyft: { apiKey: string };
+  // Dexter plan todo 32: Etherscan V2 (one key, 60+ chains via chainid).
+  // Empty = skip-if-absent (DEFAULT state until the owner mints a key).
+  etherscan: { apiKey: string };
 }
 
 export function buildAppConfig(
@@ -89,6 +92,9 @@ export function buildAppConfig(
     },
     shyft: {
       apiKey: env.SHYFT_API_KEY ?? '',
+    },
+    etherscan: {
+      apiKey: env.ETHERSCAN_API_KEY ?? '',
     },
   };
 }

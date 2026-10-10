@@ -5,7 +5,8 @@ import { ProviderRegistryService } from './provider-registry.service';
  *
  * After the physical provider extraction, the health registry must track
  * all 13 canonical adapters (not just the 7 seeded in todo 2), plus the
- * ccxt REST adapter (todo 16, P48) — 14 total, ccxt first.
+ * ccxt REST adapter (todo 16, P48) — 14 total, ccxt first — plus the
+ * DeFiLlama + Etherscan V2 adapters (dexter plan todo 32) — 16 total.
  */
 const EXPECTED_PROVIDERS = [
   'ccxt',
@@ -13,7 +14,9 @@ const EXPECTED_PROVIDERS = [
   'birdeye',
   'coingecko',
   'coinmarketcap',
+  'defillama',
   'dexscreener',
+  'etherscan',
   'fluxrpc',
   'geckoterminal',
   'helius',
@@ -24,8 +27,8 @@ const EXPECTED_PROVIDERS = [
   'solana-rpc',
 ] as const;
 
-describe('ProviderRegistryService (14 adapters, todos 4+16)', () => {
-  it('tracks all 14 canonical providers', () => {
+describe('ProviderRegistryService (16 adapters, todos 4+16+32)', () => {
+  it('tracks all 16 canonical providers', () => {
     const registry = new ProviderRegistryService();
     const names = registry.listProviders().map((descriptor) => descriptor.name);
     for (const expected of EXPECTED_PROVIDERS) {

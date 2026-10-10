@@ -12,6 +12,11 @@ import type {
   MobulaHistoryResponse,
   MobulaMetadataResponse,
   MobulaMetadata,
+  MobulaTokenPriceResponse,
+  MobulaTokenPriceData,
+  MobulaTokenPriceBatchResponse,
+  MobulaTokenPriceBatchItem,
+  MobulaTokenPriceBatchEntry,
 } from './mobula.types';
 
 const BASE = 'https://api.mobula.io/api/2';
@@ -31,7 +36,15 @@ export class MobulaService extends DataProviderPort {
 
   private readonly apiKey: string;
 
-  /** Maps normalized chain names to Mobula API slugs. */
+  /**
+   * Maps normalized chain names to Mobula API slugs.
+   *
+   * Gap note (dexter plan todo 31, honest): robinhood/unichain/
+   * optimism have NO row — the demo endpoint 403s `token/price` on
+   * the free plan, so chain support could not be live-proven without
+   * spending the production key (never invent coverage). Add rows
+   * only after a keyed `token/price` probe answers 200 for them.
+   */
   private static readonly CHAIN_MAP: Record<string, string> = {
     ethereum: 'ethereum',
     bsc: 'bsc',
@@ -94,6 +107,102 @@ export class MobulaService extends DataProviderPort {
       throwIfRetryableProviderError(err, 'mobula');
       this.logger.debug(
         `Mobula getTokenMarkets failed: ${(err as Error).message}`,
+      );
+      return null;
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  //  Cheap price legs (dexter plan todo 31)
+  // ─────────────────────────────────────────────
+
+  /**
+   * Pool-based price + mcap + liquidity for a single token — the cheap
+   * leg the quote fetcher falls back to when the heavy `token/markets`
+   * view misses (keyed, demo rate-limited; the demo endpoint 403s this
+   * path on the free plan, so keyed specs only, no live probes).
+   *
+   * Literal path is `/token/price` (the docs-page slug `token-price`
+   * is NOT the path). `blockchain` accepts the `CHAIN_MAP` slug.
+   * No key or unmapped chain -> null, never throws.
+   *
+   * @see https://docs.mobula.io/rest-api-reference/endpoint/token-price
+   */
+  public async getTokenPrice(
+    address: string,
+    blockchain: string,
+  ): Promise<MobulaTokenPriceData | null> {
+    const slug = MobulaService.CHAIN_MAP[blockchain];
+    if (!slug) return null;
+    if (!this.apiKey) return null;
+    try {
+      const { data } = await axios.get<MobulaTokenPriceResponse>(
+        `${BASE}/token/price`,
+        {
+          params: { address, blockchain: slug },
+          headers: { Authorization: this.apiKey },
+          timeout: 8_000,
+        },
+      );
+      return data.data ?? null;
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.status === 404) return null;
+      throwIfRetryableProviderError(err, 'mobula');
+      this.logger.debug(
+        `Mobula getTokenPrice failed: ${(err as Error).message}`,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Batch price leg, up to 500 tokens per request (dexter plan todo 31
+   * — the batch-500 collapse for batch endpoints: one call replaces
+   * N× single-token heavies). Positional response: match slots by the
+   * echoed `address` (+ `chainId`), never by order; `error` slots are
+   * skipped, never null-crashed. Entries past 500 are dropped
+   * client-side (fail-open, never a 400 on oversize).
+   *
+   * Keyed; no key or empty input -> null/empty without network.
+   *
+   * @see https://docs.mobula.io/rest-api-reference/endpoint/token-price-post
+   */
+  public async getTokenPriceBatch(
+    entries: ReadonlyArray<MobulaTokenPriceBatchEntry>,
+  ): Promise<ReadonlyArray<MobulaTokenPriceBatchItem> | null> {
+    if (!this.apiKey) return null;
+    const items = entries
+      .filter(
+        (entry) =>
+          typeof entry?.address === 'string' &&
+          typeof entry?.blockchain === 'string' &&
+          MobulaService.CHAIN_MAP[entry.blockchain] !== undefined,
+      )
+      .slice(0, 500)
+      .map((entry) => ({
+        address: entry.address,
+        blockchain: MobulaService.CHAIN_MAP[entry.blockchain],
+      }));
+    if (items.length === 0) return null;
+    try {
+      const { data } = await axios.post<MobulaTokenPriceBatchResponse>(
+        `${BASE}/token/price`,
+        { items },
+        {
+          headers: { Authorization: this.apiKey },
+          timeout: 8_000,
+        },
+      );
+      if (!Array.isArray(data.payload)) return null;
+      const slots = data.payload as ReadonlyArray<MobulaTokenPriceBatchItem>;
+      return slots.filter(
+        (slot) => slot != null && typeof slot === 'object' && !slot.error,
+      );
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.status === 404) return null;
+      throwIfRetryableProviderError(err, 'mobula');
+      this.logger.debug(
+        `Mobula getTokenPriceBatch failed: ${(err as Error).message}`,
       );
       return null;
     }

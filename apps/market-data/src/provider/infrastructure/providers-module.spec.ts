@@ -6,11 +6,12 @@ import { ProviderRegistryService } from '../provider-registry.service';
 /**
  * Failing-first spec (Tramo 3, todo 4, C-DATA-01).
  *
- * The 14 physically extracted adapters wire as Nest modules and stay
- * registered in the provider health registry (one descriptor per adapter).
+ * The 16 physically extracted adapters wire as Nest modules and stay
+ * registered in the provider health registry (one descriptor per adapter;
+ * +2 from dexter plan todo 32: defillama + etherscan).
  */
-describe('ProvidersModule (14 adapters, todos 4+16)', () => {
-  it('boots with all 14 adapter modules', async () => {
+describe('ProvidersModule (16 adapters, todos 4+16+32)', () => {
+  it('boots with all 16 adapter modules', async () => {
     const module = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }),
@@ -23,6 +24,6 @@ describe('ProvidersModule (14 adapters, todos 4+16)', () => {
 
   it('keeps every adapter registered in the health registry', () => {
     const registry = new ProviderRegistryService();
-    expect(registry.listProviders()).toHaveLength(14);
+    expect(registry.listProviders()).toHaveLength(16);
   });
 });

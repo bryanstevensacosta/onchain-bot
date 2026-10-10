@@ -27,10 +27,15 @@ const BASE = 'https://api.dexscreener.com';
  * answers 200 with a JSON array (14 pairs for `base`, `[]` for the
  * rest — honest empties, never cross-chain). Robinhood verified live
  * 2026-10-06: `GET /token-pairs/v1/robinhood/0x968B…5583` answers 200
- * with the `uniswap` v4 NYMA/ETH pair (liq ~$6K) — todo 24. Any chain
- * WITHOUT an entry here resolves `null` WITHOUT touching the network
- * — never a silent cross-chain fallback (e.g. `unichain`, future
- * chains). Slugs are DexScreener's, not ours (`bsc`, not `bnb`).
+ * with the `uniswap` v4 NYMA/ETH pair (liq ~$6K) — todo 24. Unichain
+ * verified live 2026-10-09: `GET /latest/dex/search?q=unichain`
+ * answers 2 rows with `chainId: 'unichain'` (slug-identity mapping,
+ * todo 31) and `GET /token-pairs/v1/unichain/<addr>` answers 200 —
+ * `[]` for thin addresses (honest empty, strict filter drops
+ * strays). Any chain WITHOUT an entry here resolves `null` WITHOUT
+ * touching the network — never a silent cross-chain fallback
+ * (e.g. optimism, future chains). Slugs are DexScreener's, not ours
+ * (`bsc`, not `bnb`).
  */
 export const DEXSCREENER_CHAIN_SLUGS: Readonly<Record<string, string>> = {
   ethereum: 'ethereum',
@@ -40,6 +45,7 @@ export const DEXSCREENER_CHAIN_SLUGS: Readonly<Record<string, string>> = {
   arbitrum: 'arbitrum',
   polygon: 'polygon',
   robinhood: 'robinhood',
+  unichain: 'unichain',
 };
 
 /**
@@ -319,16 +325,34 @@ export class DexScreenerService extends DataProviderPort {
 
   /**
    * Get token info for one or more tokens on a specific chain (comma-separated).
+   *
+   * Live shape (verified 2026-10-09, todo 31): the endpoint answers a
+   * bare JSON array of pair rows (`[]` when the chain has none) — NOT
+   * the `{ pairs }` envelope of the `/latest/dex/*` family (the old
+   * code read `.pairs` only, so this leg returned `null` for every
+   * input since introduction — same dead-leg class as todo 18's
+   * `getPairsByChain`). Both shapes are accepted; anything else
+   * resolves `null`.
+   *
+   * @see https://docs.dexscreener.com/api/reference
    */
   public async getTokensInfo(
     chainId: string,
     tokenAddresses: string,
   ): Promise<ReadonlyArray<DexScreenerPair> | null> {
     try {
-      const { data } = await axios.get<{
-        readonly pairs?: ReadonlyArray<DexScreenerPair>;
-      }>(`${BASE}/tokens/v1/${chainId}/${tokenAddresses}`, { timeout: 8_000 });
-      return data.pairs ?? null;
+      const { data } = await axios.get<unknown>(
+        `${BASE}/tokens/v1/${chainId}/${tokenAddresses}`,
+        { timeout: 8_000 },
+      );
+      if (Array.isArray(data)) {
+        return data as ReadonlyArray<DexScreenerPair>;
+      }
+      if (data !== null && typeof data === 'object' && 'pairs' in data) {
+        const pairs = (data as DexScreenerPairsResponse).pairs;
+        return pairs ?? null;
+      }
+      return null;
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 404) return null;
       this.logger.debug(
@@ -395,17 +419,33 @@ export class DexScreenerService extends DataProviderPort {
     const slug = resolveDexScreenerSlug(chain);
     if (slug === null) return null;
     const pairs = await this.getPairsByChain(slug, address);
-    if (!pairs || pairs.length === 0) return null;
-    const scoped = pairs.filter((pair) => pair.chainId === slug);
-    if (scoped.length === 0) return null;
-
-    const best = scoped.reduce((acc, p) => {
-      const liq = p.liquidity?.usd ?? 0;
-      return liq > (acc.liquidity?.usd ?? 0) ? p : acc;
-    }, scoped[0]);
-
-    return toPairSummary(best);
+    return selectBestPairSummaryForSlug(pairs, slug);
   }
+}
+
+/**
+ * Strict per-chain best-liquidity pick over an arbitrary pair list
+ * (dexter plan todo 31 — shared by the strict `token-pairs/v1` path
+ * and the `search` + `tokens/v1` fallback legs, so every leg applies
+ * the same belt-and-suspenders `chainId === slug` filter before the
+ * best-liquidity pick). Pure, never throws: empty/missing/foreign
+ * input resolves `null`.
+ */
+export function selectBestPairSummaryForSlug(
+  pairs: ReadonlyArray<DexScreenerPair> | null | undefined,
+  slug: string,
+): DexScreenerPairSummary | null {
+  if (!Array.isArray(pairs) || pairs.length === 0) return null;
+  const list = pairs as ReadonlyArray<DexScreenerPair>;
+  const scoped = list.filter((pair) => pair.chainId === slug);
+  if (scoped.length === 0) return null;
+
+  const best = scoped.reduce((acc, p) => {
+    const liq = p.liquidity?.usd ?? 0;
+    return liq > (acc.liquidity?.usd ?? 0) ? p : acc;
+  }, scoped[0]);
+
+  return toPairSummary(best);
 }
 
 function toPairSummary(pair: DexScreenerPair): DexScreenerPairSummary {
