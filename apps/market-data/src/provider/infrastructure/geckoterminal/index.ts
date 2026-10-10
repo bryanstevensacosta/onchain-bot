@@ -10,4 +10,5 @@ export type {
   GeckoTerminalPoolResource,
   GeckoTerminalPoolsResponse,
   GeckoPoolQuote,
+  GeckoOhlcvCandle,
 } from './geckoterminal.types';

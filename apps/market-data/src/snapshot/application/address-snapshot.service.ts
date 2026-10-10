@@ -38,6 +38,7 @@ import {
 } from 'provider/infrastructure/quote-fetchers/provider-quote.fetchers';
 import { selectPoolQuote } from 'provider/infrastructure/geckoterminal';
 import { toVenueOrNull, type SnapshotVenue } from '../domain/snapshot-venue';
+import { deriveChange24hFromOhlcv } from '../domain/snapshot-ohlcv-change';
 import { SnapshotHistoryRepository } from '../infrastructure/snapshot-history.repository';
 import {
   deriveSnapshotNullReason,
@@ -304,6 +305,55 @@ export class AddressSnapshotService {
       const pick = selectPoolQuote(pools, address);
       if (pick === null || pick.dexId === null) return null;
       return toVenueOrNull({ dexId: pick.dexId, labels: [] });
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * OHLC-derived 24h change (dexter plan todo 33, fallback leg).
+   *
+   * PRECEDENCE (structural, not advisory): a non-null `nativeChange`
+   * — i.e. ANY native field surviving the fan-out merge (DexScreener,
+   * Birdeye, CoinGecko, Moralis, Gecko `/info` itself) — returns null
+   * here with ZERO extra calls, so natives always win. The leg fires
+   * only when every native is null: pool discovery (same two-step as
+   * the gecko fetcher: `getTokenPools`, then `searchPools` on miss)
+   * plus ONE `hour/aggregate=1` OHLC call, then the exact-24h-window
+   * math. Anything missing or out-of-window resolves null (fail-open,
+   * never throws — same contract as `resolveVenue` above).
+   */
+  private async resolveDerivedChange24h(
+    chain: string,
+    address: string,
+    nativeChange: number | null,
+  ): Promise<number | null> {
+    if (nativeChange !== null && nativeChange !== undefined) return null;
+    if (
+      this.geckoterminal === null ||
+      this.geckoterminal === undefined ||
+      !GECKO_SUPPORTED_CHAINS.includes(chain)
+    ) {
+      return null;
+    }
+    try {
+      const slug = GECKO_NETWORK_SLUGS[chain] ?? chain;
+      const pools = await this.geckoterminal.getTokenPools(slug, address);
+      let pick = selectPoolQuote(pools, address);
+      if (pick === null) {
+        const searchPools = this.geckoterminal.searchPools?.bind(
+          this.geckoterminal,
+        );
+        if (typeof searchPools !== 'function') return null;
+        pick = selectPoolQuote(await searchPools(address), address);
+      }
+      if (pick === null || pick.poolAddress === null) return null;
+      const candles = await this.geckoterminal.getPoolOhlcv(
+        slug,
+        pick.poolAddress,
+        pick.side ?? 'base',
+      );
+      return deriveChange24hFromOhlcv(candles, Date.now());
     } catch {
       return null;
     }
@@ -700,6 +750,29 @@ export class AddressSnapshotService {
       }
     }
     const tailMs = Math.round(performance.now() - tailStartedAt);
+    // OHLC-derived change (dexter plan todo 33): runs AFTER the tail,
+    // outside the 400ms tail budget (pool discovery + one OHLC call
+    // need seconds on throttled tiers — capping it would degrade the
+    // leg to near-always-null). Fires only when the merged quote has
+    // no native change, so healthy snapshots pay zero extra calls;
+    // gap-path snapshots (already slow/pending-bound) absorb the leg.
+    const derivedChange24h = await this.resolveDerivedChange24h(
+      knownId,
+      inputValue,
+      outcome.quote.priceChange24h,
+    );
+    const quote: SnapshotQuote =
+      derivedChange24h === null
+        ? outcome.quote
+        : { ...outcome.quote, priceChange24h: derivedChange24h };
+    const sources =
+      derivedChange24h === null
+        ? outcome.sources
+        : [...outcome.sources, 'geckoterminal-ohlcv'];
+    // A derived change rescues an otherwise field-less aggregate: the
+    // snapshot carries one honest live field, so stale replay and the
+    // pending status both stand down for it.
+    const quoteFailed = outcome.allFailed && derivedChange24h === null;
     // FDV ATH is strictly historical: read BEFORE the current row is
     // persisted, so cold-start (no history) resolves null and the
     // in-flight FDV is never substituted as ATH (spec-pinned).
@@ -794,7 +867,7 @@ export class AddressSnapshotService {
     // cached, never re-persisted — see below). No cron/queue/timer/
     // fire-and-forget exists on this path, so the stampede and
     // unhandled-rejection classes are absent by construction.
-    if (outcome.allFailed && devWallets === null) {
+    if (quoteFailed && devWallets === null) {
       const staleRow = await this.history.findLatestReady(
         id.key,
         kind,
@@ -834,19 +907,19 @@ export class AddressSnapshotService {
       address: id.address,
       kind: id.kind,
       key: id.key,
-      status: outcome.allFailed && devWallets === null ? 'pending' : 'ready',
+      status: quoteFailed && devWallets === null ? 'pending' : 'ready',
       stale: false,
       staleAsOf: null,
       staleAgeMs: null,
-      assetId: await this.resolveAssetId(knownId, inputValue, outcome.quote),
+      assetId: await this.resolveAssetId(knownId, inputValue, quote),
       launchpad,
       venue,
       fdvAth,
       providers: supporting,
-      sources: outcome.sources,
+      sources,
       providerErrors,
       ...emptySnapshotQuote(),
-      ...outcome.quote,
+      ...quote,
       devWallets,
       devPctSupply,
     };
@@ -857,11 +930,11 @@ export class AddressSnapshotService {
       kind: snapshot.kind,
       status: snapshot.status,
       quote: {
-        ...outcome.quote,
+        ...quote,
         devWallets,
         devPctSupply,
       },
-      sources: outcome.sources,
+      sources,
       providerErrors,
     });
     if (this.cache && snapshot.status !== 'pending') {

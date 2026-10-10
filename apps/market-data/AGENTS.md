@@ -834,6 +834,52 @@ token · pons</title>` with zero canonical tags (unknown addresses DO
   non-empty with no new table on either side. Venue NEVER feeds
   `launchpad` (spec-pinned separation); `dexId` ≠ `launchpad.id`.
 
+## PONS LEG RE-PIN (todo 34, 2026-10-10)
+
+Site redesign retired the todo-26 page shape: both launched and
+unknown addresses now answer `| Pons` titles AND ship a canonical
+link carrying the address, so neither discriminates. `detectPons`
+(now: token-specific `<title>… | Pons</title>` with the generic
+`Token | Pons` shell rejected, PLUS robots-index guard — launched
+pages carry `index, follow`, the shell `noindex, nofollow`) re-pinned
+against live captures (NYMA `0x968B…5583` match vs `0x…dead` shell).
+Both conditions required — redesign fails open to null. Pinned
+Pons factories (`EVM_FACTORY_SETS.pons`, R1-era) verified live with
+code on 4663 via keyless public RPC (`eth_chainId` → `0x1237`),
+so the receipt leg still backstops the SSR leg; Blockscout
+`getcontractcreation` is Cloudflare-walled from this network
+(documented, not wired around). PONYO (`0x8589…`, prefix only —
+full address never recorded) NOT probed, never guessed; sibling
+todo 33 owns the PONYO case. Evidence:
+`.omo/evidence/task-fe-pons-leg.log`.
+
+## OHLC-DERIVED 24H CHANGE (todo 33, 2026-10-10)
+
+Fallback leg for Gecko-only tokens (STAGEVEIL-pattern: `/info` has no
+change field, DexScreener has no pair). Viability verified keyless
+before any code (3 probes, rate-limit friendly): `GET
+/networks/robinhood/pools/0x9269…ef60/ohlcv/hour?aggregate=1&limit=30&currency=usd&token=base`
+answers HTTP 200 with `ohlcv_list: [ts, o, h, l, close, vol][]`,
+epoch seconds, trade-gated (no trade, no candle — the 30-row window
+spans 2026-09-26→2026-10-06 with a 55h gap; PONYO `0x8589…` never
+probed — prefix only, never guessed).
+
+- PRECEDENCE (structural): `resolveDerivedChange24h` early-returns on
+  any non-null merged change, so DexScreener/Birdeye/CoinGecko/
+  Moralis/Gecko-info natives ALWAYS win with zero extra calls. The
+  leg (pool discovery + ONE OHLC call) fires only when every native
+  is null; provenance lands in `sources` as `geckoterminal-ohlcv`.
+- WINDOW (pinned): now-leg = newest candle ≤ request time, at most
+  6h old; past-leg = candle nearest exactly-24h-ago within ±2h.
+  Anything else → honest null (never interpolated, never partial).
+  Pure `deriveChange24hFromOhlcv` (wall-clock via `nowMs` only).
+- COST: gap snapshots only (healthy ones pay nothing); at most +2
+  Gecko calls there, outside the 400ms tail budget (fail-open).
+  Live STAGEVEIL today resolves null honestly (newest candle
+  2026-10-06, ~3.4d stale) — the leg proves itself on the pinned
+  real-fixture specs, not on a quiet pool. Evidence:
+  `.omo/evidence/task-fe-ohlc-change.log`.
+
 ## TOP-5 PROVIDER EXPLOITATION (todo 31, 2026-10-09)
 
 Five legs over EXISTING providers (zero new vendors/keys). Rule for

@@ -9,6 +9,7 @@ import type {
   GeckoTerminalPoolResource,
   GeckoTerminalResponse,
   GeckoTerminalTokenInfo,
+  GeckoOhlcvCandle,
   GeckoPoolQuote,
 } from './geckoterminal.types';
 
@@ -236,6 +237,68 @@ export class GeckoTerminalService extends DataProviderPort {
     }
   }
 
+  /**
+   * Pool OHLCV candles for the derived-change leg (dexter plan todo 33,
+   * keyless — verified live 2026-10-10 on STAGEVEIL's
+   * `robinhood_0x9269…ef60` pool: HTTP 200, `hour/aggregate=1`
+   * candles as `[timestamp, open, high, low, close, volume]` with
+   * epoch-SECOND timestamps, trade-gated (no trade, no candle —
+   * quiet pools come back sparse, which the window rule treats as
+   * honest null, never extrapolated).
+   *
+   * `side` selects the series (`token=base|quote`): the candles must
+   * be quoted for OUR mint, not its pair. Returns validated finite
+   * rows only (a row with any non-finite cell is dropped); null when
+   * the pool has no usable series.
+   *
+   * @see https://api.geckoterminal.com/docs
+   */
+  public async getPoolOhlcv(
+    networkSlug: string,
+    poolAddress: string,
+    side: 'base' | 'quote',
+  ): Promise<ReadonlyArray<GeckoOhlcvCandle> | null> {
+    try {
+      const { data } = await axios.get<{
+        readonly data?: {
+          readonly attributes?: {
+            readonly ohlcv_list?: ReadonlyArray<ReadonlyArray<unknown>>;
+          } | null;
+        } | null;
+      }>(`${BASE}/networks/${networkSlug}/pools/${poolAddress}/ohlcv/hour`, {
+        params: {
+          aggregate: 1,
+          limit: 30,
+          currency: 'usd',
+          token: side,
+        },
+        timeout: 8_000,
+      });
+      const raw = data?.data?.attributes?.ohlcv_list;
+      if (!Array.isArray(raw)) return null;
+      const rows: GeckoOhlcvCandle[] = [];
+      for (const entry of raw) {
+        if (!Array.isArray(entry) || entry.length < 6) continue;
+        const cells = entry
+          .slice(0, 6)
+          .map((cell) =>
+            typeof cell === 'number' ? cell : parseFloat(String(cell)),
+          );
+        if (!cells.every((cell) => Number.isFinite(cell))) continue;
+        rows.push(cells as unknown as GeckoOhlcvCandle);
+      }
+      return rows.length > 0 ? rows : null;
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.status === 404) return null;
+      // 19b2: same transient surfacing as every leg above.
+      throwIfRetryableProviderError(err, 'geckoterminal');
+      this.logger.debug(
+        `GeckoTerminal getPoolOhlcv failed: ${(err as Error).message}`,
+      );
+      return null;
+    }
+  }
+
   // ─────────────────────────────────────────────
   //  Mapping helpers
   // ─────────────────────────────────────────────
@@ -323,6 +386,7 @@ export function selectPoolQuote(
       ? best.attributes?.base_token_price_usd
       : best.attributes?.quote_token_price_usd;
   const dexIdRaw = best.relationships?.dex?.data?.id;
+  const poolAddressRaw = best.attributes?.address;
   return {
     fdvUsd:
       bestSide === 'base' ? toFiniteNumber(best.attributes?.fdv_usd) : null,
@@ -331,5 +395,10 @@ export function selectPoolQuote(
       typeof dexIdRaw === 'string' && dexIdRaw.trim() !== ''
         ? dexIdRaw.trim()
         : null,
+    poolAddress:
+      typeof poolAddressRaw === 'string' && poolAddressRaw.trim() !== ''
+        ? poolAddressRaw.trim()
+        : null,
+    side: bestSide,
   };
 }

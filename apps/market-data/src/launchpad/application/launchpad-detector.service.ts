@@ -338,12 +338,17 @@ export class LaunchpadDetectorService implements LaunchpadDetectorPort {
   }
 
   /**
-   * Pons SSR registry leg (plan todo 26): `GET <base>/launchpad/<address>`
+   * Pons SSR registry leg (plan todos 26/34): `GET <base>/launchpad/<address>`
    * is server-rendered — a Pons-launched token answers a token-specific
-   * `<title>NAME ($SYM) · pons</title>` plus a canonical link carrying
-   * its address, while unknown addresses get `<title>Buy token · pons</title>`
-   * with no canonical. Both conditions must hold (title + canonical),
-   * so a site redesign fails open to null instead of false-positive.
+   * `<title>NAME (SYM) | Pons</title>` with an indexing robots tag
+   * (`index, follow`), while unknown addresses get the generic shell
+   * `<title>Token | Pons</title>` with `noindex, nofollow` (verified live
+   * 2026-10-10: NYMA 0x968B… vs 0x…dead). Both conditions must hold
+   * (token-specific title + indexable robots), so a site redesign fails
+   * open to null instead of false-positive. NOTE 2026-10-10: the todo-26
+   * shape (`· pons` suffix + canonical link) is retired — the redesign
+   * answers `| Pons` titles on BOTH pages and ships a canonical carrying
+   * the address even on the generic shell, so neither discriminates now.
    * Keyless, single GET, robinhood-scoped by the caller.
    */
   private async detectPons(address: string): Promise<boolean> {
@@ -353,16 +358,18 @@ export class LaunchpadDetectorService implements LaunchpadDetectorPort {
         { timeout: HTTP_TIMEOUT_MS, validateStatus: () => true },
       );
       if (status !== 200 || typeof data !== 'string') return false;
-      const title = /<title>([^<]*)<\/title>/i.exec(data)?.[1] ?? '';
-      if (!title.endsWith('· pons') || title === 'Buy token · pons') {
+      const title = /<title>([^<]*)<\/title>/i.exec(data)?.[1]?.trim() ?? '';
+      if (!/\| Pons$/.test(title) || title === 'Token | Pons') {
         return false;
       }
-      // Canonical-link check (not a bare substring: unknown addresses echo
-      // in Next.js flight data but carry zero <link rel="canonical"> tags —
-      // verified live 2026-10-06 STAGEVEIL vs 0x…dead).
-      const canonical =
-        /<link[^>]*rel=["']canonical["'][^>]*>/i.exec(data)?.[0] ?? '';
-      return canonical.toLowerCase().includes(address.toLowerCase());
+      // Robots-index guard: launched tokens are indexed, the generic
+      // shell is noindex — a second independent signal so a title-only
+      // coincidence cannot false-positive.
+      const robots =
+        /<meta[^>]*name=["']robots["'][^>]*>/i.exec(data)?.[0] ?? '';
+      const content = /content=["']([^"']*)["']/i.exec(robots)?.[1] ?? '';
+      if (content === '' || /noindex/i.test(content)) return false;
+      return /\bindex\b/i.test(content);
     } catch {
       return false;
     }

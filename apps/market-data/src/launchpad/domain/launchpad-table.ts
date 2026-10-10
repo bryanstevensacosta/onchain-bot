@@ -380,11 +380,12 @@ export const MINTCLUB_API_BASE = 'https://mint.club';
 export const HEAVEN_POOL_STATE_URL =
   'https://tx.api.heaven.xyz/data/pool-state';
 /**
- * Pons launchpad registry (plan todo 26): server-rendered per-token
- * pages — a launched token answers `<title>NAME ($SYM) · pons</title>`
- * plus a canonical link carrying its address; unknown addresses get
- * `<title>Buy token · pons</title>` with no canonical (verified live
- * 2026-10-06: STAGEVEIL vs 0x…dead). Keyless single HTTPS GET.
+ * Pons launchpad registry (plan todos 26/34): server-rendered per-token
+ * pages — a launched token answers `<title>NAME (SYM) | Pons</title>`
+ * with an indexing robots tag; unknown addresses get the generic shell
+ * `<title>Token | Pons</title>` with `noindex, nofollow` (verified live
+ * 2026-10-10: NYMA 0x968B… vs 0x…dead; the todo-26 `· pons`+canonical
+ * shape is retired by a site redesign). Keyless single HTTPS GET.
  */
 export const PONS_LAUNCHPAD_BASE = 'https://www.ponsfamily.com';
 

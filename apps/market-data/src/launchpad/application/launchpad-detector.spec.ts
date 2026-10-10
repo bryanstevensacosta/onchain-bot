@@ -327,15 +327,14 @@ describe('LaunchpadDetectorService (ordered strategies, null-safe)', () => {
     expect(mockedAxios.post).not.toHaveBeenCalled();
   });
 
-  describe('pons SSR registry leg (plan todo 26)', () => {
+  describe('pons SSR registry leg (plan todos 26/34, shape re-pinned 2026-10-10)', () => {
     const STAGEVEIL = '0xcf7f57cd2924d5c34758a3363b0fb237687f3597';
+    const NYMA = '0x968Be0c1A394Bf1cE239E3b40909eC0F9d4f5583';
 
-    function ponsPage(title: string, canonical: boolean) {
+    function ponsPage(title: string, robots: string | null) {
       return (
         `<html><head><title>${title}</title>` +
-        (canonical
-          ? `<link rel="canonical" href="https://www.ponsfamily.com/launchpad/${STAGEVEIL}"/>`
-          : '') +
+        (robots === null ? '' : `<meta name="robots" content="${robots}"/>`) +
         `</head><body/></html>`
       );
     }
@@ -364,7 +363,7 @@ describe('LaunchpadDetectorService (ordered strategies, null-safe)', () => {
     it('pons match resolves pons without consulting the factory receipt', async () => {
       const seen: string[] = [];
       const detector = evmDetector(
-        ponsPage('STAGEVEIL ($SVEIL) · pons', true),
+        ponsPage('STAGEVEIL ($SVEIL) | Pons', 'index, follow'),
         seen,
       );
       const res = await detector.detectLaunchpad('robinhood', STAGEVEIL);
@@ -376,25 +375,50 @@ describe('LaunchpadDetectorService (ordered strategies, null-safe)', () => {
       expect(seen.some((url) => url.includes('blockscout'))).toBe(false);
     });
 
-    it('pons no-match (Buy token shell) falls through to null', async () => {
-      const detector = evmDetector(ponsPage('Buy token · pons', false));
+    it('nyma live shape (title + index robots) resolves pons', async () => {
+      const detector = evmDetector(
+        ponsPage('Anonyma (NYMA) | Pons', 'index, follow'),
+      );
       await expect(
-        detector.detectLaunchpad('robinhood', STAGEVEIL),
-      ).resolves.toBeNull();
+        detector.detectLaunchpad('robinhood', NYMA),
+      ).resolves.toEqual({
+        id: 'pons',
+        name: 'Pons',
+        url: `https://ponsfamily.com/launchpad/${NYMA}`,
+      });
     });
 
-    it('title-match without canonical fails open to null (redesign guard)', async () => {
+    it('pons no-match (generic Token shell, noindex) falls through to null', async () => {
       const detector = evmDetector(
-        ponsPage('STAGEVEIL ($SVEIL) · pons', false),
+        ponsPage('Token | Pons', 'noindex, nofollow'),
       );
       await expect(
         detector.detectLaunchpad('robinhood', STAGEVEIL),
       ).resolves.toBeNull();
     });
 
-    it('flight-data address echo without canonical still resolves null (live dead-page shape)', async () => {
+    it('token title without indexable robots fails open to null (redesign guard)', async () => {
+      const detector = evmDetector(
+        ponsPage('STAGEVEIL ($SVEIL) | Pons', 'noindex, nofollow'),
+      );
+      await expect(
+        detector.detectLaunchpad('robinhood', STAGEVEIL),
+      ).resolves.toBeNull();
+    });
+
+    it('retired todo-26 shape (middle-dot suffix) no longer matches', async () => {
+      const detector = evmDetector(
+        ponsPage('STAGEVEIL ($SVEIL) · pons', 'index, follow'),
+      );
+      await expect(
+        detector.detectLaunchpad('robinhood', STAGEVEIL),
+      ).resolves.toBeNull();
+    });
+
+    it('flight-data address echo with generic shell still resolves null (live dead-page shape)', async () => {
       const echo =
-        `<html><head><title>Buy token · pons</title></head>` +
+        `<html><head><title>Token | Pons</title>` +
+        `<meta name="robots" content="noindex, nofollow"/></head>` +
         `<body>{"c":["","launchpad","${STAGEVEIL}"]}</body></html>`;
       const detector = evmDetector(echo);
       await expect(
@@ -405,7 +429,7 @@ describe('LaunchpadDetectorService (ordered strategies, null-safe)', () => {
     it('non-robinhood chains never fetch the pons registry', async () => {
       const seen: string[] = [];
       const detector = evmDetector(
-        ponsPage('STAGEVEIL ($SVEIL) · pons', true),
+        ponsPage('STAGEVEIL ($SVEIL) | Pons', 'index, follow'),
         seen,
       );
       const token = '0x1111111111111111111111111111111111111111';

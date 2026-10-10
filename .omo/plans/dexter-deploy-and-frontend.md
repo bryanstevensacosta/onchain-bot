@@ -303,6 +303,20 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartAddressL
       Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; coverage-probe 8 chains documentado; bake-off con ganador/declarado por leg; QA con forma.
       QA scenarios: happy por leg + failure (sin key → skip, rate-limit → fallback, 4663-expirado → wontfix). Evidence .omo/evidence/task-fe-newprov.log
       Commit: Y | feat(market-data-providers): defillama + etherscan (+condicionales medidos) (docs AGENTS+CHANGELOG)
+- [x] 33. Change-24h derivado de OHLC Gecko (Wave 1 follow-up, evidencia PONYO 2026-10-10)
+      What to do / Must NOT do: Cuando NINGUNA fuente trae `priceChange24h` pero el pool Gecko existe con OHLC: calcular `(precio-ahora − precio-hace-24h)/precio-hace-24h` desde candles (`/ohlcv` del pool) en market-data (nueva via acotada, fail-open null si OHLC ausente/insuficiente). Precedencia documentada: campo nativo (DexScreener/Birdeye) GANA siempre; derivado solo como fallback (marcar procedencia en notepad; si el snapshot ya trae change, ni tocarlo). Ventana exacta 24h ± tolerancia documentada (velas incompletas → null honesto, no extrapolar). Specs: calculo exacto con fixture OHLC real + fallback-orden + sin-OHLC→null. Docs: market-data AGENTS + CHANGELOG (ADD-only).
+      Parallelization: Wave 1 follow-up (1 worker) | Blocked by: — | Blocks: —
+      References: caso PONYO `0x8589…` (Gecko sin change, probado), adapter GeckoTerminal (OHLC endpoint a verificar: existe? con que granularidad minima? — si no hay OHLC usable, cerrar como limite honesto en vez de inventarlo).
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; pool-sin-change resuelve change derivado (fixture) o documenta limite con prueba; nativos intactos (precedencia).
+      QA scenarios: happy (derivado exacto) + failure (OHLC insuficiente → null). Evidence .omo/evidence/task-fe-ohlc-change.log
+      Commit: Y | feat(market-data-change): change-24h derivado OHLC (docs AGENTS+CHANGELOG)
+- [x] 34. Pata Pons del detector (Wave 1 follow-up, intake abierto desde R1)
+      What to do / Must NOT do: FASEADA dentro del mismo worker: Fase A research (sin codigo): factories/contracts Pons en Robinhood Chain (RPC `https://rpc.mainnet.chain.robinhood.com` keyless con backoff; registry/API ponsfamily `https://ponsfamily.com/launchpad/<address>` — la pagina por token EXISTE, verificar si expone creador/factory parseable; patron deployer estilo Believe). GATE: si NO hay via factible sin keys nuevas → documentar con evidencia y CERRAR como limite honesto (no inventar deteccion). Fase B (solo si A pasa): pata `pons` en `LaunchpadDetector` (mismo patron legs, fail-open null) + spec match/no-match + fixture `0x968B…` (NYMA) y/o `0x8589…` segun aplique. Docs: market-data AGENTS + CHANGELOG (ADD-only, solo si B ejecuta).
+      Parallelization: Wave 1 follow-up (1 worker) | Blocked by: — | Blocks: —
+      References: R1 Pons pendiente, `ponsfamily.com/launchpad/<address>` (verificar parseabilidad), notepad launchpad (colapso/infra reglas).
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; NYMA resuelve `pons` (si A pasa) o limite documentado con evidencia (si no).
+      QA scenarios: happy + failure (RPC caido → null). Evidence .omo/evidence/task-fe-pons-leg.log
+      Commit: Y solo si B ejecuta | feat(market-data-pons): pata pons (docs AGENTS+CHANGELOG)
 
 ### Wave 0 — guion local owner (10 min, dexter `:4060` + frontend `:5173`)
 
@@ -375,6 +389,8 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartAddressL
 | 30b disccache           | —                | —            | 2                    |
 | 31 exploit              | owner-go         | —            | 2                    |
 | 32 newprov              | owner-keys       | —            | 2                    |
+| 33 ohlc-change          | —                | —            | 2                    |
+| 34 pons-leg             | —                | —            | 2                    |
 
 ## Commit strategy
 

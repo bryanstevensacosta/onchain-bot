@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **OHLC-derived 24h change fallback (dexter plan todo 33):** when
+  every native `priceChange24h` is null (Gecko-only tokens like
+  STAGEVEIL), the snapshot derives `(close-now − close-24h-ago) /
+close-24h-ago × 100` from the pool's keyless GeckoTerminal OHLC
+  (`GET …/pools/{pool}/ohlcv/hour`, `aggregate=1`, `token=` sided,
+  verified live on `robinhood_0x9269…ef60`). Precedence is
+  structural (leg fires only on all-native-null, zero extra calls
+  otherwise; `sources` gains `geckoterminal-ohlcv`); window is exact
+  24h (now-leg ≤6h fresh, past anchor ±2h, gaps → honest null, never
+  extrapolated). Specs: exact math on the real STAGEVEIL capture +
+  precedence (native wins, no OHLC calls) + insufficient-OHLC nulls.
+
+- **Pons detector leg re-pin (dexter plan todo 34):** ponsfamily.com
+  redesign retired the todo-26 page shape (`· pons` titles + canonical
+  guard — both pages now answer `| Pons` titles with address-carrying
+  canonicals). `detectPons` re-pinned to token-specific
+  `<title>… | Pons</title>` (generic `Token | Pons` shell rejected)
+  plus robots-index guard (launched `index, follow` vs shell
+  `noindex, nofollow`); both required, fail-open null. R1-era Pons
+  factory set verified live with code on 4663 (receipt leg backstop
+  intact). Specs: NYMA live-shape match + shell/robots/retired-shape
+  no-match cases. PONYO not probed (address prefix only, never
+  guessed — sibling todo 33 owns it).
+
 - **New providers: DeFiLlama + Etherscan V2, conditionals measured
   (dexter plan todo 32):** coverage-probe gate first (8 chains,
   keyless where possible) — DeFiLlama `coins.llama.fi`

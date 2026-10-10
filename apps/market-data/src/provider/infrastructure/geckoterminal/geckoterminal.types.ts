@@ -95,4 +95,33 @@ export interface GeckoPoolQuote {
    * dexter's display table capitalizes unknown ids.
    */
   readonly dexId: string | null;
+  /**
+   * OHLC leg (dexter plan todo 33): the picked pool's on-chain
+   * address (`attributes.address`, e.g. STAGEVEIL's `0x9269…ef60`),
+   * or null when the resource carries none. Feeds
+   * `GET …/pools/{pool_address}/ohlcv/hour` — never reconstructed
+   * from the `id` (`{network}_{pool}` join is upstream-internal).
+   */
+  readonly poolAddress: string | null;
+  /**
+   * OHLC leg (dexter plan todo 33): which side of the picked pool
+   * the requested mint sits on. Feeds the `token=base|quote` param
+   * so the candle series is quoted for OUR token, not its pair.
+   */
+  readonly side: 'base' | 'quote' | null;
 }
+
+/**
+ * One GeckoTerminal OHLCV row (dexter plan todo 33): upstream
+ * `ohlcv_list` entry `[timestamp, open, high, low, close, volume]`
+ * with the timestamp in epoch SECONDS (Gecko FAQ) and USD numbers
+ * (requested `currency=usd`). Validated finite by `getPoolOhlcv`.
+ */
+export type GeckoOhlcvCandle = readonly [
+  timestampSec: number,
+  open: number,
+  high: number,
+  low: number,
+  close: number,
+  volume: number,
+];

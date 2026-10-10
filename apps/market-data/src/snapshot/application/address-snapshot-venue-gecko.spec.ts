@@ -99,7 +99,7 @@ describe('AddressSnapshotService venue Gecko fallback (todo 26)', () => {
     expect(snapshot.venue).toEqual({ dexId: 'pons-v2-dex', labels: [] });
   });
 
-  it('dexscreener hit wins and the gecko leg never fires', async () => {
+  it('dexscreener hit wins and the gecko venue leg never fires', async () => {
     const poolsCalls: string[] = [];
     const service = await buildService({
       bestPair: { dexId: 'uniswap', labels: ['v4'] },
@@ -112,7 +112,12 @@ describe('AddressSnapshotService venue Gecko fallback (todo 26)', () => {
       kindHint: 'token',
     });
     expect(snapshot.venue).toEqual({ dexId: 'uniswap', labels: ['v4'] });
-    expect(poolsCalls).toEqual([]);
+    // Todo 33 change-leg discovery shares `getTokenPools`: the venue
+    // leg itself stays skipped (venue above proves it) — this call is
+    // the change leg finding no native change to beat. The stub has no
+    // `getPoolOhlcv`, so the leg degrades to null (fail-open).
+    expect(poolsCalls).toEqual(['robinhood']);
+    expect(snapshot.priceChange24h).toBeNull();
   });
 
   it('dexscreener throw still falls back to gecko (fail-open ordering)', async () => {
@@ -175,6 +180,8 @@ describe('selectPoolQuote dexId (todo 26)', () => {
       fdvUsd: expect.closeTo(3471.764926, 4),
       priceUsd: expect.closeTo(0.000003471764926, 12),
       dexId: 'pons-v2-dex',
+      poolAddress: POOL,
+      side: 'base',
     });
   });
 
