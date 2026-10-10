@@ -72,6 +72,36 @@ export const METEORA_DBC_KNOWN_CONFIGS: ReadonlyArray<string> = [];
  */
 export const BELIEVE_DEPLOYERS: ReadonlyArray<string> = [];
 
+/**
+ * Helius-origin actor mapping (dexter plan todo 36, graduated-old
+ * tokens with closed curves): which on-chain actor in the FIRST
+ * (slot-ascending, earliest-in-window) full transaction maps to
+ * which launchpad id. Keyed ONLY by program id (instruction
+ * `programId`) and — for Believe only — by fee-payer / first
+ * signer against `BELIEVE_DEPLOYERS`. NEVER by token name/symbol:
+ * Believe mutability (metadata renames post-launch) makes
+ * name/symbol keying a false-positive source, so the mapper below
+ * does not even read those fields. Unknown actor → null (no
+ * guessing); `launchpadInfo` still validates the id against the
+ * row tables, so a stale key here fails open, never throws.
+ *
+ * Brand-subtlety notes (why the values are generic, not brand):
+ * - LaunchLab pools carry no brand marker in origin-tx program ids
+ *   (bonk/stonk configs live in pool bytes, unrecoverable here) →
+ *   `raydium-launchlab` (same collapse as the PDA fast leg).
+ * - DBC pools resolve `meteora-dbc` (Believe / Jupiter Studio /
+ *   jups.fun need config/deployer markers absent from this seam →
+ *   null-or-generic, never a brand guess).
+ */
+export const HELIUS_ORIGIN_PROGRAM_TO_LAUNCHPAD: Record<string, string> = {
+  [PUMP_FUN_PROGRAM]: 'pump-fun',
+  [RAYDIUM_LAUNCHLAB_PROGRAM]: 'raydium-launchlab',
+  [MOONIT_PROGRAM]: 'moonit',
+  [BOOP_PROGRAM]: 'boop',
+  [HEAVEN_PROGRAM]: 'heaven',
+  [METEORA_DBC_PROGRAM]: 'meteora-dbc',
+};
+
 export function definedFiFallback(chain: string, address: string): string {
   return `https://defined.fi/token/${chain}/${address}`;
 }

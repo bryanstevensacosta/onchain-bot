@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Helius history origin leg (dexter plan todo 36):** LAST-resort
+  Solana leg for graduated-old mints (live curve closed — PDA batch
+  - heaven both miss): ONE `getAddressHistory` pull (limit 100) →
+    slot-ascending earliest → ONE `parseTransaction` for that
+    signature only → pure program-id actor table
+    (`HELIUS_ORIGIN_PROGRAM_TO_LAUNCHPAD` + Believe fee-payer rule;
+    never name/symbol keying). Appended last (fast legs win with zero
+    Helius calls, spy-pinned); EVM never touches Helius. Archival
+    budget env `LAUNCHPAD_HELIUS_ORIGIN_TIMEOUT_MS` (default 8000,
+    inside the outer 10s detector cap); 429/timeout/empty/unknown →
+    fail-open null. Key via DI `HeliusService` (`HELIUS_API_KEY` at
+    runtime, never printed/stored). INCOME not live-confirmed
+    (full-tx 429-walled) → labeled-synthetic fixtures + documented
+    live attempt. Specs: `launchpad-detector-helius-origin.spec.ts`
+    (synthetic-resolve + fast-legs-win + EVM-untouched + Helius-down
+    nulls + live-earliest-shape null + no-name-keying + mapper +
+    timeout-resolver).
+
 - **Detector parallel slow legs (detector-budget follow-up):** the EVM
   brand-API legs (bankr ‖ mintclub ‖ Pons SSR) run CONCURRENTLY via
   `Promise.allSettled` under the ONE shared `LAUNCHPAD_SLOW_LEG_TIMEOUT_MS`

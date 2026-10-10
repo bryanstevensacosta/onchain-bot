@@ -25,6 +25,7 @@ import { GatewayMigrationController } from './gateway/api/http/gateway-migration
 import { DexterBotBindingController } from './gateway/api/http/bot-binding.controller';
 import { DexterIngressController } from './gateway/api/http/ingress.controller';
 import { DisplayMapsController } from './templates/api/http/display-maps.controller';
+import { LaunchpadOverridesController } from './templates/api/http/launchpad-overrides.controller';
 import { TemplatePreviewController } from './templates/api/http/template-preview.controller';
 import { PlaceholdersController } from './placeholders/api/http/placeholders.controller';
 import {
@@ -38,8 +39,11 @@ import {
 import { MessageTemplatesController } from './templates/api/http/message-templates.controller';
 import { DisplayResolverService } from './templates/application/display-resolver.service';
 import { DisplayMapRepository } from './templates/domain/ports/display-map.repository';
+import { LaunchpadOverrideRepository } from './templates/domain/ports/launchpad-override.repository';
 import { InMemoryDisplayMapRepository } from './templates/infrastructure/persistence/in-memory/in-memory-display-map.repository';
+import { InMemoryLaunchpadOverrideRepository } from './templates/infrastructure/persistence/in-memory/in-memory-launchpad-override.repository';
 import { TypeOrmDisplayMapRepository } from './templates/infrastructure/persistence/typeorm/repositories/typeorm-display-map.repository';
+import { TypeOrmLaunchpadOverrideRepository } from './templates/infrastructure/persistence/typeorm/repositories/typeorm-launchpad-override.repository';
 import { InMemoryMessageTemplateRepository } from './templates/infrastructure/persistence/in-memory/in-memory-message-template.repository';
 import { TypeOrmMessageTemplateRepository } from './templates/infrastructure/persistence/typeorm/repositories/typeorm-message-template.repository';
 import { MessageTemplateSeedService } from './templates/infrastructure/seed/message-template-seed.service';
@@ -109,6 +113,19 @@ function resolveMessageTemplateRepository(
   return new TypeOrmMessageTemplateRepository(dataSource);
 }
 
+function resolveLaunchpadOverrideRepository(
+  memory: InMemoryLaunchpadOverrideRepository,
+  dataSource?: DataSource,
+): LaunchpadOverrideRepository {
+  if (!isDatabaseEnabled()) {
+    return memory;
+  }
+  if (!dataSource) {
+    return requireDataSourceOrThrow();
+  }
+  return new TypeOrmLaunchpadOverrideRepository(dataSource);
+}
+
 /**
  * DexterModule (Tramo 3, todo 13 — hexagonal composition root, P13).
  *
@@ -155,6 +172,10 @@ function resolveMessageTemplateRepository(
     // the full templates/placeholders wiring (TypeORM switch,
     // DISPLAY_RESOLVER binding, seed) lands in todo 13.
     DisplayMapsController,
+    // plan todo 37 (launchpad overrides): curated mint→launchpad CRUD.
+    // Additive only — same factory shape as the display-maps pair; no
+    // PATCH by design (delete+recreate), plus a GET /:id row lookup.
+    LaunchpadOverridesController,
     // todo 6 (dexter-message-templates): message-templates CRUD + activate.
     // Additive only — the TypeORM switch behind MESSAGE_TEMPLATE_REPOSITORY
     // lands in todo 13 (same useExisting shape as the display-maps pair).
@@ -317,6 +338,19 @@ function resolveMessageTemplateRepository(
         resolveDisplayMapRepository(memory, dataSource),
       inject: [
         InMemoryDisplayMapRepository,
+        { token: DataSource, optional: true },
+      ],
+    },
+    InMemoryLaunchpadOverrideRepository,
+    {
+      provide: LaunchpadOverrideRepository,
+      useFactory: (
+        memory: InMemoryLaunchpadOverrideRepository,
+        dataSource?: DataSource,
+      ): LaunchpadOverrideRepository =>
+        resolveLaunchpadOverrideRepository(memory, dataSource),
+      inject: [
+        InMemoryLaunchpadOverrideRepository,
         { token: DataSource, optional: true },
       ],
     },

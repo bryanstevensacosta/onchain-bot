@@ -1123,6 +1123,62 @@ v3Ms=… anchorMs=…` debug line (stages: no-reader / no-discovery /
   makes an extra STALENESS-bearing (e.g. cached launchpad), that lane
   owns the 19b1-style marking.
 
+## HELIUS HISTORY ORIGIN LEG (todo 36, 2026-10-10)
+
+LAST-resort origin leg for graduated-old Solana mints (live curve
+closed, PDA batch + heaven both miss — INCOME-pattern): the detector
+resolves origin from on-chain HISTORY via the Helius seam
+(`HeliusService.getAddressHistory` + `parseTransaction`; no raw
+`getSignaturesForAddress` — the seam proves sufficient).
+
+- ORDER (append-only, nothing reordered): PDA batch → heaven → Helius
+  history on Solana; EVM never touches Helius (Solana Enhanced-API
+  seam only — EVM all-miss stays null). Fast-leg hits return with
+  ZERO Helius calls (spec-pinned via spy).
+- SEQUENCE (exactly 2 calls/fire, zero retries in-leg): ONE history
+  pull (`HELIUS_ORIGIN_HISTORY_LIMIT = 100`, the seam default) →
+  slot-ascending earliest (Helius serves newest-first, so a literal
+  limit-1 would return the NEWEST tx — useless for origin) → ONE
+  full-tx fetch for that signature only. Window-honesty: the true
+  genesis may lie deeper than the 100 newest (INCOME live: window
+  450534185→453388576, earliest = generic ATA INITIALIZE_ACCOUNT,
+  no known program) — pagination is a quota-expensive follow-up,
+  deferred; the leg reports earliest-in-window, never genesis.
+- MAPPING (program-id actors only, never name/symbol):
+  `HELIUS_ORIGIN_PROGRAM_TO_LAUNCHPAD` (pump-fun / raydium-launchlab
+  / moonit / boop / heaven / meteora-dbc program ids; first KNOWN
+  instruction program in tx order wins) + fee-payer/first-signer vs
+  `BELIEVE_DEPLOYERS` (empty today → never fires; the allowlist IS
+  the leg, R1 Believe-mutability rule). Metadata renames make
+  name/symbol keying a false-positive source — the mapper does not
+  read those fields (grep-provable). Unknown actor → null, no
+  guessing; `launchpadInfo` re-validates the id, so a stale key
+  fails open.
+- BUDGET (archival, intentionally over the brand deadline): env
+  `LAUNCHPAD_HELIUS_ORIGIN_TIMEOUT_MS`, default 8000
+  (`resolveHeliusOriginTimeoutMs`; non-finite/<=0 → default).
+  Bounded by the outer 10s `DETECTOR_TIMEOUT_MS`; over-budget aborts
+  to null (in-flight Helius calls are not cancellable — no
+  AbortSignal on the seam — but capped at 2/fire by construction).
+  The tail fails open on cold scans; the origin lands on a later
+  pass. 429/timeout/empty-history/parse-null → null, fail-open.
+- KEY (runtime-only, never printed/stored): `HeliusService` arrives
+  via DI (`HeliusModule` import, `@Optional()` — hand-built specs
+  without it stay byte-identical); the key lives in `HeliusConfig`
+  (`HELIUS_API_KEY` env at runtime), which this leg never reads,
+  logs, or persists. DI absent → null with zero network.
+- QUOTA (why no cache, no throttle): ≤2 Enhanced-API calls per fire,
+  and the leg fires ONLY for Solana mints where fast legs miss
+  (closed/absent curves — a scan minority; live-curve tokens cost 0
+  Helius calls). Noise vs the 300 req/min internal budget and the
+  ~10rps free tier.
+- LIVE STATUS: INCOME `7DyyqPAz5RZMiAu9e6h3ynbiREzbNu46gxpJNvimkYdX`
+  NOT live-confirmed (history 200, full-tx 429-walled twice incl. a
+  6s-backoff retry) → specs use LABELED-SYNTHETIC fixtures (file
+  comment says so) + the real live-earliest shape (generic ATA,
+  `signer` undefined → null, never guesses). Evidence:
+  `.omo/evidence/task-fe-helius-origin.log`.
+
 ## SECURITY (P46, todo 10)
 
 Scoped API keys (`src/auth/`): `read` (GET chains/providers/addresses/

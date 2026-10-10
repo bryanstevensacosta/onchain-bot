@@ -523,6 +523,27 @@ todo 6 added 10 suites / 35 tests (±0 since); bare-address added
   `.omo/notepads/dexter-launchpad-r1.md` §§1-2 + §8 (source of truth;
   detector lives in market-data `src/provider/launchpad/`).
 
+- Manual mint→launchpad overrides (plan todo 37): curated table
+  `dexter_launchpad_overrides` (`mint` unique + `launchpad_id` +
+  nullable `note` + `created_at`; migration
+  `1791625023000-CreateDexterLaunchpadOverrides`) with admin CRUD
+  `POST/GET /api/dexter/launchpad-overrides` (+ `GET /:id`,
+  `DELETE /:id`, NO `PATCH` — delete+recreate by design). The
+  pipeline consults the row FIRST (`resolveLaunchpad` in
+  `token-scan.pipeline.ts`): a hit reports the curated slug with
+  MAXIMUM precedence over the detector (even over a positive
+  detection) + one `launchpad override hit` audit log per hit;
+  delete (or no row) restores detector behavior byte-identically,
+  and every store failure fails open to the snapshot value.
+  `launchpad_id` must be one of the 22 detector slugs (unknown →
+  400 + `valid` list); mint normalizes via the single
+  `normalizeMint` (EVM → lowercase, Solana → exact base58;
+  malformed → 400). The 22-slug catalog mirrors market-data
+  `src/launchpad/domain/launchpad-table.ts` (dexter never imports
+  market-data source) — INTAKE RULE: a new detector slug MUST land
+  here in the same wave or override creation for it fails closed.
+  Chain-agnostic by design (one row per mint, all chains).
+
 - Number policy Rick-parity (plan todo 13): formatters emit NO `$`
   (money → compact K/M/B trimmed `23.3K`/`7.9K`/`1.46B`; `priceUsd` →
   adaptive `<1` full digits `0.00002434` / `>=1` grouped max-2 `3,457`;

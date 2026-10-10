@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import {
   MarketDataClient,
   toFdvAthAtOrNull,
@@ -14,8 +14,14 @@ import {
   isEvmAddress,
   isSolanaAddress,
 } from '@/scan/domain/detector/address-detector';
+import { LaunchpadOverrideRepository } from '@/templates/domain/ports/launchpad-override.repository';
+import {
+  launchpadOverrideInfo,
+  normalizeMintOrNull,
+} from '@/templates/domain/launchpad-override.validators';
 import type {
   ChainIdentifier,
+  LaunchpadInfo,
   ResolvedToken,
   ScanPipeline,
   TokenAlternative,
@@ -93,7 +99,14 @@ function parseChainPrefix(input: string): {
 
 @Injectable()
 export class TokenScanPipeline implements ScanPipeline {
-  public constructor(private readonly marketData: MarketDataClient) {}
+  private readonly logger = new Logger(TokenScanPipeline.name);
+
+  public constructor(
+    private readonly marketData: MarketDataClient,
+    @Optional()
+    @Inject(LaunchpadOverrideRepository)
+    private readonly overrides?: LaunchpadOverrideRepository,
+  ) {}
 
   public async resolve(address: string): Promise<ResolvedToken | null> {
     // Robust-nulls (plan todo 19a, accepted): `pending` collapses to
@@ -116,7 +129,7 @@ export class TokenScanPipeline implements ScanPipeline {
       if (snapshot && hasIdentity(snapshot)) {
         return {
           status: 'resolved',
-          token: this.toResolvedToken(chain, bare, snapshot),
+          token: await this.toResolvedToken(chain, bare, snapshot),
         };
       }
       // Robust-nulls (plan todo 19a): `MarketDataSnapshot.status`
@@ -158,7 +171,7 @@ export class TokenScanPipeline implements ScanPipeline {
       const hit = hits[0];
       return {
         status: 'resolved',
-        token: this.toResolvedToken(hit.chain, bare, hit.snapshot, []),
+        token: await this.toResolvedToken(hit.chain, bare, hit.snapshot, []),
       };
     }
     if (hits.length > 1) {
@@ -200,7 +213,7 @@ export class TokenScanPipeline implements ScanPipeline {
       }));
       return {
         status: 'resolved',
-        token: this.toResolvedToken(
+        token: await this.toResolvedToken(
           best.chain,
           bare,
           best.snapshot,
@@ -235,7 +248,54 @@ export class TokenScanPipeline implements ScanPipeline {
     return [detected, ...sweep];
   }
 
-  private toResolvedToken(
+  /**
+   * Curated origin with MAXIMUM precedence (dexter plan todo 37):
+   * when an override row exists for the (normalized) mint, the
+   * curated `launchpad_id` wins over the market-data detector —
+   * even over a positive detection. Each hit logs an `override`
+   * audit line (mint, curated id, what the snapshot said). No row
+   * (or an unreadable store) falls through to the snapshot value, so
+   * deleting a row restores detector behavior byte-identically.
+   *
+   * Fail-open throughout: a missing repo binding (`@Optional()`),
+   * a malformed mint, an unknown stored slug, or a store throw all
+   * resolve the snapshot value — the override can never blank a card
+   * or crash a scan.
+   */
+  private async resolveLaunchpad(
+    chain: string,
+    address: string,
+    snapshotLaunchpad: unknown,
+  ): Promise<LaunchpadInfo | null> {
+    if (this.overrides) {
+      const mint = normalizeMintOrNull(address);
+      if (mint !== null) {
+        try {
+          const row = await this.overrides.findByMint(mint);
+          if (row) {
+            const curated = launchpadOverrideInfo(
+              row.launchpadId,
+              chain,
+              address,
+            );
+            if (curated) {
+              const snapshotId =
+                toLaunchpadOrNull(snapshotLaunchpad)?.id ?? 'null';
+              this.logger.log(
+                `launchpad override hit mint=${mint} id=${curated.id} (snapshot=${snapshotId})`,
+              );
+              return curated;
+            }
+          }
+        } catch {
+          // Fail-open: an unreadable override store behaves as no row.
+        }
+      }
+    }
+    return toLaunchpadOrNull(snapshotLaunchpad);
+  }
+
+  private async toResolvedToken(
     chain: string,
     address: string,
     snapshot: {
@@ -272,7 +332,7 @@ export class TokenScanPipeline implements ScanPipeline {
       readonly staleAgeMs?: unknown;
     },
     alternatives: ReadonlyArray<TokenAlternative> = [],
-  ): ResolvedToken {
+  ): Promise<ResolvedToken> {
     return {
       address,
       chain: chain as ChainIdentifier,
@@ -296,7 +356,11 @@ export class TokenScanPipeline implements ScanPipeline {
       devPctSupply: snapshot.devPctSupply ?? null,
       poolAddress: null,
       source: 'market-data-http',
-      launchpad: toLaunchpadOrNull(snapshot.launchpad),
+      launchpad: await this.resolveLaunchpad(
+        chain,
+        address,
+        snapshot.launchpad,
+      ),
       venue: toVenueOrNull(snapshot.venue),
       fdvAthUsd: toFdvAthUsdOrNull(snapshot.fdvAthUsd),
       fdvAthAt: toFdvAthAtOrNull(snapshot.fdvAthAt),

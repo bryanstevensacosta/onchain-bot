@@ -1,4 +1,5 @@
 import { DisplayMapOrmEntity } from '../../templates/infrastructure/persistence/typeorm/display-map.orm-entity';
+import { LaunchpadOverrideOrmEntity } from '../../templates/infrastructure/persistence/typeorm/launchpad-override.orm-entity';
 import { MessageTemplateOrmEntity } from '../../templates/infrastructure/persistence/typeorm/message-template.orm-entity';
 
 /**
@@ -15,4 +16,4 @@ import { MessageTemplateOrmEntity } from '../../templates/infrastructure/persist
  */
 export const DEXTER_PERSISTED_ENTITIES: Array<
   new (...args: never[]) => object
-> = [DisplayMapOrmEntity, MessageTemplateOrmEntity];
+> = [DisplayMapOrmEntity, LaunchpadOverrideOrmEntity, MessageTemplateOrmEntity];

@@ -1,11 +1,13 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import axios from 'axios';
 import { CacheService } from 'cache/application/cache.service';
+import { HeliusService } from 'provider/infrastructure/helius/helius.service';
 import { SolanaRpcService } from 'provider/infrastructure/solana-rpc/solana-rpc.service';
 import type { LaunchpadInfo } from '../domain/launchpad-info';
 import type { LaunchpadDetectorPort } from '../domain/launchpad-detector.port';
 import {
   BANKR_API_BASE,
+  BELIEVE_DEPLOYERS,
   BONKFUN_PLATFORM_CONFIGS,
   BOOP_PROGRAM,
   EVM_CHAIN_TRANSPORTS,
@@ -14,6 +16,7 @@ import {
   EVM_RECEIPT_EXCLUDED,
   HEAVEN_POOL_STATE_URL,
   HEAVEN_PROGRAM,
+  HELIUS_ORIGIN_PROGRAM_TO_LAUNCHPAD,
   MINTCLUB_API_BASE,
   MOONIT_PROGRAM,
   PONS_LAUNCHPAD_BASE,
@@ -94,6 +97,105 @@ export function resolvePonsCacheTtlSeconds(raw: string | undefined): number {
 export const ponsCacheKey = (chain: string, address: string): string =>
   `pons:launchpad:${(chain ?? '').trim().toLowerCase()}:${(address ?? '').trim().toLowerCase()}`;
 
+/**
+ * Helius-origin leg budget (dexter plan todo 36, graduated-old
+ * tokens with closed curves): how much history to pull and how long
+ * the archival sequence may run.
+ *
+ * - `HELIUS_ORIGIN_HISTORY_LIMIT = 100` reuses the seam default
+ *   (`helius.service.ts:180-198`). Deliberate deviation from a
+ *   literal "limit 1": Helius serves history newest-first, so
+ *   limit-1 returns the NEWEST tx — useless for origin. The leg
+ *   sorts the window slot-ascending and full-fetches exactly ONE
+ *   (the earliest), so the "full-tx fetch ONLY for that one" rule
+ *   holds. Window-honesty limit: the true genesis may lie deeper
+ *   than the 100 newest (INCOME live 2026-10-10: window
+ *   450534185→453388576, earliest = generic ATA
+ *   INITIALIZE_ACCOUNT, no known program) — pagination is a
+ *   quota-expensive follow-up, deferred; the leg reports
+ *   earliest-in-window, never claims genesis.
+ * - `HELIUS_ORIGIN_TIMEOUT_MS_DEFAULT = 8000` (env
+ *   `LAUNCHPAD_HELIUS_ORIGIN_TIMEOUT_MS`): archival legs are SLOW
+ *   by nature (2 sequential Enhanced-API calls, 8s axios backstop
+ *   each) and intentionally exceed the ~2s brand-leg deadline and
+ *   the snapshot tail wait — the tail fails open on cold scans and
+ *   the origin lands on a later pass. Bounded by the outer 10s
+ *   `DETECTOR_TIMEOUT_MS`; over-budget aborts to null (the in-flight
+ *   Helius calls are not cancellable — no AbortSignal on the seam —
+ *   but are capped at 2 per fire by construction).
+ *
+ * Quota math (why no cache, no throttle): per fire EXACTLY 2 Helius
+ * Enhanced-API calls (1 history + 1 parse, zero retries in-leg —
+ * 429 → null), and the leg fires ONLY for Solana mints where the
+ * PDA batch + heaven both miss (closed/absent curves — a small
+ * minority of scans; live-curve tokens cost 0 Helius calls). Noise
+ * vs the 300 req/min internal budget and the ~10rps free tier.
+ */
+export const HELIUS_ORIGIN_HISTORY_LIMIT = 100;
+export const HELIUS_ORIGIN_TIMEOUT_MS_DEFAULT = 8_000;
+
+export function resolveHeliusOriginTimeoutMs(raw: string | undefined): number {
+  if (raw === undefined) return HELIUS_ORIGIN_TIMEOUT_MS_DEFAULT;
+  const ms = Number(raw);
+  if (!Number.isFinite(ms) || ms <= 0) {
+    return HELIUS_ORIGIN_TIMEOUT_MS_DEFAULT;
+  }
+  return Math.floor(ms);
+}
+
+/**
+ * Minimal origin-tx view for the Helius mapper (structural — the
+ * shared `HeliusParsedTransaction` is assignable: `signer` narrows
+ * to readonly, `instructions[].programId` matches). `feePayer` is
+ * NOT on the shared type (live full-tx may carry it beside
+ * `signer`); read tolerantly, never required.
+ */
+export interface HeliusOriginTx {
+  readonly instructions?: ReadonlyArray<{
+    readonly programId?: string;
+  }> | null;
+  readonly signer?: ReadonlyArray<string> | null;
+  readonly feePayer?: string | null;
+}
+
+/**
+ * Pure origin→launchpad mapper (todo 36 actor table, executable
+ * form of `HELIUS_ORIGIN_PROGRAM_TO_LAUNCHPAD` + Believe rule):
+ * first KNOWN instruction program id in tx order wins (creation ix
+ * leads); else the fee-payer (else first signer) against
+ * `BELIEVE_DEPLOYERS` (empty today → never fires — the allowlist
+ * IS the leg, per the R1 Believe-mutability rule); else null.
+ * NEVER reads token name/symbol (mutable metadata — grep-provable:
+ * no `name`/`symbol` access below). Unknown actor → null, no
+ * guessing. `launchpadInfo` re-validates the id downstream, so a
+ * stale table key fails open.
+ */
+export function mapHeliusOriginToLaunchpad(
+  tx: HeliusOriginTx | null | undefined,
+): string | null {
+  if (tx === null || tx === undefined) return null;
+  const instructions = tx.instructions ?? [];
+  for (const ix of instructions) {
+    const pid = typeof ix?.programId === 'string' ? ix.programId : '';
+    if (pid === '') continue;
+    const id = HELIUS_ORIGIN_PROGRAM_TO_LAUNCHPAD[pid] ?? null;
+    if (id !== null) return id;
+  }
+  const rawSigner = tx.signer ?? [];
+  const firstSigner =
+    rawSigner.length > 0 && typeof rawSigner[0] === 'string'
+      ? rawSigner[0]
+      : null;
+  const payer =
+    typeof tx.feePayer === 'string' && tx.feePayer !== ''
+      ? tx.feePayer
+      : firstSigner;
+  if (typeof payer === 'string' && BELIEVE_DEPLOYERS.includes(payer)) {
+    return 'believe';
+  }
+  return null;
+}
+
 const SOLANA_CHAINS = new Set(['solana', 'sol']);
 
 const EVM_CHAIN_ALIASES: Record<string, string> = {
@@ -169,8 +271,11 @@ function containsBytes(haystack: Uint8Array, needle: Uint8Array): boolean {
  * max, not sum), picked by POSITION not finish order, then the ONE
  * Blockscout creation lookup + ONE receipt fetch ONLY on API
  * all-miss (a Pons hit never consults the factory receipt).
- * Every external call carries a timeout; anything unknown, slow, or
- * failed resolves to `null` — this service never throws outward.
+ * Solana all-miss falls through to ONE archival Helius history leg
+ * (earliest-in-window full-tx → program-id actor table; EVM never
+ * touches Helius — Solana Enhanced-API only). Every external call
+ * carries a timeout; anything unknown, slow, or failed resolves to
+ * `null` — this service never throws outward.
  */
 @Injectable()
 export class LaunchpadDetectorService implements LaunchpadDetectorPort {
@@ -189,11 +294,17 @@ export class LaunchpadDetectorService implements LaunchpadDetectorPort {
     process.env['PONS_CACHE_TTL_DAYS'],
   );
 
+  private readonly heliusOriginMs: number = resolveHeliusOriginTimeoutMs(
+    process.env['LAUNCHPAD_HELIUS_ORIGIN_TIMEOUT_MS'],
+  );
+
   public constructor(
     private readonly solanaRpc: SolanaRpcService,
     @Optional()
     @Inject(CacheService)
     private readonly ponsCache: CacheService | null = null,
+    @Optional()
+    private readonly helius: HeliusService | null = null,
   ) {}
 
   public async detectLaunchpad(
@@ -302,7 +413,11 @@ export class LaunchpadDetectorService implements LaunchpadDetectorPort {
     if (heaven) {
       return launchpadInfo('heaven', 'solana', mint);
     }
-    return null;
+    // LAST resort (todo 36): archival Helius history leg — ONLY after
+    // the fast legs (PDA batch + heaven) all miss (closed/absent
+    // curves on graduated-old tokens). Fast hits return above with
+    // ZERO Helius calls (spec-pinned via spy).
+    return this.detectHeliusOrigin(mint);
   }
 
   private launchlabBrand(poolDataBase64: string): string | null {
@@ -414,6 +529,9 @@ export class LaunchpadDetectorService implements LaunchpadDetectorPort {
     // never concurrent with Phase 1 — so the pinned shapes hold: a
     // bankr/Pons hit short-circuits with ZERO extra fetches, and the
     // same shared deadline still bounds it (remaining budget only).
+    // NOTE (todo 36): NO Helius leg on EVM — the history seam is the
+    // Solana Enhanced Transactions API, so EVM all-miss stays null
+    // with zero Helius calls (Solana-only by construction).
     const factoryLeg = armLeg();
     try {
       const factory = await this.detectFactoryTo(
@@ -590,6 +708,61 @@ export class LaunchpadDetectorService implements LaunchpadDetectorPort {
       }
     }
     return launched;
+  }
+
+  /**
+   * Helius history origin leg (todo 36, Solana LAST resort): for
+   * mints with no live curve (graduated-old, account closed) the
+   * PDA batch + heaven both miss, so resolve origin from on-chain
+   * HISTORY via the Helius seam (`helius.service.ts:180-218` —
+   * `getAddressHistory` + `parseTransaction`; NO raw
+   * `getSignaturesForAddress` — the seam proves sufficient).
+   * Sequence: ONE history pull → slot-ascending earliest → ONE
+   * full-tx fetch for that signature only → pure
+   * `mapHeliusOriginToLaunchpad` actor table → `launchpadInfo`.
+   * Fail-open null on EVERY ambiguity (no Helius DI, empty
+   * history, missing signature, parse null, unknown actor,
+   * timeout, 429 — zero retries in-leg). Live history items may
+   * lack actor fields (INCOME 2026-10-10: `signer` undefined) —
+   * only `signature`/`slot` are read from them; actors come from
+   * the full tx alone.
+   */
+  private async detectHeliusOrigin(
+    mint: string,
+  ): Promise<LaunchpadInfo | null> {
+    const helius = this.helius;
+    if (helius === null || helius === undefined) return null;
+    try {
+      const work = (async (): Promise<LaunchpadInfo | null> => {
+        const history = await helius.getAddressHistory(
+          mint,
+          HELIUS_ORIGIN_HISTORY_LIMIT,
+        );
+        if (history === null || history === undefined || history.length === 0) {
+          return null;
+        }
+        let earliestSlot = Number.POSITIVE_INFINITY;
+        let earliestSig: string | null = null;
+        for (const tx of history) {
+          const slot =
+            typeof tx?.slot === 'number' ? tx.slot : Number.POSITIVE_INFINITY;
+          const sig = typeof tx?.signature === 'string' ? tx.signature : '';
+          if (sig !== '' && slot < earliestSlot) {
+            earliestSlot = slot;
+            earliestSig = sig;
+          }
+        }
+        if (earliestSig === null) return null;
+        const full = await helius.parseTransaction(earliestSig);
+        if (full === null || full === undefined) return null;
+        const id = mapHeliusOriginToLaunchpad(full);
+        if (id === null) return null;
+        return launchpadInfo(id, 'solana', mint);
+      })();
+      return await withTimeout(work, this.heliusOriginMs);
+    } catch {
+      return null;
+    }
   }
 
   private async detectFactoryTo(

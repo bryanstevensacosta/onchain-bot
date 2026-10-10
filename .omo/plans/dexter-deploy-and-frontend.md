@@ -324,6 +324,20 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartUrl}}`co
       Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; `0x0b73…` resuelve `pons` en vivo (spec + live); 2do scan usa cache.
       QA scenarios: happy (Pons resuelve ≤2s) + failure (SSR caido → null, timeout). Evidence .omo/evidence/task-fe-detect-budget.log
       Commit: Y | feat(market-data-detect): deadline propio + cache pons (docs AGENTS+CHANGELOG)
+- [x] 36. Origen via Helius first-tx/creador para graduados viejos (Wave 1 follow-up, evidencia INCOME 2026-10-10)
+      What to do / Must NOT do: Pata de origen basada en HISTORIAL on-chain (no en cuentas vivas): para mints sin curva PDA (graduados con cuenta cerrada) ni pares DexScreener, resolver origen via Helius (`getSignaturesForAddress` primera tx + analisis creador/programa primer firmante; key `HELIUS_API_KEY` existente, rate-limit friendly con backoff). SOLO como ultima pata (despues de PDA/factory/registry: rapidas primero, historica despues; timeout propio documentado, mas generoso por ser archival). Fail-open null. Specs: graduado-viejo resuelve (fixture INCOME `7DyyqPAz5RZMiAu9e6h3ynbiREzbNu46gxpJNvimkYdX` si Helius lo confirma, sino fixture sintetico documentado + caso live que si confirme), no-graduado intacto (patas rapidas ganan, Helius ni se llama — assert con spy). Docs: market-data AGENTS + CHANGELOG (ADD-only).
+      Parallelization: Wave 1 follow-up (1 worker) | Blocked by: — | Blocks: —
+      References: caso INCOME (curva cerrada + 0 pares DexScreener + pump API 1016 desde ambas IPs), Helius key existente, detector existente (orden de patas).
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; INCOME resuelve `pump-fun` en vivo o limite documentado con evidencia; patas rapidas sin regresion (timings).
+      QA scenarios: happy (graduado resuelve) + failure (Helius 429/timeout → null, mint sin historial → null). Evidence .omo/evidence/task-fe-helius-origin.log
+      Commit: Y | feat(market-data-origin): pata helius-historial (docs AGENTS+CHANGELOG)
+- [x] 37. Override manual mint→launchpad (Wave 1 follow-up, red de seguridad curada)
+      What to do / Must NOT do: Tabla curada por operador (mint → launchpad id) con MAXIMA precedencia sobre el detector (antes que cualquier pata automatica; override explicito gana siempre + log `override` para auditoria). Storage: DisplayMap NO (es emoji, no identidad) — nueva entidad/tabla minima `launchpad_override(mint, launchpad_id, note, created_at)` con CRUD admin (reutilizar patron repo/controlador existente si encaja, documentar decision; NADA de UI nueva — solo API). Validacion: `launchpad_id` existe en la tabla detector (slugs conocidos). Specs: override gana a detector-positivo (precedencia), override a id-desconocido → 400, delete revierte a detector. Docs: AGENTS + CHANGELOG (ADD-only).
+      Parallelization: Wave 1 follow-up (1 worker) | Blocked by: — (independiente del 36) | Blocks: —
+      References: caso INCOME (si 36 falla, el override lo cubre manual), patron repos existentes.
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes (+ migracion si hay tabla nueva: `migration:show` coherente); set→resuelve, delete→revierte.
+      QA scenarios: happy + failure (id invalido, mint malformado). Evidence .omo/evidence/task-fe-override-table.log
+      Commit: Y | feat(market-data-overrides): tabla curada mint-launchpad (docs AGENTS+CHANGELOG)
 
 ### Wave 0 — guion local owner (10 min, dexter `:4060` + frontend `:5173`)
 
@@ -399,6 +413,8 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartUrl}}`co
 | 33 ohlc-change          | —                | —            | 2                    |
 | 34 pons-leg             | —                | —            | 2                    |
 | 35 detect-budget        | —                | —            | 2                    |
+| 36 helius-origin        | —                | —            | 2                    |
+| 37 override             | —                | —            | 2                    |
 
 ## Commit strategy
 

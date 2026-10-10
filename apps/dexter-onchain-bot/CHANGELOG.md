@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Manual mint→launchpad override table (dexter plan todo 37):**
+  curated `dexter_launchpad_overrides` (`mint` unique,
+  `launchpad_id`, nullable `note`, `created_at`; new migration) with
+  admin CRUD (`POST`/`GET /api/dexter/launchpad-overrides`,
+  `GET /:id`, `DELETE /:id` — no update, delete+recreate suffices).
+  The scan pipeline consults the row first: a hit reports the
+  curated slug with maximum precedence over the detector (even over
+  a positive detection) + an `override` audit log per hit; delete
+  restores detector behavior. `launchpad_id` must be one of the 22
+  known detector slugs (unknown → 400), mint normalizes EVM to
+  lowercase / Solana exact (malformed → 400).
+
 - **Deploy automation files (dexter plan todo 2, Wave 2 — DRY-RUN):**
   `docker-compose.prod.yml` (postgres `:5448`, redis `:6395`, HTTP `:4062`,
   DB `onchain_bot_dexter`, explicit `name:`, mirror of the staging canon),
