@@ -853,6 +853,55 @@ full address never recorded) NOT probed, never guessed; sibling
 todo 33 owns the PONYO case. Evidence:
 `.omo/evidence/task-fe-pons-leg.log`.
 
+## DETECTOR OWN DEADLINE + PONS CACHE (todo 35, 2026-10-10)
+
+The Pons SSR leg measures ~1.3s live (server-rendered page) and NEVER
+fit the 400ms snapshot-tail extras budget (NYMA resolved `launchpad:
+null` via `tail:launchpad` timeout) — so the detector is OUT of that
+budget now:
+
+- DEADLINE (config default, not hardcoded): env
+  `LAUNCHPAD_SLOW_LEG_TIMEOUT_MS`, default 2000
+  (`resolveDetectorSlowLegTimeoutMs` in
+  `launchpad-detector.service.ts`; non-finite/<=0 → default). ONE
+  value, two consumers: the Pons SSR AbortController cut inside the
+  detector AND the snapshot tail's launchpad wait
+  (`launchpadTailMs`, read at construction like `staleMaxAgeMs`).
+  Venue/dev keep the shared 400ms `SNAPSHOT_TAIL_EXTRA_TIMEOUT_MS`
+  intact (their timeout note text is byte-identical; launchpad names
+  its own `detector budget <ms>ms` note).
+- SCOPE (only-when-slow): the deadline only MATTERS when the
+  detector runs long. EVM slow legs run PARALLEL (bankr ‖ mintclub ‖
+  pons via `Promise.allSettled` under the ONE shared wall-clock
+  deadline — total ~= max, not sum — so the live ~1.6s bankr 404 +
+  ~1.3s Pons SSR fit the ~2s default together); precedence is by
+  POSITION not finish order (bankr > mintclub > pons, unchanged), and
+  the factory receipt fallback fires ONLY on API all-miss (a bankr/
+  Pons hit short-circuits with zero extra fetches — fast-path timing
+  unchanged when they hit). Chain gates unchanged (bankr on
+  `BANKR_CHAINS`, Pons on `PONS_CHAINS`/robinhood; Solana PDA batch +
+  heaven untouched); each leg owns an AbortController cut at the same
+  instant (no leg outlives the budget); all-fail is fail-open null.
+  The detector outer 10s `DETECTOR_TIMEOUT_MS` still caps everything.
+  Axios `timeout: 8s` stays as an outer backstop — the abort is the
+  operative bound.
+- CACHE (existing primitive, NO new table): positive `pons`
+  resolutions cache on the shared global `CacheService`
+  (`pons:launchpad:<chain>:<mint>`, lowercased, TTL env
+  `PONS_CACHE_TTL_DAYS` default 14 — inside the 7–30d band).
+  Decision record: a new DB table (discovery-cache pattern) was
+  rejected — origin is IMMUTABLE per mint (a migration mints a NEW
+  address), so no dexId-style tripwire schema is needed; the TTL is
+  a memory-hygiene bound, not a correctness bound. Nulls are NEVER
+  written (19a no-negative-cache); cache failures swallow fail-open;
+  cache ABSENT (hand-built specs, partial DI) → straight to SSR,
+  byte-identical to pre-cache. The cache lives INSIDE the detector,
+  so all three snapshot-path callers benefit (tail `resolveLaunchpad`
+  - both direct-fast-path `detectLaunchpad` take-if-ready legs).
+    Memory-store + reset-on-deploy ACCEPTED (same tradeoff as the
+    breaker); Redis swaps in via the same port with zero consumer
+    change. Evidence: `.omo/evidence/task-fe-detect-budget.log`.
+
 ## OHLC-DERIVED 24H CHANGE (todo 33, 2026-10-10)
 
 Fallback leg for Gecko-only tokens (STAGEVEIL-pattern: `/info` has no

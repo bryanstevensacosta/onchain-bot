@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Detector parallel slow legs (detector-budget follow-up):** the EVM
+  brand-API legs (bankr ‖ mintclub ‖ Pons SSR) run CONCURRENTLY via
+  `Promise.allSettled` under the ONE shared `LAUNCHPAD_SLOW_LEG_TIMEOUT_MS`
+  wall-clock deadline (each leg owns an AbortController cut at the same
+  instant — total ~= max, not sum — so the live ~1.6s bankr 404 miss +
+  ~1.3s Pons SSR fit the ~2s default together). Precedence unchanged
+  (by position: bankr > mintclub > pons, never by finish order); the
+  factory receipt fallback fires only on API all-miss (a hit
+  short-circuits with zero extra fetches); all-fail stays fail-open
+  null. Specs: parallel-timing + precedence-preserved + all-fail-null
+  - fast-path-untouched (`launchpad-detector-parallel.spec.ts`).
+
+- **Detector own deadline + Pons cache (dexter plan todo 35):** the
+  launchpad detector is OUT of the 400ms snapshot-tail extras budget
+  (the Pons SSR leg measures ~1.3s live and always timed out there).
+  New ~2s deadline from env `LAUNCHPAD_SLOW_LEG_TIMEOUT_MS` (default
+  2000, single value shared by the Pons SSR AbortController cut and
+  the tail's launchpad wait); fast-leg hits return untouched (leg
+  order unchanged), venue/dev keep 400ms. Positive `pons`
+  resolutions cache on the shared `CacheService`
+  (`pons:launchpad:<chain>:<mint>`, env `PONS_CACHE_TTL_DAYS`
+  default 14, nulls never written) — no new table (origin is
+  immutable per mint, TTL is memory hygiene).
+
 - **OHLC-derived 24h change fallback (dexter plan todo 33):** when
   every native `priceChange24h` is null (Gecko-only tokens like
   STAGEVEIL), the snapshot derives `(close-now − close-24h-ago) /

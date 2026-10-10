@@ -28,7 +28,11 @@ import {
 import { SnapshotAggregatorService } from 'aggregators/application/snapshot-aggregator.service';
 import type { AggregationOutcome } from 'aggregators/application/snapshot-aggregator.service';
 import { AggregationPolicyPort } from 'aggregators/domain/aggregation-policy.port';
-import { LaunchpadDetectorService } from 'launchpad/application/launchpad-detector.service';
+import {
+  DETECTOR_SLOW_LEG_TIMEOUT_MS_DEFAULT,
+  LaunchpadDetectorService,
+  resolveDetectorSlowLegTimeoutMs,
+} from 'launchpad/application/launchpad-detector.service';
 import type { LaunchpadInfo } from 'launchpad/domain/launchpad-info';
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
 import { GeckoTerminalService } from 'provider/infrastructure/geckoterminal';
@@ -70,6 +74,19 @@ const roundMs = (ms: number | null): string =>
  */
 export const SNAPSHOT_TAIL_CONCURRENCY = 3;
 export const SNAPSHOT_TAIL_EXTRA_TIMEOUT_MS = 400;
+
+/**
+ * Detector-tail budget (dexter plan todo 35): the launchpad detector
+ * is OUT of the 400ms extras budget — it rides its OWN deadline (the
+ * same `LAUNCHPAD_SLOW_LEG_TIMEOUT_MS` the detector's Pons SSR leg is
+ * aborted by, default `DETECTOR_SLOW_LEG_TIMEOUT_MS_DEFAULT`). The
+ * deadline only MATTERS when the detector runs long (slow legs after
+ * fast-leg miss): a fast hit returns at its natural speed under EITHER
+ * budget, so fast-path timing is unchanged. Venue/dev keep the 400ms
+ * `SNAPSHOT_TAIL_EXTRA_TIMEOUT_MS` intact.
+ */
+export const SNAPSHOT_TAIL_LAUNCHPAD_TIMEOUT_MS_DEFAULT =
+  DETECTOR_SLOW_LEG_TIMEOUT_MS_DEFAULT;
 
 /** Breaker key namespace (disjoint from the `outbound:` buckets). */
 export const snapshotBreakerKey = (name: string): string =>
@@ -157,6 +174,15 @@ export class AddressSnapshotService {
    */
   private readonly staleMaxAgeMs: number = resolveStaleMaxAgeMs(
     process.env['SNAPSHOT_STALE_MAX_AGE_HOURS'],
+  );
+
+  /**
+   * Launchpad-tail budget instance value (dexter plan todo 35 — same
+   * env as the detector slow leg, single source of truth). Read once
+   * at construction, like `staleMaxAgeMs` above.
+   */
+  private readonly launchpadTailMs: number = resolveDetectorSlowLegTimeoutMs(
+    process.env['LAUNCHPAD_SLOW_LEG_TIMEOUT_MS'],
   );
 
   public constructor(
@@ -663,23 +689,29 @@ export class AddressSnapshotService {
     const { knownId, inputValue, cacheKey, kind, id, supporting, outcome } =
       args;
     const tailStartedAt = performance.now();
-    // Parallel tail (todo 29): the three extras race under ONE shared
-    // budget — max SNAPSHOT_TAIL_CONCURRENCY in flight, 400ms each,
-    // degrade-to-null. Pre-resolved legs (fast-path serve) cost zero
-    // tasks. fdvAth stays SEQUENTIAL below: it is an indexed history
-    // read (no outbound, microseconds), and the read-before-save order
+    // Parallel tail (todo 29, deadline split todo 35): venue/dev race
+    // under the shared 400ms budget, degrade-to-null — while launchpad
+    // (the detector) rides its OWN `launchpadTailMs` deadline above.
+    // Max SNAPSHOT_TAIL_CONCURRENCY in flight. Pre-resolved legs
+    // (fast-path serve) cost zero tasks. fdvAth stays SEQUENTIAL
+    // below: it is an indexed history read (no outbound, microseconds), and the read-before-save order
     // is the cold-start correctness rule (todo 16) — parallelizing it
     // would buy nothing and risk the ordering.
     const tailNotes: Record<string, string> = {};
     const runExtra = async <T>(
       name: 'launchpad' | 'venue' | 'dev',
       work: Promise<T | null>,
+      budgetMs: number = SNAPSHOT_TAIL_EXTRA_TIMEOUT_MS,
     ): Promise<T | null> => {
       try {
-        const raced = await withTailBudget(work);
+        const raced = await withTailBudget(work, budgetMs);
         if (raced === TAIL_TIMEOUT) {
+          // Launchpad names its OWN budget (todo 35 — out of the
+          // 400ms extras budget); venue/dev keep the shared note.
           tailNotes[`tail:${name}`] =
-            `timeout (tail budget ${SNAPSHOT_TAIL_EXTRA_TIMEOUT_MS}ms) — degraded to null, fail-open`;
+            name === 'launchpad'
+              ? `timeout (detector budget ${budgetMs}ms) — degraded to null, fail-open`
+              : `timeout (tail budget ${SNAPSHOT_TAIL_EXTRA_TIMEOUT_MS}ms) — degraded to null, fail-open`;
           return null;
         }
         return raced;
@@ -692,7 +724,11 @@ export class AddressSnapshotService {
     if (!args.launchpad.resolved) {
       tailSlots.push('launchpad');
       tailTasks.push(() =>
-        runExtra('launchpad', this.resolveLaunchpad(knownId, inputValue)),
+        runExtra(
+          'launchpad',
+          this.resolveLaunchpad(knownId, inputValue),
+          this.launchpadTailMs,
+        ),
       );
     }
     if (!args.venue.resolved) {

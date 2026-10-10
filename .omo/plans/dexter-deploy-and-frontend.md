@@ -317,6 +317,13 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartAddressL
       Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; NYMA resuelve `pons` (si A pasa) o limite documentado con evidencia (si no).
       QA scenarios: happy + failure (RPC caido → null). Evidence .omo/evidence/task-fe-pons-leg.log
       Commit: Y solo si B ejecuta | feat(market-data-pons): pata pons (docs AGENTS+CHANGELOG)
+- [x] 35. Deadline propio del detector + cache Pons (Wave 1 follow-up, evidencia 0x0b73 2026-10-10: SSR Pons 1.3s vs cola 400ms)
+      What to do / Must NOT do: Sacar al detector (`launchpad`) del budget 400ms de extras: deadline PROPIO ~2s SOLO cuando las patas rapidas (PDA/factory) no resuelven (no penalizar el caso rapido); SSR Pons corre dentro de ese deadline con AbortController (timeout > deadline = fail, nunca cuelga). Cachear resoluciones Pons (id→row con TTL largo/documentado, reutilizar infra cache existente — NO nueva tabla salvo que no exista primitiva; documentar decision). Resto de extras keeps 400ms intacto. Specs: deadline (slow-leg resuelve dentro, timeout→null), cache-hit (2do scan sin fetch SSR), resto intacto. Docs: AGENTS + CHANGELOG (ADD-only).
+      Parallelization: Wave 1 follow-up (1 worker) | Blocked by: — | Blocks: —
+      References: ponsfamily SSR 1.3s medido, tail 400ms actual, `LaunchpadDetector` existente.
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; `0x0b73…` resuelve `pons` en vivo (spec + live); 2do scan usa cache.
+      QA scenarios: happy (Pons resuelve ≤2s) + failure (SSR caido → null, timeout). Evidence .omo/evidence/task-fe-detect-budget.log
+      Commit: Y | feat(market-data-detect): deadline propio + cache pons (docs AGENTS+CHANGELOG)
 
 ### Wave 0 — guion local owner (10 min, dexter `:4060` + frontend `:5173`)
 
@@ -391,6 +398,7 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartAddressL
 | 32 newprov              | owner-keys       | —            | 2                    |
 | 33 ohlc-change          | —                | —            | 2                    |
 | 34 pons-leg             | —                | —            | 2                    |
+| 35 detect-budget        | —                | —            | 2                    |
 
 ## Commit strategy
 

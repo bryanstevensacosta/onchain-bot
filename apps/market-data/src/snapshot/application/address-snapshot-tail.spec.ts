@@ -3,6 +3,7 @@ import {
   runTailCapped,
   SNAPSHOT_TAIL_CONCURRENCY,
   SNAPSHOT_TAIL_EXTRA_TIMEOUT_MS,
+  SNAPSHOT_TAIL_LAUNCHPAD_TIMEOUT_MS_DEFAULT,
 } from './address-snapshot.service';
 import { SnapshotAggregatorService } from 'aggregators/application/snapshot-aggregator.service';
 import { SnapshotHistoryRepository } from '../infrastructure/snapshot-history.repository';
@@ -110,9 +111,13 @@ const INPUT = {
  * extra. Caps, timeouts, and degrade behavior are pinned here.
  */
 describe('AddressSnapshotService tail (parallel extras, todo 29)', () => {
-  it('pins the tail budgets (concurrency 3, 400ms per extra)', () => {
+  it('pins the tail budgets (concurrency 3, 400ms per extra, 2s detector)', () => {
     expect(SNAPSHOT_TAIL_CONCURRENCY).toBe(3);
     expect(SNAPSHOT_TAIL_EXTRA_TIMEOUT_MS).toBe(400);
+    // Todo 35: the detector is OUT of the 400ms extras budget — its
+    // own deadline defaults to the slow-leg 2s (same env the Pons SSR
+    // AbortController is cut by; single source of truth).
+    expect(SNAPSHOT_TAIL_LAUNCHPAD_TIMEOUT_MS_DEFAULT).toBe(2_000);
   });
 
   it('runTailCapped respects the cap and preserves order', async () => {
@@ -152,7 +157,22 @@ describe('AddressSnapshotService tail (parallel extras, todo 29)', () => {
     expect(Math.max(...firsts) - Math.min(...firsts)).toBeLessThan(100);
   });
 
-  it('a slow extra degrades to null with a tail note — the card still renders', async () => {
+  it('a slow venue extra degrades to null with a tail note — the card still renders', async () => {
+    const { service } = buildService({
+      launchpadMs: 10,
+      venueMs: 1500,
+      devMs: 10,
+    });
+    const snapshot = await service.getSnapshot(INPUT);
+    expect(snapshot.status).toBe('ready');
+    expect(snapshot.venue).toBeNull();
+    expect(snapshot.providerErrors['tail:venue']).toMatch(/tail budget 400ms/);
+    // Fast extras are unaffected by the slow sibling.
+    expect(snapshot.launchpad).not.toBeNull();
+    expect(snapshot.devPctSupply).toBe(1.5);
+  });
+
+  it('launchpad slow-but-within-own-deadline resolves (OUT of the 400ms budget)', async () => {
     const { service } = buildService({
       launchpadMs: 1500,
       venueMs: 10,
@@ -160,11 +180,26 @@ describe('AddressSnapshotService tail (parallel extras, todo 29)', () => {
     });
     const snapshot = await service.getSnapshot(INPUT);
     expect(snapshot.status).toBe('ready');
+    // 1500ms would have degraded under the old shared 400ms budget;
+    // under its own ~2s deadline the detector answer lands.
+    expect(snapshot.launchpad).not.toBeNull();
+    expect(snapshot.providerErrors['tail:launchpad']).toBeUndefined();
+  });
+
+  it('launchpad past its own deadline degrades with a detector-budget note', async () => {
+    const { service } = buildService({
+      launchpadMs: 3000,
+      venueMs: 10,
+      devMs: 10,
+    });
+    const snapshot = await service.getSnapshot(INPUT);
+    expect(snapshot.status).toBe('ready');
     expect(snapshot.launchpad).toBeNull();
     expect(snapshot.providerErrors['tail:launchpad']).toMatch(
-      /tail budget 400ms/,
+      /detector budget 2000ms/,
     );
-    // Fast extras are unaffected by the slow sibling.
+    // Venue/dev still name the shared 400ms budget, never the
+    // detector one (pinned above on the venue leg).
     expect(snapshot.venue).not.toBeNull();
     expect(snapshot.devPctSupply).toBe(1.5);
   });
