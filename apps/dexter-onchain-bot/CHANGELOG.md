@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Deploy automation files (dexter plan todo 2, Wave 2 — DRY-RUN):**
+  `docker-compose.prod.yml` (postgres `:5448`, redis `:6395`, HTTP `:4062`,
+  DB `onchain_bot_dexter`, explicit `name:`, mirror of the staging canon),
+  `.github/workflows/deploy-dexter-staging.yml` (push `dev`, GHCR `:sha` +
+  `:staging-latest` amd64-only, backup + probe + builder-target migration
+  one-off + `:4061` healthcheck + manual rollback lane) and
+  `deploy-dexter-prod.yml` (push `master`, `:sha` + `:latest`, `:4062`
+  healthcheck, automatic rollback lane mirroring `deploy.yml`) plus
+  `docs/deploy-secrets.md` (var NAMES only). Nothing applied to Oracle;
+  Wave 3/4 rollouts remain owner-gated.
+
 - **Serve-stale pin-through, no background refresh (dexter plan
   todo 19b1):** the client maps market-data's `stale`/`staleAsOf`/
   `staleAgeMs` with boundary validators (`toStaleOrFalse` strict
@@ -98,7 +109,7 @@ via <Tech>` / origin / tech / `""`). Dangling-`@` cleanup joins the
   Rick shows the tech (`Clanker V4`). `dexId` (`meteoradbc`) never
   feeds `launchpad.id` (`meteora-dbc`) — separate tables, spec-pinned.
 
-- \*\*Bot deep-link `{{botStartAddressLink}}` + `/start <payload>`
+- \*\*Bot deep-link `{{botStartUrl}}` + `/start <payload>`
   (plan todo 11, hybrid white-label design): new generic `BOT_USERNAME`
   env (no prefix, one value per env, `^[A-Za-z0-9_]{5,}$`, empty
   allowed — empty in all three templates, never a real username in

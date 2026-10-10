@@ -53,7 +53,7 @@ describe('placeholder-registry (todo 4 closed vocabulary)', () => {
       'launchpadTextLink',
       'launchpadIcon',
       'launchpadIconLink',
-      'botStartAddressLink',
+      'botStartUrl',
       'chainName',
       'venue',
       'venueTech',
@@ -116,9 +116,9 @@ describe('placeholder-registry (todo 4 closed vocabulary)', () => {
     }
   });
 
-  it('whitelists botStartAddressLink on every command', () => {
+  it('whitelists botStartUrl on every command', () => {
     for (const command of TEMPLATE_COMMANDS) {
-      expect(isKnownPlaceholder(command, 'botStartAddressLink')).toBe(true);
+      expect(isKnownPlaceholder(command, 'botStartUrl')).toBe(true);
     }
   });
 

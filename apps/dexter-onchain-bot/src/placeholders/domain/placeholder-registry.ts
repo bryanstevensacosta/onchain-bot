@@ -59,7 +59,7 @@ export const DERIVED_PLACEHOLDERS: readonly string[] = [
   'launchpadTextLink',
   'launchpadIcon',
   'launchpadIconLink',
-  'botStartAddressLink',
+  'botStartUrl',
   'chainName',
   'venue',
   'venueTech',

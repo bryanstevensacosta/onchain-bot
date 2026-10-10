@@ -168,7 +168,7 @@ function resolveMessageTemplateRepository(
     DexterBotConfigService,
     // todo 11 (bot-start-link) + todo 12 (profile source): bootstrap-once
     // bot identity (bound-vault profile → getMe → BOT_USERNAME → ""),
-    // consumed by the template renderer for {{botStartAddressLink}}.
+    // consumed by the template renderer for {{botStartUrl}}.
     BotIdentityService,
     TelegramBotClient,
     GatewayHmacSigner,

@@ -10,6 +10,7 @@ export interface PlaceholderDescriptor {
   readonly type: string;
   readonly nullable: boolean;
   readonly example: string;
+  readonly description?: string;
 }
 
 /**
@@ -129,10 +130,12 @@ const PLACEHOLDER_META: Record<string, Omit<PlaceholderDescriptor, 'key'>> = {
     example: 'Also on: bsc, eth',
   },
   timeframe: { type: 'string', nullable: true, example: '5m' },
-  botStartAddressLink: {
+  botStartUrl: {
     type: 'url',
     nullable: true,
     example: 'https://t.me/DexterBot?start=So1111…',
+    description:
+      'Raw bot deep-link URL — compose links in bodies as [{{name}}]({{botStartUrl}}) or [o]({{botStartUrl}}).',
   },
 };
 

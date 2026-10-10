@@ -293,7 +293,7 @@ export class TemplateRendererService {
         if (tf === null || tf === undefined || tf === '') return '';
         return esc(String(tf));
       }
-      case 'botStartAddressLink': {
+      case 'botStartUrl': {
         const username = this.botIdentity?.getUsername() ?? '';
         const address =
           typeof values.address === 'string' ? values.address : '';

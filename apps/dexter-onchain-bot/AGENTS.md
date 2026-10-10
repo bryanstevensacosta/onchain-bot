@@ -212,6 +212,24 @@ DBs: postgres single `:5432` (`onchain_bot_dexter`, consolidated 2026-09-28; sta
 repo-wide by grep. Compose `name:` is explicit (`onchain-bot-dexter`,
 `onchain-bot-dexter-staging`) so dev/staging never recreate each other.
 
+## DEPLOY (dexter-deploy-and-frontend Wave 2 — DRY-RUN, nothing applied)
+
+- Compose: `docker-compose.staging.yml` (staging `:4061`/`:5441`/`:6388`,
+  DB `onchain_bot_dexter_staging`) + `docker-compose.prod.yml` (prod
+  `:4062`/`:5448`/`:6395`, DB `onchain_bot_dexter`, `name:
+onchain-bot-dexter-prod`, network `onchain-bot-net`). Prod ports verified
+  free repo-wide by grep; operator confirms on Oracle with lsof (Wave 4 gate).
+- Workflows: `.github/workflows/deploy-dexter-staging.yml` (push `dev`,
+  tags `:sha` + `:staging-latest`, manual rollback lane) +
+  `deploy-dexter-prod.yml` (push `master`, tags `:sha` + `:latest`,
+  automatic rollback lane mirroring `deploy.yml`). Both amd64-only, both own
+  dexter paths only (anti-double-fire: disjoint from backend/frontend/
+  ingestion workflows). Oracle lanes: `pg_dump` backup → precondition SELECT
+  probe → `migration:run` in a throwaway `--target builder` one-off
+  (Dockerfile `AS builder` verified — prod image untouched) → recreate →
+  healthcheck (`:4061`/`:4062`) → pin `:staging-prev-dexter`/`:prev-dexter`.
+- Secrets: `docs/deploy-secrets.md` (NAMES only; values live on the droplet).
+
 ## HEALTH
 
 - `GET /api/health` → `{ status: 'ok', service: 'dexter-onchain-bot' }`
@@ -475,7 +493,7 @@ todo 6 added 10 suites / 35 tests (±0 since); bare-address added
 
 ## NOTES
 
-- Bot deep-link (plan todo 11, `botStartAddressLink`): derived key on
+- Bot deep-link (plan todo 11, `botStartUrl`): derived key on
   EVERY command (`https://t.me/<username>?start=<address>`; no
   username → `""`; payload must match Bot API `start` rules
   (`[A-Za-z0-9_-]`, ≤64 chars — EVM 42 + Solana 44 fit — else `""`,

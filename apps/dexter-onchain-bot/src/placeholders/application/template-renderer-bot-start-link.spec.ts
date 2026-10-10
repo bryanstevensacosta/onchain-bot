@@ -40,20 +40,20 @@ function withUsername(username: string): TemplateRendererService {
   return new TemplateRendererService(null, identity);
 }
 
-describe('botStartAddressLink (todo 11 deep-link key)', () => {
+describe('botStartUrl (todo 11 deep-link key)', () => {
   it('renders the exact t.me URL with the resolved username', () => {
     const out = withUsername('TestBot').render(
-      'Open {{botStartAddressLink}}',
+      'Open {{botStartUrl}}',
       TOKEN,
       'ca',
     );
     expect(out.text).toBe(`Open https://t.me/TestBot?start=${SOL}`);
-    expect(out.placeholdersUsed).toContain('botStartAddressLink');
+    expect(out.placeholdersUsed).toContain('botStartUrl');
   });
 
   it('renders the EVM address payload verbatim (42 chars fit)', () => {
     const out = withUsername('TestBot').render(
-      '{{botStartAddressLink}}',
+      '{{botStartUrl}}',
       { ...TOKEN, address: EVM },
       'x',
     );
@@ -62,20 +62,20 @@ describe('botStartAddressLink (todo 11 deep-link key)', () => {
 
   it('renders "" without a username (identity unresolved)', () => {
     const renderer = new TemplateRendererService(null, null);
-    const out = renderer.render('Open {{botStartAddressLink}}', TOKEN, 'ca');
+    const out = renderer.render('Open {{botStartUrl}}', TOKEN, 'ca');
     expect(out.text).toBe('Open ');
-    expect(out.placeholdersUsed).toContain('botStartAddressLink');
+    expect(out.placeholdersUsed).toContain('botStartUrl');
   });
 
   it('renders "" without an injected identity service', () => {
     const renderer = new TemplateRendererService(null);
-    const out = renderer.render('{{botStartAddressLink}}', TOKEN, 'bare');
+    const out = renderer.render('{{botStartUrl}}', TOKEN, 'bare');
     expect(out.text).toBe('');
   });
 
   it('renders "" for a >64-char payload (never silently truncates)', () => {
     const out = withUsername('TestBot').render(
-      '{{botStartAddressLink}}',
+      '{{botStartUrl}}',
       { ...TOKEN, address: `${SOL}${SOL}` },
       'ca',
     );
@@ -84,7 +84,7 @@ describe('botStartAddressLink (todo 11 deep-link key)', () => {
 
   it('renders "" for payload chars outside [A-Za-z0-9_-]', () => {
     const out = withUsername('TestBot').render(
-      '{{botStartAddressLink}}',
+      '{{botStartUrl}}',
       { ...TOKEN, address: 'not an address!' },
       'ca',
     );
@@ -94,12 +94,35 @@ describe('botStartAddressLink (todo 11 deep-link key)', () => {
   it('is known on every command (address-carrying templates)', () => {
     for (const command of ['ca', 'x', 'z', 'c', 'cc', 'bare'] as const) {
       const out = withUsername('TestBot').render(
-        '{{botStartAddressLink}}',
+        '{{botStartUrl}}',
         TOKEN,
         command,
       );
       expect(out.text).toBe(`https://t.me/TestBot?start=${SOL}`);
     }
+  });
+});
+
+describe('botStartUrl composition (raw URL key, authors compose links)', () => {
+  it('[{{name}}]({{botStartUrl}}) renders the named deep-link', () => {
+    const out = withUsername('TestBot').render(
+      '[{{name}}]({{botStartUrl}})',
+      TOKEN,
+      'ca',
+    );
+    expect(out.text).toBe(`[Solana](https://t.me/TestBot?start=${SOL})`);
+    expect(out.placeholdersUsed).toContain('botStartUrl');
+    expect(out.placeholdersUsed).toContain('name');
+  });
+
+  it('[o]({{botStartUrl}}) renders the Rick-style short link', () => {
+    const out = withUsername('TestBot').render(
+      '[o]({{botStartUrl}})',
+      TOKEN,
+      'ca',
+    );
+    expect(out.text).toBe(`[o](https://t.me/TestBot?start=${SOL})`);
+    expect(out.placeholdersUsed).toContain('botStartUrl');
   });
 });
 
