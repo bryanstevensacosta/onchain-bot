@@ -43,6 +43,10 @@ import {
 import { selectPoolQuote } from 'provider/infrastructure/geckoterminal';
 import { toVenueOrNull, type SnapshotVenue } from '../domain/snapshot-venue';
 import { deriveChange24hFromOhlcv } from '../domain/snapshot-ohlcv-change';
+import {
+  applyComputedFdv,
+  computedFdvEpsilonBound,
+} from '../domain/snapshot-computed-fdv';
 import { SnapshotHistoryRepository } from '../infrastructure/snapshot-history.repository';
 import {
   deriveSnapshotNullReason,
@@ -797,10 +801,50 @@ export class AddressSnapshotService {
       inputValue,
       outcome.quote.priceChange24h,
     );
-    const quote: SnapshotQuote =
-      derivedChange24h === null
-        ? outcome.quote
-        : { ...outcome.quote, priceChange24h: derivedChange24h };
+    const quote: SnapshotQuote = (() => {
+      const merged: SnapshotQuote =
+        derivedChange24h === null
+          ? outcome.quote
+          : { ...outcome.quote, priceChange24h: derivedChange24h };
+      // Single-seam computed FDV (dexter plan todo 38): provider-reported
+      // `fdvUsd` NEVER survives this exit — `fdv = price×(total ?? max)`
+      // with the `marketCapOf`/`isSanePrice` guard vocabulary, else null;
+      // `circulating` never feeds FDV (MC input only). MC is recomputed
+      // as `price×circ` when `circ` is present (no MC>FDV cards); when
+      // `circ` is absent the merged MC is kept (mint supply ~=
+      // circulating for most SPL mints, so MC≈FDV for fixed supply —
+      // same pattern as `marketCapOf` in direct-fast-path.service.ts).
+      const sealed = applyComputedFdv(merged);
+      if (
+        sealed.reportedFdvUsd !== null &&
+        (sealed.fdvUsd === null ||
+          Math.abs(sealed.reportedFdvUsd - sealed.fdvUsd) >
+            computedFdvEpsilonBound(sealed.fdvUsd ?? sealed.reportedFdvUsd))
+      ) {
+        this.logger.debug(
+          `computed-fdv discarded provider-reported fdv ` +
+            `chain=${knownId} address=${inputValue} ` +
+            `reported=${sealed.reportedFdvUsd} computed=${sealed.fdvUsd}`,
+        );
+      }
+      if (
+        sealed.marketCapRecomputed &&
+        sealed.reportedMarketCapUsd !== null &&
+        sealed.reportedMarketCapUsd !== sealed.marketCapUsd
+      ) {
+        this.logger.debug(
+          `computed-fdv recohered marketCap ` +
+            `chain=${knownId} address=${inputValue} ` +
+            `reported=${sealed.reportedMarketCapUsd} computed=${sealed.marketCapUsd}`,
+        );
+      }
+      return {
+        ...merged,
+        fdvUsd: sealed.fdvUsd,
+        marketCapUsd: sealed.marketCapUsd,
+        fdvProvenance: sealed.fdvProvenance,
+      };
+    })();
     const sources =
       derivedChange24h === null
         ? outcome.sources

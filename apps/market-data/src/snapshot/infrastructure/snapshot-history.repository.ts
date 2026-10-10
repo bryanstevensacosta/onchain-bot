@@ -97,6 +97,15 @@ export class SnapshotHistoryRepository {
    * RETENTION LIMIT: the janitor (`SnapshotHistoryJanitorService`)
    * prunes rows older than `SNAPSHOT_HISTORY_RETENTION_DAYS` (90),
    * so this max covers the surviving 90-day window, NOT all time.
+   *
+   * ONE-SEMANTICS NOTE (dexter plan todo 38): since the single-seam
+   * computed FDV, every NEW row carries `quote.fdvProvenance:
+   * 'computed'` (`price×(total ?? max)`, never provider-reported),
+   * so the max is defined over ONE semantics going forward. The 90d
+   * window is MIXED-transient: pre-todo38 provider-reported rows and
+   * post computed rows coexist until the janitor prunes the old ones
+   * (~90d). No backfill (history is append-only by design) — the
+   * transient is accepted and documented here, not hidden.
    */
   public async findFdvAth(
     chain: string,

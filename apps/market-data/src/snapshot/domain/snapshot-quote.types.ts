@@ -38,6 +38,17 @@ export interface SnapshotQuote {
   readonly maxSupply: number | null;
   readonly devWallets: ReadonlyArray<DevWalletQuote> | null;
   readonly devPctSupply: number | null;
+  /**
+   * FDV provenance (dexter plan todo 38): `'computed'` on every quote
+   * sealed by the single-seam computed-FDV exit (`buildSnapshot`) —
+   * the served/persisted FDV is `price×(total ?? max)`, never a
+   * provider-reported number. `null` only pre-seam (merged but
+   * unsealed quotes, pre-todo38 history rows). Deliberately ABSENT
+   * from `SNAPSHOT_QUOTE_FIELDS` below: the aggregator merge never
+   * copies it from a provider (no fetcher sets it — `Partial` legs
+   * simply omit it), so provenance is always assigned, never merged.
+   */
+  readonly fdvProvenance: 'computed' | null;
 }
 
 export const SNAPSHOT_QUOTE_FIELDS: ReadonlyArray<keyof SnapshotQuote> = [
@@ -79,6 +90,7 @@ export function emptySnapshotQuote(): SnapshotQuote {
     maxSupply: null,
     devWallets: null,
     devPctSupply: null,
+    fdvProvenance: null,
   };
 }
 

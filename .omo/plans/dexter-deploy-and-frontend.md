@@ -338,6 +338,13 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartUrl}}`co
       Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes (+ migracion si hay tabla nueva: `migration:show` coherente); set→resuelve, delete→revierte.
       QA scenarios: happy + failure (id invalido, mint malformado). Evidence .omo/evidence/task-fe-override-table.log
       Commit: Y | feat(market-data-overrides): tabla curada mint-launchpad (docs AGENTS+CHANGELOG)
+- [x] 38. FDV calculado localmente (Wave 1 follow-up, evidencia INCOME 2026-10-10: propio price×supply=2689≈Rick 2.7K vs fdv-reportado 3016)
+      What to do / Must NOT do: Single-seam computed FDV en la salida del merge (`buildSnapshot`/exit del agregador — el "UN punto" ya exigido): `fdv = price×(total ?? max)` con guards copiados de `marketCapOf` (`direct-fast-path.service.ts:1013-1024`: ambos finitos y >0, si no → `null`; reutilizar `isSanePrice`/`toNumber`/`supplyToNumber`, no inventar validacion). `circulating` NUNCA alimenta FDV (es input de MC — documentarlo). Invariante con epsilon pineado: `|fdv − price×supply| ≤ max(1e-9×|price×supply|, 1e-9)` (o `toBeCloseTo(...,6)` documentado). COHERENCIA MC (hallazgo review): recomputar `marketCapUsd=price×circ` cuando `circ` presente; si no, documentar `MC≈FDV-para-supply-fijo` en comentario (mismo patron `:1017-1019`) — jamas card con MC>FDV sin explicar. Provenance: tag `fdvProvenance: computed` en filas nuevas para que `findFdvAth` haga max sobre UNA semantica (sin backfill; ventana mixta 90d documentada como transitoria). Debug-log de reportados descartados. Re-pinear specs tiebreak best-pick (`token-scan-best-pick.spec.ts:59-67`, ranking liquidity-first intacto — regression, no rediseno). Fixtures: 3 (Solana-fixed-supply, EVM-vested, null-supply→null) + INCOME como 4to (price×supply≈2689 vs 3016, con supply-field citado: total vs max explicitado). Docs: market-data AGENTS (regla + coherencia MC) + CHANGELOG (ADD-only).
+      Parallelization: Wave 1 follow-up (1 worker) | Blocked by: — | Blocks: —
+      References: `provider-quote.fetchers.ts` (gecko :354, solanaRpc :580, birdeye :420, mobula :442 aportan `total`; solo CoinGecko :76-81 trae max/circ), `snapshot-aggregator.service.ts:103-110` (merge first-non-null), `snapshot-history.repository.ts:101-134` (`findFdvAth` sin proveniencia hoy), definicion FDV=price×total (CoinGecko/Coinbase; mint-disabled ⇒ total==max).
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; invariante con epsilon verde en fixtures; best-pick re-verificado; QA live INCOME → fdv ≈2.7K.
+      QA scenarios: happy (calculado exacto) + failure (sin supply → null, NaN/Infinity/negativo → null). Evidence .omo/evidence/task-fe-computed-fdv.log
+      Commit: Y | feat(market-data-fdv): fdv calculado local (docs AGENTS+CHANGELOG)
 
 ### Wave 0 — guion local owner (10 min, dexter `:4060` + frontend `:5173`)
 
@@ -415,6 +422,7 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartUrl}}`co
 | 35 detect-budget        | —                | —            | 2                    |
 | 36 helius-origin        | —                | —            | 2                    |
 | 37 override             | —                | —            | 2                    |
+| 38 computed-fdv         | —                | —            | 2                    |
 
 ## Commit strategy
 

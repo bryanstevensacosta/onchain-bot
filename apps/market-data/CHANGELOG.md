@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Single-seam computed FDV (dexter plan todo 38):** the merge exit
+  (`buildSnapshot`) is the ONE FDV seam — provider-reported `fdvUsd`
+  never survives: `fdv = price×(total ?? max)` with the `marketCapOf`
+  / `isSanePrice` / `toNumber` guard vocabulary (both finite and > 0,
+  else null; `circulating` never feeds FDV). MC recoheres as
+  `price×circ` when `circ` present (no MC > FDV cards); merged MC kept
+  otherwise (fixed-supply MC≈FDV assumption, `marketCapOf` pattern).
+  Discarded reporteds debug-logged. New history rows tagged
+  `fdvProvenance: 'computed'` (jsonb key, no migration; `findFdvAth`
+  max over one semantics, 90d mixed-window transient documented, no
+  backfill). Pure helper `snapshot/domain/snapshot-computed-fdv.ts`
+  with epsilon-invariant specs on 4 fixtures (Solana-fixed,
+  EVM-vested, null-supply→null, INCOME price×total≈2689 vs reported 3016) + seam specs + edge matrix (NaN/Infinity/negative/zero →
+  null); best-pick tiebreak re-verified (ranking untouched).
+
 - **Helius history origin leg (dexter plan todo 36):** LAST-resort
   Solana leg for graduated-old mints (live curve closed — PDA batch
   - heaven both miss): ONE `getAddressHistory` pull (limit 100) →

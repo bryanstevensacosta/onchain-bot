@@ -1179,6 +1179,46 @@ resolves origin from on-chain HISTORY via the Helius seam
   `signer` undefined → null, never guesses). Evidence:
   `.omo/evidence/task-fe-helius-origin.log`.
 
+## COMPUTED FDV (todo 38, 2026-10-10)
+
+Single-seam computed FDV at the merge exit (`buildSnapshot` in
+`address-snapshot.service.ts` — the ONE place FDV is decided, both
+serve paths converge there): `fdv = price×(total ?? max)` with guards
+copied from `marketCapOf` (`direct-fast-path.service.ts:1013-1024`) +
+`isSanePrice` (`:173-177`) + `toNumber` (fetchers) — both finite and
+
+> 0, else `null`; never invented validation. `circulating` NEVER feeds
+> FDV (MC input only — enforced by the helper taking no circ parameter).
+> `total ?? max`: total wins (mint-disabled ⇒ total == max on fixed
+> supply); max is the EVM-vested fallback (CoinGecko is the only fetcher
+> carrying max/circ; gecko/solanaRpc/birdeye/mobula carry `total` only).
+> Pure math lives in `snapshot/domain/snapshot-computed-fdv.ts`
+> (spec-pinned epsilon invariant
+> `|fdv − price×supply| ≤ max(1e-9×|…|, 1e-9)` on 4 fixtures:
+> Solana-fixed, EVM-vested, null-supply→null, INCOME with supply field
+> cited: total).
+
+- MC COHERENCE (review finding): `marketCapUsd = price×circ`
+  recomputed when `circ` present (no card shows MC > FDV unexplained);
+  when `circ` absent the merged MC is kept (mint supply ~= circulating
+  for most SPL mints, so MC≈FDV for fixed supply — same pattern as
+  `marketCapOf :1017-1019`). Discarded provider-reporteds are
+  debug-logged (`computed-fdv discarded …` / `recohered …` lines).
+- PROVENANCE: new history rows carry `quote.fdvProvenance: 'computed'`
+  (no migration — jsonb key; absent from `SNAPSHOT_QUOTE_FIELDS` so the
+  merge never copies it, always assigned at the seam). `findFdvAth`
+  still maxes `fdvUsd` (one computed semantics going forward); the 90d
+  window is MIXED-transient (pre-seam provider rows age out via the
+  janitor, no backfill — documented in the repository docstring).
+- Fast-path Solana cards already compute `price×supply` via
+  `marketCapOf` — the seam recomputes the identical value and tags it
+  (no double semantics). EVM fast cards carry no supply → computed
+  null, same as before. Best-pick ranking untouched (liquidity-first +
+  FDV tiebreak re-verified green, no redesign).
+- Evidence: INCOME `7Dyyq…vimkYdX` own price×total ≈ 2689 ≈ Rick 2.7K
+  vs reported 3016 (fixture reproduces cited magnitudes; live NOT
+  re-probed — fixtures carry the proof per the todo).
+
 ## SECURITY (P46, todo 10)
 
 Scoped API keys (`src/auth/`): `read` (GET chains/providers/addresses/

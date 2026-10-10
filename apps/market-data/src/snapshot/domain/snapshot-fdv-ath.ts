@@ -14,6 +14,12 @@
  * in-flight snapshot's own FDV is NEVER substituted (read happens
  * BEFORE the current row is persisted, so a first-seen token always
  * resolves `null`).
+ *
+ * ONE-SEMANTICS NOTE (dexter plan todo 38): post-seam rows are all
+ * `fdvProvenance: 'computed'` (`price×(total ?? max)`), so the max
+ * is over one semantics going forward; the 90d window is
+ * mixed-transient (pre-seam provider-reported rows age out via the
+ * janitor, no backfill).
  */
 export interface SnapshotFdvAth {
   readonly fdvUsd: number;
