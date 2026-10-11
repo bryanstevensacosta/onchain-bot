@@ -1288,6 +1288,81 @@ are OUT (mint-TLV parsing, no demand case, fail-open null). Compat
 edge carries the field; the reduced batch surface does not (no
 venue/launchpad/fdvAth there either — unchanged).
 
+## FREE-SCALE: SINGLEFLIGHT + TTL POLICY + GOVERNOR (todo 41, 2026-10-11)
+
+Invariant owner (2026-10-11): query volume grows unbounded; every data
+method stays free-tier forever — scale by FEWER calls, never more quota.
+
+HEADROOM MATH (M = measured in this repo, A = assumed/doc; per-COLD-scan
+costs from the todo-40 reference shape + code reads; bare-sweep
+multiplies per candidate chain — up to ~8 snapshots per bare address):
+
+| Provider                   | Free ceiling + doc URL                                                                                                 | Cost / cold scan                                       | Max cold scans/min | 10x (20/min)           | 100x (200/min)                       |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------ | ---------------------- | ------------------------------------ |
+| DexScreener keyless        | 60 req/min/endpoint, https://docs.dexscreener.com/api/reference                                                        | ~3 (M: strict + search + tokensInfo fallbacks)         | ~20                | AT ceiling             | shed (governor L2 + buckets + stale) |
+| GeckoTerminal keyless      | ~10/min base (~30/min per-endpoint), https://api.geckoterminal.com/docs (M: 429 wall at ~5-burst, `task-fe-retry.log`) | ~3 (M: pools + search + conditional OHLC)              | ~3-10              | EXCEEDS 2-6x           | shed (stale replay + honest pending) |
+| CoinGecko Demo keyed       | ~30/min, 10k credits/mo, https://docs.coingecko.com/reference/*                                                        | ~1 (A)                                                 | ~30                | ok                     | shed (Tier-2 off at L1)              |
+| Birdeye keyed              | CU-metered, /defi/price 300 rps, https://docs.birdeye.so/reference/*                                                   | ~1-2 (A)                                               | key-plan           | ok                     | shed (Tier-2 off at L1)              |
+| Etherscan V2 keyed         | 3/s free, https://docs.etherscan.io/etherscan-v2                                                                       | ~1-2 EVM holders (A)                                   | ~90                | ok                     | ok                                   |
+| Alchemy keyed              | key plan, https://www.alchemy.com/docs/reference/api-overview (M: 8/8 chainIds healthy)                                | ~6 EVM RPC/scan, x2 retry cap (M: `free-b-tiers.spec`) | plan-bound         | ok                     | shed with tier                       |
+| Shyft keyed                | 20/s RPC, Index 0 carved (M: getHealth ok 2026-10-09)                                                                  | ~4 Solana/scan (M)                                     | ~300               | ok                     | ok                                   |
+| Helius                     | 0-reliable (M: headerless-429 wall, `task-fe-free-quota.log` §1a)                                                      | 0 capacity in math                                     | 0                  | n/a (fallback absorbs) | n/a                                  |
+| Public Solana              | 40 req/10s/IP, https://solana.com/docs/rpc/http                                                                        | last tier (A)                                          | ~240               | ok                     | ok                                   |
+| RugCheck/DeFiLlama keyless | no published hard quota (https://api.rugcheck.xyz/swagger/index.html)                                                  | ~1 (A)                                                 | unknown-bounded    | watch                  | watch                                |
+
+Current load ~2 cold snapshots/min (M: operator-only cadence, probes
+spaced ≥8s; 30s edge cache absorbs repeats at 0 quota). VERDICT
+(declared per the todo's Tier-0 rule): Tier-0-alone (Gecko ~3-10/min,
+Dex ~20/min) EXCEEDS at 10x current — the invariant is BOUNDED, not
+hoped: sustained cold demand past ~10 MISS/min sheds Tier-2, past ~90
+MISS/min serves Tier-0-only + stale replays (24h bound) + honest
+pending. At 100x the asymptote is cache-mostly-stale + Tier-0-only
+live legs; singleflight absorbs concurrent duplicates (N→1 upstream).
+
+Mechanisms (all fail-open, all in `snapshot/`):
+
+- `SingleflightService` (`snapshot/application/`): `Map<string,Promise>`
+  - `try/finally` delete + cap 1000 LRU + own timeout (default 15s,
+    `SNAPSHOT_SINGLEFLIGHT_TIMEOUT_MS`) rejecting adherents without
+    poisoning (late leader success still warms the cache). Normalization
+    IS `AddressIdVo` (the `snapshot:<chain>:<address>:<kind>` cache key —
+    no new function). Interposed at the `getSnapshot` entry (the single
+    choke point every edge/batch caller funnels through).
+- `snapshot/domain/snapshot-ttl-policy.ts` (SINGLE source of truth,
+  30s default preserved): numbers 30s (hot+edge writers) / identity
+  history-bound, no TTL writer / venue-launchpad live-per-call + 30d
+  tripwire-verified discovery cache (invalidated by tripwire mismatch /
+  migration signal / operator override — never "immutable by mint") /
+  holders-dev 30s card-only, NO hours-class without a signal trigger
+  (rug/dev-dump moves in minutes). PENDING IS NEVER CACHED (19a
+  absolute — no pending TTL exists on purpose). `snapshot-ttl-policy.
+spec.ts` FAILS on any hardcoded TTL literal in a snapshot writer.
+- Stale trio per class (ONE trio, class-scoped semantics — no new
+  bits): on replay, numbers+identity+dev are stale (age `staleAgeMs`);
+  venue/launchpad/fdvAth on the SAME card resolve live and stay fresh.
+  `no-bit-without-age` is runtime-guarded (corrupt row → honest
+  pending, never a bit with no age). Stale replays are never cached,
+  never re-persisted.
+- Tail-degraded (ONE decision, pinned): `AddressSnapshot.degraded`
+  (true on any `tail:*` timeout, `dev:fast-path` skip, or
+  `metadata-identity` timeout) travels edge → dexter → frontend
+  `Partial data` badge. Degraded-ready IS cached with the bit set
+  (30s — the bit IS the honesty); pending/stale never.
+- `QuotaGovernorService` (the ONE governor, read in `getSnapshot`
+  AFTER the cache check, BEFORE the fan-out; edges/batch check
+  NOTHING): signal = own rolling MISS counter (outbound estimate) +
+  breaker open-count + 429/quota-event metric from `providerErrors`
+  (own `governor:*` notes + `tail:*` latency excluded — no feedback
+  latch); actuator = tier-skip (L1 sheds Tier-2 keyed, L2 Tier-1+2 →
+  Tier-0-only) + `providerErrors['governor:shed-tier-N']` audit note.
+  Tier-0 is never shed (their walls are absorbed by buckets + retry
+  cap + breaker + stale, pinned above). Thresholds pinned with env
+  overrides (`GOVERNOR_L1/L2_*`); memory + reset-on-deploy ACCEPTED.
+- Kill-list: NONE executed (every removal needs spec + live fixture +
+  coverage class + owner sign — nothing met the bar; the governor
+  sheds transiently at runtime with an audit trail, which is NOT a
+  removal). Full evidence: `.omo/evidence/task-fe-free-scale.log`.
+
 ## SECURITY (P46, todo 10)
 
 Scoped API keys (`src/auth/`): `read` (GET chains/providers/addresses/

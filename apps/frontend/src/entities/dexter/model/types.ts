@@ -77,6 +77,13 @@ export interface ResolvedTokenSnapshot {
   readonly staleAsOf?: string | null;
   /** Serve-time age of the replay in ms (`null` fresh). */
   readonly staleAgeMs?: number | null;
+  /**
+   * Tail-degraded marker (dexter plan todo 41b): `true` when the card
+   * served without one or more tail extras (launchpad/venue/dev timed
+   * out or skipped) — the UI badges it `Partial data`. Optional so
+   * older shapes stay full.
+   */
+  readonly degraded?: boolean | null;
   readonly name?: string | null;
   readonly marketCapUsd?: number | null;
   readonly fdvUsd?: number | null;

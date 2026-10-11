@@ -409,6 +409,11 @@ export function LiveEditorSection() {
                   </Badge>
                 </span>
               )}
+              {liveResult.token?.degraded === true && (
+                <span data-testid="dexter-live-degraded-data">
+                  <Badge tone="amber">Partial data</Badge>
+                </span>
+              )}
               {liveResult.truncated && (
                 <span data-testid="dexter-live-truncated">
                   <Badge tone="yellow">truncated</Badge>

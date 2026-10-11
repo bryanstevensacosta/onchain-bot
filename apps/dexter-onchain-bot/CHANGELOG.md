@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Tail-degraded pin-through (dexter plan todo 41b):**
+  `MarketDataSnapshot.degraded?` (client-validated via
+  `toDegradedOrFalse`, strict `true` only) → `ResolvedToken.
+degraded?` (pipeline always sets, explicit `false` on full cards).
+  Preview `token` echo + `GET /dexter/token` spread carry it with no
+  extra code; stale + degraded are independent bits. Frontend badges
+  it `Partial data`.
+
 - **Identity provenance with disclosure marker (dexter plan todo 39):**
   `MarketDataSnapshot.identityProvenance?` (client-validated, exact
   `'market'`/`'metadata'` else null) → `ResolvedToken.

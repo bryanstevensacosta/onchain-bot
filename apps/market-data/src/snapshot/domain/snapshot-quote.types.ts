@@ -10,6 +10,7 @@
  * `aggregators/`).
  */
 import type { ProviderRateLimitConfig } from 'provider/domain/provider-limiter-config';
+import { SNAPSHOT_NUMBERS_TTL_SECONDS } from './snapshot-ttl-policy';
 
 export interface DevWalletQuote {
   readonly wallet: string;
@@ -133,8 +134,8 @@ export const SNAPSHOT_QUOTE_PROVIDERS = 'SNAPSHOT_QUOTE_PROVIDERS';
 /** Per-call ceiling for one provider fetch (adapters use 5-8s axios). */
 export const SNAPSHOT_PROVIDER_TIMEOUT_MS = 8_000;
 
-/** Hot-result cache TTL in seconds (mirrors the 30s edge cache). */
-export const SNAPSHOT_CACHE_TTL_SECONDS = 30;
+/** Hot-result cache TTL in seconds (single source: `snapshot-ttl-policy.ts`, default 30s preserved). */
+export const SNAPSHOT_CACHE_TTL_SECONDS = SNAPSHOT_NUMBERS_TTL_SECONDS;
 
 /**
  * Serve-stale max age in hours (dexter plan todo 19b1, SWR floor).

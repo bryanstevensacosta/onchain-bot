@@ -37,7 +37,8 @@ import { DiscoveryCacheEntity } from './infrastructure/discovery-cache.entity';
 import { DiscoveryCacheRepository } from './infrastructure/discovery-cache.repository';
 import { DiscoveryCacheService } from './application/discovery-cache.service';
 import { DiscoveryCacheJanitorService } from './application/discovery-cache-janitor.service';
-
+import { SingleflightService } from './application/singleflight.service';
+import { QuotaGovernorService } from './application/quota-governor.service';
 /**
  * SnapshotModule (Tramo 3, todo 12, P50; market-data restructure:
  * aggregation moved to AggregatorsModule — this module owns history
@@ -85,6 +86,8 @@ import { DiscoveryCacheJanitorService } from './application/discovery-cache-jani
     DiscoveryCacheRepository,
     DiscoveryCacheService,
     DiscoveryCacheJanitorService,
+    SingleflightService,
+    QuotaGovernorService,
     DirectFastPathService,
     // On-chain readers (todo 22 wire-up): built from the frozen Lane T
     // transports via factories (interface-typed ctor params need

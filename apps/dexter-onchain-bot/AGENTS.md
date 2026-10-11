@@ -694,3 +694,14 @@ pending for … — retry shortly`). `MARKET_DATA_TIMEOUT_MS` default
   frontend inherit the marked text through the render — no extra
   code on any surface (legacy `formatScanCard` fallback untouched,
   byte-identical).
+
+- Tail-degraded pin-through (plan todo 41b, ONE decision): market-data
+  tags every card `degraded` (true on any tail-extra timeout/skip).
+  `MarketDataSnapshot.degraded?` (client validates via
+  `toDegradedOrFalse` — strict `true` only, else false) →
+  `ResolvedToken.degraded?` (pipeline ALWAYS sets, explicit `false`
+  on full cards; optional only so older literals compile) → preview
+  `token` echo (verbatim, no use-case change) → `GET /dexter/token`
+  spread. Stale AND degraded are independent bits (a stale-degraded
+  card carries both). Frontend badges it `Partial data` (preview +
+  live editor, English per page convention).

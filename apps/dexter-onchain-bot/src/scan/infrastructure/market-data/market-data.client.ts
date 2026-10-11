@@ -128,6 +128,16 @@ export function toStaleAgeMsOrNull(raw: unknown): number | null {
 }
 
 /**
+ * Tail-degraded marker (dexter plan todo 41b): `degraded` is `true`
+ * ONLY when market-data served the card without tail extras — anything
+ * but boolean `true` reads `false`, so older market-data answers
+ * (field absent) stay full-shaped.
+ */
+export function toDegradedOrFalse(raw: unknown): boolean {
+  return raw === true;
+}
+
+/**
  * Identity provenance (dexter plan todo 39): `'market'` (providers /
  * discovery pair side) or `'metadata'` (on-chain Metaplex PDA, last
  * resort). Anything else (absent on older market-data answers,
@@ -164,6 +174,7 @@ export interface MarketDataSnapshot {
   readonly stale?: boolean | null;
   readonly staleAsOf?: string | null;
   readonly staleAgeMs?: number | null;
+  readonly degraded?: boolean | null;
   readonly launchpad?: MarketDataLaunchpad | null;
   readonly venue?: MarketDataVenue | null;
   readonly identityProvenance?: 'market' | 'metadata' | null;
@@ -241,6 +252,7 @@ export class MarketDataClient {
         stale: toStaleOrFalse(body.stale),
         staleAsOf: toStaleAsOfOrNull(body.staleAsOf),
         staleAgeMs: toStaleAgeMsOrNull(body.staleAgeMs),
+        degraded: toDegradedOrFalse(body.degraded),
         launchpad: toLaunchpadOrNull(body.launchpad),
         venue: toVenueOrNull(body.venue),
         identityProvenance: toIdentityProvenanceOrNull(body.identityProvenance),

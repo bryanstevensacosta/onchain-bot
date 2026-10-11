@@ -6,6 +6,15 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ### Added
 
+- **Tail-degraded badge (dexter plan todo 41b):**
+  `ResolvedTokenSnapshot` gains optional `degraded?` (backend always
+  sets it, older shapes read full). `PreviewSection`
+  (`dexter-preview-degraded`) + `LiveEditorSection`
+  (`dexter-live-degraded-data`) badge tail-degraded cards `Partial
+data` (amber, English per dexter page convention). Independent of
+  the stale badge — a card can carry both. Tests: both section specs
+  (badge + no-badge cases).
+
 - **Stale-data disclosure badge (dexter plan todo 19b1):**
   `ResolvedTokenSnapshot` gains the serve-stale trio (`stale?`/
   `staleAsOf?`/`staleAgeMs?`, all optional — backend always sets

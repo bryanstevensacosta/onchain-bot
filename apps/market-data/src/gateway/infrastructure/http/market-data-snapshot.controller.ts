@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { CacheInterceptor } from 'cache/infrastructure/cache.interceptor';
 import { CacheTTL } from 'cache/infrastructure/cache-ttl.decorator';
+import { SNAPSHOT_EDGE_TTL_SECONDS } from 'snapshot/domain/snapshot-ttl-policy';
 import { AddressSnapshotService } from 'snapshot/application/address-snapshot.service';
 import { GatewayRateLimitGuard } from '@/gateway/application/gateway-rate-limit.guard';
 import { RequireScope } from 'auth/application/require-scope.decorator';
@@ -41,7 +42,7 @@ export class MarketDataSnapshotController {
   public constructor(private readonly snapshots: AddressSnapshotService) {}
 
   @Get('snapshot')
-  @CacheTTL(30)
+  @CacheTTL(SNAPSHOT_EDGE_TTL_SECONDS)
   public async getSnapshot(
     @Query('chain') chain: string,
     @Query('address') address: string,
@@ -83,6 +84,7 @@ export class MarketDataSnapshotController {
       stale: snap.stale,
       staleAsOf: snap.staleAsOf,
       staleAgeMs: snap.staleAgeMs,
+      degraded: snap.degraded,
       providers: snap.providers,
       sources: snap.sources,
       providerErrors: snap.providerErrors,

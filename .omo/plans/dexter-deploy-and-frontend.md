@@ -359,6 +359,13 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartUrl}}`co
       Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; tabla con margen por provider; ≥1 recorte ejecutado o justificado-no-necesario con numeros.
       QA scenarios: happy (margen positivo) + failure (techo excedido → degradacion disenada, no crash). Evidence .omo/evidence/task-fe-free-quota.log
       Commit: Y | perf(market-data-quota): estrategia 100-free (docs AGENTS+CHANGELOG)
+- [x] 41. Escalar gratis: singleflight + cache extendido + governor de cuota (Wave 1 follow-up, invariante owner 2026-10-11)
+      What to do / Must NOT do: **(a) Singleflight pineado** (primitive inexistente: grep `singleflight|inflight|dedup` = 0; `halfOpenProbeInFlight` no sirve): `SingleflightService` con `Map<string,Promise>` + `try/finally` delete garantizado + cap 1000 entradas con eviccion LRU + timeout propio que rechaza adheridos sin envenenar llave + normalizacion reutilizando `AddressIdVo` (prohibida funcion nueva) + specs (N-concurrentes=1-upstream, throw-limpia-llave, cardinalidad-acotada-bajo-enumeracion). Sin libs nuevas o lib acotada pineada (una, documentada). **(b) Politica TTL central** (`snapshot/domain/snapshot-ttl-policy.ts` NUEVO, unico source-of-truth; default 30s preservado + spec que falla si un writer usa TTL hardcodeado): identidad-largo / numeros-segundos / venue-launchpad-largo-atado-a-tripwire-migracion-override-existentes (NO "inmutable por mint" pelado) / holders-dev: SOLO con trigger de invalidez por senal o TTL-corto-justificado (rug/dev-dump mueven en minutos; sin trigger no hay clase-horas). **PROHIBIDO cachear pendings** (revertir el "salvo ≤5s": 19a manda absoluto; spec P12-repeat intacta). Cards con extras degradados: marcar `tail-degraded` end-to-end (extender trio `stale` o campo `degraded`, UNA decision) o no cachearlas (UNA, pineada). **(c) Stale-trio por clase TTL INCLUYENDO badge frontend** (hoy cero hits `stale` en `apps/frontend/src` — el bit muere antes del operador): por clase (valor TTL, semantica bit, fuente age) + specs clock-mock + invariante `no-bit-without-age` + regresion pending-nunca-cacheado; badge "datos de hace X". **(d) Governor UNICO** (`QuotaGovernorService` leido en `getSnapshot` ANTES del fan-out; resto de call-sites NO chequean): senal = contador outbound + estado breaker + metrica 429; actuador = skip por tier en ese punto + `providerErrors['governor:…']` auditable. **Headroom math PRE-REQ** (tabla QPS-actual ×10×/100× vs techos free documentados con URLs; si Tier-0-solo excede a 10×, declarar invariante refutada o acotada — sin math no hay governor). **Asintota declarada en la INVARIANTE** (a 100× se sirve cache-mayormente-stale + Tier-0-solo, o lo que salga del math — escribirlo). **Kill-list con juez** (por baja: spec + fixture live + clase cobertura todo-31 + firma owner).
+      Parallelization: Wave 1 follow-up (1-2 workers) | Blocked by: — | Blocks: —
+      References: `address-snapshot.service.ts:107-108` (no existe helper), `:1116` (guard no-pending a reutilizar, no reimplementar), `:1127` + controller `:44` + `gateway-policy.ts:16` (TTL 30s actual), `provider-outbound-limits.ts` (presupuesto), `preview-section.tsx:243-246` (unico pin frontend del trio — extender desde ahi).
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; singleflight specs (incl. enumeracion); TTL-policy spec anti-hardcode; stale-por-clase con badge; governor con math previa; kill con juez.
+      QA scenarios: ejecutables (herramienta clock-mock + `breakerStates()`; presion simulada → orden Tier-2-off, Tier-0-desde-cache; numeros esperados). Evidence .omo/evidence/task-fe-free-scale.log
+      Commit: Y | perf(market-data-scale): singleflight + ttl-policy + governor (docs AGENTS+CHANGELOG)
 
 ### Wave 0 — guion local owner (10 min, dexter `:4060` + frontend `:5173`)
 
@@ -439,6 +446,11 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartUrl}}`co
 | 38 computed-fdv         | —                | —            | 2                    |
 | 39 meta-fallback        | —                | —            | 2                    |
 | 40 free-quota           | —                | —            | 2                    |
+| 41 free-scale           | —                | —            | 2                    |
+
+## Invariants
+
+INVARIANTE-OWNER (2026-10-11): volumen de consultas crecera sin techo; TODOS los metodos de obtencion de datos son gratuitos para siempre — prohibido disenar dependiendo de tiers de pago; la escalabilidad se logra con menos llamadas, no con mas cuota.
 
 ## Commit strategy
 

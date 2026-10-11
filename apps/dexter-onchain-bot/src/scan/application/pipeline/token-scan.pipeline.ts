@@ -8,6 +8,7 @@ import {
   toStaleAgeMsOrNull,
   toStaleAsOfOrNull,
   toStaleOrFalse,
+  toDegradedOrFalse,
   toVenueOrNull,
   type MarketDataSnapshot,
 } from '@/scan/infrastructure/market-data/market-data.client';
@@ -332,6 +333,7 @@ export class TokenScanPipeline implements ScanPipeline {
       readonly stale?: unknown;
       readonly staleAsOf?: unknown;
       readonly staleAgeMs?: unknown;
+      readonly degraded?: unknown;
     },
     alternatives: ReadonlyArray<TokenAlternative> = [],
   ): Promise<ResolvedToken> {
@@ -371,6 +373,7 @@ export class TokenScanPipeline implements ScanPipeline {
       stale: toStaleOrFalse(snapshot.stale),
       staleAsOf: toStaleAsOfOrNull(snapshot.staleAsOf),
       staleAgeMs: toStaleAgeMsOrNull(snapshot.staleAgeMs),
+      degraded: toDegradedOrFalse(snapshot.degraded),
       alternatives,
     };
   }

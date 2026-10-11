@@ -111,6 +111,16 @@ export interface ResolvedToken {
   readonly staleAsOf?: string | null;
   readonly staleAgeMs?: number | null;
   /**
+   * Tail-degraded marker (dexter plan todo 41b, ONE decision pinned):
+   * `true` when market-data served the card WITHOUT one or more tail
+   * extras (launchpad/venue/dev timed out or skipped) — numbers stay
+   * honest, the missing fields render N/A. Always set by the pipeline
+   * (explicit `false` on full cards); optional only so older literals
+   * keep compiling. Preview, bot and frontend inherit it through the
+   * token object, same path as the stale trio.
+   */
+  readonly degraded?: boolean | null;
+  /**
    * Identity provenance (dexter plan todo 39): `'market'` (providers
    * / discovery pair side) or `'metadata'` (on-chain Metaplex PDA as
    * last resort). ALWAYS set by the pipeline (`'market'` default

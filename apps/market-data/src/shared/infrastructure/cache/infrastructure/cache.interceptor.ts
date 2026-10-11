@@ -8,8 +8,9 @@ import { Reflector } from '@nestjs/core';
 import { Observable, map, of, tap } from 'rxjs';
 import { CacheService } from '../application/cache.service';
 import { CACHE_TTL_KEY } from './cache-ttl.decorator';
+import { SNAPSHOT_EDGE_TTL_SECONDS } from 'snapshot/domain/snapshot-ttl-policy';
 
-const DEFAULT_TTL_SECONDS = 30;
+const DEFAULT_TTL_SECONDS = SNAPSHOT_EDGE_TTL_SECONDS;
 
 /**
  * CacheInterceptor (Tramo 3, todo 2, SLO layer).

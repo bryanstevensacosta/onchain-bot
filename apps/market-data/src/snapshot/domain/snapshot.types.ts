@@ -51,6 +51,16 @@ export interface AddressSnapshot extends SnapshotQuote {
    * is true (over-bound rows answer honest `pending`, never stale).
    */
   readonly staleAgeMs: number | null;
+  /**
+   * Tail-degraded marker (dexter plan todo 41b, ONE decision pinned):
+   * `true` when any tail extra timed out or was skipped (`tail:*`),
+   * the fast path skipped dev holdings (`dev:fast-path`), or the
+   * metadata-identity leg timed out — the card served WITHOUT those
+   * fields. Degraded cards ARE cached with the bit set (30s numbers
+   * TTL — the bit IS the honesty). Always set explicitly (never
+   * `undefined`), same rule as `stale`.
+   */
+  readonly degraded: boolean;
   /** Registry id from `asset_registry` (contract+chain), null when unregistered. */
   readonly assetId: string | null;
   /**

@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Free-scale: singleflight + TTL policy + governor + tail-degraded
+  (dexter plan todo 41):** `SingleflightService` (N-concurrent
+  same-key snapshots collapse to one upstream run; `Map` +
+  `try/finally` delete + 1000-cap LRU + 15s own timeout rejecting
+  adherents without poisoning; normalization IS `AddressIdVo`, no new
+  function; interposed at the `getSnapshot` entry) +
+  `snapshot/domain/snapshot-ttl-policy.ts` (single source of truth,
+  30s default preserved; numbers 30s / identity history-bound /
+  venue-launchpad live-per-call + tripwire / holders-dev 30s
+  card-only with no hours-class; pending never cached; anti-hardcode
+  spec fails on TTL literals in writers) + stale trio per class (one
+  trio: numbers/identity/dev stale with `staleAgeMs`,
+  venue/launchpad/fdvAth live even on replays; `no-bit-without-age`
+  runtime-guarded) + `AddressSnapshot.degraded` (tail timeouts/skips,
+  cached WITH the bit, pending/stale never) + `QuotaGovernorService`
+  (ONE governor read pre-fan-out: MISS counter + breaker open-count +
+  429 metric; L1 sheds Tier-2 keyed, L2 Tier-1+2, Tier-0 never shed;
+  `providerErrors['governor:shed-tier-N']` audit note). Headroom math:
+  Tier-0-alone saturates at ~3-20 cold scans/min vs ~2/min current —
+  10x EXCEEDS, so the invariant is BOUNDED (Tier-0-only + stale +
+  honest pending past ~90 MISS/min; 100x = cache-mostly-stale).
+  Kill-list: none executed. Compat + batch edges carry `degraded`.
+
 - **Identity provenance + metadata last resort (dexter plan todo 39):**
   `SnapshotQuote.identityProvenance: 'market' | 'metadata' | null`
   (assigned, never merged — absent from `SNAPSHOT_QUOTE_FIELDS`;

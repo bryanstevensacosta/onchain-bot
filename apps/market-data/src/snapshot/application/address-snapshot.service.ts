@@ -67,6 +67,16 @@ import {
 } from 'provider/infrastructure/onchain/evm-tolerance';
 import { DiscoveryCacheService } from './discovery-cache.service';
 import { OnchainSolanaReaderService } from 'provider/infrastructure/onchain/onchain-solana.reader';
+import { SingleflightService } from './singleflight.service';
+import {
+  QuotaGovernorService,
+  quotaGovernorTierOf,
+  type QuotaGovernorTier,
+} from './quota-governor.service';
+import {
+  isStaleTrioValid,
+  isTailDegraded,
+} from '../domain/snapshot-ttl-policy';
 
 /** Log helper: nullable ms renders as `n/a` (never crashes the line). */
 const roundMs = (ms: number | null): string =>
@@ -259,6 +269,17 @@ export class AddressSnapshotService {
     @Optional()
     @Inject(OnchainSolanaReaderService)
     private readonly solanaReader: OnchainSolanaReaderService | null = null,
+    // Singleflight (dexter plan todo 41a): N-concurrent same-key
+    // snapshots collapse to ONE upstream run. Null in hand-built
+    // specs -> direct call-through, byte-identical.
+    @Optional()
+    @Inject(SingleflightService)
+    private readonly singleflight: SingleflightService | null = null,
+    // Quota governor (dexter plan todo 41d): the ONE governor, read
+    // BEFORE the fan-out. Null in hand-built specs -> admit all.
+    @Optional()
+    @Inject(QuotaGovernorService)
+    private readonly governor: QuotaGovernorService | null = null,
   ) {}
 
   /** In-flight half-open probe key (at most ONE globally — the single cheapest-fetcher probe). */
@@ -512,7 +533,7 @@ export class AddressSnapshotService {
   public async getSnapshot(
     input: AddressSnapshotInput,
   ): Promise<AddressSnapshot> {
-    const startedAt = performance.now();
+    const entryStartedAt = performance.now();
     const chain = (input.chain ?? '').trim();
     if (chain === '') {
       throw new NotFoundException('Chain qualifier is required');
@@ -527,13 +548,46 @@ export class AddressSnapshotService {
       kindHint: input.kindHint,
       probe: input.probe ?? null,
     });
-    const kindMs = Math.round(performance.now() - startedAt);
+    const kindMs = Math.round(performance.now() - entryStartedAt);
     const id = AddressIdVo.from(known.id, input.value, kind);
     const supporting = this.providers
       .listProviders()
       .filter((provider) => provider.supportsChains.includes(known.id))
       .map((provider) => provider.name);
+    // Normalization IS `AddressIdVo` (no new function by design):
+    // the singleflight key is the same normalized cache key below.
     const cacheKey = `snapshot:${id.chain}:${id.address}:${id.kind}`;
+    const run = (): Promise<AddressSnapshot> =>
+      this.getSnapshotInner({
+        knownId: known.id,
+        inputValue: input.value,
+        cacheKey,
+        kind,
+        id,
+        supporting,
+        kindMs,
+      });
+    // Singleflight at the `getSnapshot` entry (the single choke point
+    // every edge/batch caller funnels through): N concurrent same-key
+    // calls collapse to ONE upstream run.
+    if (this.singleflight !== null && this.singleflight !== undefined) {
+      return this.singleflight.run(cacheKey, run);
+    }
+    return run();
+  }
+
+  private async getSnapshotInner(args: {
+    readonly knownId: string;
+    readonly inputValue: string;
+    readonly cacheKey: string;
+    readonly kind: string;
+    readonly id: AddressIdVo;
+    readonly supporting: ReadonlyArray<string>;
+    readonly kindMs: number;
+  }): Promise<AddressSnapshot> {
+    const startedAt = performance.now();
+    const { knownId, inputValue, cacheKey, kind, id, supporting, kindMs } =
+      args;
     if (this.cache) {
       const cached = await this.cache.get<AddressSnapshot>(cacheKey);
       if (cached !== null) {
@@ -547,7 +601,7 @@ export class AddressSnapshotService {
       }
     }
     const active = (this.fetchers ?? []).filter((fetcher) =>
-      fetcher.supportsChains.includes(known.id),
+      fetcher.supportsChains.includes(knownId),
     );
     // Aggregators policy order (market-data restructure): ordered
     // provider list from context (kind, chain, fields, quota state,
@@ -558,14 +612,19 @@ export class AddressSnapshotService {
         ? active
         : this.policy.orderFetchers(active, {
             kind,
-            chain: known.id,
-            address: input.value,
+            chain: knownId,
+            address: inputValue,
             fields: [...SNAPSHOT_QUOTE_FIELDS],
             quota: {},
             credits: {},
           });
+    // Quota governor (dexter plan todo 41d): read BEFORE the fan-out,
+    // AFTER the cache check above (HITs cost zero quota and never
+    // consult it). Every other call-site funnels through this method
+    // and checks NOTHING itself.
+    const governed = this.applyGovernorTierSkip(ordered);
     const gated = applyOutboundRateLimit(
-      ordered,
+      governed.admitted,
       this.outbound,
       (name: string) =>
         resolveProviderOutboundBudget(this.providers.listProviders(), name),
@@ -591,7 +650,7 @@ export class AddressSnapshotService {
     // the fallback path below is byte-identical and pays ~zero
     // direct penalty when the miss is fast (instant-null coverage).
     const fanoutP = this.aggregator
-      .aggregate(known.id, input.value, retried)
+      .aggregate(knownId, inputValue, retried)
       .finally(() => {
         // Half-open probe release: the probe is the FETCHER call, which
         // is done when the aggregate settles (the aggregate itself never
@@ -609,14 +668,14 @@ export class AddressSnapshotService {
       this.fastPath === null
         ? null
         : await this.fastPath.tryResolve(
-            { chain: known.id, address: input.value, kind },
+            { chain: knownId, address: inputValue, kind },
             DIRECT_FAST_PATH_DEADLINE_MS,
           );
     const directMs = Math.round(performance.now() - fastStartedAt);
     if (fast !== null) {
       const built = await this.buildSnapshot({
-        knownId: known.id,
-        inputValue: input.value,
+        knownId,
+        inputValue,
         cacheKey,
         kind,
         id,
@@ -627,19 +686,22 @@ export class AddressSnapshotService {
         skipDevHoldings: true,
         breakerSkipped: breakerGate.skipped,
         breakerAdmitted: [],
+        governor: governed.note,
         outcomeIsAggregate: false,
       });
+      this.observeGovernor(built.snapshot.providerErrors);
       this.logger.log(
-        `direct-fast-path chain=${known.id} served=fast directMs=${directMs} ` +
+        `direct-fast-path chain=${knownId} served=fast directMs=${directMs} ` +
           `discoveryMs=${roundMs(fast.timings.discoveryMs)} ` +
           `kindMs=${kindMs} tailMs=${built.tailMs} ` +
           `breakerSkipped=${breakerGate.skipped.length} ` +
+          `governorShed=${governed.skipped.length} ` +
           `totalMs=${Math.round(performance.now() - startedAt)}`,
       );
       this.compareToleranceInBackground(
         fanoutP,
-        known.id,
-        input.value,
+        knownId,
+        inputValue,
         fast.outcome.quote,
       );
       return built.snapshot;
@@ -648,8 +710,8 @@ export class AddressSnapshotService {
     const outcome = await fanoutP;
     const fanoutMs = Math.round(performance.now() - fanoutStartedAt);
     const built = await this.buildSnapshot({
-      knownId: known.id,
-      inputValue: input.value,
+      knownId,
+      inputValue,
       cacheKey,
       kind,
       id,
@@ -660,15 +722,74 @@ export class AddressSnapshotService {
       skipDevHoldings: false,
       breakerSkipped: breakerGate.skipped,
       breakerAdmitted: breakerGate.admitted.map((fetcher) => fetcher.name),
+      governor: governed.note,
       outcomeIsAggregate: true,
     });
+    this.observeGovernor(built.snapshot.providerErrors);
     this.logger.log(
-      `direct-fast-path chain=${known.id} served=fanout directMs=${directMs} ` +
+      `direct-fast-path chain=${knownId} served=fanout directMs=${directMs} ` +
         `fanoutMs=${fanoutMs} kindMs=${kindMs} tailMs=${built.tailMs} ` +
         `breakerSkipped=${breakerGate.skipped.length} ` +
+        `governorShed=${governed.skipped.length} ` +
         `totalMs=${Math.round(performance.now() - startedAt)}`,
     );
     return built.snapshot;
+  }
+
+  /**
+   * Governor read (todo 41d): pressure evaluate + tier-skip at the
+   * single pre-fan-out point. Absent governor admits all (identity).
+   */
+  private applyGovernorTierSkip(ordered: ReadonlyArray<QuoteFetcher>): {
+    readonly admitted: ReadonlyArray<QuoteFetcher>;
+    readonly skipped: ReadonlyArray<string>;
+    readonly note: {
+      readonly key: string;
+      readonly value: string;
+    } | null;
+  } {
+    if (this.governor === null || this.governor === undefined) {
+      return { admitted: ordered, skipped: [], note: null };
+    }
+    const openBreakers = Object.values(this.breakerStates()).filter(
+      (state) => state !== 'closed',
+    ).length;
+    const { level, skipTiers } = this.governor.evaluate(openBreakers);
+    if (level === 0 || skipTiers.length === 0) {
+      return { admitted: ordered, skipped: [], note: null };
+    }
+    const shed = new Set<QuotaGovernorTier>(skipTiers);
+    const admitted = ordered.filter(
+      (fetcher) => !shed.has(quotaGovernorTierOf(fetcher.name)),
+    );
+    const skipped = ordered
+      .filter((fetcher) => shed.has(quotaGovernorTierOf(fetcher.name)))
+      .map((fetcher) => fetcher.name);
+    const tierNames = [...shed].sort().join('+');
+    this.logger.warn(
+      `governor shed Tier-${tierNames} (${skipped.join(',') || 'none'}) at pressure L${level} — fail-open (Tier-0 live)`,
+    );
+    return {
+      admitted,
+      skipped,
+      note: {
+        key: `governor:shed-tier-${tierNames}`,
+        value:
+          `skipped ${skipped.join(',') || 'none'} at pressure L${level} ` +
+          `(${openBreakers} breakers open) — Tier-0 live, fail-open`,
+      },
+    };
+  }
+
+  /** Governor observe (todo 41d): feed this snapshot's errors to the NEXT evaluations. */
+  private observeGovernor(
+    providerErrors: Readonly<Record<string, string>>,
+  ): void {
+    try {
+      this.governor?.observe(providerErrors);
+    } catch {
+      // Metric-only — never throws into the serve path.
+    }
   }
 
   /**
@@ -744,6 +865,11 @@ export class AddressSnapshotService {
      * today).
      */
     readonly breakerAdmitted: ReadonlyArray<string>;
+    /** Governor shed note (todo 41d): merged into `providerErrors` as ONE auditable key, or null. */
+    readonly governor: {
+      readonly key: string;
+      readonly value: string;
+    } | null;
     /**
      * True only when `outcome` is the settled aggregate (fanout path).
      * Gates the idle-success rule below: on the fast path the admitted
@@ -991,6 +1117,9 @@ export class AddressSnapshotService {
       providerErrors[name] =
         'breaker skip (open 30s cool-off or half-open probe busy) — fail-open (resets on deploy)';
     }
+    if (args.governor !== null) {
+      providerErrors[args.governor.key] = args.governor.value;
+    }
     for (const [k, v] of Object.entries(tailNotes)) {
       providerErrors[k] = v;
     }
@@ -1016,32 +1145,40 @@ export class AddressSnapshotService {
         this.staleMaxAgeMs,
       );
       if (staleRow !== null) {
-        const stale: AddressSnapshot = {
-          chain: id.chain,
-          address: id.address,
-          kind: id.kind,
-          key: id.key,
-          status: 'ready',
-          stale: true,
-          staleAsOf: staleRow.createdAt,
-          staleAgeMs: Date.now() - Date.parse(staleRow.createdAt),
-          assetId: await this.resolveAssetId(
-            knownId,
-            inputValue,
-            staleRow.quote,
-          ),
-          launchpad,
-          venue,
-          fdvAth,
-          providers: supporting,
-          sources: [...staleRow.sources],
-          providerErrors,
-          ...emptySnapshotQuote(),
-          ...staleRow.quote,
-          devWallets: staleRow.quote.devWallets ?? null,
-          devPctSupply: staleRow.quote.devPctSupply ?? null,
-        };
-        return { snapshot: stale, tailMs };
+        const staleAsOf = staleRow.createdAt;
+        const staleAgeMs = Date.now() - Date.parse(staleRow.createdAt);
+        // Trio guard (todo 41c `no-bit-without-age`): a corrupt row
+        // (unparseable timestamp) falls through to honest pending —
+        // never a bit with no age.
+        if (isStaleTrioValid(true, staleAsOf, staleAgeMs)) {
+          const stale: AddressSnapshot = {
+            chain: id.chain,
+            address: id.address,
+            kind: id.kind,
+            key: id.key,
+            status: 'ready',
+            stale: true,
+            staleAsOf,
+            staleAgeMs,
+            degraded: isTailDegraded(providerErrors),
+            assetId: await this.resolveAssetId(
+              knownId,
+              inputValue,
+              staleRow.quote,
+            ),
+            launchpad,
+            venue,
+            fdvAth,
+            providers: supporting,
+            sources: [...staleRow.sources],
+            providerErrors,
+            ...emptySnapshotQuote(),
+            ...staleRow.quote,
+            devWallets: staleRow.quote.devWallets ?? null,
+            devPctSupply: staleRow.quote.devPctSupply ?? null,
+          };
+          return { snapshot: stale, tailMs };
+        }
       }
     }
     // Identity provenance + metadata last resort (dexter plan todo
@@ -1087,6 +1224,7 @@ export class AddressSnapshotService {
       stale: false,
       staleAsOf: null,
       staleAgeMs: null,
+      degraded: isTailDegraded(providerErrors),
       assetId: await this.resolveAssetId(knownId, inputValue, resolvedQuote),
       launchpad,
       venue,

@@ -6,14 +6,19 @@
  * the per-item batch cache key shared with the GET edge (so batch
  * traffic warms single reads and vice versa — the SLO layer for
  * p95<500ms). Moved verbatim from the guard + batch controller.
+ *
+ * TTL single source (dexter plan todo 41): the batch TTL derives from
+ * the snapshot TTL policy — same 30s numbers window, one knob.
  */
+import { SNAPSHOT_NUMBERS_TTL_SECONDS } from 'snapshot/domain/snapshot-ttl-policy';
+
 export const GATEWAY_LIMIT_PER_MINUTE = 60;
 
 export const GATEWAY_WINDOW_MS = 60_000;
 
 export const GATEWAY_BATCH_MAX_ITEMS = 50;
 
-export const GATEWAY_BATCH_TTL_SECONDS = 30;
+export const GATEWAY_BATCH_TTL_SECONDS = SNAPSHOT_NUMBERS_TTL_SECONDS;
 
 export function buildGatewayClientKey(client: string): string {
   return `gw:${client}`;

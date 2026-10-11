@@ -335,6 +335,60 @@ describe('DexterPage template management (Lane B)', () => {
     expect(screen.queryByTestId('dexter-preview-stale')).toBeNull();
   });
 
+  it('badges a tail-degraded card Partial data, never as a full card', () => {
+    mockAllHappy();
+    vi.mocked(dexter.usePreviewTemplate).mockReturnValue(
+      idleMutation({
+        data: {
+          text: '*WIF* | dogwifhat',
+          truncated: false,
+          parseMode: 'MarkdownV2',
+          placeholdersUsed: ['symbol'],
+          unknown: [],
+          token: {
+            address: 'So1111',
+            chain: 'solana',
+            symbol: 'WIF',
+            stale: false,
+            staleAsOf: null,
+            staleAgeMs: null,
+            degraded: true,
+          },
+        },
+      }) as unknown as ReturnType<typeof dexter.usePreviewTemplate>,
+    );
+    renderPage();
+    const badge = screen.getByTestId('dexter-preview-degraded');
+    expect(badge).toHaveTextContent('Partial data');
+  });
+
+  it('shows no degraded badge on a full card (degraded:false, absent field)', () => {
+    mockAllHappy();
+    vi.mocked(dexter.usePreviewTemplate).mockReturnValue(
+      idleMutation({
+        data: {
+          text: '*WIF* | dogwifhat',
+          truncated: false,
+          parseMode: 'MarkdownV2',
+          placeholdersUsed: ['symbol'],
+          unknown: [],
+          token: {
+            address: 'So1111',
+            chain: 'solana',
+            symbol: 'WIF',
+            stale: false,
+            staleAsOf: null,
+            staleAgeMs: null,
+            degraded: false,
+          },
+        },
+      }) as unknown as ReturnType<typeof dexter.usePreviewTemplate>,
+    );
+    renderPage();
+    expect(screen.getByTestId('dexter-preview-result')).toBeInTheDocument();
+    expect(screen.queryByTestId('dexter-preview-degraded')).toBeNull();
+  });
+
   it('shows the unresolved preview state with candidates', () => {
     mockAllHappy();
     vi.mocked(dexter.usePreviewTemplate).mockReturnValue(

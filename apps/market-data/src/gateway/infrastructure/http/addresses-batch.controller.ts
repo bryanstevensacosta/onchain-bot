@@ -106,6 +106,7 @@ export class AddressesBatchController {
             stale: snap.stale,
             staleAsOf: snap.staleAsOf,
             staleAgeMs: snap.staleAgeMs,
+            degraded: snap.degraded,
             providers: snap.providers,
             sources: snap.sources,
             providerErrors: snap.providerErrors,

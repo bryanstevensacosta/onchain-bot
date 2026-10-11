@@ -247,6 +247,11 @@ export function PreviewSection({
                 </Badge>
               </span>
             )}
+            {result.token?.degraded === true && (
+              <span data-testid="dexter-preview-degraded">
+                <Badge tone="amber">Partial data</Badge>
+              </span>
+            )}
             {result.truncated && <Badge tone="yellow">truncated</Badge>}
             {result.placeholdersUsed.map((key) => (
               <Badge key={key} tone="blue">

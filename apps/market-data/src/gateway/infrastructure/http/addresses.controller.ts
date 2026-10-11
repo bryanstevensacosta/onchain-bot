@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { CacheInterceptor } from 'cache/infrastructure/cache.interceptor';
 import { CacheTTL } from 'cache/infrastructure/cache-ttl.decorator';
+import { SNAPSHOT_EDGE_TTL_SECONDS } from 'snapshot/domain/snapshot-ttl-policy';
 import { AddressSnapshotService } from 'snapshot/application/address-snapshot.service';
 import { GatewayRateLimitGuard } from '@/gateway/application/gateway-rate-limit.guard';
 
@@ -28,7 +29,7 @@ export class AddressesController {
   public constructor(private readonly snapshots: AddressSnapshotService) {}
 
   @Get(':chain/:address')
-  @CacheTTL(30)
+  @CacheTTL(SNAPSHOT_EDGE_TTL_SECONDS)
   public async getAddress(
     @Param('chain') chain: string,
     @Param('address') address: string,
