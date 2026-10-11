@@ -1219,6 +1219,75 @@ copied from `marketCapOf` (`direct-fast-path.service.ts:1013-1024`) +
   vs reported 3016 (fixture reproduces cited magnitudes; live NOT
   re-probed — fixtures carry the proof per the todo).
 
+## FREE-TIER QUOTA STRATEGY (todo 40, 2026-10-10 — measurement-first, explicit no-op)
+
+Verdict: NO CUTS. Every quota-pressure point is absorbed by existing gates;
+every cut candidate either touches identity legs (EXCLUDED by name — metadata
+fallback todo 39, launchpad/venue/fdvAth/best-pick, dev-holdings Helius leg) or
+trades free serves for unmeasured savings. Full evidence:
+`.omo/evidence/task-fe-free-quota.log`.
+
+Measured characterization (M = measured in this repo, A = assumed/doc):
+
+- Helius primary: intermittent HTTP 429, body `max usage reached`, headers
+  Cloudflare-only (NO Retry-After, NO credit-remaining, NO X-RateLimit-\* — the
+  header discriminator does not exist here). Isolated single probe → 429, yet
+  `served-by=primary` lands minutes apart with 0×401/403 ever → key VALID.
+  Treat as **0-reliable-capacity**: never build new legs assuming it, never
+  remove it (free serves still land; shyft→public fallback absorbs all 429s).
+  Headerless-429 is NON-retryable by construction
+  (`retryable-provider.error.ts`), so the wrapper never hammers the wall.
+- Chainstack: **0 capacity by credential** (401 `Access token missing or
+invalid` on EVM + Solana; Platform Bearer ≠ node token — owner swap pending).
+  Tier stays wired (serves automatically post-swap); NEVER hard-code a skip.
+- dRPC: transport HEALTHY (`eth_chainId` → `0x1`, 200); 400 invalid-arg on
+  V2/V3 reads with the SAME body failing on alchemy (-32602) + public (525) →
+  SHAPE bug (caller params; one shared body per `alchemy.service.ts:162-167`),
+  NOT quota. Excluded from quota kills.
+
+Budget table (REAL ceilings; cold explicit-chain reference shape pinned by
+`free-b-tiers.spec.ts:190-204` — Solana 4 RPC calls / EVM 6, ×2 retry cap):
+DexScreener M-lenient (90-burst → 0×429) · GeckoTerminal M-wall ≈5/burst
+(`retry-after: 0`; 60/min bucket does NOT mirror reality — fail-open absorbs) ·
+Birdeye/Mobula/CoinGecko/CMC/RugCheck/Llama/Etherscan A-doc tiers, 60/min
+buckets · ccxt 600/min (ohlcv cost 5) · Helius archival bounded (dev ≤1/fire
+400ms tail; origin ≤2/fire 8s Solana-LAST) · Shyft M-healthy (cold-scan 4 ≤
+20/s ✓) · public Solana A-40/10s · Alchemy M-healthy (8/8 nets) · dRPC
+M-healthy. Retry worst case 2 req/miss (cap 2000ms + jitter); tail ≤10
+calls/cold @400ms abandon; breaker 5 fails → 30s (registry counters
+telemetry-only).
+
+Staleness/refresh rules (UNCHANGEABLE without a quota todo): edge 30s TTL ·
+SWR ≤24h + bit · history 90d janitor · discovery cache 30d + tripwire · PONS
+7–30d · NO new cron/refresh loops.
+
+## IDENTITY PROVENANCE (todo 39, 2026-10-10)
+
+`identityProvenance: 'market' | 'metadata' | null` on `SnapshotQuote`
+(assigned, never merged — absent from `SNAPSHOT_QUOTE_FIELDS` like
+`fdvProvenance`; jsonb key on history rows, no migration). Market
+legs first, metadata LAST: the fast path names from the side-verified
+discovery pair and falls to `basics.metadata` only for unnamed
+fields; the post-merge seam (`buildSnapshot`) keeps a fast-path pin
+verbatim, else fills symbol/name from ONE lazy metadata read when the
+merged quote names nothing (Solana token-kind only, own 2s budget
+`METADATA_IDENTITY_BUDGET_MS`, fail-open; the healthy path pays zero
+calls — quota note for todo 40: ≤3 RPC calls per identity-less
+Solana snapshot only). Identity-ONLY fill (supply/holders/price stay
+aggregator-owned — market-less hits keep `pending` with honest N/A
+numbers). `isMutable` decoded from the metadata tail (creators-skip +
+`primary`/`is_mutable` order per `mpl-token-metadata`
+`state/metadata.rs`); mutable still resolves — the dexter marker is
+mandatory for ALL metadata names (Believe rule: never verified
+fact). Program constant verified against
+`metaplex.com/docs/official-links` + live USDC metadata read
+(owner + bytes match the repo fixture). Token-2022 scope:
+program-agnostic PDA path (a 2022 mint WITH a metadata PDA resolves
+identically, spec-pinned); extension-embedded names without a PDA
+are OUT (mint-TLV parsing, no demand case, fail-open null). Compat
+edge carries the field; the reduced batch surface does not (no
+venue/launchpad/fdvAth there either — unchanged).
+
 ## SECURITY (P46, todo 10)
 
 Scoped API keys (`src/auth/`): `read` (GET chains/providers/addresses/

@@ -345,6 +345,20 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartUrl}}`co
       Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; invariante con epsilon verde en fixtures; best-pick re-verificado; QA live INCOME → fdv ≈2.7K.
       QA scenarios: happy (calculado exacto) + failure (sin supply → null, NaN/Infinity/negativo → null). Evidence .omo/evidence/task-fe-computed-fdv.log
       Commit: Y | feat(market-data-fdv): fdv calculado local (docs AGENTS+CHANGELOG)
+- [x] 39. Fallback de identidad via metadata Metaplex on-chain (Wave 1 follow-up, evidencia 7EHoX...pump 2026-10-10: existe con supply, sin mercado, sin nombre en providers)
+      What to do / Must NOT do: SCOPE REAL (menor de lo especeado: derivacion + decode + fixture YA existen en `onchain-solana.reader.ts:192-217` + codec `token-accounts.codec.ts:96-131` + spec USDC; esto es cableado, no research): exponer `basics.metadata` como ULTIMO recurso de identidad (despues de mercado) + provenance OBLIGATORIO `identityProvenance: 'market' | 'metadata'` pineado end-to-end (`SnapshotQuote` → `MarketDataSnapshot` → `ResolvedToken` → renderer disclosure: sufijo/marca en card cuando `metadata`, p. ej. nombre con marca — diseno exacto a eleccion del worker con spec que lo pinne; preview/bot/frontend lo heredan sin codigo extra). Gate `isMutable`: decodificar el byte (el codec hoy solo lee `updateAuthority` — extenderlo); mutable → resuelve IGUAL pero la marca de procedencia es OBLIGATORIA (jamas nombre-metadata como hecho verificado; regla Believe intacta). Programa: verificar constante contra metaplex.com/docs + prueba live USDC resuelve metadata (si falla, STOP + report, no asumir). Token-2022: linea de scope explicita (excluir-con-motivo o manejar extension + spec — una, documentada). Specs: metadata-resuelve-con-marca, mutable-marcado, sin-metadata intacto, fast-path existente sin regresion. Docs: market-data AGENTS + CHANGELOG (ADD-only).
+      Parallelization: Wave 1 follow-up (1 worker) | Blocked by: — | Blocks: —
+      References: caso `7EHoXcXedoSoGr7jT6qCWRYP4ouuiuBy67ySZHk7pump` (supply 973874909 on-chain, 0 pares, Birdeye sin nombres), `hasIdentity` actual (symbol/name requeridos), Metaplex metadata PDA scheme (docs).
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; muerto-con-metadata resuelve nombre (live si hay caso, sino fixture bytes reales); sin-metadata intacto.
+      QA scenarios: happy (identidad recuperada, numeros N/A honestos) + failure (metadata corrupta → null). Evidence .omo/evidence/task-fe-meta-fallback.log
+      Commit: Y | feat(market-data-identity): fallback metadata metaplex (docs AGENTS+CHANGELOG)
+- [x] 40. Estrategia de cuota 100% free-tier, sin subir planes (Wave 1 follow-up, invariante owner: NINGUN upgrade de pago)
+      What to do / Must NOT do: TODO 40 igual + anadidos: (a) caracterizar Helius-429 ANTES de recortar (capturar headers `Retry-After`/credit-remaining + serie QPS con timestamps: agotamiento-mensual vs burst-throttle — la medida decide si el problema es presupuesto o rafaga; sin captura, ninguna conclusion); (b) Chainstack como capacidad 0 hasta swap de credencial (owner) — la tabla lo registra asi, no como diseno; (c) dRPC invalid-arg como bug a diagnosticar (forma vs cuota); (d) KILL-LIST EXCLUYE legs de identidad (39) por nombre + validacion `served-by=`; (e) budget-exhaustion vs burst con evidencia, no teoria. Resto del todo intacto.
+      Parallelization: Wave 1 follow-up (1 worker) | Blocked by: — | Blocks: —
+      References: Helius 429 `max usage reached` 2026-10-10, techos free por provider (docs citadas en plan), QPS-math tests existentes.
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; tabla con margen por provider; ≥1 recorte ejecutado o justificado-no-necesario con numeros.
+      QA scenarios: happy (margen positivo) + failure (techo excedido → degradacion disenada, no crash). Evidence .omo/evidence/task-fe-free-quota.log
+      Commit: Y | perf(market-data-quota): estrategia 100-free (docs AGENTS+CHANGELOG)
 
 ### Wave 0 — guion local owner (10 min, dexter `:4060` + frontend `:5173`)
 
@@ -423,6 +437,8 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartUrl}}`co
 | 36 helius-origin        | —                | —            | 2                    |
 | 37 override             | —                | —            | 2                    |
 | 38 computed-fdv         | —                | —            | 2                    |
+| 39 meta-fallback        | —                | —            | 2                    |
+| 40 free-quota           | —                | —            | 2                    |
 
 ## Commit strategy
 

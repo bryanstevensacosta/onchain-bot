@@ -384,3 +384,95 @@ describe('DirectFastPathService (mocked readers, no network)', () => {
     await expect(noAnchor.tryResolve(req('solana', mint))).resolves.toBeNull();
   });
 });
+
+describe('DirectFastPathService identity provenance (dexter plan todo 39)', () => {
+  const mint = MINT;
+  const pumpView = {
+    poolAddress: 'curve111111111111111111111111111111111111',
+    family: 'pump',
+    legs: [
+      { mint, vault: null, reserve: 1_000_000_000_000n, decimals: 6 },
+      { mint: WSOL, vault: null, reserve: 10_000_000_000_000n, decimals: 9 },
+    ],
+    priceBA: 0.01,
+    migrated: false,
+  };
+  const anchorView = {
+    poolAddress: 'anchor111111111111111111111111111111111111',
+    family: 'raydium-amm-v4',
+    legs: [
+      { mint: WSOL, vault: null, reserve: 100_000_000_000_000n, decimals: 9 },
+      {
+        mint: USDC_SOL,
+        vault: null,
+        reserve: 20_000_000_000_000n,
+        decimals: 6,
+      },
+    ],
+    priceBA: 200,
+    migrated: false,
+  };
+  const serve = (
+    baseToken: { address: string; name: string; symbol: string },
+    metadata: {
+      name: string;
+      symbol: string;
+      uri: string;
+      isMutable: boolean;
+    } | null,
+  ) => {
+    const dexscreener = {
+      getBestPairSummaryForChain: async () => summary({ baseToken }),
+    };
+    const solanaReader = {
+      getPoolView: async (pool: string) =>
+        pool === '58oQChx4yWmvKdwLLZzBi4ChoCc2fqCUWBkwMihLYQo2'
+          ? anchorView
+          : pumpView,
+      getTokenBasics: async () =>
+        metadata === null
+          ? null
+          : {
+              mint,
+              supply: { amount: '1000000000000', decimals: 6 },
+              holders: null,
+              top10SharePercent: null,
+              metadata,
+            },
+    };
+    return new DirectFastPathService(
+      dexscreener as never,
+      solanaReader as never,
+      null,
+      null,
+    ).tryResolve(req('solana', mint));
+  };
+
+  it('prefers market identity over metadata (provenance market)', async () => {
+    const result = await serve(
+      { address: MINT, name: 'Dex Name', symbol: 'DEX' },
+      { name: 'Meta Name', symbol: 'META', uri: '', isMutable: true },
+    );
+    expect(result?.outcome.quote.symbol).toBe('DEX');
+    expect(result?.outcome.quote.name).toBe('Dex Name');
+    expect(result?.outcome.quote.identityProvenance).toBe('market');
+  });
+
+  it('falls back to metadata identity with provenance metadata (mutable still resolves)', async () => {
+    const result = await serve(
+      { address: MINT, name: '', symbol: '' },
+      { name: 'Meta Name', symbol: 'META', uri: '', isMutable: true },
+    );
+    expect(result?.outcome.quote.symbol).toBe('META');
+    expect(result?.outcome.quote.name).toBe('Meta Name');
+    expect(result?.outcome.quote.identityProvenance).toBe('metadata');
+    expect(result?.outcome.quote.priceUsd).not.toBeNull();
+  });
+
+  it('leaves provenance null when nothing names the token (no-metadata intact)', async () => {
+    const result = await serve({ address: MINT, name: '', symbol: '' }, null);
+    expect(result?.outcome.quote.symbol).toBeNull();
+    expect(result?.outcome.quote.name).toBeNull();
+    expect(result?.outcome.quote.identityProvenance).toBeNull();
+  });
+});

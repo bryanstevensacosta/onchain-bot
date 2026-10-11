@@ -127,6 +127,19 @@ export function toStaleAgeMsOrNull(raw: unknown): number | null {
     : null;
 }
 
+/**
+ * Identity provenance (dexter plan todo 39): `'market'` (providers /
+ * discovery pair side) or `'metadata'` (on-chain Metaplex PDA, last
+ * resort). Anything else (absent on older market-data answers,
+ * garbage) reads `null` — the pipeline defaults it to `'market'`
+ * (legacy = market identity; only an explicit `'metadata'` marks).
+ */
+export function toIdentityProvenanceOrNull(
+  raw: unknown,
+): 'market' | 'metadata' | null {
+  return raw === 'market' || raw === 'metadata' ? raw : null;
+}
+
 export interface MarketDataSnapshot {
   readonly chain: string;
   readonly address: string;
@@ -153,6 +166,7 @@ export interface MarketDataSnapshot {
   readonly staleAgeMs?: number | null;
   readonly launchpad?: MarketDataLaunchpad | null;
   readonly venue?: MarketDataVenue | null;
+  readonly identityProvenance?: 'market' | 'metadata' | null;
   readonly fdvAthUsd?: number | null;
   readonly fdvAthAt?: string | null;
 }
@@ -229,6 +243,7 @@ export class MarketDataClient {
         staleAgeMs: toStaleAgeMsOrNull(body.staleAgeMs),
         launchpad: toLaunchpadOrNull(body.launchpad),
         venue: toVenueOrNull(body.venue),
+        identityProvenance: toIdentityProvenanceOrNull(body.identityProvenance),
         fdvAthUsd: toFdvAthUsdOrNull(body.fdvAthUsd),
         fdvAthAt: toFdvAthAtOrNull(body.fdvAthAt),
       };

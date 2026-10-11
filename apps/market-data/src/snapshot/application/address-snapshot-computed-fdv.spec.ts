@@ -6,6 +6,7 @@ import { DirectFastPathService } from './direct-fast-path.service';
 import { SnapshotHistoryRepository } from '../infrastructure/snapshot-history.repository';
 import { LaunchpadDetectorService } from 'launchpad/application/launchpad-detector.service';
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
+import { OnchainSolanaReaderService } from 'provider/infrastructure/onchain/onchain-solana.reader';
 import {
   SNAPSHOT_QUOTE_PROVIDERS,
   type SnapshotQuote,
@@ -51,6 +52,11 @@ async function buildService(quote: Partial<SnapshotQuote>): Promise<{
     // No live readers in seam-contract specs.
     .overrideProvider(DirectFastPathService)
     .useValue({ tryResolve: async () => null })
+    .overrideProvider(OnchainSolanaReaderService)
+    .useValue({
+      getPoolView: async () => null,
+      getTokenBasics: async () => null,
+    })
     .compile();
   return {
     snapshots: module.get(AddressSnapshotService),

@@ -3,6 +3,7 @@ import {
   MarketDataClient,
   toFdvAthAtOrNull,
   toFdvAthUsdOrNull,
+  toIdentityProvenanceOrNull,
   toLaunchpadOrNull,
   toStaleAgeMsOrNull,
   toStaleAsOfOrNull,
@@ -325,6 +326,7 @@ export class TokenScanPipeline implements ScanPipeline {
       readonly devPctSupply?: number | null;
       readonly launchpad?: unknown;
       readonly venue?: unknown;
+      readonly identityProvenance?: unknown;
       readonly fdvAthUsd?: unknown;
       readonly fdvAthAt?: unknown;
       readonly stale?: unknown;
@@ -362,6 +364,8 @@ export class TokenScanPipeline implements ScanPipeline {
         snapshot.launchpad,
       ),
       venue: toVenueOrNull(snapshot.venue),
+      identityProvenance:
+        toIdentityProvenanceOrNull(snapshot.identityProvenance) ?? 'market',
       fdvAthUsd: toFdvAthUsdOrNull(snapshot.fdvAthUsd),
       fdvAthAt: toFdvAthAtOrNull(snapshot.fdvAthAt),
       stale: toStaleOrFalse(snapshot.stale),

@@ -184,6 +184,10 @@ const isSaneLiquidity = (value: number | null): value is number =>
 
 const lower = (address: string): string => address.trim().toLowerCase();
 
+/** Identity presence: `null` or empty-string both count as absent. */
+const nonEmptyString = (value: string | null | undefined): string | null =>
+  typeof value === 'string' && value !== '' ? value : null;
+
 /** Span helper: nullable ms renders as `n/a` (never crashes the line). */
 const roundSpanMs = (ms: number | null): string =>
   ms === null ? 'n/a' : String(Math.round(ms));
@@ -435,6 +439,16 @@ export class DirectFastPathService {
       Promise.resolve(false),
     ]);
     const launchpad = launchReady ? launchpadValue : null;
+    // Identity precedence (dexter plan todo 39): MARKET legs first,
+    // on-chain Metaplex metadata LAST resort. `discoverySide*` reads
+    // the side-verified DexScreener pair; metadata fills only what the
+    // market did not name. Provenance mirrors the winning source so
+    // dexter can mark metadata-sourced names (mandatory marker —
+    // a mutable metadata name is never verified fact).
+    const marketSymbol = nonEmptyString(discoverySideSymbol(discovery, mint));
+    const marketName = nonEmptyString(discoverySideName(discovery, mint));
+    const metaSymbol = nonEmptyString(basics?.metadata?.symbol ?? null);
+    const metaName = nonEmptyString(basics?.metadata?.name ?? null);
     const quote: SnapshotQuote = {
       ...emptySnapshotQuote(),
       priceUsd: priced.priceUsd,
@@ -444,11 +458,17 @@ export class DirectFastPathService {
           ? basics.holders.length
           : null,
       top10HolderPercent: basics?.top10SharePercent ?? null,
-      symbol: basics?.metadata?.symbol ?? discoverySideSymbol(discovery, mint),
-      name: basics?.metadata?.name ?? discoverySideName(discovery, mint),
+      symbol: marketSymbol ?? metaSymbol,
+      name: marketName ?? metaName,
       totalSupply: supplyToNumber(basics?.supply ?? null),
       marketCapUsd: marketCapOf(priced.priceUsd, basics?.supply ?? null),
       fdvUsd: marketCapOf(priced.priceUsd, basics?.supply ?? null),
+      identityProvenance:
+        marketSymbol !== null || marketName !== null
+          ? 'market'
+          : metaSymbol !== null || metaName !== null
+            ? 'metadata'
+            : null,
     };
     return {
       outcome: {

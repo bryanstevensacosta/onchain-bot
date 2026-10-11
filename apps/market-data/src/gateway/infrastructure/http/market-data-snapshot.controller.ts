@@ -76,6 +76,7 @@ export class MarketDataSnapshotController {
       assetId: snap.assetId,
       launchpad: snap.launchpad,
       venue: snap.venue,
+      identityProvenance: snap.identityProvenance,
       fdvAthUsd: snap.fdvAth?.fdvUsd ?? null,
       fdvAthAt: snap.fdvAth?.at ?? null,
       status: snap.status,

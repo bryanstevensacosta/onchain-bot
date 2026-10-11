@@ -105,6 +105,13 @@ export interface OnchainTokenBasics {
     readonly name: string;
     readonly symbol: string;
     readonly uri: string;
+    /**
+     * Metaplex `is_mutable` at read time (dexter plan todo 39).
+     * Informational on this shape: the provenance marker is
+     * mandatory for ALL metadata-sourced names downstream, so a
+     * mutable account resolves identically — never as verified fact.
+     */
+    readonly isMutable: boolean;
   } | null;
 }
 
@@ -241,7 +248,12 @@ export class OnchainSolanaReaderService implements OnchainSolanaReader {
         metadata:
           meta === null
             ? null
-            : { name: meta.name, symbol: meta.symbol, uri: meta.uri },
+            : {
+                name: meta.name,
+                symbol: meta.symbol,
+                uri: meta.uri,
+                isMutable: meta.isMutable,
+              },
       };
     } catch {
       return null;

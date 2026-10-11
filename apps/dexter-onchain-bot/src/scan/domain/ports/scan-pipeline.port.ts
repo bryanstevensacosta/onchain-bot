@@ -111,6 +111,17 @@ export interface ResolvedToken {
   readonly staleAsOf?: string | null;
   readonly staleAgeMs?: number | null;
   /**
+   * Identity provenance (dexter plan todo 39): `'market'` (providers
+   * / discovery pair side) or `'metadata'` (on-chain Metaplex PDA as
+   * last resort). ALWAYS set by the pipeline (`'market'` default
+   * when market-data stays silent — legacy answers predate the
+   * field); optional only so older literals keep compiling. The
+   * renderer marks `metadata` names with `(unverified)` — preview,
+   * bot and frontend inherit it through the rendered text, no extra
+   * code on any surface.
+   */
+  readonly identityProvenance?: 'market' | 'metadata';
+  /**
    * Other chains where the same address resolved (dexter best-pick,
    * plan todo 17): present (possibly empty) on bare-sweep resolutions,
    * absent on explicit `chain:address` resolutions. The renderer

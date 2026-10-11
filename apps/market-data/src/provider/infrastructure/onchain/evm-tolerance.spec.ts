@@ -96,4 +96,19 @@ describe('evm tolerance (direct-vs-aggregator at the snapshot seam)', () => {
     expect(outcome.quote.priceUsd).toBe(100);
     expect(outcome.diverged).toBe(false);
   });
+
+  it('passes identityProvenance through (direct wins, else aggregator)', () => {
+    const direct = selectPreferredQuote(
+      { identityProvenance: 'metadata' },
+      aggregator({ identityProvenance: 'market' }),
+      { logger: silentLogger() },
+    );
+    expect(direct.quote.identityProvenance).toBe('metadata');
+    const fallback = selectPreferredQuote(
+      {},
+      aggregator({ identityProvenance: 'market' }),
+      { logger: silentLogger() },
+    );
+    expect(fallback.quote.identityProvenance).toBe('market');
+  });
 });

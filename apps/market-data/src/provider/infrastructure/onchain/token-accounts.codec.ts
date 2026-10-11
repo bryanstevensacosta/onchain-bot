@@ -91,6 +91,17 @@ export interface DecodedMetadata {
   readonly symbol: string;
   readonly uri: string;
   readonly sellerFeeBasisPoints: number;
+  /**
+   * Metaplex `is_mutable` flag (dexter plan todo 39, identity
+   * provenance leg). A mutable metadata account still resolves
+   * identity — but the provenance marker is then MANDATORY (a
+   * mutable name is never rendered as a verified fact; Believe
+   * rule). Decoded from the two bytes after the creators Option
+   * (`primary_sale_happened`, `is_mutable` — field order per
+   * `mpl-token-metadata/state/metadata.rs`; `collection`/`uses`
+   * append AFTER, so they are never read here).
+   */
+  readonly isMutable: boolean;
 }
 
 /**
@@ -98,7 +109,10 @@ export interface DecodedMetadata {
  * `expectedMint` (when given) must equal the account's mint or the
  * decode is rejected — a metadata PDA for another mint is a
  * mismatch, not metadata. Strings are length-prefixed u32 + UTF-8
- * with trailing NULs trimmed; any overrun returns `null`.
+ * with trailing NULs trimmed; any overrun returns `null`. The
+ * creators Option is skipped (only its length matters to reach the
+ * flags); a truncated tail (no `primary_sale_happened`/`is_mutable`
+ * bytes) is corrupt input and returns `null`.
  */
 export function decodeMetadata(
   bytes: Uint8Array,
@@ -128,13 +142,39 @@ export function decodeMetadata(
     if (name === null || symbol === null || uri === null) return null;
     if (at + 2 > bytes.length) return null;
     const feeView = new DataView(bytes.buffer, bytes.byteOffset + at, 2);
+    const sellerFeeBasisPoints = feeView.getUint16(0, true);
+    at += 2;
+    // Creators Option<Vec<Creator>>: flag + (len u32 + n * 34B
+    // entries of address 32 + verified 1 + share 1). Skipped — only
+    // its span matters to reach the trailing flags.
+    if (at + 1 > bytes.length) return null;
+    const creatorsFlag = bytes[at];
+    at += 1;
+    if (creatorsFlag === 1) {
+      if (at + 4 > bytes.length) return null;
+      const creatorLen = new DataView(
+        bytes.buffer,
+        bytes.byteOffset + at,
+        4,
+      ).getUint32(0, true);
+      at += 4;
+      if (creatorLen > 16 || at + creatorLen * 34 > bytes.length) return null;
+      at += creatorLen * 34;
+    } else if (creatorsFlag !== 0) {
+      return null;
+    }
+    // `primary_sale_happened` (ignored) + `is_mutable` (pinned).
+    if (at + 2 > bytes.length) return null;
+    const mutableFlag = bytes[at + 1];
+    if (mutableFlag !== 0 && mutableFlag !== 1) return null;
     return {
       updateAuthority,
       mint,
       name,
       symbol,
       uri,
-      sellerFeeBasisPoints: feeView.getUint16(0, true),
+      sellerFeeBasisPoints,
+      isMutable: mutableFlag === 1,
     };
   } catch {
     return null;

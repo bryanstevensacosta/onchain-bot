@@ -231,6 +231,19 @@ export class TemplateRendererService {
     }
     if (RAW_STRING_KEYS.includes(key)) {
       const raw: unknown = (values as Record<string, unknown>)[key];
+      // Provenance disclosure (dexter plan todo 39): a metadata-sourced
+      // name is never rendered as verified fact — it carries a mandatory
+      // `(unverified)` suffix. `symbol` stays raw (tickers feed cashtags
+      // and links); the name carries the badge. Market/absent provenance
+      // renders byte-identical to before.
+      if (
+        key === 'name' &&
+        values.identityProvenance === 'metadata' &&
+        typeof raw === 'string' &&
+        raw !== ''
+      ) {
+        return esc(`${raw} (unverified)`);
+      }
       if (typeof raw === 'string') {
         if (raw === '') return 'N/A';
         return esc(raw);

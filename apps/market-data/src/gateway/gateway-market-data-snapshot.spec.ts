@@ -12,6 +12,7 @@ import { SNAPSHOT_QUOTE_PROVIDERS } from 'snapshot/domain/snapshot-quote.types';
 import { LaunchpadDetectorService } from 'launchpad/application/launchpad-detector.service';
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
 import { GeckoTerminalService } from 'provider/infrastructure/geckoterminal';
+import { OnchainSolanaReaderService } from 'provider/infrastructure/onchain/onchain-solana.reader';
 
 const nullFetcher = {
   name: 'dexscreener',
@@ -55,6 +56,13 @@ describe('gateway market-data snapshot compat edge (todo 5)', () => {
       })
       .overrideProvider(GeckoTerminalService)
       .useValue({ getTokenPools: async () => null })
+      // No live readers in edge-contract specs (todo 39 leg stubbed:
+      // the suite pins the no-metadata shape, never live identity).
+      .overrideProvider(OnchainSolanaReaderService)
+      .useValue({
+        getPoolView: async () => null,
+        getTokenBasics: async () => null,
+      })
       .compile();
     app = module.createNestApplication();
     app.useGlobalPipes(
@@ -100,6 +108,7 @@ describe('gateway market-data snapshot compat edge (todo 5)', () => {
     expect(res.body.status).toBe('pending');
     expect(res.body).toHaveProperty('launchpad', null);
     expect(res.body).toHaveProperty('venue', null);
+    expect(res.body).toHaveProperty('identityProvenance', null);
   });
 
   it('second GET of a pending shell is a cache MISS (no negative cache, plan todo 19a)', async () => {
@@ -157,6 +166,11 @@ describe('gateway market-data snapshot launchpad plumbing (Lane D)', () => {
       })
       .overrideProvider(GeckoTerminalService)
       .useValue({ getTokenPools: async () => null })
+      .overrideProvider(OnchainSolanaReaderService)
+      .useValue({
+        getPoolView: async () => null,
+        getTokenBasics: async () => null,
+      })
       .compile();
     app = module.createNestApplication();
     app.useGlobalPipes(

@@ -123,6 +123,10 @@ export function selectPreferredQuote(
     // Provenance rides along untouched (log-only tolerance path, never
     // served — the single seam in buildSnapshot assigns it).
     fdvProvenance: pickDefined(direct.fdvProvenance, aggregator.fdvProvenance),
+    identityProvenance: pickDefined(
+      direct.identityProvenance,
+      aggregator.identityProvenance,
+    ),
   };
   const divergeBps = priceDivergeBps(quote.priceUsd, aggregator.priceUsd);
   const diverged = divergeBps !== null && Math.abs(divergeBps) > toleranceBps;

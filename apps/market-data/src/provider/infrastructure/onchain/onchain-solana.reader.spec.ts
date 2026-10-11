@@ -3,6 +3,11 @@ import type {
   SolanaAccountInfoValue,
 } from 'provider/infrastructure/solana-rpc/solana-rpc.types';
 import {
+  addressToBytes,
+  findProgramAddress,
+  utf8Seed,
+} from 'launchpad/infrastructure/solana-pda';
+import {
   OnchainSolanaReaderService,
   TokenHoldersClient,
   TokenSupplyClient,
@@ -27,6 +32,7 @@ import {
   FIXTURE_WHIRL_OWNER,
 } from './solana-mainnet.fixtures';
 import { PUMP_FUN_PROGRAM, RAYDIUM_AMM_V4_PROGRAM } from './solana-program-ids';
+import { METAPLEX_TOKEN_METADATA_PROGRAM } from './solana-program-ids';
 
 const RAY_MINT = '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R';
 const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
@@ -415,10 +421,59 @@ describe('OnchainSolanaReaderService (Lane S)', () => {
       name: 'USD Coin',
       symbol: 'USDC',
       uri: '',
+      isMutable: true,
     });
     expect(basics?.holders).toHaveLength(2);
     expect(basics?.holders?.[0].sharePercent).toBeCloseTo(50, 8);
     expect(basics?.top10SharePercent).toBeCloseTo(60, 8);
+  });
+
+  it('resolves metadata for a Token-2022 mint via the same PDA path (program-agnostic scope)', async () => {
+    // Scope pin (dexter plan todo 39): the metadata PDA derivation +
+    // decode never inspect the mint account owner, so a Token-2022
+    // mint WITH a metadata PDA resolves identically. Only names
+    // embedded SOLELY in the Token-2022 extension (no PDA) are out
+    // of scope — mint-account TLV parsing, no demand case.
+    const mint = '6HD1iyTY4ChvoFEKgQ2tV4rHavrpR1yJw9Kwyqtm7hmC';
+    const pda = findProgramAddress(
+      [
+        utf8Seed('metadata'),
+        addressToBytes(METAPLEX_TOKEN_METADATA_PROGRAM),
+        addressToBytes(mint),
+      ],
+      METAPLEX_TOKEN_METADATA_PROGRAM,
+    ).address;
+    const raw: number[] = [4, ...addressToBytes(mint), ...addressToBytes(mint)];
+    const pushString = (value: string): void => {
+      const bytes = Buffer.from(value, 'utf8');
+      const len = Buffer.alloc(4);
+      len.writeUInt32LE(bytes.length, 0);
+      raw.push(...len, ...bytes);
+    };
+    pushString('Twentytwo');
+    pushString('T22');
+    pushString('');
+    raw.push(0, 0, 0, 0, 1);
+    const mocks: Mocks = {
+      accounts: new Map([
+        [
+          pda,
+          accountOf(
+            METAPLEX_TOKEN_METADATA_PROGRAM,
+            Buffer.from(raw).toString('base64'),
+          ),
+        ],
+      ]),
+      supply: new Map(),
+      holders: new Map(),
+    };
+    const basics = await buildReader(mocks).getTokenBasics(mint);
+    expect(basics?.metadata).toEqual({
+      name: 'Twentytwo',
+      symbol: 'T22',
+      uri: '',
+      isMutable: true,
+    });
   });
 
   it('returns null basics when supply, holders and metadata all miss', async () => {

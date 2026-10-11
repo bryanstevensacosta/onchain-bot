@@ -66,6 +66,7 @@ import {
   TOLERANCE_DEFAULT_BPS,
 } from 'provider/infrastructure/onchain/evm-tolerance';
 import { DiscoveryCacheService } from './discovery-cache.service';
+import { OnchainSolanaReaderService } from 'provider/infrastructure/onchain/onchain-solana.reader';
 
 /** Log helper: nullable ms renders as `n/a` (never crashes the line). */
 const roundMs = (ms: number | null): string =>
@@ -78,6 +79,12 @@ const roundMs = (ms: number | null): string =>
  */
 export const SNAPSHOT_TAIL_CONCURRENCY = 3;
 export const SNAPSHOT_TAIL_EXTRA_TIMEOUT_MS = 400;
+/**
+ * Metadata-identity budget (dexter plan todo 39): the post-merge
+ * last-resort Metaplex read runs ONLY when the merged quote names
+ * nothing, so the healthy path pays zero. Own deadline, fail-open.
+ */
+export const METADATA_IDENTITY_BUDGET_MS = 2000;
 
 /**
  * Detector-tail budget (dexter plan todo 35): the launchpad detector
@@ -245,6 +252,13 @@ export class AddressSnapshotService {
     @Optional()
     @Inject(DiscoveryCacheService)
     private readonly discoveryCache: DiscoveryCacheService | null = null,
+    // Metadata-identity reader (dexter plan todo 39): the post-merge
+    // last-resort leg. Same provider the fast path uses (module
+    // factory), `@Inject` mandatory on the union type. Null in
+    // hand-built specs -> identity-less quotes stay as they are.
+    @Optional()
+    @Inject(OnchainSolanaReaderService)
+    private readonly solanaReader: OnchainSolanaReaderService | null = null,
   ) {}
 
   /** In-flight half-open probe key (at most ONE globally — the single cheapest-fetcher probe). */
@@ -283,6 +297,54 @@ export class AddressSnapshotService {
     if (this.launchpad === null || this.launchpad === undefined) return null;
     try {
       return await this.launchpad.detectLaunchpad(chain, address);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Metadata identity, LAST resort (dexter plan todo 39): when the
+   * merged quote names nothing AND the fast path pinned no source,
+   * read the Solana Metaplex metadata PDA once. Solana token-kind
+   * ONLY (no EVM metadata leg — EVM identity-less stays as-is);
+   * Token-2022 mints ride the same PDA derivation (program-agnostic
+   * — only extension-embedded names without a PDA are out of scope).
+   * Identity-ONLY: symbol/name fill from metadata, everything else
+   * (supply/holders/price) stays aggregator-owned. Own budget
+   * (`METADATA_IDENTITY_BUDGET_MS`), fail-open null; a timeout names
+   * itself in `providerErrors` like the tail legs do.
+   */
+  private async resolveMetadataIdentity(
+    chain: string,
+    kind: string,
+    address: string,
+    quote: SnapshotQuote,
+    providerErrors: Record<string, string>,
+  ): Promise<{
+    readonly symbol: string | null;
+    readonly name: string | null;
+  } | null> {
+    if (chain !== 'solana' || kind !== 'token') return null;
+    if (quote.symbol !== null || quote.name !== null) return null;
+    if (this.solanaReader === null || this.solanaReader === undefined) {
+      return null;
+    }
+    try {
+      const raced = await withTailBudget(
+        this.solanaReader.getTokenBasics(address),
+        METADATA_IDENTITY_BUDGET_MS,
+      );
+      if (raced === TAIL_TIMEOUT) {
+        providerErrors['metadata-identity'] =
+          `timeout (metadata-identity budget ${METADATA_IDENTITY_BUDGET_MS}ms) — degraded to null, fail-open`;
+        return null;
+      }
+      const meta = raced?.metadata ?? null;
+      if (meta === null) return null;
+      const symbol = meta.symbol !== '' ? meta.symbol : null;
+      const name = meta.name !== '' ? meta.name : null;
+      if (symbol === null && name === null) return null;
+      return { symbol, name };
     } catch {
       return null;
     }
@@ -982,6 +1044,40 @@ export class AddressSnapshotService {
         return { snapshot: stale, tailMs };
       }
     }
+    // Identity provenance + metadata last resort (dexter plan todo
+    // 39): the fast path pins the source when IT names the token
+    // (kept verbatim — never re-derived here). Otherwise the merged
+    // quote decides: named by providers -> 'market'; unnamed Solana
+    // token -> ONE lazy metadata read (post-merge, so no provider
+    // data is ever shadowed; identity-less healthy path pays zero).
+    // A metadata hit fills symbol/name ONLY — supply/holders/price
+    // stay aggregator-owned (numbers N/A stay honest), and the card
+    // status is untouched (a market-less hit still reads `pending`).
+    const metadataIdentity =
+      outcome.quote.identityProvenance !== null &&
+      outcome.quote.identityProvenance !== undefined
+        ? null
+        : await this.resolveMetadataIdentity(
+            knownId,
+            kind,
+            inputValue,
+            quote,
+            providerErrors,
+          );
+    const resolvedQuote: SnapshotQuote =
+      metadataIdentity === null
+        ? {
+            ...quote,
+            identityProvenance:
+              outcome.quote.identityProvenance ??
+              (quote.symbol !== null || quote.name !== null ? 'market' : null),
+          }
+        : {
+            ...quote,
+            symbol: metadataIdentity.symbol ?? quote.symbol,
+            name: metadataIdentity.name ?? quote.name,
+            identityProvenance: 'metadata',
+          };
     const snapshot: AddressSnapshot = {
       chain: id.chain,
       address: id.address,
@@ -991,7 +1087,7 @@ export class AddressSnapshotService {
       stale: false,
       staleAsOf: null,
       staleAgeMs: null,
-      assetId: await this.resolveAssetId(knownId, inputValue, quote),
+      assetId: await this.resolveAssetId(knownId, inputValue, resolvedQuote),
       launchpad,
       venue,
       fdvAth,
@@ -999,7 +1095,7 @@ export class AddressSnapshotService {
       sources,
       providerErrors,
       ...emptySnapshotQuote(),
-      ...quote,
+      ...resolvedQuote,
       devWallets,
       devPctSupply,
     };
@@ -1010,7 +1106,7 @@ export class AddressSnapshotService {
       kind: snapshot.kind,
       status: snapshot.status,
       quote: {
-        ...quote,
+        ...resolvedQuote,
         devWallets,
         devPctSupply,
       },

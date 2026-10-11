@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Identity provenance + metadata last resort (dexter plan todo 39):**
+  `SnapshotQuote.identityProvenance: 'market' | 'metadata' | null`
+  (assigned, never merged — absent from `SNAPSHOT_QUOTE_FIELDS`;
+  jsonb key on history rows, no migration). Fast-path Solana cards
+  name market-first (side-verified discovery pair, metadata only for
+  unnamed fields); the `buildSnapshot` seam keeps a fast-path pin or
+  fills symbol/name from ONE lazy metadata read when the merged
+  quote names nothing (Solana token-kind only, 2s own budget,
+  fail-open; healthy path pays zero calls). Identity-only — numbers
+  stay aggregator-owned, market-less hits keep `pending` with honest
+  N/A numbers. `isMutable` decoded from the metadata tail (mutable
+  still resolves; the dexter `(unverified)` marker is mandatory for
+  all metadata names). Program constant verified against
+  `metaplex.com/docs/official-links` + live USDC metadata read.
+  Token-2022: PDA path is program-agnostic (spec-pinned);
+  extension-embedded names without a PDA are out of scope
+  (documented). Compat edge carries the field.
+
 - **Single-seam computed FDV (dexter plan todo 38):** the merge exit
   (`buildSnapshot`) is the ONE FDV seam — provider-reported `fdvUsd`
   never survives: `fdv = price×(total ?? max)` with the `marketCapOf`

@@ -678,3 +678,19 @@ pending for … — retry shortly`). `MARKET_DATA_TIMEOUT_MS` default
   live editor) and never renders them as live. No refresh infra of
   any kind on this path (no cron/queue/timer/fire-and-forget) —
   the next request retries providers naturally.
+
+- Identity provenance (plan todo 39): market-data tags every quote
+  `identityProvenance` (`'market'` = providers/discovery pair side,
+  `'metadata'` = on-chain Metaplex PDA as post-merge last resort,
+  Solana-only, identity-only fill — numbers stay aggregator-owned).
+  `MarketDataSnapshot.identityProvenance?` (client validates via
+  `toIdentityProvenanceOrNull` — exact strings only, else null) →
+  `ResolvedToken.identityProvenance?` (pipeline ALWAYS sets:
+  wire value or `'market'` default for legacy silent answers;
+  optional only so older literals compile). Renderer marks
+  `metadata` names with a mandatory ` (unverified)` suffix on
+  `{{name}}` (escaped once; empty names stay `N/A`, `{{symbol}}`
+  stays raw — the name carries the badge). Preview, bot and
+  frontend inherit the marked text through the render — no extra
+  code on any surface (legacy `formatScanCard` fallback untouched,
+  byte-identical).

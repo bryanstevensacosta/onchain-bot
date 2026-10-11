@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Identity provenance with disclosure marker (dexter plan todo 39):**
+  `MarketDataSnapshot.identityProvenance?` (client-validated, exact
+  `'market'`/`'metadata'` else null) → `ResolvedToken.
+identityProvenance?` (pipeline always sets, `'market'` default for
+  legacy silent answers). Renderer suffixes metadata-sourced
+  `{{name}}` with ` (unverified)` (escaped once; empty stays `N/A`,
+  `{{symbol}}` untouched). Preview, bot and frontend inherit the
+  marked text with no extra code.
+
 - **Display-only launchpad name override (display-name lane):**
   DisplayMap dimension `launchpadName` with the centralized renderer
   helper `resolveLaunchpadDisplayName(launchpad, resolver)` (override

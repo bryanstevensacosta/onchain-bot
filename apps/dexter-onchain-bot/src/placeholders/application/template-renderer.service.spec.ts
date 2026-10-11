@@ -354,3 +354,46 @@ describe('Rick-parity number policy (plan todo 13, evidence examples.md)', () =>
     expect(out.text).toBe('N/A N/A N/A N/A');
   });
 });
+
+describe('TemplateRendererService identity provenance (plan todo 39)', () => {
+  const render = (body: string, token: ResolvedToken): string =>
+    new TemplateRendererService(stubResolver('')).render(body, token, 'ca')
+      .text;
+
+  it('marks metadata-sourced names with (unverified), escaped once', () => {
+    expect(
+      render('{{name}}', {
+        ...TOKEN,
+        name: 'Dead Token',
+        identityProvenance: 'metadata',
+      }),
+    ).toBe('Dead Token \\(unverified\\)');
+  });
+
+  it('leaves market names byte-identical (no marker)', () => {
+    expect(render('{{name}}', { ...TOKEN, identityProvenance: 'market' })).toBe(
+      'Solana',
+    );
+    expect(render('{{name}}', TOKEN)).toBe('Solana');
+  });
+
+  it('leaves {{symbol}} raw under metadata provenance (name carries the badge)', () => {
+    expect(
+      render('{{symbol}}', {
+        ...TOKEN,
+        symbol: 'DEAD',
+        identityProvenance: 'metadata',
+      }),
+    ).toBe('DEAD');
+  });
+
+  it('empty metadata name still renders N/A (never a bare marker)', () => {
+    expect(
+      render('[{{name}}]', {
+        ...TOKEN,
+        name: '',
+        identityProvenance: 'metadata',
+      }),
+    ).toBe('[N/A]');
+  });
+});

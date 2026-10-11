@@ -49,6 +49,20 @@ export interface SnapshotQuote {
    * simply omit it), so provenance is always assigned, never merged.
    */
   readonly fdvProvenance: 'computed' | null;
+  /**
+   * Identity provenance (dexter plan todo 39): `'market'` when the
+   * served symbol/name came from market legs (providers, discovery
+   * pair side), `'metadata'` when they came from the on-chain
+   * Metaplex metadata PDA as LAST resort (post-merge, Solana-only —
+   * the snapshot seam assigns it, never a fetcher). `null` only when
+   * the quote carries no identity at all. Deliberately ABSENT from
+   * `SNAPSHOT_QUOTE_FIELDS` below (same rule as `fdvProvenance`):
+   * the aggregator merge never copies it, so provenance is always
+   * assigned, never merged. Dexter renders `metadata` names with a
+   * mandatory `(unverified)` marker — a mutable metadata name is
+   * never presented as verified fact (Believe rule).
+   */
+  readonly identityProvenance: 'market' | 'metadata' | null;
 }
 
 export const SNAPSHOT_QUOTE_FIELDS: ReadonlyArray<keyof SnapshotQuote> = [
@@ -91,6 +105,7 @@ export function emptySnapshotQuote(): SnapshotQuote {
     devWallets: null,
     devPctSupply: null,
     fdvProvenance: null,
+    identityProvenance: null,
   };
 }
 
