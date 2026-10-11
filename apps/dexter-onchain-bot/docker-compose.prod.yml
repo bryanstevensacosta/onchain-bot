@@ -1,0 +1,124 @@
+name: onchain-bot-dexter-prod
+
+# Production environment - dexter-onchain-bot (dexter-deploy-and-frontend, Wave 2)
+#
+# MIRROR of apps/dexter-onchain-bot/docker-compose.staging.yml (canon).
+# DRY-RUN ONLY — no dexter prod deploy has ever been applied to Oracle.
+# OPERATOR-CONFIRM on first rollout (Wave 4, HARD owner gate): destination
+# path /opt/onchain-bot/apps/dexter-onchain-bot/, host ports below with lsof,
+# and .env.production values on the droplet (never in git).
+#
+# Project name EXPLÍCITO: sin `name:`, compose usa el basename del
+# directorio (`dexter-onchain-bot`), que COLISIONA con el proyecto del dev
+# compose (mismo basename, mismos services postgres/redis) y cada `up` de
+# un lado recrea/destruye los contenedores del otro. Misma doctrina que
+# backend prod y dexter staging.
+#
+# PORTS (verified free repo-wide 2026-10-02 — grep 5448/6395 in
+# source/config: zero hits outside plan docs; OPERATOR-CONFIRM both host
+# ports on Oracle with lsof before Wave 4):
+# - dexter HTTP host :4062 → container :4060. Triplet dexter
+#   4060/4061/4062 (dev/staging/prod) per .env.example (C-PORTS-01).
+#   Container port is DEXTER_PORT (default 4060, src/main.ts).
+# - postgres host :5448 → container :5432. Dev dexter uses :5440,
+#   dexter staging uses :5441 — :5448 is free repo-wide.
+# - redis host :6395 → container :6379. Dev dexter uses :6387,
+#   dexter staging uses :6388 — :6395 is free repo-wide.
+#
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: onchain-bot-dexter-postgres-prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-onchain_bot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-onchain_bot}
+      POSTGRES_DB: ${POSTGRES_DB:-onchain_bot_dexter}
+    ports:
+      - '5448:5432'
+    volumes:
+      - onchain-bot-dexter-prod-pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-onchain_bot} -d ${POSTGRES_DB:-onchain_bot_dexter}',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: onchain-bot-dexter-redis-prod
+    restart: unless-stopped
+    ports:
+      - '6395:6379'
+    volumes:
+      - onchain-bot-dexter-prod-redis-data:/data
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'sh',
+          '-c',
+          'if [ -n "$REDIS_PASSWORD" ]; then redis-cli -a "$REDIS_PASSWORD" ping | grep -q PONG; else redis-cli ping | grep -q PONG; fi',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    command: redis-server --appendonly yes ${REDIS_PASSWORD:+--requirepass "$REDIS_PASSWORD"}
+
+  dexter:
+    build:
+      context: ../..
+      dockerfile: apps/dexter-onchain-bot/Dockerfile
+    image: ghcr.io/bryanstevensacosta/onchain-bot-dexter:latest
+    container_name: onchain-bot-dexter-prod
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      NODE_ENV: production
+      # Container port (src/main.ts reads DEXTER_PORT ?? 4060).
+      # Host mapping 4062:4060 below.
+      DEXTER_PORT: 4060
+      # DB name onchain_bot_dexter per central plan C-DB-01
+      # (prod `<base>_<app>`); TypeORM wired since
+      # dexter-message-templates todo 1 (DATABASE_ENABLED=true).
+      DATABASE_ENABLED: true
+      DATABASE_URL: postgres://${POSTGRES_USER:-onchain_bot}:${POSTGRES_PASSWORD:-onchain_bot}@postgres:5432/${POSTGRES_DB:-onchain_bot_dexter}
+      DATABASE_SYNCHRONIZE: false
+      REDIS_URL: ${DEXTER_REDIS_URL:-redis://redis:6379/2}
+    ports:
+      - '4062:4060'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # NOTE: dexter image has NO wget/curl (Dockerfile installs only
+      # dumb-init) — probe via node like the Dockerfile HEALTHCHECK does.
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://127.0.0.1:4060/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  default:
+    name: onchain-bot-net
+
+volumes:
+  onchain-bot-dexter-prod-pg-data:
+    name: onchain-bot-dexter-prod-pg-data
+  onchain-bot-dexter-prod-redis-data:
+    name: onchain-bot-dexter-prod-redis-data

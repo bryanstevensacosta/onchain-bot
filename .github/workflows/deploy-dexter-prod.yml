@@ -1,0 +1,412 @@
+name: Deploy Dexter to production
+
+# Dexter prod deploy (dexter-deploy-and-frontend, Wave 2).
+#
+# DRY-RUN ONLY — this workflow has never run against Oracle. Wave 4 has a
+# HARD owner gate: nothing here executes against prod without the owner's
+# explicit confirmation at that moment (the push trigger exists so the
+# automation is ready, not so it fires unattended).
+# OPERATOR-CONFIRM on first rollout: destination path
+# /opt/onchain-bot/apps/dexter-onchain-bot/, .env.production values
+# (never in git), and host ports :4062/:5448/:6395 with lsof.
+#
+# ANTI-DOUBLE-FIRE: this workflow owns dexter paths ONLY
+# (apps/dexter-onchain-bot/** + itself). Disjoint from deploy.yml
+# (backend/frontend/scripts/config/package* on master) and
+# deploy-ingestion.yml (apps/ingestion-telegram/**) — verified by grep
+# of their `paths:` blocks, documented in the Wave 2 evidence log.
+# Mixed pushes (dexter + backend) fire one lane per app = correct,
+# never a duplicate deploy of the same service.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'apps/dexter-onchain-bot/**'
+      - '.github/workflows/deploy-dexter-prod.yml'
+      # NOT backend/frontend/ingestion paths (owned by other workflows)
+  workflow_dispatch:
+    inputs:
+      lane:
+        description: 'Lane: full deploy (default) or dispatch-only manual rollback lane (escape hatch, never auto)'
+        required: false
+        default: 'full'
+        type: choice
+        # Rollback lanes mirror deploy.yml (item 9c): re-raise the last
+        # GOOD :prev-dexter pin. Dispatch-only, never on push.
+        options: [full, rollback-dexter-prod]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    name: Build and push dexter to GHCR
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Rollback lane owns no build (it re-raises the pinned image).
+    if: github.event_name == 'push' || inputs.lane == 'full'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push dexter (amd64-only)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/dexter-onchain-bot/Dockerfile
+          push: true
+          # Tags: immutable :sha + floating :latest (prod lane owns it;
+          # staging uses :staging-latest, never this tag).
+          tags: ghcr.io/${{ github.repository }}-dexter:${{ github.sha }},ghcr.io/${{ github.repository }}-dexter:latest
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}-dexter:cache
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}-dexter:cache,mode=max
+          # amd64-only per plan decision (Oracle runner is amd64; no
+          # multi-arch images for dexter).
+          platforms: linux/amd64
+
+  deploy:
+    name: Deploy dexter to Oracle production
+    runs-on: [self-hosted, oracle]
+    # Single-flight on the dexter prod target. Own group (never the
+    # backend/ingestion groups) — dexter services are disjoint.
+    # cancel-in-progress:false — lanes run migrations; killing one
+    # mid-migration corrupts schema state.
+    concurrency:
+      group: dexter-production-target
+      cancel-in-progress: false
+    needs: [build-and-push]
+    # Push legs and lane=full deploy; the rollback lane is owned by the
+    # rollback jobs below, not this one.
+    if: github.event_name == 'push' || inputs.lane == 'full'
+    timeout-minutes: 30
+    environment: production
+    # Auto-rollback contract (mirrors deploy.yml): smoke_entered is true
+    # once the post-deploy smoke phase starts. The auto-rollback job
+    # gates on this output so a red deploy BEFORE smoke (backup,
+    # migrations, health) never triggers a rollback — only post-smoke
+    # red does.
+    outputs:
+      smoke_entered: ${{ steps.smoke-marker.outputs.smoke_entered }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Backup dexter production database
+        run: |
+          # DRY-RUN NOTE: container name / droplet path OPERATOR-CONFIRM
+          # on first Wave 4 rollout (nothing applied yet; HARD owner gate).
+          set -euo pipefail
+          DEXTER_PG="$(docker ps --format '{{.Names}}' | grep -qx 'onchain-bot-dexter-postgres-prod' && echo 'onchain-bot-dexter-postgres-prod' || true)"
+          if [ -n "$DEXTER_PG" ]; then
+            mkdir -p /data/backups/dexter-prod
+            docker exec "$DEXTER_PG" pg_dump -U onchain_bot \
+              onchain_bot_dexter > /data/backups/dexter-prod/dexter-prod-backup-$(date +%Y%m%d-%H%M%S).sql
+            ls -la /data/backups/dexter-prod/ | tail -5
+            # Cleanup backups older than 7 days
+            find /data/backups/dexter-prod -maxdepth 1 -name 'dexter-prod-backup-*.sql' -mtime +7 -delete 2>/dev/null || true
+            echo "backup OK (size>0 asserted below)"
+            LATEST="$(ls -t /data/backups/dexter-prod/dexter-prod-backup-*.sql | head -1)"
+            test -s "$LATEST" || { echo "::error::backup artifact is empty ($LATEST). Aborting before migrations."; exit 1; }
+          else
+            echo "::warning::dexter prod postgres container absent (first deploy?) — no backup to take, proceeding to migrations."
+          fi
+
+      - name: Ensure dexter production databases running
+        run: |
+          set -euo pipefail
+          cd /opt/onchain-bot/apps/dexter-onchain-bot
+          docker compose -f docker-compose.prod.yml up -d postgres redis
+          echo "=== Waiting for postgres+redis healthy (max 60s) ==="
+          for i in $(seq 1 12); do
+            PG=$(docker inspect --format '{{.State.Health.Status}}' onchain-bot-dexter-postgres-prod 2>/dev/null || echo "missing")
+            RD=$(docker inspect --format '{{.State.Health.Status}}' onchain-bot-dexter-redis-prod 2>/dev/null || echo "missing")
+            echo "  attempt $i/12: postgres=$PG redis=$RD"
+            if [ "$PG" = "healthy" ] && [ "$RD" = "healthy" ]; then
+              echo "dexter prod databases healthy"
+              break
+            fi
+            if [ "$i" -eq 12 ]; then
+              echo "::error::dexter prod databases not healthy after 60s (postgres=$PG redis=$RD)"
+              exit 1
+            fi
+            sleep 5
+          done
+
+      - name: Build migration one-off image (--target builder)
+        run: |
+          # The dexter Dockerfile keeps its builder stage intact (verified:
+          # `AS builder` at Dockerfile:5 — plan requirement, no redesign).
+          # Migrations run in a throwaway builder container so the minimal
+          # prod image is never touched.
+          set -euo pipefail
+          cd /opt/onchain-bot/apps/dexter-onchain-bot
+          docker build --target builder \
+            -f apps/dexter-onchain-bot/Dockerfile \
+            -t ghcr.io/${{ github.repository }}-dexter-migrate:${{ github.sha }} \
+            /opt/onchain-bot
+
+      - name: Dry-run migrations (read-only, fail loudly)
+        run: |
+          set -euo pipefail
+          echo "=== Dry-run: pending migrations (migration:show, read-only, no writes) ==="
+          if docker run --rm --network onchain-bot-net \
+            --env-file /opt/onchain-bot/apps/dexter-onchain-bot/.env.production \
+            ghcr.io/${{ github.repository }}-dexter-migrate:${{ github.sha }} \
+            npm run migration:show --workspace=@onchain-bot/dexter-onchain-bot; then
+            echo "migration:show OK"
+          else
+            echo "::error::Dexter prod migration dry-run FAILED (migration:show). Aborting deploy before any write."
+            exit 1
+          fi
+
+          echo "=== Dry-run: precondition probe (read-only SELECT, no writes) ==="
+          if docker run --rm --network onchain-bot-net \
+            --env-file /opt/onchain-bot/apps/dexter-onchain-bot/.env.production \
+            ghcr.io/${{ github.repository }}-dexter-migrate:${{ github.sha }} \
+            npm run typeorm --workspace=@onchain-bot/dexter-onchain-bot -- query "SELECT 1 AS dry_run_ok"; then
+            echo "precondition probe OK"
+          else
+            echo "::error::Dexter prod precondition probe FAILED (read-only SELECT). Aborting deploy before any write."
+            exit 1
+          fi
+
+          echo "=== Dry-run OK: zero writes performed ==="
+
+      - name: Run migrations (production, builder one-off)
+        run: |
+          set -euo pipefail
+          echo "=== Running dexter TypeORM migrations in production ==="
+          docker run --rm --network onchain-bot-net \
+            --env-file /opt/onchain-bot/apps/dexter-onchain-bot/.env.production \
+            ghcr.io/${{ github.repository }}-dexter-migrate:${{ github.sha }} \
+            npm run migration:run --workspace=@onchain-bot/dexter-onchain-bot
+          echo "=== Migrations applied successfully ==="
+
+      - name: Pull dexter image and recreate service
+        run: |
+          set -euo pipefail
+          docker pull ghcr.io/${{ github.repository }}-dexter:${{ github.sha }} || docker pull ghcr.io/${{ github.repository }}-dexter:latest
+          docker tag ghcr.io/${{ github.repository }}-dexter:${{ github.sha }} ghcr.io/${{ github.repository }}-dexter:latest 2>/dev/null || true
+          cd /opt/onchain-bot/apps/dexter-onchain-bot
+          docker compose -f docker-compose.prod.yml up -d --force-recreate dexter
+          echo "=== dexter service recreated ==="
+
+      - name: Wait for dexter healthcheck (:4062)
+        run: |
+          echo "=== Waiting for dexter prod to become healthy (max 5 min) ==="
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:4062/api/health > /tmp/health-dexter-prod.log 2>&1; then
+              echo "dexter prod is healthy (attempt $i)"
+              cat /tmp/health-dexter-prod.log
+              break
+            fi
+            echo "  Waiting... attempt $i/30"
+            sleep 10
+            if [ "$i" -eq 30 ]; then
+              echo "::error::Dexter prod healthcheck failed after 30 attempts (5 minutes total)"
+              echo "=== dexter container logs (last 50 lines) ==="
+              docker logs --tail 50 onchain-bot-dexter-prod 2>&1 || true
+              echo "=== dexter container status ==="
+              docker ps -a -f name=onchain-bot-dexter-prod || true
+              exit 1
+            fi
+          done
+
+      - name: Pin :prev-dexter on GOOD deploy (rollback contract)
+        # Contract (mirrors deploy.yml): namespaced pin, NEVER bare :prev.
+        # Runs only after health passed = GOOD deploy by definition.
+        run: |
+          set -euo pipefail
+          SHA="${{ github.sha }}"
+          docker tag ghcr.io/${{ github.repository }}-dexter:"$SHA" ghcr.io/${{ github.repository }}-dexter:prev-dexter \
+            || docker tag ghcr.io/${{ github.repository }}-dexter:latest ghcr.io/${{ github.repository }}-dexter:prev-dexter
+          docker push ghcr.io/${{ github.repository }}-dexter:prev-dexter
+          echo "pinned dexter:prev-dexter @ $SHA"
+
+      - name: Mark smoke entered (auto-rollback gate signal)
+        id: smoke-marker
+        run: echo "smoke_entered=true" >> "$GITHUB_OUTPUT"
+
+      - name: Post-deploy smoke checks (read-only)
+        run: |
+          set -euo pipefail
+          echo "=== Post-deploy smoke (dexter prod :4062, read-only probes) ==="
+          curl -sf --max-time 10 http://localhost:4062/api/health | jq '.'
+          curl -sf --max-time 10 "http://localhost:4062/api/dexter/templates?command=ca" | jq '. | length'
+          echo "=== Smoke complete ==="
+
+  # AUTO-ROLLBACK (mirrors deploy.yml auto-rollback pattern) — fires ONLY
+  # on post-smoke red: deploy FAILED + smoke phase was entered
+  # (smoke_entered output). A red deploy BEFORE smoke never rolls back.
+  # Dispatching a NEW run would deadlock on the shared
+  # dexter-production-target concurrency group, so the rollback reuses
+  # the lane mechanics inline (same pin/compose/health gates).
+  # DATA DOCTRINE: rollback = code-only; migrations NEVER revert
+  # (roll-forward); data = restore from the pg_dump pre-deploy artifact
+  # by explicit HUMAN decision only (never automatic, never in a loop).
+  auto-rollback-dexter-prod:
+    name: Auto-rollback dexter prod on smoke failure (:prev-dexter)
+    runs-on: [self-hosted, oracle]
+    concurrency:
+      group: dexter-production-target
+      cancel-in-progress: false
+    needs: [deploy]
+    if: failure() && needs.deploy.outputs.smoke_entered == 'true'
+    timeout-minutes: 10
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Record auto-rollback decision
+        run: |
+          {
+            echo "### Auto-rollback dexter prod (smoke rojo → :prev-dexter → :4062)"
+            echo ""
+            echo "| campo | valor |"
+            echo "|---|---|"
+            echo "| trigger | post-deploy smoke FAILED (deploy job red, smoke entered) |"
+            echo "| target | dexter:prev-dexter → :4062 |"
+            echo "| manual escape | dispatch lane=rollback-dexter-prod intacto |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Pull rollback target :prev-dexter (read-only, no retag yet)
+        run: |
+          set -euo pipefail
+          echo "ROLLBACK_T0=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee /tmp/auto-dexter-prod-rollback-t0
+          docker pull ghcr.io/${{ github.repository }}-dexter:prev-dexter || { echo "::error::no dexter:prev-dexter pinned (pins on GOOD deploys only) — auto-rollback inexecutable → ESCALATE (second level, see failure step)"; exit 1; }
+
+      - name: Stop dexter prod (bounded grace, --timeout 30)
+        run: |
+          set -euo pipefail
+          cd /opt/onchain-bot/apps/dexter-onchain-bot
+          docker compose -f docker-compose.prod.yml stop --timeout 30 dexter
+          if docker ps --format '{{.Names}}' | grep -qx 'onchain-bot-dexter-prod'; then
+            echo "::error::REFUSE: dexter container still running — investigate instead of starting a second one"
+            exit 1
+          fi
+          echo "OK: dexter stopped — safe to start exactly one"
+
+      - name: Recreate dexter from :prev-dexter (no pull — local retag wins)
+        run: |
+          set -euo pipefail
+          docker tag ghcr.io/${{ github.repository }}-dexter:prev-dexter ghcr.io/${{ github.repository }}-dexter:latest
+          cd /opt/onchain-bot/apps/dexter-onchain-bot
+          docker compose -f docker-compose.prod.yml up -d --force-recreate dexter
+
+      - name: Healthcheck gate (:4062) + downtime measured
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            if curl -sf --max-time 8 http://localhost:4062/api/health >/dev/null 2>&1; then
+              echo "dexter healthy after ~$((i * 10))s"
+              break
+            fi
+            [ "$i" -eq 30 ] && { echo "::error::dexter healthcheck failed after auto-rollback — ESCALATE (second level, see failure step)"; exit 1; }
+            sleep 10
+          done
+          echo "ROLLBACK_T1=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee /tmp/auto-dexter-prod-rollback-t1
+          echo "downtime window: $(cat /tmp/auto-dexter-prod-rollback-t0) → $(cat /tmp/auto-dexter-prod-rollback-t1)"
+
+      - name: Second-level escalation (auto-rollback FAILED)
+        if: failure()
+        run: |
+          {
+            echo "### ESCALATION segundo nivel — auto-rollback dexter prod FALLIDO"
+            echo ""
+            echo "1. CONGELAR lanes: no re-disparar rollback (sin re-loops — el pin :prev-dexter ya está vivo o ausente; un segundo ciclo solo suma downtime). Lock manual: avisar al operador ANTES de cualquier dispatch/retry."
+            echo "2. AVISAR operador con ventana de downtime: $(cat /tmp/auto-dexter-prod-rollback-t0 2>/dev/null || echo T0-desconocido) → $(date -u +%Y-%m-%dT%H:%M:%SZ)."
+            echo "3. DUMP pre-deploy: artifact pg_dump citado en el summary del job deploy (backups/dexter-prod-*.sql) — adjuntar filename al incident record."
+            echo "4. INVALIDAR pin envenenado: si :prev-dexter también está rojo, no reintentarlo — forward-fix (nuevo sha) o restore."
+            echo "5. DB restore = decisión HUMANA explícita (jamás automática, jamás segundo rollback en loop): stop → pg_restore/psql del artifact → start → migration:show + counts asserts."
+            echo "6. Presupuesto: rollback <60s; sin verde en 2 ventanas de healthcheck → forward-fix-or-restore."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::ESCALATION segundo nivel: auto-rollback dexter prod fallido — lanes congelados, operador requerido (ver summary)"
+
+  # ROLLBACK LANE — manual dispatch only, never auto (escape hatch when
+  # auto-rollback is inexecutable or the pin needs a human decision).
+  # Discipline: stop → verify-stopped (gate) → start exactly one service
+  # from the pinned tag; `docker compose pull` is FORBIDDEN inside
+  # rollback (it would re-fetch the broken :latest).
+  rollback-dexter-prod:
+    name: Rollback dexter prod to :prev-dexter (:4062)
+    runs-on: [self-hosted, oracle]
+    concurrency:
+      group: dexter-production-target
+      cancel-in-progress: false
+    timeout-minutes: 15
+    if: github.event_name == 'workflow_dispatch' && inputs.lane == 'rollback-dexter-prod'
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull rollback target :prev-dexter (read-only, no retag yet)
+        run: |
+          set -euo pipefail
+          echo "ROLLBACK_T0=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee /tmp/dexter-prod-rollback-t0
+          docker pull ghcr.io/${{ github.repository }}-dexter:prev-dexter || { echo "::error::no dexter:prev-dexter pinned (pins on GOOD deploys only) — rollback inexecutable, deploy instead"; exit 1; }
+
+      - name: Stop dexter prod (bounded grace, --timeout 30)
+        run: |
+          set -euo pipefail
+          cd /opt/onchain-bot/apps/dexter-onchain-bot
+          docker compose -f docker-compose.prod.yml stop --timeout 30 dexter
+          if docker ps --format '{{.Names}}' | grep -qx 'onchain-bot-dexter-prod'; then
+            echo "::error::REFUSE: dexter container still running — investigate instead of starting a second one"
+            exit 1
+          fi
+          echo "OK: dexter stopped — safe to start exactly one"
+
+      - name: Recreate dexter from :prev-dexter (no pull — local retag wins)
+        run: |
+          set -euo pipefail
+          docker tag ghcr.io/${{ github.repository }}-dexter:prev-dexter ghcr.io/${{ github.repository }}-dexter:latest
+          cd /opt/onchain-bot/apps/dexter-onchain-bot
+          docker compose -f docker-compose.prod.yml up -d --force-recreate dexter
+
+      - name: Healthcheck gate (:4062) + post-rollback asserts + downtime measured
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            if curl -sf --max-time 8 http://localhost:4062/api/health >/dev/null 2>&1; then
+              echo "dexter healthy after ~$((i * 10))s"
+              break
+            fi
+            [ "$i" -eq 30 ] && { echo "::error::dexter healthcheck failed after rollback — retry + escalate, never blind re-run"; exit 1; }
+            sleep 10
+          done
+          echo "=== migration:show (schema state assert, read-only) ==="
+          docker compose -f /opt/onchain-bot/apps/dexter-onchain-bot/docker-compose.prod.yml run --rm dexter \
+            npm run migration:show --workspace=@onchain-bot/dexter-onchain-bot || true
+          echo "ROLLBACK_T1=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee /tmp/dexter-prod-rollback-t1
+          echo "downtime window: $(cat /tmp/dexter-prod-rollback-t0) → $(cat /tmp/dexter-prod-rollback-t1)"
