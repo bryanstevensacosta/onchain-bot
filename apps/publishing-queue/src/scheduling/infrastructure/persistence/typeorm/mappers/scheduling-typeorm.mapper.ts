@@ -108,10 +108,18 @@ export function toSchedulingConfigOrmEntity(
   row.enabled = config.enabled;
   row.everyNPosts = config.everyNPosts;
   row.minMinutesBetweenAds = config.minMinutesBetweenAds;
-  row.telegramPublishDelayMs = config.limitsFor('telegram').publishDelayMs;
-  row.telegramDailyCap = config.limitsFor('telegram').dailyCap;
-  row.threadsPublishDelayMs = config.limitsFor('threads').publishDelayMs;
-  row.threadsDailyCap = config.limitsFor('threads').dailyCap;
+  const telegram = config.limitsFor('telegram');
+  row.telegramPublishDelayMs = telegram.delayMaxMs;
+  row.telegramDailyCap = telegram.dailyCap;
+  row.telegramDelayMinMs = telegram.delayMinMs;
+  row.telegramDelayMaxMs = telegram.delayMaxMs;
+  row.telegramResetHour = telegram.resetHour;
+  const threads = config.limitsFor('threads');
+  row.threadsPublishDelayMs = threads.delayMaxMs;
+  row.threadsDailyCap = threads.dailyCap;
+  row.threadsDelayMinMs = threads.delayMinMs;
+  row.threadsDelayMaxMs = threads.delayMaxMs;
+  row.threadsResetHour = threads.resetHour;
   row.createdAt = config.createdAt;
   row.updatedAt = config.updatedAt;
   return row;
@@ -126,12 +134,20 @@ export function fromSchedulingConfigOrmEntity(
     everyNPosts: row.everyNPosts,
     minMinutesBetweenAds: row.minMinutesBetweenAds,
     telegram: {
-      publishDelayMs: Number(row.telegramPublishDelayMs),
+      delayMinMs: Number(
+        row.telegramDelayMinMs ?? row.telegramPublishDelayMs,
+      ),
+      delayMaxMs: Number(
+        row.telegramDelayMaxMs ?? row.telegramPublishDelayMs,
+      ),
       dailyCap: row.telegramDailyCap,
+      resetHour: row.telegramResetHour ?? 0,
     },
     threads: {
-      publishDelayMs: Number(row.threadsPublishDelayMs),
+      delayMinMs: Number(row.threadsDelayMinMs ?? row.threadsPublishDelayMs),
+      delayMaxMs: Number(row.threadsDelayMaxMs ?? row.threadsPublishDelayMs),
       dailyCap: row.threadsDailyCap,
+      resetHour: row.threadsResetHour ?? 0,
     },
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,

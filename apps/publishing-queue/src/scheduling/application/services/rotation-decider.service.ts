@@ -68,7 +68,7 @@ export class RotationDeciderService {
       };
     }
     const cursor = state.cursorFor(target);
-    const limits = config.limitsFor(target);
+    const policy = config.limitsFor(target);
     if (
       cursor.lastPublishedAt !== null &&
       now.getTime() - cursor.lastPublishedAt.getTime() <
@@ -83,7 +83,7 @@ export class RotationDeciderService {
     }
     if (
       cursor.lastPublishedAt !== null &&
-      now.getTime() - cursor.lastPublishedAt.getTime() < limits.publishDelayMs
+      now.getTime() - cursor.lastPublishedAt.getTime() < policy.delayMaxMs
     ) {
       return {
         shouldPublish: false,
@@ -92,7 +92,7 @@ export class RotationDeciderService {
         heldUntilNextDay: false,
       };
     }
-    if (state.publishedTodayFor(target, now) >= limits.dailyCap) {
+    if (state.publishedTodayFor(target, now) >= policy.dailyCap) {
       return {
         shouldPublish: false,
         ad: null,

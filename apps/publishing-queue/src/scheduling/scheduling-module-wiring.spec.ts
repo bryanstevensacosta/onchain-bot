@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { SchedulingModule } from './scheduling.module';
 import { SchedulingAdsController } from './api/http/scheduling-ads.controller';
 import { SchedulingRotationConfigController } from './api/http/scheduling-rotation-config.controller';
+import { DeliveryPoliciesController } from './api/http/delivery-policies.controller';
 import { SchedulingMediaController } from './api/http/scheduling-media.controller';
 import { ScheduledAdRepository } from './domain/ports/scheduled-ad.repository';
 import { ScheduledAdMediaRepository } from './domain/ports/scheduled-ad-media.repository';
@@ -17,6 +18,7 @@ import { PublishScheduledAdNowUseCase } from './application/use-cases/publish-sc
 import { UploadScheduledAdMediaUseCase } from './application/use-cases/upload-scheduled-ad-media.use-case';
 import { ClearScheduledAdMediaUseCase } from './application/use-cases/clear-scheduled-ad-media.use-case';
 import { ReuseLibraryMediaUseCase } from './application/use-cases/reuse-library-media.use-case';
+import { MigrateLlmConfigToPoliciesUseCase } from './application/use-cases/migrate-llm-config-to-policies.use-case';
 import { SchedulingCronScheduler } from './application/scheduling/scheduling-cron.scheduler';
 import { SchedulingHealthState } from './application/state/scheduling-health.state';
 import { SchedulingHealthIndicator } from './health/scheduling-health.indicator';
@@ -32,6 +34,7 @@ describe('SchedulingModule', () => {
     expect(module.get(SchedulingModule)).toBeDefined();
     expect(module.get(SchedulingAdsController)).toBeDefined();
     expect(module.get(SchedulingRotationConfigController)).toBeDefined();
+    expect(module.get(DeliveryPoliciesController)).toBeDefined();
     expect(module.get(SchedulingMediaController)).toBeDefined();
     expect(module.get(ScheduledAdRepository)).toBeDefined();
     expect(module.get(ScheduledAdMediaRepository)).toBeDefined();
@@ -46,6 +49,7 @@ describe('SchedulingModule', () => {
     expect(module.get(UploadScheduledAdMediaUseCase)).toBeDefined();
     expect(module.get(ClearScheduledAdMediaUseCase)).toBeDefined();
     expect(module.get(ReuseLibraryMediaUseCase)).toBeDefined();
+    expect(module.get(MigrateLlmConfigToPoliciesUseCase)).toBeDefined();
     expect(module.get(SchedulingCronScheduler)).toBeDefined();
     expect(module.get(SchedulingHealthState)).toBeDefined();
     expect(module.get(SchedulingHealthIndicator)).toBeDefined();

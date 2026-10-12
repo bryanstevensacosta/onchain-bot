@@ -27,14 +27,19 @@ describe('scheduling-typeorm.mapper', () => {
 
     const config = SchedulingConfig.load({
       enabled: true,
-      telegram: { publishDelayMs: 5000, dailyCap: 2 },
+      telegram: { delayMinMs: 1000, delayMaxMs: 5000, dailyCap: 2, resetHour: 3 },
     });
-    const configBack = fromSchedulingConfigOrmEntity(
-      toSchedulingConfigOrmEntity(config),
-    );
-    expect(configBack.limitsFor('telegram')).toEqual({
-      publishDelayMs: 5000,
+    const row = toSchedulingConfigOrmEntity(config);
+    expect(row.telegramDelayMinMs).toBe(1000);
+    expect(row.telegramDelayMaxMs).toBe(5000);
+    expect(row.telegramResetHour).toBe(3);
+    expect(row.telegramPublishDelayMs).toBe(5000);
+    const configBack = fromSchedulingConfigOrmEntity(row);
+    expect(configBack.limitsFor('telegram').toSnapshot()).toEqual({
+      delayMinMs: 1000,
+      delayMaxMs: 5000,
       dailyCap: 2,
+      resetHour: 3,
     });
 
     const state = SchedulingState.empty()
