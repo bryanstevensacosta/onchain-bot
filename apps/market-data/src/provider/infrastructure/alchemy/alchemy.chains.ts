@@ -124,6 +124,75 @@ export function drpcRpcUrl(chain: string, apiKey: string): string | null {
 }
 
 /**
+ * Public-RPC rotation lists (dexter plan todo 42 — ONE entry per
+ * stack, AFTER keyed tiers, BEFORE honest null).
+ *
+ * Every URL below answered a live `eth_chainId` probe with the exact
+ * chain id on 2026-10-12 (evidence `.omo/evidence/task-fe-rotation.log`
+ * — never from memory). First entry per chain EQUALS the legacy
+ * single public URL (`launchpad-table.ts EVM_CHAIN_TRANSPORTS.rpcUrl`)
+ * where one existed, so rotation order starts where the old behavior
+ * served and the detector's keyless `receiptTo` path (which keeps
+ * reading that table) is untouched.
+ *
+ * Excluded with reason (probed, not assumed): `eth.llamarpc.com` +
+ * `polygon.llamarpc.com` + `optimism.llamarpc.com` (525/empty —
+ * down at probe time), `polygon-rpc.com` (403 tenant-disabled — now
+ * key-gated), `rpc.ankr.com/*` (key-gated 401-class on every chain),
+ * ethpandaops-polygon (empty). Robinhood has exactly ONE public
+ * endpoint in existence — the list holds one (backoff still applies,
+ * rotation is a no-op there by construction).
+ *
+ * Unichain is NEW coverage: no launchpad-table row existed (public leg
+ * was null), so keyed-down unichain used to collapse straight to null;
+ * it now rotates over 3 verified endpoints (fail-open gain, additive).
+ */
+export const PUBLIC_EVM_RPC_URLS: Readonly<Record<string, readonly string[]>> =
+  {
+    ethereum: [
+      'https://ethereum.publicnode.com',
+      'https://cloudflare-eth.com',
+      'https://1rpc.io/eth',
+    ],
+    base: [
+      'https://mainnet.base.org',
+      'https://base.publicnode.com',
+      'https://1rpc.io/base',
+    ],
+    bsc: [
+      'https://bsc-dataseed.binance.org',
+      'https://bsc.publicnode.com',
+      'https://1rpc.io/bnb',
+    ],
+    arbitrum: [
+      'https://arb1.arbitrum.io/rpc',
+      'https://arbitrum-one.publicnode.com',
+      'https://1rpc.io/arb',
+    ],
+    polygon: ['https://polygon-bor.publicnode.com', 'https://1rpc.io/matic'],
+    optimism: [
+      'https://mainnet.optimism.io',
+      'https://optimism.publicnode.com',
+      'https://1rpc.io/op',
+    ],
+    robinhood: ['https://rpc.mainnet.chain.robinhood.com'],
+    unichain: [
+      'https://mainnet.unichain.org',
+      'https://unichain.publicnode.com',
+      'https://1rpc.io/unichain',
+    ],
+    avalanche: [
+      'https://api.avax.network/ext/bc/C/rpc',
+      'https://avalanche.publicnode.com',
+      'https://1rpc.io/avax/c',
+    ],
+  };
+
+export function publicEvmRpcUrls(chain: string): ReadonlyArray<string> {
+  return PUBLIC_EVM_RPC_URLS[chain] ?? [];
+}
+
+/**
  * Stable raw-call contract for Lane S/E readers (Lane T, todo 22).
  *
  * FROZEN: `chain` is OUR chain id (`bsc`, never `bnb`); unknown
@@ -140,6 +209,15 @@ export interface ChainRpc {
     data: string,
     block?: string,
   ): Promise<string | null>;
+  /**
+   * Rotation audit drain (dexter plan todo 42, optional so hand-mocks
+   * stay valid): providerErrors-shaped backoff enter/exit notes,
+   * drain-once. Absent ⇒ no rotation notes from this transport.
+   */
+  drainRotationNotes?(): ReadonlyArray<{
+    readonly key: string;
+    readonly value: string;
+  }>;
 }
 
 /**

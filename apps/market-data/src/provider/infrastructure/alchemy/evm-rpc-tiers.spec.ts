@@ -93,11 +93,20 @@ describe('AlchemyService fallback tiers (todo 24)', () => {
     expect(urls).toEqual([ALCHEMY_BASE, PUBLIC_BASE]);
   });
 
-  it('resolves honest null when every tier is down', async () => {
+  it('resolves honest null when every tier is down (bounded public fan-out: 2 keyed + 3 rotated)', async () => {
     mockedAxios.post.mockRejectedValue(new Error('all down'));
     const res = await service('k', 'dk').ethCall('base', '0xt', '0xd');
     expect(res).toBeNull();
-    expect(mockedAxios.post).toHaveBeenCalledTimes(3);
+    // Rotation (todo 42) tries each listed public endpoint once — the
+    // fan-out is bounded by the list length, never a retry loop.
+    expect(mockedAxios.post).toHaveBeenCalledTimes(5);
+    const urls = mockedAxios.post.mock.calls.map((call) => String(call[0]));
+    expect(urls.slice(0, 2)).toEqual([ALCHEMY_BASE, DRPC_BASE]);
+    expect(urls.slice(2)).toEqual([
+      'https://mainnet.base.org',
+      'https://base.publicnode.com',
+      'https://1rpc.io/base',
+    ]);
   });
 
   it('routes robinhood through alchemy then dRPC then public (slug live-verified 2026-10-07)', async () => {

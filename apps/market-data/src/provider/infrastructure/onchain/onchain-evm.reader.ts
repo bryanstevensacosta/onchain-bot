@@ -138,6 +138,18 @@ export class OnchainEvmReaderService implements OnchainEvmReader {
   ) {}
 
   /**
+   * Rotation audit passthrough (dexter plan todo 42): forwards the
+   * transport's drain-once backoff notes. Hand-built `ChainRpc`
+   * doubles without the method report none (optional call).
+   */
+  public drainRotationNotes(): ReadonlyArray<{
+    readonly key: string;
+    readonly value: string;
+  }> {
+    return this.chainRpc.drainRotationNotes?.() ?? [];
+  }
+
+  /**
    * Existence gate (todo 21 discipline): an address with NO contract
    * code is an EOA-or-dead end — resolve `null` before burning a
    * batch. Transport miss (`null` code = unknown) FAILS OPEN into

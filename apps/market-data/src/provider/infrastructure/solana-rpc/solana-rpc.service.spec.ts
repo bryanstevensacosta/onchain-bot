@@ -125,11 +125,11 @@ describe('SolanaRpcService.getMultipleAccounts (batch PDA reads)', () => {
     mockedAxios.post.mockImplementation((url, body) => {
       const params = (body as { params: [string[]] }).params;
       const chunk = params[0];
-      if (url === 'https://primary.example' && chunk[0] === 'addr-0') {
-        return Promise.reject(new Error('chunk-0 primary down'));
-      }
-      if (url === 'https://api.mainnet.solana.com' && chunk[0] === 'addr-0') {
-        return Promise.reject(new Error('chunk-0 fallback down'));
+      if (chunk[0] === 'addr-0') {
+        // Rotation (todo 42): EVERY public endpoint is down for this
+        // chunk — a single dead endpoint would just fail over to its
+        // sibling, so the dead-chunk shape now needs all of them down.
+        return Promise.reject(new Error('chunk-0 all transports down'));
       }
       return Promise.resolve(
         rpcResult({

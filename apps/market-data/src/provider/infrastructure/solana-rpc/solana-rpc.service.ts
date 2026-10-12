@@ -10,6 +10,13 @@ import {
   parseChainstackChains,
   shyftSolanaRpcUrl,
 } from '../alchemy/alchemy.chains';
+import {
+  isPublicRpcBackoffSignal,
+  PublicRpcRotator,
+  publicRpcBackoffReason,
+  publicRpcHost,
+  type PublicRotationNote,
+} from '../rpc-rotation/public-rpc-rotator';
 import type {
   AccountInfoResult,
   BatchAccountsClient,
@@ -22,6 +29,21 @@ import type {
 } from './solana-rpc.types';
 
 const PUBLIC_SOLANA_RPC = 'https://api.mainnet.solana.com';
+
+/**
+ * Public Solana rotation list (dexter plan todo 42 — ONE tier
+ * position, AFTER keyed tiers). Every URL answered a live `getHealth`
+ * probe with `ok` on 2026-10-12 (evidence
+ * `.omo/evidence/task-fe-rotation.log`). Excluded with reason:
+ * `rpc.ankr.com/solana` (key-gated 403). First entry EQUALS the legacy
+ * single public URL, so rotation order starts where the old behavior
+ * served.
+ */
+export const PUBLIC_SOLANA_RPCS: readonly string[] = [
+  PUBLIC_SOLANA_RPC,
+  'https://api.mainnet-beta.solana.com',
+  'https://solana.publicnode.com',
+];
 
 /**
  * `getMultipleAccounts` chunk ceiling (Lane T, todo 22).
@@ -98,6 +120,12 @@ export class SolanaRpcService
   private readonly chainstackApiKey: string;
   private readonly chainstackChains: ReadonlySet<string> | null;
   private readonly shyftApiKey: string;
+  /**
+   * Public-rotation state (dexter plan todo 42): in-memory scores +
+   * backoffs, reset on deploy by construction. Keyed tiers carry no
+   * rotation state (order pinned, first well-formed answer wins).
+   */
+  private readonly publicRotator = new PublicRpcRotator(PUBLIC_SOLANA_RPCS);
 
   public constructor(@Inject(SOLANA_RPC_CONFIG) config: SolanaRpcConfig) {
     super();
@@ -265,6 +293,8 @@ export class SolanaRpcService
   ): Promise<T | null> {
     const rpcUrl = tier.url;
     const tierName = tier.name;
+    const isPublic = tierName === 'public';
+    const startedAt = Date.now();
     try {
       const { data } = await axios.post<JsonRpcResponse<T>>(
         rpcUrl,
@@ -272,6 +302,14 @@ export class SolanaRpcService
         { headers: { 'Content-Type': 'application/json' }, timeout: 10_000 },
       );
       if (data.error) {
+        if (isPublic) {
+          this.publicRotator.recordFailure(
+            rpcUrl,
+            isPublicRpcBackoffSignal(null, data.error.code, data.error.message),
+            publicRpcBackoffReason(null, data.error.code, data.error.message),
+            Date.now(),
+          );
+        }
         if (isKeyOrQuotaSignal(data.error.code, data.error.message)) {
           this.logger.warn(
             `solana-rpc ${method} key/quota signal on ${tierName} [${String(data.error.code)}]: ${data.error.message} — ${SOLANA_KEY_RUNBOOK}`,
@@ -281,9 +319,31 @@ export class SolanaRpcService
         }
         return null;
       }
-      this.logger.debug(`solana-rpc ${method} served-by=${tierName}`);
+      if (isPublic) {
+        this.publicRotator.recordSuccess(rpcUrl, Date.now() - startedAt);
+        this.logger.debug(
+          `solana-rpc ${method} served-by=public:${publicRpcHost(rpcUrl)}`,
+        );
+      } else {
+        this.logger.debug(`solana-rpc ${method} served-by=${tierName}`);
+      }
       return data.result ?? null;
     } catch (err) {
+      if (isPublic) {
+        const status = axios.isAxiosError(err)
+          ? (err.response?.status ?? null)
+          : null;
+        // 404 stays a quiet null (carved out before the warn below);
+        // every other public failure is recorded, 429/timeout parks.
+        if (status !== 404) {
+          this.publicRotator.recordFailure(
+            rpcUrl,
+            isPublicRpcBackoffSignal(status, null, (err as Error).message),
+            publicRpcBackoffReason(status, null, (err as Error).message),
+            Date.now(),
+          );
+        }
+      }
       if (axios.isAxiosError(err)) {
         const status = err.response?.status;
         if (status === 404) return null;
@@ -300,10 +360,23 @@ export class SolanaRpcService
   }
 
   /**
-   * Tiered `{name,url}` URLs for one RPC method (free-B todo 30a):
-   * Helius primary → Shyft → Chainstack → public. Free-B tiers are
-   * skipped when the key is absent (skip-if-absent, dRPC-copy) and
-   * always skipped for index/holders legs (carve-out).
+   * Rotation audit drain (todo 42): providerErrors-shaped backoff
+   * enter/exit notes, drain-once. The snapshot service merges these
+   * into `providerErrors` (existing seam — no new metrics).
+   */
+  public drainRotationNotes(): ReadonlyArray<PublicRotationNote> {
+    return this.publicRotator.drainNotes();
+  }
+
+  /**
+   * Tiered `{name,url}` URLs for one RPC method (free-B todo 30a +
+   * public rotation todo 42): Helius primary → Shyft → Chainstack →
+   * public ROTATION (round-robin + latency scores + 5m backoff on
+   * 429/timeout, ONE tier position, bounded fan-out ≤ listed
+   * endpoints). Free-B tiers are skipped when the key is absent
+   * (skip-if-absent, dRPC-copy) and always skipped for index/holders
+   * legs (carve-out). Keyed order is pinned; only the public tail
+   * rotates.
    */
   private buildRpcUrls(method: string): readonly SolanaRpcTier[] {
     const tiers: SolanaRpcTier[] = [];
@@ -329,7 +402,9 @@ export class SolanaRpcService
         name: 'chainstack',
         url: chainstackSolanaRpcUrl(this.chainstackApiKey),
       });
-    tiers.push({ name: 'public', url: PUBLIC_SOLANA_RPC });
+    for (const url of this.publicRotator.orderedEndpoints()) {
+      tiers.push({ name: 'public', url });
+    }
     return tiers;
   }
 }

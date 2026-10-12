@@ -1549,6 +1549,100 @@ explicit-chain snapshot` (Solana 2 legs / EVM ≤3 reads, ×2 retry
   per provider where a key exists, else skip+report; never demand
   unconditional live proof).
 
+- Public-RPC rotation per chain (dexter plan todo 42, gratis para
+  siempre): the public tier is ONE rotating position per stack —
+  `AlchemyService.rpcCallForChain` reads `PUBLIC_EVM_RPC_URLS`
+  (`alchemy.chains.ts`), `SolanaRpcService` reads `PUBLIC_SOLANA_RPCS`
+  — AFTER keyed tiers (order pinned, untouched) and BEFORE honest
+  null. Rotation table (every URL answered a live probe with the exact
+  chain id / `ok` on 2026-10-12, evidence
+  `.omo/evidence/task-fe-rotation.log`):
+  ethereum ×3 (`ethereum.publicnode.com`, `cloudflare-eth.com`,
+  `1rpc.io/eth`), base ×3 (`mainnet.base.org`,
+  `base.publicnode.com`, `1rpc.io/base`), bsc ×3
+  (`bsc-dataseed.binance.org`, `bsc.publicnode.com`, `1rpc.io/bnb`),
+  arbitrum ×3 (`arb1.arbitrum.io/rpc`,
+  `arbitrum-one.publicnode.com`, `1rpc.io/arb`), polygon ×2
+  (`polygon-bor.publicnode.com`, `1rpc.io/matic`), optimism ×3
+  (`mainnet.optimism.io`, `optimism.publicnode.com`, `1rpc.io/op`),
+  robinhood ×1 (`rpc.mainnet.chain.robinhood.com` — the only public
+  endpoint in existence), unichain ×3 (`mainnet.unichain.org`,
+  `unichain.publicnode.com`, `1rpc.io/unichain` — NEW coverage, the
+  public leg was null), avalanche ×3 (`api.avax.network/ext/bc/C/rpc`,
+  `avalanche.publicnode.com`, `1rpc.io/avax/c`), Solana ×3
+  (`api.mainnet.solana.com`, `api.mainnet-beta.solana.com`,
+  `solana.publicnode.com`). Excluded with reason (probed, not
+  assumed): `eth/polygon/optimism.llamarpc.com` (525/empty at probe
+  time), `polygon-rpc.com` (403 tenant-disabled — key-gated now),
+  `rpc.ankr.com/*` (key-gated everywhere). Policy (pinned, no env):
+  round-robin cursor + latency EMA (alpha 0.3, 10% relax-to-best per
+  read) + 5m backoff on 429/timeout (`PUBLIC_RPC_BACKOFF_MINUTES = 5`,
+  lazy re-admit, no timers); scores/backoffs in-memory, reset-on-deploy
+  (same rule as breaker/governor). Seams (no new metrics, no parallel
+  loop): `served-by=public:<host>` on success; backoff enter/exit as
+  `providerErrors['public-rotation:<host>']` notes via `drainRotationNotes()`
+  (EVM: service → reader passthrough → fastPath; Solana: service →
+  fastPath; merged at the `providerErrors` assembly) — 429-flavored
+  enters feed the governor's existing pressure scan, exits are neutral.
+  Primitive: `provider/infrastructure/rpc-rotation/public-rpc-rotator.ts`
+  (+ specs: order/backoff/re-admit/decay/reset, service rotation +
+  keyed-intact, snapshot note-merge). QPS delta: healthy path still 1
+  public attempt; worst case ≤ listed endpoints, first success wins
+  (bounded fan-out, spec-pinned — no retry loop).
+
+- Kill-list re-audit with fresh eyes (dexter plan todo 43, 2026-10-12,
+  `no-hay-grasa` with evidence — zero legs cut, zero `.ts` changed):
+  every same-data-via-2-routes pair re-measured on the rotated
+  substrate (fresh probes P1-P6 in
+  `.omo/evidence/task-fe-kill-reaudit.log`, NOT old logs; live
+  `served-by=public:*`/rotation-note traffic not yet observable —
+  no restart permitted — so the note-merge channel stands spec-pinned
+  (`address-snapshot-rotation.spec.ts` green) and `.logs` `served-by=`
+  (38× shyft + 3× primary, pre-restart window) is cited only as
+  tier-order context, never as rotation proof). Baseline legs:
+  public-tier 0.37-0.47s single-attempt healthy (P1-P3);
+  dex-search fallback 0.33s cheap-null (P4); defillama 0.79s (P5,
+  matches 0.63-0.79s todo-32 probes); rugcheck-search 2.85s
+  conditional-only (P6); discovery 640-978ms saved by cache (todo
+  30b); tail extras 400ms abandon; retry cap 1 + ≤2s + jitter;
+  breaker 5 fails → 30s. Decision per pair (criterion pinned:
+  latency-measured + coverage-class + quota-cost, in that order;
+  cut requires a no-regression spec — none met it):
+  dex-strict/search/tokensInfo QUEDA (fallbacks fire ONLY on
+  strict-null, happy path 0 extra; search = symbol-typed/thin-pair,
+  tokensInfo = rows the search index skips; keyless 60/min);
+  gecko-info/multi/simple/searchPools/pools QUEDA (all conditional;
+  searchPools = Gecko-only class STAGEVEIL FDV $3471
+  `sources:[geckoterminal]`, spec-pinned, live-proven 2026-10-06 —
+  no Gecko live re-probe by wall discipline);
+  mobula-markets/price QUEDA (price leg ONLY on markets-null, keyed
+  60/min bucket); rugcheck-summary/search QUEDA (summary =
+  locked/burned UNIQUE, no other leg; search exact-mint-only);
+  defillama QUEDA (price+symbol ONLY, LAST free leg, 6 chains);
+  etherscan-holdercount QUEDA (zero-network without key,
+  spec-pinned; 1 call/EVM-scan with key, PRO-gated null on free —
+  exact-count class + future-PRO depth); birdeye-EVM QUEDA
+  (multichain fixture class, 7 chains incl. robinhood, CU-metered
+  last-widen order); coingecko QUEDA (SOLE max/circulating supply
+  source); solanaRpc-supply/top10 QUEDA (on-chain ground truth, no
+  key); ccxt QUEDA (`covers()` CEX-only, zero onchain calls);
+  direct-fast-path vs aggregator QUEDA (fast <200ms vs full card —
+  latency architecture, resolver-adjacent, untouched);
+  public-rotation siblings QUEDA (healthy = exactly 1 attempt;
+  redundancy IS the feature); discovery-cache QUEDA (the saver,
+  not the fat); ohlc-derived-change QUEDA (ONLY when all natives
+  null, PONYO-class, null-honest otherwise); computed-fdv QUEDA
+  (single-seam invariant, todo 38 — one exit, not two legs).
+  Excluded by name (never candidates): identity-39 (metadata
+  PDA/decode, hasIdentity, basics.metadata), launchpad (detector
+  all legs, Helius-origin, override table, Pons), venue
+  (snapshot-venue/resolveVenue), ath (findFdvAth/fdvAthUsd/At),
+  Chainstack tier (owner credential swap pending), todo-40 legs
+  (Helius-primary/dRPC-shape — litigated, NO re-abre per todo 43),
+  detector/resolver/dexter/frontend/backend/gateway/workflows/
+  `.kiro`/migrations/DB (untouched). Kill-list anterior stays
+  closed. CHANGELOG skipped (no code — todo-40 precedent).
+
 - Discovery cache with migration invalidation (dexter plan todo 30b):
   `DiscoveryCacheService.resolveDiscovery(chain, mint)` (snapshot/
   application) is the cache-first discovery seam: DB row

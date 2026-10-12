@@ -70,4 +70,13 @@ export interface BatchAccountsClient {
   getMultiple(
     addresses: ReadonlyArray<string>,
   ): Promise<ReadonlyArray<SolanaAccountInfoValue | null>>;
+  /**
+   * Rotation audit drain (dexter plan todo 42, optional so hand-mocks
+   * stay valid): providerErrors-shaped backoff enter/exit notes,
+   * drain-once. Absent ⇒ no rotation notes from this transport.
+   */
+  drainRotationNotes?(): ReadonlyArray<{
+    readonly key: string;
+    readonly value: string;
+  }>;
 }

@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Public-RPC rotation per chain (dexter plan todo 42):** the public
+  tier in `AlchemyService.rpcCallForChain` + `SolanaRpcService`
+  (ONE position per stack, after keyed, before honest null) rotates
+  over 2-4 live-verified endpoints per chain (verified 2026-10-12;
+  robinhood holds 1 — the only public endpoint in existence; unichain
+  gains public coverage it lacked) with round-robin + latency-score
+  decay (EMA alpha 0.3, 10% relax-to-best per read, in-memory,
+  reset-on-deploy) + 5m backoff on 429/timeout (N pinned,
+  `PUBLIC_RPC_BACKOFF_MINUTES = 5`). Observability on existing seams:
+  `served-by=public:<host>` on success, `providerErrors` backoff
+  enter/exit notes (429-flavored enters feed the governor's existing
+  pressure scan; exits neutral). Keyed order untouched; QPS worst case
+  grows 1 → ≤3 public attempts only when siblings are down (bounded,
+  spec-pinned).
+
 - **Free-scale: singleflight + TTL policy + governor + tail-degraded
   (dexter plan todo 41):** `SingleflightService` (N-concurrent
   same-key snapshots collapse to one upstream run; `Map` +

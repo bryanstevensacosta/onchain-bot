@@ -266,6 +266,25 @@ export class DirectFastPathService {
   ) {}
 
   /**
+   * Rotation audit drain (dexter plan todo 42): merges the drain-once
+   * backoff notes from both RPC stacks (Solana transport directly,
+   * EVM via the reader passthrough). Hand-built doubles without the
+   * methods report none. The snapshot service merges these into
+   * `providerErrors` (existing seam — no new metrics).
+   */
+  public drainRotationNotes(): ReadonlyArray<{
+    readonly key: string;
+    readonly value: string;
+  }> {
+    const notes: Array<{ readonly key: string; readonly value: string }> = [
+      ...(this.accounts?.drainRotationNotes?.() ?? []),
+    ];
+    const evm = this.evmReader?.drainRotationNotes?.();
+    if (evm !== null && evm !== undefined) notes.push(...evm);
+    return notes;
+  }
+
+  /**
    * Discovery seam (dexter plan todo 30b): cached discovery first,
    * direct strict per-chain discovery as the fallback (and when the
    * cache service is absent, e.g. unit specs built by hand).

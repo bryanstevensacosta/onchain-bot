@@ -18,9 +18,16 @@ import {
   isChainstackChainAllowed,
   isChainSupported,
   parseChainstackChains,
+  publicEvmRpcUrls,
   type ChainRpc,
 } from './alchemy.chains';
-import { EVM_CHAIN_TRANSPORTS as KEYLESS_EVM_TRANSPORTS } from '../../../launchpad/domain/launchpad-table';
+import {
+  isPublicRpcBackoffSignal,
+  PublicRpcRotator,
+  publicRpcBackoffReason,
+  publicRpcHost,
+  type PublicRotationNote,
+} from '../rpc-rotation/public-rpc-rotator';
 
 const BASE = 'https://eth-mainnet.g.alchemy.com/v2';
 
@@ -55,6 +62,12 @@ export class AlchemyService extends DataProviderPort implements ChainRpc {
   private readonly drpcApiKey: string;
   private readonly chainstackApiKey: string;
   private readonly chainstackChains: ReadonlySet<string> | null;
+  /**
+   * Public-rotation state per chain (dexter plan todo 42): in-memory
+   * scores + backoffs, reset on deploy by construction. Keyed tiers
+   * carry no rotation state (order pinned, first non-null wins).
+   */
+  private readonly publicRotators = new Map<string, PublicRpcRotator>();
 
   public constructor(@Inject(ALCHEMY_CONFIG) config: AlchemyConfig) {
     super();
@@ -136,7 +149,8 @@ export class AlchemyService extends DataProviderPort implements ChainRpc {
   // ─────────────────────────────────────────────
 
   /**
-   * Per-chain JSON-RPC call with fallback tiers (todo 24 + free-B todo 30a).
+   * Per-chain JSON-RPC call with fallback tiers (todo 24 + free-B todo 30a
+   * + public rotation todo 42).
    *
    * Order per call, first non-null wins: Alchemy (only when
    * `ALCHEMY_API_KEY` is set) → dRPC free (only when `DRPC_API_KEY`
@@ -145,13 +159,15 @@ export class AlchemyService extends DataProviderPort implements ChainRpc {
    * `CHAINSTACK_API_KEY` is set AND the chain has a pinned host in
    * `CHAINSTACK_EVM_HOSTS` — `*`-rows are convention-extrapolated,
    * fail-open; robinhood/avalanche have no row and skip) → keyless
-   * public RPC (launchpad-table URL, always available) → honest
+   * public ROTATION (`PUBLIC_EVM_RPC_URLS`, round-robin + latency
+   * scores + 5m backoff on 429/timeout, ONE tier position) → honest
    * `null`. Unknown chain ⇒ `null`
-   * with zero network (never throws). Every tier carries its own
-   * timeout; the serving tier is debug-logged (`served-by=`) so quota
-   * decisions are made on data. Supports `AbortSignal` so multicall
-   * timeouts cancel in-flight HTTP instead of merely ignoring late
-   * winners.
+   * with zero network (never throws). Keyed tiers keep their pinned
+   * order and carry no rotation state. Every tier carries its own
+   * timeout; the serving tier is debug-logged (`served-by=`, public
+   * legs labeled `public:<host>`) so quota decisions are made on data.
+   * Supports `AbortSignal` so multicall timeouts cancel in-flight HTTP
+   * instead of merely ignoring late winners.
    */
   public async rpcCallForChain<T>(
     chain: string,
@@ -190,10 +206,6 @@ export class AlchemyService extends DataProviderPort implements ChainRpc {
             ? chainstackEvmRpcUrl(chain, this.chainstackApiKey)
             : null,
       },
-      {
-        name: 'public',
-        url: KEYLESS_EVM_TRANSPORTS[chain]?.rpcUrl ?? null,
-      },
     ];
     for (const tier of tiers) {
       if (tier.url === null) continue;
@@ -231,10 +243,100 @@ export class AlchemyService extends DataProviderPort implements ChainRpc {
         );
       }
     }
+    const rotated = await this.publicRotationCall<T>(chain, method, body);
+    if (rotated !== null) return rotated;
     if (!isChainSupported(chain)) {
       this.logger.debug(`Alchemy ${method}: unsupported chain ${chain}`);
     }
     return null;
+  }
+
+  private publicRotatorFor(chain: string): PublicRpcRotator {
+    const existing = this.publicRotators.get(chain);
+    if (existing) return existing;
+    const rotator = new PublicRpcRotator(publicEvmRpcUrls(chain));
+    this.publicRotators.set(chain, rotator);
+    return rotator;
+  }
+
+  /**
+   * Public tier as ONE rotating position: round-robin + latency-score
+   * order, 5m backoff on 429/timeout, `served-by=public:<host>`.
+   * Bounded fan-out (≤ listed endpoints, first success wins).
+   */
+  private async publicRotationCall<T>(
+    chain: string,
+    method: string,
+    body: JsonRpcRequest,
+  ): Promise<T | null> {
+    const rotator = this.publicRotatorFor(chain);
+    const now = Date.now();
+    for (const url of rotator.orderedEndpoints(now)) {
+      const startedAt = Date.now();
+      try {
+        const response = await axios.post<JsonRpcResponse<T>>(url, body, {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: EVM_RPC_TIER_TIMEOUT_MS,
+        });
+        const data = response?.data;
+        if (!data) {
+          this.logger.debug(`Alchemy ${chain} ${method} [public] empty body`);
+          rotator.recordFailure(url, false, 'empty body', Date.now());
+          continue;
+        }
+        if (data.error) {
+          this.logger.debug(
+            `Alchemy ${chain} ${method} [public] error [${data.error.code}]: ${data.error.message}`,
+          );
+          rotator.recordFailure(
+            url,
+            isPublicRpcBackoffSignal(null, data.error.code, data.error.message),
+            publicRpcBackoffReason(null, data.error.code, data.error.message),
+            Date.now(),
+          );
+          continue;
+        }
+        const result = data.result ?? null;
+        if (result !== null) {
+          rotator.recordSuccess(url, Date.now() - startedAt);
+          this.logger.debug(
+            `evm-rpc ${chain} ${method} served-by=public:${publicRpcHost(url)}`,
+          );
+          return result;
+        }
+        rotator.recordFailure(url, false, 'null result', Date.now());
+      } catch (err) {
+        const message = (err as Error).message;
+        this.logger.debug(
+          `Alchemy ${chain} ${method} [public] failed: ${message}`,
+        );
+        const status = axios.isAxiosError(err)
+          ? (err.response?.status ?? null)
+          : null;
+        rotator.recordFailure(
+          url,
+          isPublicRpcBackoffSignal(status, null, message),
+          publicRpcBackoffReason(status, null, message),
+          Date.now(),
+        );
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Rotation audit drain (todo 42): providerErrors-shaped backoff
+   * enter/exit notes across all chain rotators, drain-once. The
+   * snapshot service merges these into `providerErrors` (existing
+   * seam — no new metrics); the governor reads 429-flavored enters
+   * as pressure through its existing scan.
+   */
+  public drainRotationNotes(): ReadonlyArray<PublicRotationNote> {
+    const notes: PublicRotationNote[] = [];
+    for (const rotator of this.publicRotators.values()) {
+      notes.push(...rotator.drainNotes());
+    }
+    return notes;
   }
 
   public isChainSupported(chain: string): boolean {

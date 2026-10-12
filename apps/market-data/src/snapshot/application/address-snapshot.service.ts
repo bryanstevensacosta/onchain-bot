@@ -1123,6 +1123,16 @@ export class AddressSnapshotService {
     for (const [k, v] of Object.entries(tailNotes)) {
       providerErrors[k] = v;
     }
+    // Public-RPC rotation audit (dexter plan todo 42): backoff
+    // enter/exit notes ride the existing providerErrors channel (same
+    // seam the governor/breaker read — no new metrics, no parallel
+    // control loop). Drain-once per snapshot; null fastPath drains none.
+    if (this.fastPath !== null && this.fastPath !== undefined) {
+      const rotationNotes = this.fastPath.drainRotationNotes?.() ?? [];
+      for (const note of rotationNotes) {
+        providerErrors[note.key] = note.value;
+      }
+    }
     if (args.skipDevHoldings && kind === 'token') {
       // Fast card: dev holdings need their own aggregator round trip,
       // outside the 800ms budget by design — marked, never silent.
