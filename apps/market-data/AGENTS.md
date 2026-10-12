@@ -902,6 +902,56 @@ budget now:
     breaker); Redis swaps in via the same port with zero consumer
     change. Evidence: `.omo/evidence/task-fe-detect-budget.log`.
 
+## FLAP INTAKE (todo 44 Phase B, 2026-10-12 — owner-ratified)
+
+- SCOPE (factory-gate suffices): Phase A
+  (`.omo/evidence/task-fe-flap-intake.log`) proved the SSR-fallback
+  leg CLOSED (flap.sh serves a JS shell — launched AND dead pages
+  byte-identical modulo deploy-hash noise, generic titles, no robots
+  markers — so a 200-status check is PROHIBITED as proof) and the
+  receipt-factory path VIABLE (Portals cited + getCode-verified +
+  transports exist). Owner ratified: factory-gate suffices, 🦋
+  confirmed, spec 22→23 included, xlayer/monad transports deferred.
+- TABLE (`launchpad-table.ts`, ADD-only): `EVM_LAUNCHPAD_ORDER` gains
+  `flap` AFTER the pons/four-meme cluster, BEFORE the
+  presale-pattern rows (specific brand with a factory set, not a
+  per-sale pattern); `EVM_LAUNCHPAD_ROWS.flap` builds the chain-scoped
+  canonical `https://flap.sh/<chain>/<address>` (`bsc`/`bnb` →
+  `bnb` slug, `robinhood` → `robinhood`; short form NOT canonical);
+  `EVM_FACTORY_SETS.flap = {chains:['bsc','robinhood'],
+factories:[0xe2cE…C9De0 (bnb), 0x2660…Eb09 (robinhood)]}` verbatim
+  from the canonical docs page (fetched 2026-10-12, never from
+  memory); `flap` is DELIBERATELY absent from
+  `EVM_RECEIPT_EXCLUDED` so `RECEIPT_MATCH_ORDER` includes it.
+- CHAIN VERDICTS (Portal cited or excluded with reason, never
+  silent): bnb/robinhood INCLUDE (Portal + transport); xlayer
+  (`0xb30D…`) + monad (`0x30e8…`) DOCUMENTED-DEFERRED (Portals cited,
+  no `EVM_CHAIN_TRANSPORTS` row — separate intake scope, unknown
+  aliases resolve null with ZERO fetch); morph EXCLUDED (NO Portal
+  row on the canonical page — factory-matching would be invention).
+- DETECTOR (existing Phase-2 machinery, NO new fetcher): the Portal
+  is a CREATE2 deployer (launch tx targets Portal → receipt `to` ==
+  Portal), the exact shape `detectFactoryTo` already matches.
+  Positional precedence: Phase-1 (bankr > mintclub > pons) beats
+  factory by construction; within the table, order position wins
+  (no overlap: distinct chains/factories). Flap positive cache on the
+  SAME shared `CacheService` (`flap:launchpad:<chain>:<mint>`,
+  lowercased, env `FLAP_CACHE_TTL_DAYS` default 14): checked FIRST
+  inside Phase 2 (hit skips Blockscout + receipt), written ONLY on a
+  fresh flap resolution, nulls NEVER (19a). Graduated-state note:
+  the creation receipt is immutable, so bonding vs graduated share
+  the fixture — one fixture suffices, no per-state legs.
+- SPECS (`launchpad-detector-flap.spec.ts`, 11 tests): plan-fixture
+  match (`0xdc45…` → `flap` + `flap.sh/robinhood/…`), checksum-case
+  match, BNB-alias match (`bnb` URL), no-match null, graduated
+  independence, deferred-chain zero-fetch, shared-deadline abort,
+  cache-hit spy, nulls-never-cached, absent-cache parity, TTL
+  contract. Dexter mirror: `LAUNCHPAD_CATALOG.flap` +
+  `KNOWN_LAUNCHPAD_IDS` 22→23 with a parity spec; DisplayMap
+  `{launchpad,flap,🦋}` verified present via API (verify-only, no
+  create). Evidence: `.omo/evidence/task-fe-flap-intake.log`
+  (appended Phase B).
+
 ## OHLC-DERIVED 24H CHANGE (todo 33, 2026-10-10)
 
 Fallback leg for Gecko-only tokens (STAGEVEIL-pattern: `/info` has no

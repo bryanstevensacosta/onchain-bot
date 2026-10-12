@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Flap intake (dexter plan todo 44 Phase B):** `flap` launchpad row
+  (`EVM_LAUNCHPAD_ORDER` after virtuals, chain-scoped
+  `https://flap.sh/<chain>/<address>` with `bsc`→`bnb` slug) +
+  `EVM_FACTORY_SETS.flap` (BNB Portal `0xe2cE…C9De0` + Robinhood
+  Portal `0x2660…Eb09`, verbatim from canonical docs, chains
+  `bsc`/`robinhood`; xlayer/monad documented-deferred, morph
+  excluded — all with reason) riding the EXISTING Phase-2
+  receipt-`to` machinery (no new fetcher; SSR path rejected with
+  proof) + flap positive cache on the shared `CacheService`
+  (`flap:launchpad:`, 14d default, nulls never). Specs (11):
+  fixture match/no-match/graduated/deadline/cache-hit +
+  deferred-chain zero-fetch. Dexter mirror + DisplayMap verify in
+  the dexter CHANGELOG entry.
+
 - **Public-RPC rotation per chain (dexter plan todo 42):** the public
   tier in `AlchemyService.rpcCallForChain` + `SolanaRpcService`
   (ONE position per stack, after keyed, before honest null) rotates

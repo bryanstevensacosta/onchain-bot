@@ -14,9 +14,9 @@
  * DETECTOR-SLUG MIRROR (drift rule): `KNOWN_LAUNCHPAD_IDS` +
  * `LAUNCHPAD_CATALOG` below mirror market-data
  * `src/launchpad/domain/launchpad-table.ts`
- * (`SOLANA_LAUNCHPAD_ORDER` 11 rows + `EVM_LAUNCHPAD_ORDER` 11 rows =
- * 22 slugs, same 22 the Wave-1 DisplayMap `launchpad` seeds carry).
- * Dexter must NOT import market-data source (different app, no
+ * (`SOLANA_LAUNCHPAD_ORDER` 11 rows + `EVM_LAUNCHPAD_ORDER` 12 rows =
+ * 23 slugs, same 23 the Wave-1 DisplayMap `launchpad` seeds carry
+ * once the `{launchpad,flap,🦋}` row lands). Dexter must NOT import market-data source (different app, no
  * cross-app source imports) — so the mirror is hand-kept. INTAKE
  * RULE: any intake that adds a slug to the market-data table MUST
  * add it here in the same wave, or override creation for the new
@@ -210,6 +210,17 @@ export const LAUNCHPAD_CATALOG: Record<string, LaunchpadCatalogRow> = {
     name: 'Virtuals Protocol',
     buildUrl: (_chain, address) =>
       `https://app.virtuals.io/prototypes/${address}`,
+  },
+  // Flap (dexter plan todo 44, Phase B — detector↔override parity):
+  // mirrors market-data `EVM_LAUNCHPAD_ROWS.flap` verbatim (id, name,
+  // chain-scoped `https://flap.sh/<chain>/<address>` with the same
+  // `bsc`/`bnb` → `bnb` alias), so an override hit renders the same
+  // card fields the detector produces for the `flap` slug.
+  flap: {
+    id: 'flap',
+    name: 'Flap',
+    buildUrl: (chain, address) =>
+      `https://flap.sh/${chain === 'bsc' || chain === 'bnb' ? 'bnb' : chain}/${address}`,
   },
   pinksale: {
     id: 'pinksale',

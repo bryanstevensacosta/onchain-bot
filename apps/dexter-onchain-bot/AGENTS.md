@@ -518,7 +518,8 @@ todo 6 added 10 suites / 35 tests (±0 since); bare-address added
   origin, persists through graduation) + 4 derived keys
   (`launchpadText/TextLink/Icon/IconLink`; IconLink→Link fallback,
   null → `""`). DisplayMap dimension `launchpad` (emoji only,
-  operator-seeded via API — 22 Wave-1 rows, no hardcoded seeds).
+  operator-seeded via API — 23 rows after the flap intake (plan todo
+  44), no hardcoded seeds).
   Supported table with status flags: ratified R1
   `.omo/notepads/dexter-launchpad-r1.md` §§1-2 + §8 (source of truth;
   detector lives in market-data `src/provider/launchpad/`).
@@ -549,10 +550,10 @@ matchValue:'pump-fun', display:'Pump'}`.
   detection) + one `launchpad override hit` audit log per hit;
   delete (or no row) restores detector behavior byte-identically,
   and every store failure fails open to the snapshot value.
-  `launchpad_id` must be one of the 22 detector slugs (unknown →
+  `launchpad_id` must be one of the 23 detector slugs (unknown →
   400 + `valid` list); mint normalizes via the single
   `normalizeMint` (EVM → lowercase, Solana → exact base58;
-  malformed → 400). The 22-slug catalog mirrors market-data
+  malformed → 400). The 23-slug catalog mirrors market-data
   `src/launchpad/domain/launchpad-table.ts` (dexter never imports
   market-data source) — INTAKE RULE: a new detector slug MUST land
   here in the same wave or override creation for it fails closed.

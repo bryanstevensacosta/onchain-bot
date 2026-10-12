@@ -380,6 +380,13 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartUrl}}`co
       Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; cada baja con spec + motivo; cero bajas → informe `no-hay-grasa` con evidencia (valido).
       QA scenarios: happy + failure (baja rompe clase → revertida en el mismo lane). Evidence .omo/evidence/task-fe-kill-reaudit.log
       Commit: Y | perf(market-data-legs): re-auditoria kill-list (docs AGENTS+CHANGELOG)
+- [x] 44. Intake Flap: research + detector leg si viable (Wave 1 follow-up, evidencia 0xdc45 Robinhood 2026-10-12)
+      What to do / Must NOT do: FASEADA con gates falsables. **Fase A research (sin codigo):** (a) URL canonica = `flap.sh/<chain>/<address>` (chain-scoped, NO la forma corta); chain scope (Robinhood + BNB + X Layer + Monad + Morph segun docs `Deployed Contract Addresses` — cada chain con su Portal/factory citado o excluida con motivo); (b) vias en ORDEN: receipt-factories PRIMERO (leer tabla → entrada `EVM_FACTORY_SETS`; SSR fetcher SOLO si no hay via factory); (c) si via SSR: doble-senal en HTML crudo (2 marcadores independientes citados con selector; shell generica → false) + robots.txt/ToS de flap.sh citado + backoff/rate-limit pineado (single GET, timeout ≤ slow-leg); si exige JS → limite honesto (200 pelado prohibido como prueba). GATE falsable: pasa SSI (a) ≥1 factory/Portal documentado por chain soportada, Y (b) marcador parseable citado, Y (c) sin keys nuevas; si falta (a) o (b) → `wontfix-documentado`. **Fase B (solo si A pasa):** fila(s) en `launchpad-table.ts` (order+rows+factory-sets por chain) + `LAUNCHPAD_CATALOG`/`KNOWN_LAUNCHPAD_IDS` + bump spec 22→23 + spec de paridad detector↔override + fila DisplayMap `{launchpad,flap,🦋}` (CREAR si ausente — NO asumir DB; emoji con confirm owner en Fase A) + pata en slow-leg compartido (`armLeg` + AbortController + concurrencia Phase-1 + precedencia por posicion) + cache positiva (primitiva CacheService, nunca nulls) + specs (match/no-match/deadline/cache-hit). Graduados: fixture por estado (bonding vs graduado). Docs: market-data AGENTS + CHANGELOG (ADD-only).
+      Parallelization: Wave 1 follow-up (1 worker) | Blocked by: — | Blocks: —
+      References: docs Flap (Portal por chain, URL chain-scoped, guia Robinhood), patron Pons (`detectPons` + `armLeg` + Phase-1 como template a copiar, NO duplicar), caso `0xdc45…` (fixture aceptacion: IconLink `[🦋](flap.sh/robinhood/…)`).
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; `0xdc45…` resuelve `flap` con IconLink exacto; resto intacto.
+      QA scenarios: happy + failure (RPC caido → null, JS-only → wontfix). Evidence .omo/evidence/task-fe-flap-intake.log
+      Commit: Y | feat(market-data-flap): pata flap (docs AGENTS+CHANGELOG)
 
 ### Wave 0 — guion local owner (10 min, dexter `:4060` + frontend `:5173`)
 
@@ -463,6 +470,7 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartUrl}}`co
 | 41 free-scale           | —                | —            | 2                    |
 | 42 rpc-rotation         | —                | —            | 2                    |
 | 43 kill-reaudit         | —                | —            | 2                    |
+| 44 flap-intake          | —                | —            | 2                    |
 
 ## Invariants
 

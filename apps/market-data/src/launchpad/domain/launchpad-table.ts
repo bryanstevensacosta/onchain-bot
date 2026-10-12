@@ -197,6 +197,11 @@ export const EVM_LAUNCHPAD_ORDER: ReadonlyArray<string> = [
   'openserv',
   'mintclub',
   'virtuals',
+  // Flap sits AFTER the pons/four-meme brand cluster and BEFORE the
+  // presale-pattern rows (dexter plan todo 44, Phase B): it is a
+  // specific brand with a documented Portal factory set (not a
+  // per-sale pattern), so it belongs with the factory-matchable rows.
+  'flap',
   'pinksale',
   'dxsale',
 ];
@@ -218,6 +223,11 @@ export const EVM_RECEIPT_EXCLUDED: Record<string, string> = {
     'presale-pattern: creation receipt has to=null, no factory (see evidence P1-P4)',
   dxsale: 'presale-pattern: per-sale contracts, no factory set (R1 §2.9 TBD)',
 };
+// NOTE (dexter plan todo 44, Phase B): `flap` is DELIBERATELY absent
+// above — it MUST participate in receipt-`to` matching (Portal-CREATE2
+// `to` == Portal). `RECEIPT_MATCH_ORDER` derives from
+// `EVM_LAUNCHPAD_ORDER` minus this map, so flap rides Phase-2
+// `detectFactoryTo` with zero extra wiring.
 
 export const EVM_LAUNCHPAD_ROWS: Record<string, LaunchpadRow> = {
   bankr: {
@@ -267,6 +277,19 @@ export const EVM_LAUNCHPAD_ROWS: Record<string, LaunchpadRow> = {
     name: 'Virtuals Protocol',
     buildUrl: (_chain, address) =>
       `https://app.virtuals.io/prototypes/${address}`,
+  },
+  // Flap (dexter plan todo 44, Phase B): chain-scoped canonical
+  // `https://flap.sh/<chain>/<address>` (Phase A evidence
+  // `.omo/evidence/task-fe-flap-intake.log` §2: live indexed page
+  // `flap.sh/robinhood/<addr>` fetched 200; short form
+  // `flap.sh/<address>` is NOT canonical). The app's chain slug for
+  // BNB Chain is `bnb` (boardPaths key), while the detector
+  // normalizes to `bsc` — hence the alias map below.
+  flap: {
+    id: 'flap',
+    name: 'Flap',
+    buildUrl: (chain, address) =>
+      `https://flap.sh/${chain === 'bsc' || chain === 'bnb' ? 'bnb' : chain}/${address}`,
   },
   pinksale: {
     id: 'pinksale',
@@ -344,6 +367,30 @@ export const EVM_FACTORY_SETS: Record<string, EvmFactorySet> = {
     factories: [
       '0x1A540088125d00dD3990f9dA45CA0859af4d3B01',
       '0xd4cCBFA37e2f35611b3042e4096Ad7a3459Bd007',
+    ],
+  },
+  // Flap Portal factories (dexter plan todo 44, Phase B — verbatim
+  // from Phase A evidence `.omo/evidence/task-fe-flap-intake.log`
+  // §1, canonical docs `docs.flap.sh/.../deployed-contract-addresses`
+  // fetched 2026-10-12, never from memory; both getCode-verified
+  // on-chain + transports exist, so (a) HOLDS). The Portal is the
+  // CREATE2 deployer entrypoint (user launch tx targets Portal →
+  // receipt `to` == Portal), the same shape the existing factory-set
+  // leg already matches — NO new fetcher needed. Compared
+  // case-insensitively by `detectFactoryTo`, so checksum casing is
+  // preserved as documented. CHAIN SCOPING: bnb (alias bsc, chainId
+  // 56) + robinhood (4663) fire. DOCUMENTED-DEFERRED (NOT silent):
+  // xlayer (`0xb30D…`) + monad (`0x30e8…`) Portals are cited on the
+  // same docs page BUT have no `EVM_CHAIN_TRANSPORTS` row (no
+  // keyless RPC/blockscout in codebase) — adding transports is
+  // separate intake scope. morph is EXCLUDED: NO Portal row on the
+  // canonical page (only indirect signals), and factory-matching
+  // without a documented Portal would be invention.
+  flap: {
+    chains: ['bsc', 'robinhood'],
+    factories: [
+      '0xe2cE6ab80874Fa9Fa2aAE65D277Dd6B8e65C9De0',
+      '0x26605f322f7fF986f381bB9A6e3f5DAb0bEaEb09',
     ],
   },
 };

@@ -97,6 +97,31 @@ export function resolvePonsCacheTtlSeconds(raw: string | undefined): number {
 export const ponsCacheKey = (chain: string, address: string): string =>
   `pons:launchpad:${(chain ?? '').trim().toLowerCase()}:${(address ?? '').trim().toLowerCase()}`;
 
+// Flap positive-cache TTL (dexter plan todo 44, Phase B): same
+// rationale as the Pons cache above — origin is IMMUTABLE per mint,
+// so the TTL is a memory-hygiene bound, not a correctness bound.
+// Env `FLAP_CACHE_TTL_DAYS`, default 14 (inside the 7–30d band).
+// Positive resolutions ONLY (never nulls — the 19a
+// no-negative-cache rule). Served from the SAME shared CacheService
+// primitive (separate `flap:launchpad:` namespace, no collision
+// with `pons:` or `snapshot:*` rows); NO new table, same
+// memory-store + reset-on-deploy tradeoff as the breaker.
+export const FLAP_CACHE_TTL_DAYS_DEFAULT = 14;
+
+export function resolveFlapCacheTtlSeconds(raw: string | undefined): number {
+  if (raw === undefined) {
+    return FLAP_CACHE_TTL_DAYS_DEFAULT * 24 * 60 * 60;
+  }
+  const days = Number(raw);
+  if (!Number.isFinite(days) || days <= 0) {
+    return FLAP_CACHE_TTL_DAYS_DEFAULT * 24 * 60 * 60;
+  }
+  return Math.floor(days * 24 * 60 * 60);
+}
+
+export const flapCacheKey = (chain: string, address: string): string =>
+  `flap:launchpad:${(chain ?? '').trim().toLowerCase()}:${(address ?? '').trim().toLowerCase()}`;
+
 /**
  * Helius-origin leg budget (dexter plan todo 36, graduated-old
  * tokens with closed curves): how much history to pull and how long
@@ -292,6 +317,10 @@ export class LaunchpadDetectorService implements LaunchpadDetectorPort {
 
   private readonly ponsTtlSeconds: number = resolvePonsCacheTtlSeconds(
     process.env['PONS_CACHE_TTL_DAYS'],
+  );
+
+  private readonly flapTtlSeconds: number = resolveFlapCacheTtlSeconds(
+    process.env['FLAP_CACHE_TTL_DAYS'],
   );
 
   private readonly heliusOriginMs: number = resolveHeliusOriginTimeoutMs(
@@ -529,17 +558,39 @@ export class LaunchpadDetectorService implements LaunchpadDetectorPort {
     // never concurrent with Phase 1 — so the pinned shapes hold: a
     // bankr/Pons hit short-circuits with ZERO extra fetches, and the
     // same shared deadline still bounds it (remaining budget only).
+    // Flap rides this SAME Phase-2 machinery (dexter plan todo 44):
+    // the Portal is a CREATE2 deployer, so receipt `to` == Portal —
+    // the exact shape `detectFactoryTo` already matches. NO new
+    // fetcher, NO Phase-1 leg (the SSR path was rejected with proof
+    // in Phase A: flap.sh serves a JS shell, shell-generic titles on
+    // launched AND dead pages). Positional precedence: Phase-1
+    // (bankr > mintclub > pons) beats factory by construction, and
+    // within the factory table `RECEIPT_MATCH_ORDER` position wins —
+    // no overlap in practice (distinct chains/factories). The flap
+    // positive cache is checked FIRST inside Phase 2 (a cached flap
+    // hit skips the Blockscout + receipt fetches entirely) and
+    // written ONLY on a fresh flap resolution — nulls never cached.
+    // GRADUATED-STATE note: the factory path is state-independent
+    // (the creation receipt `to` never changes when a token
+    // graduates/bonds) — one fixture suffices, no per-state legs.
     // NOTE (todo 36): NO Helius leg on EVM — the history seam is the
     // Solana Enhanced Transactions API, so EVM all-miss stays null
     // with zero Helius calls (Solana-only by construction).
     const factoryLeg = armLeg();
     try {
+      if (await this.getCachedFlap(chain, address)) {
+        this.logger.debug(`flap-cache hit (chain=${chain}) — receipt skipped`);
+        return launchpadInfo('flap', chain, address);
+      }
       const factory = await this.detectFactoryTo(
         chain,
         address,
         factoryLeg.signal,
       );
       if (factory === null) return null;
+      if (factory === 'flap') {
+        await this.putCachedFlap(chain, address);
+      }
       return launchpadInfo(factory, chain, address);
     } finally {
       factoryLeg.done();
@@ -708,6 +759,41 @@ export class LaunchpadDetectorService implements LaunchpadDetectorPort {
       }
     }
     return launched;
+  }
+
+  // Flap positive-cache primitives (dexter plan todo 44): same
+  // fail-open shape as the Pons wrapper above — cache ABSENT →
+  // miss (caller runs the receipt path), read/write failures
+  // swallowed. Nulls are NEVER written by construction (only the
+  // `factory === 'flap'` branch calls `putCachedFlap`).
+  private async getCachedFlap(
+    chain: string,
+    address: string,
+  ): Promise<boolean> {
+    if (this.ponsCache === null || this.ponsCache === undefined) {
+      return false;
+    }
+    try {
+      return (
+        (await this.ponsCache.get<boolean>(flapCacheKey(chain, address))) ===
+        true
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  private async putCachedFlap(chain: string, address: string): Promise<void> {
+    if (this.ponsCache === null || this.ponsCache === undefined) return;
+    try {
+      await this.ponsCache.set(
+        flapCacheKey(chain, address),
+        true,
+        this.flapTtlSeconds,
+      );
+    } catch {
+      // Cache write failure → answer still returns (fail-open).
+    }
   }
 
   /**

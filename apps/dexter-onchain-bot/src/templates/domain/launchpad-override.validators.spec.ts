@@ -52,8 +52,8 @@ describe('normalizeMint (single normalization fn, spec-pinned)', () => {
 });
 
 describe('detector-slug mirror (closed validation)', () => {
-  it('mirrors the 22 detector slugs (11 solana + 11 evm)', () => {
-    expect(KNOWN_LAUNCHPAD_IDS).toHaveLength(22);
+  it('mirrors the 23 detector slugs (11 solana + 12 evm)', () => {
+    expect(KNOWN_LAUNCHPAD_IDS).toHaveLength(23);
     for (const slug of [
       'pump-fun',
       'bonk-fun',
@@ -75,12 +75,34 @@ describe('detector-slug mirror (closed validation)', () => {
       'openserv',
       'mintclub',
       'virtuals',
+      'flap',
       'pinksale',
       'dxsale',
     ]) {
       expect(KNOWN_LAUNCHPAD_IDS).toContain(slug);
       expect(LAUNCHPAD_CATALOG[slug].name).not.toBe('');
     }
+  });
+
+  it('flap row holds detector parity (id + name + chain-scoped URL)', () => {
+    // Parity with market-data `EVM_LAUNCHPAD_ROWS.flap` (dexter plan
+    // todo 44, Phase B): same id/name, same chain-scoped builder —
+    // an override hit renders exactly what the detector resolves.
+    const row = LAUNCHPAD_CATALOG['flap'];
+    expect(row.id).toBe('flap');
+    expect(row.name).toBe('Flap');
+    expect(validateLaunchpadId('flap')).toBe('flap');
+    expect(row.buildUrl('robinhood', SOL_MINT)).toBe(
+      `https://flap.sh/robinhood/${SOL_MINT}`,
+    );
+    expect(row.buildUrl('bsc', SOL_MINT)).toBe(
+      `https://flap.sh/bnb/${SOL_MINT}`,
+    );
+    expect(launchpadOverrideInfo('flap', 'robinhood', SOL_MINT)).toEqual({
+      id: 'flap',
+      name: 'Flap',
+      url: `https://flap.sh/robinhood/${SOL_MINT}`,
+    });
   });
 
   it('accepts a known slug, rejects unknown with the whitelist', () => {

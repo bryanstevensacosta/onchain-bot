@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Flap catalog mirror (dexter plan todo 44 Phase B):**
+  `LAUNCHPAD_CATALOG.flap` (id `flap`, name `Flap`, chain-scoped
+  `https://flap.sh/<chain>/<address>` with the same `bsc`→`bnb`
+  alias as the detector) + `KNOWN_LAUNCHPAD_IDS` 22→23 with a
+  detector↔override parity spec (row fields + robinhood/bsc URLs +
+  `launchpadOverrideInfo`). DisplayMap `{launchpad,flap,🦋}`
+  verified present via `GET /api/dexter/display-maps` (verify-only,
+  no create — row predates this task). Detector + receipt table live
+  in market-data (see its CHANGELOG entry); no dexter logic touched
+  beyond the catalog mirror.
+
 - **Tail-degraded pin-through (dexter plan todo 41b):**
   `MarketDataSnapshot.degraded?` (client-validated via
   `toDegradedOrFalse`, strict `true` only) → `ResolvedToken.
