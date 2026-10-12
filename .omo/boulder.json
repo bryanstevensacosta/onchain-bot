@@ -1,5 +1,5 @@
 {
-  "active_work_id": "mega-refactor-kol-system-20260924",
+  "active_work_id": "worktree-frontend-feed-20261001",
   "schema_version": 2,
   "works": {
     "undefined": {
@@ -32,7 +32,7 @@
         "todo:1": {
           "task_key": "todo:1",
           "task_label": "1",
-          "task_title": "Scaffold src/threads + alias + 8 entidades + PERSISTED_ENTITIES(47) + migración",
+          "task_title": "Scaffold src/threads + alias + 8 entidades + PERSISTED_ENTITIES(47) + migraci\u00f3n",
           "session_id": "opencode:ses_f5b4c4d56ffe6baEmCBxLE9IOQ",
           "agent": "Sisyphus-Junior",
           "category": "unspecified-high",
@@ -82,7 +82,7 @@
         "final-wave:f1": {
           "task_key": "final-wave:f1",
           "task_label": "F1",
-          "task_title": "Plan compliance audit — 8/8 todos `- [x]`; `git status --porcelain | grep -Ev '^(M|A|\\?\\?) (apps/backend/src/threads/|apps/backend/src/shared/common/(persistence/entities|config/app.config|config/config-validator)\\.ts|apps/frontend/src/(entities|features)/threads[^/]*|apps/frontend/src/pages/threads/|docs/threads-|\\.env.*template|apps/frontend/(vite.config.ts|nginx.conf)|apps/backend/tsconfig.json)'` → vacío (fuera de esto: solo harness `.omo/`); `git diff --stat -- apps/backend/src/telegram apps/ingestion-service` → vacío; `cd apps/backend && npm run migration:show` sin pendientes threads; `cd apps/backend && grep -n 'EXPECTED_ENTITY_COUNT = 47' src/shared/common/persistence/entities.ts` exit 0.",
+          "task_title": "Plan compliance audit \u2014 8/8 todos `- [x]`; `git status --porcelain | grep -Ev '^(M|A|\\?\\?) (apps/backend/src/threads/|apps/backend/src/shared/common/(persistence/entities|config/app.config|config/config-validator)\\.ts|apps/frontend/src/(entities|features)/threads[^/]*|apps/frontend/src/pages/threads/|docs/threads-|\\.env.*template|apps/frontend/(vite.config.ts|nginx.conf)|apps/backend/tsconfig.json)'` \u2192 vac\u00edo (fuera de esto: solo harness `.omo/`); `git diff --stat -- apps/backend/src/telegram apps/ingestion-service` \u2192 vac\u00edo; `cd apps/backend && npm run migration:show` sin pendientes threads; `cd apps/backend && grep -n 'EXPECTED_ENTITY_COUNT = 47' src/shared/common/persistence/entities.ts` exit 0.",
           "session_id": "opencode:ses_f5b068ce1ffeOsWmpAjHjn215v",
           "agent": "Sisyphus-Junior",
           "started_at": "2026-09-15T12:13:10.545Z",
@@ -152,7 +152,7 @@
         "todo:5": {
           "task_key": "todo:5",
           "task_label": "5",
-          "task_title": "Runtime: env INGESTION_SERVICE_URL → INGESTION_TELEGRAM_URL con fallback",
+          "task_title": "Runtime: env INGESTION_SERVICE_URL \u2192 INGESTION_TELEGRAM_URL con fallback",
           "session_id": "opencode:ses_f517e3174ffe7ncGMILYU4qX5F",
           "agent": "Sisyphus-Junior",
           "started_at": "2026-09-17T08:40:01.670Z",
@@ -215,7 +215,7 @@
         "todo:15": {
           "task_key": "todo:15",
           "task_label": "15",
-          "task_title": "Reetiquetado histórico: backup, recreate, gh release, delete old (DESTRUCTIVO)",
+          "task_title": "Reetiquetado hist\u00f3rico: backup, recreate, gh release, delete old (DESTRUCTIVO)",
           "session_id": "opencode:ses_f515fabe7ffezvp0Zva27MVnj3",
           "agent": "Sisyphus-Junior",
           "category": "unspecified-high",
@@ -228,7 +228,7 @@
         "todo:16": {
           "task_key": "todo:16",
           "task_label": "16",
-          "task_title": "Verificación global: gate grep + suites + builds + compose",
+          "task_title": "Verificaci\u00f3n global: gate grep + suites + builds + compose",
           "session_id": "opencode:ses_f515c59a1ffexa4FMLbUMWqhUY",
           "agent": "Sisyphus-Junior",
           "category": "unspecified-high",
@@ -263,6 +263,23 @@
       "worktree_path": null,
       "started_at": "2026-09-24T18:00:00Z",
       "task_sessions": {}
+    },
+    "worktree-frontend-feed-20261001": {
+      "work_id": "worktree-frontend-feed-20261001",
+      "active_plan": ".omo/plans/worktree-frontend-feed.md",
+      "plan_name": "worktree-frontend-feed",
+      "status": "in_progress",
+      "worktree_path": "../onchain-bot-feat-feed",
+      "branch": "feat/feed-frontend",
+      "todos_done": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "todos_pending": [
+        5
+      ]
     }
   },
   "session_ids": [
@@ -314,7 +331,7 @@
     "todo:5": {
       "task_key": "todo:5",
       "task_label": "5",
-      "task_title": "Runtime: env INGESTION_SERVICE_URL → INGESTION_TELEGRAM_URL con fallback",
+      "task_title": "Runtime: env INGESTION_SERVICE_URL \u2192 INGESTION_TELEGRAM_URL con fallback",
       "session_id": "opencode:ses_f517e3174ffe7ncGMILYU4qX5F",
       "agent": "Sisyphus-Junior",
       "started_at": "2026-09-17T08:40:01.670Z",
@@ -377,7 +394,7 @@
     "todo:15": {
       "task_key": "todo:15",
       "task_label": "15",
-      "task_title": "Reetiquetado histórico: backup, recreate, gh release, delete old (DESTRUCTIVO)",
+      "task_title": "Reetiquetado hist\u00f3rico: backup, recreate, gh release, delete old (DESTRUCTIVO)",
       "session_id": "opencode:ses_f515fabe7ffezvp0Zva27MVnj3",
       "agent": "Sisyphus-Junior",
       "category": "unspecified-high",
@@ -390,7 +407,7 @@
     "todo:16": {
       "task_key": "todo:16",
       "task_label": "16",
-      "task_title": "Verificación global: gate grep + suites + builds + compose",
+      "task_title": "Verificaci\u00f3n global: gate grep + suites + builds + compose",
       "session_id": "opencode:ses_f515c59a1ffexa4FMLbUMWqhUY",
       "agent": "Sisyphus-Junior",
       "category": "unspecified-high",
