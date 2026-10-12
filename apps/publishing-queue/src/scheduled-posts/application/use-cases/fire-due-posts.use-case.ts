@@ -200,7 +200,7 @@ export class FireDuePostsUseCase {
   ): Promise<FireHoldReason | null> {
     const config = await this.configs.load();
     const row = config.limitsFor(target);
-    const delayMs = Math.max(binding.publishDelayMs, row.publishDelayMs);
+    const delayMs = Math.max(binding.publishDelayMs, row.delayMaxMs);
     if (binding.dailyCap === 0) {
       return 'HELD_DAILY_CAP';
     }

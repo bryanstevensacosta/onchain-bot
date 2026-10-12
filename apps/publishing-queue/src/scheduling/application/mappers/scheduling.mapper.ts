@@ -24,6 +24,7 @@ export interface ScheduledAdView {
   readonly updatedAt: string;
 }
 
+/** @deprecated Frozen old-route view; canonical is `DeliveryPolicyView`. */
 export interface SchedulingTargetLimitsView {
   readonly publishDelayMs: number;
   readonly dailyCap: number;
@@ -35,6 +36,14 @@ export interface SchedulingRotationConfigView {
   readonly minMinutesBetweenAds: number;
   readonly telegram: SchedulingTargetLimitsView;
   readonly threads: SchedulingTargetLimitsView;
+}
+
+/** Canonical per-target delivery-policy view (R-c, new route). */
+export interface DeliveryPolicyView {
+  readonly delayMinMs: number;
+  readonly delayMaxMs: number;
+  readonly dailyCap: number;
+  readonly resetHour: number;
 }
 
 /** View models + mappers for the scheduling REST API (P36 naming). */
@@ -64,9 +73,22 @@ export const toSchedulingRotationConfigView = (
   enabled: config.enabled,
   everyNPosts: config.everyNPosts,
   minMinutesBetweenAds: config.minMinutesBetweenAds,
-  telegram: { ...config.limitsFor('telegram') },
-  threads: { ...config.limitsFor('threads') },
+  telegram: { ...config.legacyLimitsFor('telegram') },
+  threads: { ...config.legacyLimitsFor('threads') },
 });
+
+export const toDeliveryPolicyView = (
+  config: SchedulingConfig,
+  target: SchedulingTarget,
+): DeliveryPolicyView => {
+  const policy = config.limitsFor(target);
+  return {
+    delayMinMs: policy.delayMinMs,
+    delayMaxMs: policy.delayMaxMs,
+    dailyCap: policy.dailyCap,
+    resetHour: policy.resetHour,
+  };
+};
 
 export function assertSchedulingTarget(
   raw: string,

@@ -26,6 +26,13 @@ export interface TargetBinding {
   readonly chatId: string;
   readonly publishDelayMs: number | null;
   readonly dailyCap: number | null;
+  /**
+   * R-c A7: per-binding switch. The legacy global `publishingEnabled`
+   * fans out to every binding (global → all-bindings); the operator
+   * then adjusts per binding. Defaults to `true` (fail-open for
+   * pre-R-c bindings built without the flag).
+   */
+  readonly enabled: boolean;
 }
 
 export interface TargetBindingInput {
@@ -34,6 +41,7 @@ export interface TargetBindingInput {
   readonly chatId: string;
   readonly publishDelayMs?: number | null;
   readonly dailyCap?: number | null;
+  readonly enabled?: boolean;
 }
 
 export function isTargetKind(value: unknown): value is PublishTarget {
@@ -72,5 +80,6 @@ export function createTargetBinding(input: TargetBindingInput): TargetBinding {
     chatId: input.chatId,
     publishDelayMs: input.publishDelayMs ?? null,
     dailyCap: input.dailyCap ?? null,
+    enabled: input.enabled ?? true,
   };
 }

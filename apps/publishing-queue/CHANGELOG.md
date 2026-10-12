@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- DeliveryPolicy per target (R-c): domain VO + GET/PATCH /api/scheduling/delivery-policies/:target + migration + backfill; rotation-config dual @deprecated. (feat/feed-policy)
+
 ### Fixed
 
 - **Staging backport 2026-09-27:** nonexistent `cron ^0.4.4` → `^4.4.0`

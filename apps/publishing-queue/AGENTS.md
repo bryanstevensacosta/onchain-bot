@@ -226,3 +226,4 @@ units, no I/O) — current 87% stmts.
   version typo) + `@nestjs/swagger ^11.4.7` declared (3 controllers
   import it). Lockfile regen deferred (drift reported in
   `.omo/evidence/staging-backport.log`).
+- R-c 2026-10-02: DeliveryPolicy per target + migration; rotation-config dual una fase.
