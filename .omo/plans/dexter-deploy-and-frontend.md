@@ -366,6 +366,20 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartUrl}}`co
       Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; singleflight specs (incl. enumeracion); TTL-policy spec anti-hardcode; stale-por-clase con badge; governor con math previa; kill con juez.
       QA scenarios: ejecutables (herramienta clock-mock + `breakerStates()`; presion simulada → orden Tier-2-off, Tier-0-desde-cache; numeros esperados). Evidence .omo/evidence/task-fe-free-scale.log
       Commit: Y | perf(market-data-scale): singleflight + ttl-policy + governor (docs AGENTS+CHANGELOG)
+- [x] 42. Rotacion de RPCs publicos por chain (Wave 1 follow-up, gratis para siempre)
+      What to do / Must NOT do: Lista curada de endpoints publicos POR CHAIN (2-4 por chain: Solana mainnet-beta + Ankr-public + chainstack-public-shape? NO — solo endpoints verificados live uno por uno, jamas de memoria; EVM: publicnode/ankr-public/1rpc/bsc-dataseed/arb1/lava-meow donde aplique) con round-robin + peor-sano-primero (latency-score decay, sin estado persistente: scores en memoria con reset documentado) + backoff por endpoint (429/timeout lo saca de rotacion N minutos, N pineado). Observabilidad del backoff por el seam existente: al entrar/salir un endpoint de backoff se emite en los canales ya leidos (mantener served-by=public:<host> en exito + nota providerErrors al entrar/salir, sin nueva infra de metricas; spec que lo aserta); el governor/breaker ve la carga que la rotacion mueve. Integrado COMO tier (despues de keyed, antes de null — respeta orden existente) con `served-by=public:<host>` observable. Specs: rotacion (2do fallo va a otro endpoint), backoff (endpoint en castigo no recibe trafico), keyed-intacto (tiers con key no cambian de orden). Docs: AGENTS (tabla endpoints + politica) + CHANGELOG (ADD-only).
+      Parallelization: Wave 1 follow-up (1 worker) | Blocked by: — | Blocks: —
+      References: endpoints verificados live (lista con status por endpoint en evidencia, ninguno asumido), tiers existentes (orden preservado).
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; endpoint caido → trafico a otro sin intervencion (spec + smoke).
+      QA scenarios: happy (rotacion sirve) + failure (todos caidos → null honesto). Evidence .omo/evidence/task-fe-rpc-rotation.log
+      Commit: Y | feat(market-data-rpc): rotacion publicos (docs AGENTS+CHANGELOG)
+- [x] 43. Re-auditoria kill-list con ojos frescos (Wave 1 follow-up)
+      What to do / Must NOT do: Re-auditar TODOS los legs contra solapamiento real (misma data por 2+ vias): por cada par solapado, conservar UNA via (criterio pineado: latencia-medida + cobertura + costo-cuota, en ese orden) con spec de no-regresion por baja (fixture live de la via conservada cubriendo lo que la baja aportaba). Prohibido bajar sin spec verde que cubra el hueco. Respetar exclusiones vigentes (identidad 39, launchpad/venue/ath, tiers con owner pendiente). Docs: AGENTS (tabla decision por baja: queda/quita+motivo) + CHANGELOG (ADD-only si hay bajas).
+      Parallelization: Wave 1 follow-up (1 worker) | Blocked by: — | Blocks: —
+      References: kill-list anterior (todo 40, lo ya descartado NO se re-abre), `served-by=` logs como evidencia de uso real por leg.
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; cada baja con spec + motivo; cero bajas → informe `no-hay-grasa` con evidencia (valido).
+      QA scenarios: happy + failure (baja rompe clase → revertida en el mismo lane). Evidence .omo/evidence/task-fe-kill-reaudit.log
+      Commit: Y | perf(market-data-legs): re-auditoria kill-list (docs AGENTS+CHANGELOG)
 
 ### Wave 0 — guion local owner (10 min, dexter `:4060` + frontend `:5173`)
 
@@ -447,6 +461,8 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartUrl}}`co
 | 39 meta-fallback        | —                | —            | 2                    |
 | 40 free-quota           | —                | —            | 2                    |
 | 41 free-scale           | —                | —            | 2                    |
+| 42 rpc-rotation         | —                | —            | 2                    |
+| 43 kill-reaudit         | —                | —            | 2                    |
 
 ## Invariants
 
