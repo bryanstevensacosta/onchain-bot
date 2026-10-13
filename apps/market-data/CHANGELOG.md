@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **OHLC backfill for 24h-window + ATH (dexter plan todo 46):**
+  one-time per-pool seed on the first Gecko-OHLC encounter
+  (`buildOhlcvSeedRows`: `createdAt` = candle time, `fdvUsd` =
+  close x current supply via the existing `computedFdvOf` seam with
+  the historical-identical-to-current approximation pinned in code,
+  `quote.fdvProvenance: 'computed'` reused; idempotency via the
+  existing `unique(key, createdAt)` — no guard table, no migration)
+  feeding outright-24h-vs-now-live derivation (`findAnchorAt`:
+  history anchor within ±2h vs merged price; candle-pure math kept
+  as fallback; native-wins intact; gaps resolve null) and ATH via
+  `findFdvAth`-over-backfill (no ATH logic change). Specs (33) pin
+  exact math on verbatim STAGEVEIL rows + idempotency + precedence +
+  gaps.
+
 - **Flap intake (dexter plan todo 44 Phase B):** `flap` launchpad row
   (`EVM_LAUNCHPAD_ORDER` after virtuals, chain-scoped
   `https://flap.sh/<chain>/<address>` with `bsc`→`bnb` slug) +

@@ -253,15 +253,17 @@ describe('Rick-parity number policy (plan todo 13, evidence examples.md)', () =>
   });
 
   it.each([
-    [0.00002434, '0\\.00002434'],
-    [0.00004128, '0\\.00004128'],
+    [0.000002417035478, '0\\.00000242'],
+    [0.00002434, '0\\.0000243'],
+    [0.00004128, '0\\.0000413'],
     [0.00000086, '0\\.00000086'],
-    [0.002345, '0\\.002345'],
+    [0.002345, '0\\.00234'],
+    [0.5, '0\\.5'],
     [3457, '3,457'],
     [164.32, '164\\.32'],
     [100, '100'],
   ])(
-    'priceUsd %p renders adaptive (dust full digits, never `$0.00`)',
+    'priceUsd %p renders adaptive (3 sig figs, never `$0.00`)',
     (value, expected) => {
       const out = policyRenderer().render(
         'USD: {{priceUsd}}',
@@ -303,7 +305,7 @@ describe('Rick-parity number policy (plan todo 13, evidence examples.md)', () =>
     },
   );
 
-  it('Rick evidence body renders `[23.3K/80%]` + `USD: 0.00002434` + `Liq: 7.9K`', () => {
+  it('Rick evidence body renders `[23.3K/80%]` + `USD: 0.0000243` + `Liq: 7.9K`', () => {
     const out = policyRenderer().render(
       '[{{marketCapUsd}}/{{priceChange24h}}]\nUSD: {{priceUsd}}\nLiq: {{liquidityUsd}}',
       {
@@ -315,7 +317,7 @@ describe('Rick-parity number policy (plan todo 13, evidence examples.md)', () =>
       },
       'ca',
     );
-    expect(out.text).toBe('[23\\.3K/80%]\nUSD: 0\\.00002434\nLiq: 7\\.9K');
+    expect(out.text).toBe('[23\\.3K/80%]\nUSD: 0\\.0000243\nLiq: 7\\.9K');
   });
 
   it('Proficy style gets `$` from literal body text (`MC: $27.3K`)', () => {
@@ -336,13 +338,13 @@ describe('Rick-parity number policy (plan todo 13, evidence examples.md)', () =>
     expect(out.text).toBe('`MC` **$30\\.22K**');
   });
 
-  it('Soul dust renders plain (`USD: 0.00004128`, never `$0.00`)', () => {
+  it('Soul dust renders plain (`USD: 0.0000413`, never `$0.00`)', () => {
     const out = policyRenderer().render(
       '`USD:` **{{priceUsd}}**',
       { ...TOKEN, priceUsd: 0.00004128 },
       'ca',
     );
-    expect(out.text).toBe('`USD:` **0\\.00004128**');
+    expect(out.text).toBe('`USD:` **0\\.0000413**');
   });
 
   it('nulls still render `N/A` on every numeric key', () => {

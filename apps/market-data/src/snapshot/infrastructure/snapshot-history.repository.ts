@@ -86,6 +86,136 @@ export class SnapshotHistoryRepository {
   }
 
   /**
+   * One-time per-pool OHLC seed write (dexter plan todo 46, camino al
+   * 0% honesto).
+   *
+   * Unlike `save` (which stamps `now`), the caller pins `createdAt`
+   * to the CANDLE time — so idempotency falls out of the existing
+   * `unique(key, createdAt)`: the second encounter replays the same
+   * candle timestamps and collides (no new guard table, no
+   * re-fetch). A `23505` collision answers `null` (already seeded);
+   * any other store error rethrows (the service fail-opens above
+   * this). Malformed `createdAt` answers `null` without touching
+   * the store. In-memory mirrors the constraint (same
+   * `(key, createdAt)` skip) so specs pin the semantics without a
+   * live DB.
+   */
+  public async saveSeeded(
+    row: Omit<SnapshotHistoryRow, 'createdAt' | 'kind'> & {
+      readonly kind: string;
+      readonly createdAt: string;
+    },
+  ): Promise<SnapshotHistoryRow | null> {
+    if (
+      typeof row.createdAt !== 'string' ||
+      Number.isNaN(Date.parse(row.createdAt))
+    ) {
+      return null;
+    }
+    const normalized: Omit<SnapshotHistoryRow, 'createdAt'> = {
+      ...row,
+      kind: row.kind as SnapshotHistoryRow['kind'],
+    };
+    if (this.store === undefined || this.store === null) {
+      const existing = this.rows.find(
+        (candidate) =>
+          candidate.key === normalized.key &&
+          candidate.createdAt === row.createdAt,
+      );
+      if (existing !== undefined) return existing;
+      const full: SnapshotHistoryRow = {
+        ...normalized,
+        createdAt: row.createdAt,
+      };
+      this.rows.push(full);
+      while (this.rows.length > MAX_MEMORY_ROWS) {
+        this.rows.shift();
+      }
+      return full;
+    }
+    try {
+      const persisted = await this.store.save(
+        this.store.create({
+          ...normalized,
+          sources: [...normalized.sources],
+          createdAt: new Date(row.createdAt),
+        }),
+      );
+      return toHistoryRow(persisted);
+    } catch (err) {
+      const code =
+        (err as { readonly code?: unknown })?.code ??
+        (err as { readonly driverError?: { readonly code?: unknown } })
+          ?.driverError?.code;
+      if (code === '23505') return null;
+      throw err;
+    }
+  }
+
+  /**
+   * Past-window anchor for the outright-24h leg (dexter plan todo
+   * 46): the history row (backfill + live — seeding runs BEFORE this
+   * read, so the first encounter already sees its own candles)
+   * nearest to `targetMs` within `±toleranceMs`. Nearest wins, exact
+   * ties break toward the newer row (same rule as the candle-pure
+   * derivation). `ready` rows only (pendings are transient shells,
+   * never anchors); outside-tolerance answers `null` (honest gap,
+   * never extrapolated). Same no-new-index precedent as
+   * `findFdvAth` (`(chain, address)` predicate, nearest picked in
+   * TS). NEVER mutates history or retention.
+   */
+  public async findAnchorAt(
+    chain: string,
+    address: string,
+    targetMs: number,
+    toleranceMs: number,
+  ): Promise<SnapshotHistoryRow | null> {
+    if (
+      typeof targetMs !== 'number' ||
+      !Number.isFinite(targetMs) ||
+      typeof toleranceMs !== 'number' ||
+      !Number.isFinite(toleranceMs) ||
+      toleranceMs < 0
+    ) {
+      return null;
+    }
+    const wantedChain = (chain ?? '').trim().toLowerCase();
+    const wantedAddress = (address ?? '').trim().toLowerCase();
+    let rows: ReadonlyArray<SnapshotHistoryRow>;
+    if (this.store === undefined || this.store === null) {
+      rows = this.rows;
+    } else {
+      const entities = await this.store.find({
+        where: { chain: wantedChain, address: wantedAddress },
+        order: { createdAt: 'ASC' },
+      });
+      rows = entities.map((entity) => toHistoryRow(entity));
+    }
+    let best: SnapshotHistoryRow | null = null;
+    let bestDiff = Number.POSITIVE_INFINITY;
+    let bestTs = Number.NEGATIVE_INFINITY;
+    for (const row of rows) {
+      if (row.status !== 'ready') continue;
+      if (
+        row.chain.trim().toLowerCase() !== wantedChain ||
+        row.address.trim().toLowerCase() !== wantedAddress
+      ) {
+        continue;
+      }
+      const ts = Date.parse(row.createdAt);
+      if (Number.isNaN(ts)) continue;
+      const diff = Math.abs(ts - targetMs);
+      if (diff > toleranceMs) continue;
+      if (diff < bestDiff || (diff === bestDiff && ts > bestTs)) {
+        best = row;
+        bestDiff = diff;
+        bestTs = ts;
+      }
+    }
+    return best;
+  }
+
+  /**
    * FDV ATH over own history (dexter fdv-ath, plan todo 16).
    * READ-ONLY aggregate: max `quote.fdvUsd` + the `createdAt` of the
    * row that set it, scoped to one `(chain, address)` (normalized
@@ -104,7 +234,9 @@ export class SnapshotHistoryRepository {
    * so the max is defined over ONE semantics going forward. The 90d
    * window is MIXED-transient: pre-todo38 provider-reported rows and
    * post computed rows coexist until the janitor prunes the old ones
-   * (~90d). No backfill (history is append-only by design) — the
+   * (~90d). The todo-46 one-time per-pool OHLC seed EXTENDS the
+   * append-only history (seeded rows carry candle-time `createdAt`
+   * + computed FDV, so they max here like any live row) — the
    * transient is accepted and documented here, not hidden.
    */
   public async findFdvAth(

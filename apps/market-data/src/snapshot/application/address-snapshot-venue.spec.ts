@@ -5,6 +5,7 @@ import { AddressSnapshotService } from './address-snapshot.service';
 import { DirectFastPathService } from './direct-fast-path.service';
 import { LaunchpadDetectorService } from 'launchpad/application/launchpad-detector.service';
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
+import { GeckoTerminalService } from 'provider/infrastructure/geckoterminal';
 import { DEXSCREENER_CONFIG } from 'provider/infrastructure/dexscreener/dexscreener.config';
 import { SNAPSHOT_QUOTE_PROVIDERS } from '../domain/snapshot-quote.types';
 import { toVenueOrNull } from '../domain/snapshot-venue';
@@ -34,6 +35,12 @@ async function buildService(
     .useValue({
       getBestPairSummaryForChain: async () =>
         bestPair === null ? null : bestPair,
+    })
+    .overrideProvider(GeckoTerminalService)
+    .useValue({
+      getTokenPools: async () => [],
+      searchPools: async () => [],
+      getPoolOhlcv: async () => null,
     })
     // No live readers in fallback-contract specs.
     .overrideProvider(DirectFastPathService)

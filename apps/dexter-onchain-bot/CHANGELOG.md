@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Price adaptive 3-sig-fig cap (dexter plan todo 45):**
+  `formatPriceText` sub-`1` prices cap at 3 significant figures,
+  half-up, trailing zeros stripped (`0.000002417035478` →
+  `0.00000242`; `0.5`/`3,457` intact; zero/negative/NaN pass
+  through). Single choke point — preview/cards/token all ride it.
 - **Flap catalog mirror (dexter plan todo 44 Phase B):**
   `LAUNCHPAD_CATALOG.flap` (id `flap`, name `Flap`, chain-scoped
   `https://flap.sh/<chain>/<address>` with the same `bsc`→`bnb`

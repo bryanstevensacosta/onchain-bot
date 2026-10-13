@@ -19,10 +19,13 @@ export const SNAPSHOT_HISTORY_RETENTION_DAYS = 90;
  * Persistent snapshot history (Tramo 3, todo 14, GAP-1).
  *
  * Replaces the in-memory ring: every `AddressSnapshotService`
- * call persists one row (append-only). No backfill — the table
- * starts empty on first deploy (documented, migration-only).
- * `unique(key, createdAt)` is the dedup contract; the BTREE
- * `(key, createdAt)` serves per-address window reads.
+ * call persists one row (append-only, incl. the todo-46 one-time
+ * per-pool OHLC seed — seeded rows carry candle-time `createdAt`,
+ * so the table does NOT start empty-only on first deploy anymore:
+ * the first encounter with a Gecko OHLC pool backfills its 24h
+ * window once). `unique(key, createdAt)` is the dedup contract
+ * (the seed's idempotency falls out of it — no guard table); the
+ * BTREE `(key, createdAt)` serves per-address window reads.
  */
 @Entity('snapshot_history')
 @Unique('uq_snapshot_history_key_created', ['key', 'createdAt'])

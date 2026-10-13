@@ -568,6 +568,10 @@ matchValue:'pump-fun', display:'Pump'}`.
   Rick-style bodies carry none). Raw `$` is valid MarkdownV2 (not in
   the reserved set — no escaping needed; the renderer escapes VALUES
   only, bodies travel raw).
+  Cap de significativos en precio adaptativo (plan todo 45):
+  `priceUsd <1` capped at 3 sig figs half-up, trailing zeros
+  stripped (`0.000002417035478` → `0.00000242`; `0.5`/`3,457` intact;
+  zero/negative/NaN pass through).
 
 - Holders + dev-wallet (2026-09-27, feat/mega-refactor-tramos):
   `ResolvedToken` carries `devWallets[]` + `devPctSupply` (market-data

@@ -387,6 +387,20 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartUrl}}`co
       Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; `0xdc45…` resuelve `flap` con IconLink exacto; resto intacto.
       QA scenarios: happy + failure (RPC caido → null, JS-only → wontfix). Evidence .omo/evidence/task-fe-flap-intake.log
       Commit: Y | feat(market-data-flap): pata flap (docs AGENTS+CHANGELOG)
+- [x] 45. Cap de significativos en precio adaptativo (Wave 1 follow-up, evidencia IP 2026-10-11: `0.000002417035478` vs Rick `0.00000245`)
+      What to do / Must NOT do: `formatPriceAdaptive` (o equivalente actual): cap a 3 sig figs, half-up, strip trailing zeros (`0.000002417035478`→`0.00000242`, `3457` intacto, `0.5` intacto) + specs (casos borde: redondeo-half, sub-precision, grandes). Docs: linea AGENTS si hay seccion formato (ADD-only) + CHANGELOG si aplica. NO tocar otras metricas, NO market-data, NO registry/keys.
+      Parallelization: Wave 1 follow-up (1 worker, rapido) | Blocked by: — | Blocks: —
+      References: `formatMoneyText`/price adaptativo actual, caso IP.
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; `0.000002417035478`→`0.00000242`; resto intacto.
+      QA scenarios: happy + failure (cero/negativo/NaN intactos). Evidence .omo/evidence/task-fe-sigcap.log
+      Commit: Y | feat(dexter-format): cap significativos precio (docs si aplica)
+- [x] 46. Backfill OHLC para ventana-24h + ATH (camino al 0% honesto) (Wave 1 follow-up, analisis 2026-10-11)
+      What to do / Must NOT do: ANALISIS VINCULANTE (no re-litigar): el `0%` honesto requiere ventana 24h cubierta = historial backfilleado + precio live; velas >6h solas NO bastan (regla intacta); flatness-inferida como `0%` PROHIBIDA (inventa semantica). Implementar: al primer encuentro con pool con OHLC (Gecko `ohlcv/hour`), sembrar historial (closes con timestamps, UNA vez por pool): backfilled rows set `createdAt` = candle time (NOT now) so idempotency falls out of existing `unique(key,createdAt)` (no new guard table); `fdvUsd` = `close × current supply` via existing `computedFdvOf` seam with code comment stating the approximation (historical supply ≡ current supply); tag `quote.fdvProvenance:'computed'` (reuse, NO new provenance value); update the two `append-only / No backfill` doctrine comments (repository + entity) to `append-only incl. one-time per-pool OHLC seed` para (i) change-24h derivado (outright-24h vs now-live) y (ii) ATH-max via `findFdvAth`-over-backfill (max sobre backfill+live). Ventana exacta 24h ± tolerancia documentada; gaps → null honesto (no extrapolar). Precedencia: nativo > backfill+live > null (native-wins intacto). Rate-limit: backfill UNA vez por pool (guardado en DB via `unique(key,createdAt)`, jamas re-fetch). STAGEVEIL-pool-style liveness NOT required (specs pin exact math on verbatim captured rows; live proof opportunistic). Specs: calculo exacto con captura real (IP: 23 velas), idempotencia (2do encuentro no duplica), precedencia nativo, gaps→null. Docs: AGENTS + CHANGELOG (ADD-only).
+      Parallelization: Wave 1 follow-up (1 worker) | Blocked by: — | Blocks: —
+      References: OHLC IP verificado (23 velas hourly, newest 23.1h), `deriveChange24hFromOhlcv` existente (extender, no duplicar), existing `computedFdvOf` seam + `quote.fdvProvenance:'computed'` (reuse, NO new provenance value) + update the two `append-only / No backfill` doctrine comments (repository + entity) to `append-only incl. one-time per-pool OHLC seed`.
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; IP con backfill → change calculado (no N/A) + ATH>actual; sin OHLC → intacto.
+      QA scenarios: happy (ventana cubierta) + failure (pool sin OHLC, gaps). Evidence .omo/evidence/task-fe-backfill24.log
+      Commit: Y | feat(market-data-backfill): OHLC siembra historial (docs AGENTS+CHANGELOG)
 
 ### Wave 0 — guion local owner (10 min, dexter `:4060` + frontend `:5173`)
 
@@ -471,6 +485,8 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartUrl}}`co
 | 42 rpc-rotation         | —                | —            | 2                    |
 | 43 kill-reaudit         | —                | —            | 2                    |
 | 44 flap-intake          | —                | —            | 2                    |
+| 45 sigcap               | —                | —            | 2                    |
+| 46 backfill24           | —                | —            | 2                    |
 
 ## Invariants
 

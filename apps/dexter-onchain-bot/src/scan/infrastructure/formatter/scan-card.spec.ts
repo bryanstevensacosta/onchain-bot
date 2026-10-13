@@ -79,12 +79,20 @@ describe('MessageFormatterAdapter statics (Rick-parity number policy)', () => {
   });
 
   it.each([
-    [0.00002434, '0.00002434'],
-    [0.00004128, '0.00004128'],
+    [0.000002417035478, '0.00000242'],
+    [0.00002434, '0.0000243'],
+    [0.00004128, '0.0000413'],
     [0.00000086, '0.00000086'],
+    [0.002345, '0.00234'],
+    [0.5, '0.5'],
+    [0.001, '0.001'],
+    [0, '0'],
+    [-0.000002417035478, '-0.00000242'],
+    [-0.5, '-0.5'],
     [3457, '3,457'],
     [164.32, '164.32'],
     [null, 'N/A'],
+    [NaN, 'NaN'],
   ])('formatPriceText(%p) → %p', (value, expected) => {
     expect(MessageFormatterAdapter.formatPriceText(value)).toBe(expected);
   });

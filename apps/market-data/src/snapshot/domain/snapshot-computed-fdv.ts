@@ -31,7 +31,9 @@
  * over one (now computed) semantics; the 90d history window is
  * MIXED-transient (pre-todo38 provider-reported rows + post computed
  * rows coexist until the janitor prunes the old ones — documented in
- * the repository docstring, not backfilled).
+ * the repository docstring, extended by the todo-46 one-time
+ * per-pool OHLC seed (seeded rows reuse this seam, see
+ * `snapshot-ohlcv-backfill.ts`).
  */
 
 /** Relative epsilon for the FDV invariant (pinned, not a placeholder). */

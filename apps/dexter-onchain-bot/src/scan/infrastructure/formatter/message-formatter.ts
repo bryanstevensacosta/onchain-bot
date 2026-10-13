@@ -67,14 +67,15 @@ export class MessageFormatterAdapter {
    * Rick-parity number policy (plan todo 13, evidence
    * `docs/examples-for-dexter/*` + https://docs.rick.bot/features/pricebot
    * "Reading a token scan": `[2.3M/12%]`, `FDV: 2.3M`, `Liq: 234K`,
-   * `USD: 0.002345`, `Ether [3,457/-2.5%]`).
+   * `USD: 0.00234`, `Ether [3,457/-2.5%]`).
    *
    * One rule per metric, presentation layer only:
    * - money (mc/fdv/liq/vol/ath) → compact K/M/B, NO `$` prefix
    *   (`23.3K`, `7.9K`, `1.46B`, `752`); `$` lives in template bodies
    *   as literal static text where a style wants it (Proficy-style).
-   * - price (`priceUsd` only) → adaptive: `<1` full significant
-   *   digits plain (`0.00002434`, never `$0.00`); `>=1` grouped
+   * - price (`priceUsd` only) → adaptive: `<1` max 3 significant
+   *   figures half-up, trailing zeros stripped (`0.00000242`,
+   *   `0.0000243`, never `$0.00`); `>=1` grouped
    *   max-2 (`3,457`, `164.32`). Routed by the renderer, NOT via
    *   `formatMoneyText` (other money fields keep the compact rule).
    * - percent → 1-decimal-trimmed, sign ONLY when negative
@@ -113,19 +114,25 @@ export class MessageFormatterAdapter {
   /**
    * Adaptive price rule for `priceUsd` (fixes the live `$0.00`-for-dust
    * bug: dust used to flow through `formatMoneyText`). `<1` renders
-   * the shortest round-trip digits plain (exponent form expanded,
-   * never scientific); `>=1` renders grouped with max 2 decimals.
+   * at most 3 significant figures, half-up, trailing zeros stripped
+   * (plan todo 45: `0.000002417035478` → `0.00000242`, `0.5` intact;
+   * exponent form expanded, never scientific); `>=1` renders grouped
+   * with max 2 decimals (`3,457` intact). Zero/negative/NaN pass
+   * through untouched (`0`, `-`-prefixed, `NaN` respectively).
    */
   public static formatPriceText(value: number | null): string {
     if (value === null || value === undefined) return 'N/A';
     if (value === 0) return '0';
     const abs = Math.abs(value);
     if (abs < 1) {
-      const raw = String(abs);
-      const plain = raw.includes('e')
-        ? MessageFormatterAdapter.expandExponential(raw)
-        : raw;
-      return `${value < 0 ? '-' : ''}${plain}`;
+      const sig3 = abs.toPrecision(3);
+      const plain = sig3.includes('e')
+        ? MessageFormatterAdapter.expandExponential(sig3)
+        : sig3;
+      const stripped = plain.includes('.')
+        ? plain.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '')
+        : plain;
+      return `${value < 0 ? '-' : ''}${stripped}`;
     }
     return value.toLocaleString('en-US', { maximumFractionDigits: 2 });
   }

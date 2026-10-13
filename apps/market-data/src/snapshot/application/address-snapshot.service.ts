@@ -42,7 +42,16 @@ import {
 } from 'provider/infrastructure/quote-fetchers/provider-quote.fetchers';
 import { selectPoolQuote } from 'provider/infrastructure/geckoterminal';
 import { toVenueOrNull, type SnapshotVenue } from '../domain/snapshot-venue';
-import { deriveChange24hFromOhlcv } from '../domain/snapshot-ohlcv-change';
+import {
+  deriveChange24hFromOhlcv,
+  OHLC_CHANGE_PAST_TOLERANCE_MS,
+  OHLC_CHANGE_WINDOW_MS,
+  type OhlcvCandle,
+} from '../domain/snapshot-ohlcv-change';
+import {
+  buildOhlcvSeedRows,
+  deriveOutrightVsLiveChange,
+} from '../domain/snapshot-ohlcv-backfill';
 import {
   applyComputedFdv,
   computedFdvEpsilonBound,
@@ -424,7 +433,7 @@ export class AddressSnapshotService {
   }
 
   /**
-   * OHLC-derived 24h change (dexter plan todo 33, fallback leg).
+   * OHLC-derived 24h change (dexter plan todos 33 + 46, fallback leg).
    *
    * PRECEDENCE (structural, not advisory): a non-null `nativeChange`
    * — i.e. ANY native field surviving the fan-out merge (DexScreener,
@@ -435,19 +444,36 @@ export class AddressSnapshotService {
    * plus ONE `hour/aggregate=1` OHLC call, then the exact-24h-window
    * math. Anything missing or out-of-window resolves null (fail-open,
    * never throws — same contract as `resolveVenue` above).
+   *
+   * TODO 46 (backfill, camino al 0% honesto): the fetched candles
+   * ALSO seed history once per pool (`seedOhlcvBackfill` — candle-time
+   * `createdAt`, idempotent via `unique(key, createdAt)`), and the
+   * derivation prefers outright-24h-vs-now-live (history anchor vs
+   * the current merged price, strictly fresher than any candle)
+   * over the candle-pure math (kept as fallback for the
+   * no-live-price/pending shape). Seeding piggybacks THIS fetch —
+   * no dedicated backfill fetch ever exists.
    */
   private async resolveDerivedChange24h(
     chain: string,
     address: string,
     nativeChange: number | null,
-  ): Promise<number | null> {
-    if (nativeChange !== null && nativeChange !== undefined) return null;
+    live: {
+      readonly priceUsd: number | null;
+      readonly totalSupply: number | null;
+      readonly maxSupply: number | null;
+    },
+    identity: { readonly key: string; readonly kind: string },
+  ): Promise<{ readonly change: number | null; readonly seeded: number }> {
+    if (nativeChange !== null && nativeChange !== undefined) {
+      return { change: null, seeded: 0 };
+    }
     if (
       this.geckoterminal === null ||
       this.geckoterminal === undefined ||
       !GECKO_SUPPORTED_CHAINS.includes(chain)
     ) {
-      return null;
+      return { change: null, seeded: 0 };
     }
     try {
       const slug = GECKO_NETWORK_SLUGS[chain] ?? chain;
@@ -457,16 +483,114 @@ export class AddressSnapshotService {
         const searchPools = this.geckoterminal.searchPools?.bind(
           this.geckoterminal,
         );
-        if (typeof searchPools !== 'function') return null;
+        if (typeof searchPools !== 'function') {
+          return { change: null, seeded: 0 };
+        }
         pick = selectPoolQuote(await searchPools(address), address);
       }
-      if (pick === null || pick.poolAddress === null) return null;
+      if (pick === null || pick.poolAddress === null) {
+        return { change: null, seeded: 0 };
+      }
       const candles = await this.geckoterminal.getPoolOhlcv(
         slug,
         pick.poolAddress,
         pick.side ?? 'base',
       );
-      return deriveChange24hFromOhlcv(candles, Date.now());
+      const nowMs = Date.now();
+      const seeded = await this.seedOhlcvBackfill(
+        identity.key,
+        identity.kind,
+        chain,
+        address,
+        candles,
+        live,
+        nowMs,
+      );
+      const outright = await this.resolveOutrightVsLiveChange(
+        chain,
+        address,
+        live.priceUsd,
+        nowMs,
+      );
+      if (outright !== null) return { change: outright, seeded };
+      return { change: deriveChange24hFromOhlcv(candles, nowMs), seeded };
+    } catch {
+      return { change: null, seeded: 0 };
+    }
+  }
+
+  /**
+   * One-time per-pool OHLC seed (dexter plan todo 46). Builds rows
+   * from the derivation fetch's candles (same merged supply the FDV
+   * seam seals this encounter with) and persists them with
+   * candle-time `createdAt`. Fail-open: any store error degrades to
+   * zero seeded (the change leg below still runs on the candles).
+   * Returns the count of newly inserted rows (collisions report 0).
+   */
+  private async seedOhlcvBackfill(
+    key: string,
+    kind: string,
+    chain: string,
+    address: string,
+    candles: ReadonlyArray<OhlcvCandle> | null,
+    live: {
+      readonly totalSupply: number | null;
+      readonly maxSupply: number | null;
+    },
+    nowMs: number,
+  ): Promise<number> {
+    try {
+      const rows = buildOhlcvSeedRows(
+        candles,
+        {
+          key,
+          chain,
+          address,
+          kind,
+          totalSupply: live.totalSupply,
+          maxSupply: live.maxSupply,
+        },
+        nowMs,
+      );
+      let seeded = 0;
+      for (const row of rows) {
+        const saved = await this.history.saveSeeded(row);
+        if (saved !== null) seeded += 1;
+      }
+      if (seeded > 0) {
+        this.logger.debug(
+          `ohlcv-backfill seeded chain=${chain} address=${address} rows=${seeded}`,
+        );
+      }
+      return seeded;
+    } catch {
+      return 0;
+    }
+  }
+
+  /**
+   * Outright-24h vs now-live (dexter plan todo 46): the past anchor
+   * is the history row (backfill + live — the seed above runs BEFORE
+   * this read, so the first encounter already anchors on its own
+   * candles) nearest to exactly-24h-ago within ±2h; the now-leg is
+   * the current merged price. Gaps (no anchor, no live price) → null.
+   * Fail-open: any history error answers null (the candle-pure
+   * fallback still runs at the call above).
+   */
+  private async resolveOutrightVsLiveChange(
+    chain: string,
+    address: string,
+    livePriceUsd: number | null,
+    nowMs: number,
+  ): Promise<number | null> {
+    try {
+      const anchor = await this.history.findAnchorAt(
+        chain,
+        address,
+        nowMs - OHLC_CHANGE_WINDOW_MS,
+        OHLC_CHANGE_PAST_TOLERANCE_MS,
+      );
+      return deriveOutrightVsLiveChange(anchor?.quote?.priceUsd, livePriceUsd);
     } catch {
       return null;
     }
@@ -984,11 +1108,18 @@ export class AddressSnapshotService {
     // leg to near-always-null). Fires only when the merged quote has
     // no native change, so healthy snapshots pay zero extra calls;
     // gap-path snapshots (already slow/pending-bound) absorb the leg.
-    const derivedChange24h = await this.resolveDerivedChange24h(
+    const derivedResolution = await this.resolveDerivedChange24h(
       knownId,
       inputValue,
       outcome.quote.priceChange24h,
+      {
+        priceUsd: outcome.quote.priceUsd,
+        totalSupply: outcome.quote.totalSupply,
+        maxSupply: outcome.quote.maxSupply,
+      },
+      { key: id.key, kind },
     );
+    const derivedChange24h = derivedResolution.change;
     const quote: SnapshotQuote = (() => {
       const merged: SnapshotQuote =
         derivedChange24h === null

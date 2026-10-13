@@ -979,6 +979,46 @@ probed — prefix only, never guessed).
   real-fixture specs, not on a quiet pool. Evidence:
   `.omo/evidence/task-fe-ohlc-change.log`.
 
+## OHLC BACKFILL FOR 24H-WINDOW + ATH (todo 46, 2026-10-13)
+
+One-time per-pool seed on the first encounter with a Gecko OHLC
+pool, camino al honesto `0%` (window covered = backfilled history +
+live price; stale-candles-alone still resolve null per the todo-33
+rule; inferred flatness as `0%` stays forbidden).
+
+- SEED (piggyback, never a dedicated fetch): `seedOhlcvBackfill`
+  builds rows from the derivation fetch's candles via pure
+  `buildOhlcvSeedRows` (`snapshot/domain/snapshot-ohlcv-backfill.ts`):
+  `createdAt` = CANDLE time (not now), `priceUsd` = close, `fdvUsd`
+  = close x CURRENT supply via the existing `computedFdvOf` seam
+  (historical supply taken identical to current — approximation
+  pinned in code, janitor ages rows out on the normal 90d), tag
+  `quote.fdvProvenance: 'computed'` (reused, no new value), window
+  [now-26h, now], gaps seed nothing. Idempotency falls out of the
+  existing `unique(key, createdAt)` (`saveSeeded`: `23505` collides
+  to null, in-memory mirrors the skip — no guard table, no
+  migration). Status `ready` (real measurements; a seeded row can
+  serve stale when zero live rows exist — honest thin card,
+  documented here).
+- DERIVATION (outright-24h vs now-live, primary): `findAnchorAt`
+  reads the history anchor (backfill + live — seed runs BEFORE the
+  read, first encounter anchors on its own candles; `ready` only,
+  nearest to now-24h within ±2h, ties newer) vs the current merged
+  price (`deriveOutrightVsLiveChange`). Candle-pure math stays as
+  fallback (no-live-price/pending shape). Native-wins intact
+  (non-null native = zero calls, zero seeds). Gaps → null everywhere.
+- DOCTRINE: the two append-only comments (repository + entity) now
+  read `append-only incl. one-time per-pool OHLC seed`; ATH needs no
+  logic change (`findFdvAth` maxes over backfill + live as-is).
+- SPECS (`address-snapshot-ohlcv-backfill.spec.ts`, 33): exact math
+  on a VERBATIM 9-row STAGEVEIL subset (`.omo/evidence/
+task-fe-ohlc-change-ohlcv.json` — the ticket's "IP: 23 velas"
+  capture is not on disk, only referenced in the plan line; same
+  newest≈24h-ago shape): seed-window + candle-time pins, fdv =
+  close x supply, outright exact, idempotency (2nd encounter +0
+  seeded), native precedence (0 calls, 0 seeds), 55h-gap null.
+  Evidence: `.omo/evidence/task-fe-backfill24.log`.
+
 ## TOP-5 PROVIDER EXPLOITATION (todo 31, 2026-10-09)
 
 Five legs over EXISTING providers (zero new vendors/keys). Rule for
