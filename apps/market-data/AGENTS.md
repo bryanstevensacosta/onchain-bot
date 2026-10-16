@@ -1453,6 +1453,154 @@ spec.ts` FAILS on any hardcoded TTL literal in a snapshot writer.
   sheds transiently at runtime with an audit trail, which is NOT a
   removal). Full evidence: `.omo/evidence/task-fe-free-scale.log`.
 
+## GRADUATED PUMP.FUN ORIGIN: RUNBOOK + HELIUS DIAGNOSIS + SUFFIX TABLE (todo 48, 2026-10-16)
+
+Precedence PINNED (cross-system, not "three vias in order"):
+override (dexter `resolveLaunchpad`, curated row wins even over a
+positive detection) > detector-positive (on-chain proof below) >
+suffix-corroborated (SAME id + local `corroborated` flag, never a new
+id) > null. SCRIP-pattern (graduated pump.fun, closed curve,
+detector null) resolves via rank 1 until a leg proves otherwise.
+
+- (a) RUNBOOK (SCRIP-instantiation of the EXISTING general flow —
+  table `dexter_launchpad_overrides` + CRUD
+  `POST/GET /api/dexter/launchpad-overrides` (+ `GET /:id`,
+  `DELETE /:id`, NO `PATCH`) + docs already exist per plan: dexter
+  AGENTS todo-37 section + `launchpad-overrides.controller.ts`;
+  ZERO code in this lane). SCRIP mint (from todo-47 evidence
+  `.omo/evidence/task-fe-supply-fallback.log`, live snapshot
+  2026-10-16):
+  `y95bhwzuuapjj9gebxfebuzzeccrvw6kqxkqczcpump` (symbol SCRIP,
+  venue `pumpswap` = graduated pump.fun, suffix `...pump`
+  present, detector `launchpad: null` per plan). Dev dexter
+  `:4060`. DTO is camelCase (`mint`, `launchpadId`, `note`) —
+  snake_case `launchpad_id` 400s (proven 2026-10-10). Baseline:
+  `curl -s 'localhost:4060/api/dexter/launchpad-overrides?mint=
+y95bhwzuuapjj9gebxfebuzzeccrvw6kqxkqczcpump'` -> `[]` + preview
+  `POST /api/dexter/templates/preview {draft:{command:'ca',
+bodyMarkdown:'{{launchpadIconLink}}'},address:'y95bhwzuuapjj9g
+ebxfebuzzeccrvw6kqxkqczcpump'}` -> text `""` (launchpad null).
+  Set: `curl -s -X POST localhost:4060/api/dexter/launchpad-
+overrides -H 'Content-Type: application/json' -d '{"mint":
+"y95bhwzuuapjj9gebxfebuzzeccrvw6kqxkqczcpump","launchpadId":
+"pump-fun","note":"todo-48 SCRIP graduated pump.fun (closed
+curve, detector null, venue pumpswap); curated <YYYY-MM-DD>"}'`
+  -> 201 `{id, mint, launchpadId:'pump-fun', ...}`. Verify:
+  `GET ...?mint=y95bhwzuuapjj9gebxfebuzzeccrvw6kqxkqczcpump` ->
+  `[row]` + preview ->
+  `"[💊](https://pump.fun/coin/y95bhwzuuapjj9gebxfebuzzeccrvw6kq
+xkqczcpump)"` (DisplayMap `launchpad/pump-fun=💊` pre-exists
+  since 2026-10-10; if absent, IconLink falls back to `Link` per
+  renderer contract). Revert: `DELETE
+/api/dexter/launchpad-overrides/<id>` -> 204 + `GET ...?mint=`
+  -> `[]` + preview -> `""` (revert proof). CLEANUP RECEIPT (this
+  lane): NO live contact performed (boots are out of scope for
+  this lane) -> zero rows created -> nothing to revert
+  (reverted-N/A, never touched).
+- (b) HELIUS DIAGNOSIS (code-reading + precedent numbers;
+  re-implementing the leg is FORBIDDEN — the leg is untouched).
+  `detectHeliusOrigin` (last Solana resort, after PDA batch +
+  heaven; EVM never touches it) misses a SCRIP-pattern token BY
+  DESIGN via exactly two modes. M1 window-honesty: history is
+  newest-first with `HELIUS_ORIGIN_HISTORY_LIMIT = 100`, so the
+  leg reports earliest-IN-WINDOW, never genesis — genesis deeper
+  than the 100 newest (any active/old graduate) yields a generic
+  earliest (swaps/ATA) with no known program -> mapper null.
+  Precedent numbers (INCOME live 2026-10-10): window slots
+  450534185->453388576 (2,854,391 slots over 100 txs), earliest =
+  generic ATA INITIALIZE_ACCOUNT (ComputeBudget + Associated-Token
+  programs only, `signer` undefined) -> null, correctly. Threshold:
+  genesis-depth > 100 txs -> miss GUARANTEED (units: transactions).
+  M2 429-wall: EXACTLY 2 Enhanced-API calls/fire, ZERO in-leg
+  retries — any 429/timeout/parse-null on either call -> null.
+  Precedent numbers: INCOME full-tx fetch 429-walled TWICE (incl. a
+  6s-backoff retry). Threshold: 429 count > 0 per fire -> null
+  (units: HTTP 429 responses; retry budget 0). SCRIP-grounding
+  (todo-47 live snapshot): SCRIP is ACTIVE (price 3.171e-6 +
+  `pumpswap` venue + DexScreener pair) — its 100-tx newest-first
+  window is dominated by recent swaps, so its pump.fun genesis
+  (creation ix, graduation long past) lies with certainty deeper
+  than the 100 newest -> M1 miss GUARANTEED by construction for
+  this mint (threshold genesis-depth > 100 txs applies directly).
+  Metric to watch: `parseTransaction` 429 rate per fire + window
+  slot-span per `getAddressHistory` call. OWNER-GATED PROBE (exact
+  command, NOT run by this lane — no live calls here): with
+  `HELIUS_API_KEY` in env (never printed), `curl -s -X POST
+<helius-rpc> -H 'Content-Type: application/json' -d
+'{"jsonrpc":"2.0","id":1, "method":"getSignaturesForAddress",
+"params":["y95bhwzuuapjj9gebxfebuzzeccrvw6kqxkqczcpump",
+{"limit":100}]}'` -> inspect slot span + oldest entry; then ONE
+  `getTransaction` for the oldest signature -> check instruction
+  program ids against `HELIUS_ORIGIN_PROGRAM_TO_LAUNCHPAD`. Oldest
+  parses clean but unknown -> M1 (works-as-designed, deeper than
+  window); oldest fetch 429s -> M2 (works-as-designed, zero-retry
+  policy). VERDICT: re-implementation question closed
+  `wontfix-medido` — the leg behaves as specified (INCOME numbers
+  above + SCRIP M1-guaranteed by its active-graduate shape);
+  SCRIP-window numbers await the pinned probe, which can only
+  confirm M1/M2, never indict the leg.
+- (c) SUFFIX TABLE (`...pump` corroborating, never decisive — R1
+  `.omo/plans/dexter-launchpad.md:57`: "NO heuristica del sufijo
+  `...pump` como unica fuente"). Executable table:
+  `src/launchpad/domain/pump-suffix-corroboration.ts`
+  (`hasPumpSuffix` case-sensitive + `corroboratePumpSuffix` pure).
+  Venue x detector x suffix -> origin: venue NEVER participates
+  (origin != venue); detector `pump-fun` + suffix -> `pump-fun`
+  (+`corroborated:true`); detector `pump-fun` w/o suffix ->
+  `pump-fun`; detector other-id (+/- suffix) -> other id (never
+  re-keyed); detector null + suffix -> NULL (mandatory falsifier);
+  detector null w/o suffix -> null. R1 allows AT MOST a documented
+  fast-path after PDA — this lane implements LESS (observe-only
+  annotation, zero path change). SEAM pinned: `detectInner` Solana
+  branch calls the table AFTER the full verdict; returns it
+  UNCHANGED (only observable: `debug` log lines). RENDERER decided:
+  mismo-null — NO marked low-confidence value exists (suffix-alone
+  renders the existing `""` x4; corroborated renders
+  byte-identical to uncorroborated). PROVENANCE decided:
+  silent-with-reason — NO new wire field (`corroborated` is local
+  to the seam log; end-to-end churn for zero display delta
+  rejected); invariant `corroborated=false` whenever `id=null`
+  (no-bit-without-value, spec-pinned). Specs (12):
+  `launchpad-detector-pump-suffix.spec.ts` (table + falsifier +
+  detector-level falsifier + seam identity). Evidence:
+  `.omo/evidence/task-fe-graduated-origin.log`.
+
+## SUPPLY TRANSPORT (todo 47, 2026-10-16)
+
+Gate case SCRIP (`y95bhwzuu…pump`, solana): `sources: ['dexscreener']`,
+supply triple-null → FDV N/A, with `solana-rpc/coingecko/birdeye/mobula:
+no data` (on-chain leg 429-walled on public tiers + indexed-gating, NOT
+absence; CoinGecko 404s the mint itself; Gecko `/info` 404 + `/multi`
+empty + pool-search hit carries price/fdv only — pools have no total
+supply). Gate verdict: 429/timeout-RPC on the on-chain leg +
+todos-los-legs-null elsewhere. Evidence:
+`.omo/evidence/task-fe-supply-fallback.log`.
+
+- DISCARD REPAIRED (the one code-proven break in the five-leg fan-out):
+  `CoinGeckoService.getTokenContractInfo` null-collapsed when price AND
+  mcap were both null, dropping already-fetched
+  `total/circulating/max` for long-tail tokens CoinGecko tracks without
+  pricing. Now null-collapses ONLY when every mapped field is null
+  (price+mcap+fdv+volume+change+total+circ+max); supply-only rows ride
+  the existing fetcher mapping into the first-non-null merge, where the
+  todo-38 seam seals `fdv = price×(total ?? max)` (invariant untouched).
+  The other four legs audited clean (Gecko passes `total_supply`
+  through; Birdeye/Mobula map verbatim; solanaRpc fails transport-only).
+  Fetcher order + fan-out shape + retry + merge UNCHANGED (reorder would
+  silently change multi-hit winners).
+- QUOTA: zero new calls (same single GET, same retry, same keyless skip)
+  — calls/scan delta 0 on every path, no QPS-math delta.
+- EVM CHAIN (verbatim): Birdeye→Gecko→CoinGecko→null (the on-chain leg
+  is Solana-only — no EVM `getTokenSupply` equivalent exists in the
+  fan-out, so EVM supply depends on aggregator legs alone).
+- MINT-AUTHORITY ASSUMPTION: on-chain `getTokenSupply` reads
+  current-minted, which ≡ total supply under disabled mint authority —
+  valid scope pump.fun fixed-supply (graduated mints are renounced;
+  outside that scope a re-mintable token would under-report).
+- Specs: `coingecko-supply-transport.spec.ts` (supply-only transports,
+  price-only/full byte-identical, all-null still null, keyless skip,
+  fetcher end-to-end + order pinned).
+
 ## SECURITY (P46, todo 10)
 
 Scoped API keys (`src/auth/`): `read` (GET chains/providers/addresses/

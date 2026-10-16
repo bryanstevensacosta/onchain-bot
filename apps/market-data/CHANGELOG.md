@@ -9,6 +9,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CoinGecko supply transport, no price-gated discard (dexter plan todo 47):**
+  `getTokenContractInfo` no longer null-collapses when price AND mcap
+  are both null — supply-only rows (`total/circulating/max`) now ride
+  the existing fetcher mapping into the first-non-null merge, where the
+  todo-38 seam seals `fdv = price×(total ?? max)` (invariant untouched).
+  Null-collapse only when every mapped field is null (`no data`
+  contract preserved); fetcher order, fan-out shape, retry, and merge
+  unchanged. Quota: zero new calls (same single GET — calls/scan delta
+  0). Gate case SCRIP (`sources: ['dexscreener']`, triple-null supply):
+  on-chain leg 429-walled (transport, not absence), CoinGecko 404s the
+  mint, Gecko pool leg carries no supply — fix targets the token class,
+  specs pin the transport. EVM chain verbatim:
+  Birdeye→Gecko→CoinGecko→null (on-chain leg Solana-only); mint-authority
+  assumption (`current-minted ≡ total`, pump.fun fixed-supply scope) in
+  AGENTS. Specs: `coingecko-supply-transport.spec.ts` (7).
+
+- **Graduated pump.fun origin: runbook + Helius diagnosis + suffix table (dexter plan todo 48):**
+  precedence pinned override > detector-positive >
+  suffix-corroborated > null. (a) SCRIP runbook instantiates the
+  EXISTING override flow (table + CRUD + docs already per plan;
+  zero code): exact `POST /api/dexter/launchpad-overrides`
+  (`mint`/`launchpadId: pump-fun`/`note`, camelCase DTO),
+  `DELETE /:id` revert, `GET ?mint=` verification (dev dexter
+  `:4060`; SCRIP mint `y95bhwz…cpump` from todo-47 evidence; this lane
+  made zero live contact — nothing to revert). (b) Helius-leg
+  diagnosis by construction with precedent numbers (INCOME window
+  450534185→453388576, earliest generic ATA → null; full-tx
+  429-walled twice; thresholds: genesis-depth > 100 txs → miss,
+  429 > 0/fire → null, 0 retries) + owner-gated probe command;
+  re-implementation closed `wontfix-medido`, leg untouched.
+  (c) `...pump` corroboration-only table
+  (`pump-suffix-corroboration.ts`: case-sensitive suffix,
+  venue-never-participates, mandatory suffix-alone → null
+  falsifier) with seam pinned (observe-only in `detectInner`
+  Solana branch, verdict unchanged), renderer mismo-null (no
+  low-confidence value), provenance silent-with-reason (no wire
+  field, no-bit-without-value invariant). Specs (12) in
+  `launchpad-detector-pump-suffix.spec.ts`.
+
 - **OHLC backfill for 24h-window + ATH (dexter plan todo 46):**
   one-time per-pool seed on the first Gecko-OHLC encounter
   (`buildOhlcvSeedRows`: `createdAt` = candle time, `fdvUsd` =

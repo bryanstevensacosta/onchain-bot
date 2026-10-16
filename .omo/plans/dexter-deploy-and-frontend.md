@@ -401,6 +401,20 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartUrl}}`co
       Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; IP con backfill → change calculado (no N/A) + ATH>actual; sin OHLC → intacto.
       QA scenarios: happy (ventana cubierta) + failure (pool sin OHLC, gaps). Evidence .omo/evidence/task-fe-backfill24.log
       Commit: Y | feat(market-data-backfill): OHLC siembra historial (docs AGENTS+CHANGELOG)
+- [x] 47. Diagnosticar-y-reparar supply nulo SCRIP (Wave 1 follow-up, evidencia SCRIP 2026-10-15: `sources: ['dexscreener']`, supply triple-null → FDV `N/A`)
+      What to do / Must NOT do: GATE PREVIO OBLIGATORIO (sin codigo hasta cumplirlo): pegar en evidencia la linea exacta que dice que leg fallo para SCRIP (`served-by=` que tier respondio + entrada `providerErrors` correspondiente) distinguiendo 429/timeout-RPC vs todos-los-legs-null; sin esa cita no hay fix. HECHO VERIFICADO (no re-litigar): los cinco legs de supply YA existen en fan-out paralelo (Gecko, CoinGecko, Birdeye, Mobula, solanaRpc; merge first-non-null) — PROHIBIDO anadir cadenas secuenciales nuevas (cero cobertura extra, gastan p95 y cuota) y PROHIBIDO reordenar fetchers (cambiaria ganadores multi-hit en silencio). Solo: reparar el punto de descarte / transporte dentro del fan-out existente. Cuota: prueba de cero-llamadas-nuevas o delta QPS-math + spec. Scope EVM: el leg on-chain es solo-Solana (dejarlo por escrito; cadena EVM verbatim: Birdeye→Gecko→CoinGecko→null). Supuesto mint-authority documentado en AGENTS (`current-minted ≡ total`, valido scope pump.fun fixed-supply). Specs: fixtures-first (por fuente + todos-ausentes → null) + invariante `fdv==price×supply` intacta; live opcional con comando exacto + cleanup. Docs: market-data AGENTS + CHANGELOG (ADD-only).
+      Parallelization: Wave 1 follow-up (1 worker) | Blocked by: — | Blocks: —
+      References: snapshot SCRIP (`sources: ['dexscreener']`, supply triple-null), `getTokenSupply` existente, invariante todo 38.
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; SCRIP con supply → FDV calculado (no N/A); sin supply en ningun lado → N/A honesto.
+      QA scenarios: happy (fallback aporta) + failure (throttle → backoff, todo-ausente → null). Evidence .omo/evidence/task-fe-supply-fallback.log
+      Commit: Y | feat(market-data-supply): fallbacks supply para FDV (docs AGENTS+CHANGELOG)
+- [x] 48. Origen en graduados pump.fun: runbook + Helius-existente + sufijo con tabla (Wave 1 follow-up, evidencia SCRIP: curva cerrada → detector `null`)
+      What to do / Must NOT do: ROLES con precedencia pineada (no "tres vias en orden"): override > detector-positivo > sufijo-corroborado > null. HECHOS VERIFICADOS (no re-litigar): tabla overrides + CRUD + docs YA existen; pata Helius-origen YA existe (`detectHeliusOrigin`, ultimo recurso). (a) Runbook SCRIP-especifico, cero codigo: body exacto `POST /api/dexter/launchpad-overrides` + `DELETE` revert + `GET` verificacion (documentar que la tabla/docs ya cubren el flujo general). (b) Helius: diagnosticar por que SCRIP lo fallo (window-honesty earliest≠genesis? 429-wall?) con metrica pineada (contador + ventana + comando exacto + umbral con unidades); si trabaja como disenado, cerrar `wontfix-medido` con numeros — PROHIBIDO re-implementar el leg. (c) Sufijo `…pump` CORROBORANTE jamas decisorio (cita R1: `.omo/plans/dexter-launchpad.md:57`): tabla decision venue × detector-output × sufijo → origen/null; seam y rango de precedencia pineados; renderer: mismo null vs valor-marcado-baja-confianza (decidir + spec); procedencia: campo nuevo o silencio-con-motivo (decidir + spec); spec falsadora obligatoria (sufijo-solo → null). Specs: override gana, Helius si cambia algo (match/no-match) o diagnostico con numeros, sufijo falsadora. Docs: market-data AGENTS + CHANGELOG (ADD-only).
+      Parallelization: Wave 1 follow-up (1 worker) | Blocked by: — | Blocks: —
+      References: SCRIP (graduado, curva cerrada, `launchpad: null`), tabla overrides existente, R1 (sufijo prohibido como unica fuente).
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; override documentado y probado live; Helius con gate medido (implementado o `wontfix-medido` con numeros).
+      QA scenarios: happy (override resuelve) + failure (Helius caido → null). Evidence .omo/evidence/task-fe-graduated-origin.log
+      Commit: Y | feat(market-data-origin): graduados pump (docs AGENTS+CHANGELOG)
 
 ### Wave 0 — guion local owner (10 min, dexter `:4060` + frontend `:5173`)
 
@@ -487,6 +501,8 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartUrl}}`co
 | 44 flap-intake          | —                | —            | 2                    |
 | 45 sigcap               | —                | —            | 2                    |
 | 46 backfill24           | —                | —            | 2                    |
+| 47 supply-fallback      | —                | —            | 2                    |
+| 48 graduated-origin     | —                | —            | 2                    |
 
 ## Invariants
 

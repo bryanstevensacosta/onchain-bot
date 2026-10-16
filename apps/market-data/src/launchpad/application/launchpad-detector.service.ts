@@ -6,6 +6,10 @@ import { SolanaRpcService } from 'provider/infrastructure/solana-rpc/solana-rpc.
 import type { LaunchpadInfo } from '../domain/launchpad-info';
 import type { LaunchpadDetectorPort } from '../domain/launchpad-detector.port';
 import {
+  corroboratePumpSuffix,
+  hasPumpSuffix,
+} from '../domain/pump-suffix-corroboration';
+import {
   BANKR_API_BASE,
   BELIEVE_DEPLOYERS,
   BONKFUN_PLATFORM_CONFIGS,
@@ -360,7 +364,25 @@ export class LaunchpadDetectorService implements LaunchpadDetectorPort {
     if (chain === '' || address === '') return null;
     const normalized = chain.toLowerCase();
     if (SOLANA_CHAINS.has(normalized)) {
-      return this.detectSolana(address);
+      const result = await this.detectSolana(address);
+      // Pump-suffix seam (dexter plan todo 48, rank 3,
+      // corroboration-only): observe-only annotation — NEVER alters the
+      // verdict (suffix-alone stays null per R1
+      // `.omo/plans/dexter-launchpad.md:57`). The debug lines below are
+      // the ONLY observable; `corroborated` is never plumbed
+      // (silent-with-reason — see `pump-suffix-corroboration.ts`).
+      const { corroborated } = corroboratePumpSuffix(
+        result?.id ?? null,
+        address,
+      );
+      if (corroborated) {
+        this.logger.debug(`pump-suffix corroborated (mint=${address})`);
+      } else if (result === null && hasPumpSuffix(address)) {
+        this.logger.debug(
+          `pump-suffix present but detector null — null per R1 (mint=${address})`,
+        );
+      }
+      return result;
     }
     const evm = EVM_CHAIN_ALIASES[normalized] ?? null;
     if (evm === null) return null;
