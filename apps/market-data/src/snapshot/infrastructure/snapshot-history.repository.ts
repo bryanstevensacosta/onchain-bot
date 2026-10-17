@@ -238,6 +238,14 @@ export class SnapshotHistoryRepository {
    * append-only history (seeded rows carry candle-time `createdAt`
    * + computed FDV, so they max here like any live row) — the
    * transient is accepted and documented here, not hidden.
+   *
+   * FALLBACK NOTE (dexter plan todo 61): the null-only DexScreener
+   * fallback rows (`fdvProvenance: 'dexscreener'`) are maxed here too
+   * — NO query change, deliberately (filtering to `'computed'` would
+   * forever deny `fdvAth` to tokens only ever fallback-filled). DSC's
+   * pair `fdv` ≈ `price × on-chain supply` (SCRIP live 2653 vs
+   * 2652.34; WENCAT same-minute ~0.1%), so the mixed semantics is an
+   * accepted, measured rounding-class delta — documented, not hidden.
    */
   public async findFdvAth(
     chain: string,

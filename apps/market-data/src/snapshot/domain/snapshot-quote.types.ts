@@ -25,6 +25,16 @@ export interface SnapshotQuote {
   readonly priceUsd: number | null;
   readonly marketCapUsd: number | null;
   readonly fdvUsd: number | null;
+  /**
+   * Dedicated DexScreener-leg FDV (dexter plan todo 61): the pair-level
+   * `fdv` reported by the `dexscreener` fetcher, written ONLY by that
+   * leg. The single computed-FDV seam may consume it as a NULL-ONLY
+   * fallback (`computedFdvOf(...) ?? sane(this)`), tagged
+   * `fdvProvenance: 'dexscreener'`. The generic merged `fdvUsd` NEVER
+   * feeds the fallback (Gecko lesson: a reported value with a different
+   * supply base must be structurally unable to reach a card).
+   */
+  readonly dexscreenerFdvUsd: number | null;
   readonly liquidityUsd: number | null;
   readonly volume24hUsd: number | null;
   readonly priceChange24h: number | null;
@@ -40,16 +50,20 @@ export interface SnapshotQuote {
   readonly devWallets: ReadonlyArray<DevWalletQuote> | null;
   readonly devPctSupply: number | null;
   /**
-   * FDV provenance (dexter plan todo 38): `'computed'` on every quote
-   * sealed by the single-seam computed-FDV exit (`buildSnapshot`) —
-   * the served/persisted FDV is `price×(total ?? max)`, never a
-   * provider-reported number. `null` only pre-seam (merged but
+   * FDV provenance (dexter plan todo 38, extended todo 61):
+   * `'computed'` on every quote sealed by the single-seam computed-FDV
+   * exit (`buildSnapshot`) — the served/persisted FDV is
+   * `price×(total ?? max)`, never a provider-reported number; a
+   * computed-null is still `'computed'` (the seam ran). `'dexscreener'`
+   * ONLY when the null-only fallback filled the value from the
+   * dedicated `dexscreenerFdvUsd` leg field (todo 61) — `'computed'` is
+   * never reused for a reported value. `null` only pre-seam (merged but
    * unsealed quotes, pre-todo38 history rows). Deliberately ABSENT
    * from `SNAPSHOT_QUOTE_FIELDS` below: the aggregator merge never
    * copies it from a provider (no fetcher sets it — `Partial` legs
    * simply omit it), so provenance is always assigned, never merged.
    */
-  readonly fdvProvenance: 'computed' | null;
+  readonly fdvProvenance: 'computed' | 'dexscreener' | null;
   /**
    * Identity provenance (dexter plan todo 39): `'market'` when the
    * served symbol/name came from market legs (providers, discovery
@@ -70,6 +84,7 @@ export const SNAPSHOT_QUOTE_FIELDS: ReadonlyArray<keyof SnapshotQuote> = [
   'priceUsd',
   'marketCapUsd',
   'fdvUsd',
+  'dexscreenerFdvUsd',
   'liquidityUsd',
   'volume24hUsd',
   'priceChange24h',
@@ -91,6 +106,7 @@ export function emptySnapshotQuote(): SnapshotQuote {
     priceUsd: null,
     marketCapUsd: null,
     fdvUsd: null,
+    dexscreenerFdvUsd: null,
     liquidityUsd: null,
     volume24hUsd: null,
     priceChange24h: null,

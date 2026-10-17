@@ -1372,6 +1372,51 @@ copied from `marketCapOf` (`direct-fast-path.service.ts:1013-1024`) +
   vs reported 3016 (fixture reproduces cited magnitudes; live NOT
   re-probed — fixtures carry the proof per the todo).
 
+## DEXSCREENER FDV FALLBACK (todo 61, 2026-10-17) — null-only, provenance-tagged
+
+Invariant re-pin, same voice as todo 38: provider-reported `fdv` NEVER
+survives as a COMPUTED value. The SINGLE exception is this null-only
+fallback — and it is always provenance-tagged, never disguised.
+
+- SOURCE: the `dexscreener` fetcher writes a DEDICATED field
+  (`dexscreenerFdvUsd`, merged like any number field but written by
+  that leg ALONE) beside its generic `fdvUsd`. The seam consumes only
+  the dedicated field: the generic merged `fdvUsd` (Gecko/Mobula/…
+  also fill it, with their own supply bases — INCOME lesson) can never
+  feed the fallback.
+- SEAM: `buildSnapshot`/`applyComputedFdv`
+  (`snapshot-computed-fdv.ts`): `fdvUsd = computedFdvOf(...) ??
+sane(dexscreenerFdvUsd)`; `sane` = the copied product-guard
+  vocabulary (finite, > 0), no new validation. NULL-ONLY: a healthy
+  computed product wins ALWAYS (WENCAT/INCOME byte-identical cards;
+  the Solana fast path carries no DSC payload → unchanged). It is a
+  resilience net for transient supply-leg failures (the SCRIP null
+  root cause — todos 40/52/54/55 territory, NOT re-opened here).
+- PROVENANCE: `FdvProvenance = 'computed' | 'dexscreener'` (`'computed'`
+  is NEVER reused for a reported value); `null` = pre-seam rows
+  untouched. `isComputedFdvProvenance` validates the WHOLE union (both
+  tags are seam-minted; only `null` is pre-seam). Computed-null + no
+  usable DSC → `'computed'` + null (the seam ran). No migration (jsonb
+  key, same as todo 38).
+- ATH: `findFdvAth` keeps max-all, NO query change — tokens whose FDV
+  is only ever fallback-filled still accrue `fdvAth`/`fdvAthAgo`
+  (filtering to `'computed'` would leave them ATH-less forever).
+  Docstrings in `snapshot-fdv-ath.ts` + the repository extended with
+  the fallback note.
+- MEASURED (2026-10-17 probes, ≥8s spacing): SCRIP `Y95bhw…cpump` DSC
+  pair fdv `2653` = price `0.00000283` × Solana RPC supply
+  `937,224,309.554711` = `2652.34` → 0.025% = pure display rounding
+  (DSC reports integer USD; ±$1 noise on a max-over-history is
+  irrelevant vs price moves). WENCAT same-minute: computed `21020`
+  (price 0.00002102 × 1e9) vs DSC `21040` (+0.095%) — never swapped in
+  while computed is healthy. Evidence:
+  `.omo/evidence/task-fe-fdv-fallback.log`.
+- Live SCRIP at implementation time was HEALTHY (supply leg
+  recovered; computed 2652.34 served) — the fallback path is pinned by
+  the SCRIP fixture (supply null + DSC 2659 → served 2659, provenance
+  `dexscreener`), not by a forced live outage (never sabotage legs to
+  demo a resilience net).
+
 ## FREE-TIER QUOTA STRATEGY (todo 40, 2026-10-10 — measurement-first, explicit no-op)
 
 Verdict: NO CUTS. Every quota-pressure point is absorbed by existing gates;

@@ -311,6 +311,11 @@ export function buildProviderQuoteFetchers(
         priceUsd: toNumber(best.priceUsd),
         marketCapUsd: toNumber(best.marketCap),
         fdvUsd: toNumber(best.fdv),
+        // Dedicated DSC-leg FDV (dexter plan todo 61): the ONLY source
+        // of the null-only seam fallback. `fdvUsd` above stays for the
+        // seam's discarded-reported debug-log; this field never lets a
+        // foreign leg's reported value masquerade as DSC's.
+        dexscreenerFdvUsd: toNumber(best.fdv),
         liquidityUsd: toNumber(best.liquidityUsd),
         volume24hUsd: toNumber(best.volume24h),
         priceChange24h: toNumber(best.priceChange24h),

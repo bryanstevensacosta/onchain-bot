@@ -1229,11 +1229,19 @@ export class AddressSnapshotService {
         derivedChange24h === null
           ? outcome.quote
           : { ...outcome.quote, priceChange24h: derivedChange24h };
-      // Single-seam computed FDV (dexter plan todo 38): provider-reported
-      // `fdvUsd` NEVER survives this exit — `fdv = price×(total ?? max)`
-      // with the `marketCapOf`/`isSanePrice` guard vocabulary, else null;
-      // `circulating` never feeds FDV (MC input only). MC is recomputed
-      // as `price×circ` when `circ` is present (no MC>FDV cards); when
+      // Single-seam computed FDV (dexter plan todo 38; null-only
+      // DexScreener fallback todo 61): provider-reported `fdvUsd` NEVER
+      // survives as a computed value — `fdv = price×(total ?? max)`
+      // with the `marketCapOf`/`isSanePrice` guard vocabulary, else
+      // null; `circulating` never feeds FDV (MC input only). NULL-ONLY
+      // fallback: when (and only when) the computed product is null,
+      // the seam serves the dedicated `dexscreenerFdvUsd` leg field
+      // (written by the dexscreener fetcher alone — the generic merged
+      // `fdvUsd` is never a fallback source, Gecko lesson), tagged
+      // `fdvProvenance: 'dexscreener'`; a healthy computed value wins
+      // ALWAYS (WENCAT/INCOME byte-identical; the Solana fast path
+      // carries no DSC payload → unchanged). MC is recomputed as
+      // `price×circ` when `circ` is present (no MC>FDV cards); when
       // `circ` is absent the merged MC is kept (mint supply ~=
       // circulating for most SPL mints, so MC≈FDV for fixed supply —
       // same pattern as `marketCapOf` in direct-fast-path.service.ts).
@@ -1247,7 +1255,8 @@ export class AddressSnapshotService {
         this.logger.debug(
           `computed-fdv discarded provider-reported fdv ` +
             `chain=${knownId} address=${inputValue} ` +
-            `reported=${sealed.reportedFdvUsd} computed=${sealed.fdvUsd}`,
+            `reported=${sealed.reportedFdvUsd} served=${sealed.fdvUsd} ` +
+            `provenance=${sealed.fdvProvenance}`,
         );
       }
       if (

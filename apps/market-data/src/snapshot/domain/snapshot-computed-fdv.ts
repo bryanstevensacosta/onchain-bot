@@ -1,10 +1,23 @@
 /**
- * Single-seam computed FDV (dexter plan todo 38).
+ * Single-seam computed FDV (dexter plan todo 38; null-only DexScreener
+ * fallback todo 61).
  *
  * FDV DEFINITION (CoinGecko/Coinbase): `fdv = price × total-supply`.
  * The merge exit (`AddressSnapshotService.buildSnapshot`) is the ONE
  * seam where FDV is decided: provider-reported `fdvUsd` NEVER survives
- * — it is recomputed here from the merged price + supplies, or `null`.
+ * as a computed value — it is recomputed here from the merged price +
+ * supplies, or `null`.
+ *
+ * NULL-ONLY FALLBACK (todo 61, re-pin of the invariant): when — and
+ * ONLY when — the computed product is `null`, the seam may serve the
+ * DexScreener-leg pair `fdv` carried by the dedicated
+ * `dexscreenerFdvUsd` field (written by that fetcher alone). The
+ * GENERIC merged `fdvUsd` never feeds this fallback: Gecko/Mobula/…
+ * reporteds can carry a different supply base (INCOME lesson) and must
+ * stay structurally unable to reach the card. A healthy computed value
+ * ALWAYS wins (WENCAT/INCOME byte-identical; Solana fast path carries
+ * no DSC payload → unchanged). The fallback is a resilience net for
+ * transient supply-leg failures, not a semantics swap.
  *
  * GUARD VOCABULARY (copied verbatim, never invented):
  * - price: `isSanePrice` from `direct-fast-path.service.ts:173-177`
@@ -13,6 +26,8 @@
  *   product guard (`:1013-1024`): finite and > 0, else `null`.
  *   Zero-supply is `null` (not 0): a 0-supply FDV would read as a
  *   measured zero instead of an honest unknown.
+ * - fallback: the same product-guard tail (finite and > 0, else the
+ *   fallback is not taken) — no new validation.
  * - `circulating` NEVER feeds FDV (it is the MC input — see below).
  *   `total ?? max`: total wins when present (mint-disabled ⇒
  *   total == max, so fixed-supply tokens agree either way); max is
@@ -27,12 +42,14 @@
  * mints, so MC ≈ FDV for fixed-supply tokens.
  *
  * PROVENANCE: every row passing this seam is tagged
- * `fdvProvenance: 'computed'`. `findFdvAth` keeps maxing `fdvUsd`
- * over one (now computed) semantics; the 90d history window is
- * MIXED-transient (pre-todo38 provider-reported rows + post computed
- * rows coexist until the janitor prunes the old ones — documented in
- * the repository docstring, extended by the todo-46 one-time
- * per-pool OHLC seed (seeded rows reuse this seam, see
+ * `fdvProvenance: 'computed'` — except the null-only fallback rows,
+ * tagged `'dexscreener'` (never reusing `'computed'`). `findFdvAth`
+ * keeps maxing `fdvUsd` over the surviving semantics (see the
+ * repository docstring); the 90d history window is MIXED-transient
+ * (pre-todo38 provider-reported rows + post computed rows coexist
+ * until the janitor prunes the old ones — documented in the
+ * repository docstring, extended by the todo-46 one-time per-pool
+ * OHLC seed (seeded rows reuse this seam, see
  * `snapshot-ohlcv-backfill.ts`).
  */
 
@@ -109,23 +126,42 @@ export function coherentMarketCapOf(
 export interface ComputedFdvPatch {
   readonly fdvUsd: number | null;
   readonly marketCapUsd: number | null;
-  /** Always `'computed'`: the seam ran (even a computed-null is computed). */
-  readonly fdvProvenance: 'computed';
+  /**
+   * `'computed'` when the seam ran and the served FDV is
+   * `price×(total ?? max)` (a computed-null is still computed); the
+   * fallback guard below re-tags `'dexscreener'` for the null-only
+   * DexScreener fallback. `'computed'` is NEVER reused for a reported
+   * value.
+   */
+  readonly fdvProvenance: FdvProvenance;
   /** True iff `marketCapUsd` above is `price×circ` (not the merged MC). */
   readonly marketCapRecomputed: boolean;
 }
 
 /**
- * The seam patch: FDV recomputed (`total ?? max`), MC recomputed iff
- * `circ` present (else the merged MC is returned untouched), provenance
- * tagged. `reportedFdvUsd`/`reportedMarketCapUsd` are returned for the
- * caller's debug-log of discarded provider-reporteds (log-only, never
- * served).
+ * Null-only fallback guard (todo 61): the `computedFdvOf` product-guard
+ * vocabulary copied verbatim (finite and > 0) — never new validation.
+ * `toNumber` upstream already collapsed non-numbers to `null`.
+ */
+function isSaneFallbackFdv(value: number | null | undefined): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0;
+}
+
+/**
+ * The seam patch: FDV recomputed (`total ?? max`); when that is `null`
+ * ONLY, the dedicated DexScreener-leg field (`dexscreenerFdvUsd`,
+ * written by the dexscreener fetcher alone) fills it with provenance
+ * `'dexscreener'` — the generic merged `fdvUsd` is NEVER a fallback
+ * source. MC recomputed iff `circ` present (else the merged MC is
+ * returned untouched). `reportedFdvUsd`/`reportedMarketCapUsd` are
+ * returned for the caller's debug-log of discarded provider-reporteds
+ * (log-only, never served).
  */
 export function applyComputedFdv(quote: {
   readonly priceUsd: number | null;
   readonly marketCapUsd: number | null;
   readonly fdvUsd: number | null;
+  readonly dexscreenerFdvUsd: number | null;
   readonly totalSupply: number | null;
   readonly circulatingSupply: number | null;
   readonly maxSupply: number | null;
@@ -133,11 +169,23 @@ export function applyComputedFdv(quote: {
   readonly reportedFdvUsd: number | null;
   readonly reportedMarketCapUsd: number | null;
 } {
-  const fdvUsd = computedFdvOf(
+  const computed = computedFdvOf(
     quote.priceUsd,
     quote.totalSupply,
     quote.maxSupply,
   );
+  const fallback = isSaneFallbackFdv(quote.dexscreenerFdvUsd)
+    ? quote.dexscreenerFdvUsd
+    : null;
+  const fdvUsd = computed ?? fallback;
+  // Null-only: a healthy computed value wins ALWAYS (byte-identical
+  // cards); the tag follows the value's actual origin.
+  const fdvProvenance: FdvProvenance =
+    computed !== null
+      ? 'computed'
+      : fallback !== null
+        ? 'dexscreener'
+        : 'computed';
   const hasCirc =
     quote.circulatingSupply !== null && quote.circulatingSupply !== undefined;
   const recomputedMc = hasCirc
@@ -146,18 +194,29 @@ export function applyComputedFdv(quote: {
   return {
     fdvUsd,
     marketCapUsd: recomputedMc ?? quote.marketCapUsd,
-    fdvProvenance: 'computed',
+    fdvProvenance,
     marketCapRecomputed: recomputedMc !== null,
     reportedFdvUsd: quote.fdvUsd,
     reportedMarketCapUsd: quote.marketCapUsd,
   };
 }
 
-/** Provenance tag for new history rows (dexter plan todo 38). */
-export type FdvProvenance = 'computed';
+/**
+ * Provenance tag for new history rows (dexter plan todo 38; extended
+ * todo 61): `'computed'` = seam product (`price×(total ?? max)`, or an
+ * honest computed-null); `'dexscreener'` = null-only fallback from the
+ * dedicated dexscreener leg field.
+ */
+export type FdvProvenance = 'computed' | 'dexscreener';
 
+/**
+ * True for every tag the seam mints (todo 38/61): BOTH `'computed'`
+ * and `'dexscreener'` mark new history rows — only `null` is the
+ * pre-seam (provider-reported era) marker. The predicate spans the
+ * whole union, exactly.
+ */
 export function isComputedFdvProvenance(
   value: unknown,
 ): value is FdvProvenance {
-  return value === 'computed';
+  return value === 'computed' || value === 'dexscreener';
 }

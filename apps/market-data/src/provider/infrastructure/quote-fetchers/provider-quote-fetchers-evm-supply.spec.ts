@@ -248,6 +248,7 @@ describe('evm-rpc supply leg (todo 54: eth_call totalSupply + decimals)', () => 
         priceUsd: price,
         marketCapUsd: null,
         fdvUsd: 14029, // provider-reported — discarded by design
+        dexscreenerFdvUsd: 14029, // dedicated DSC leg — computed wins anyway (todo 61)
         totalSupply: WENCAT_SUPPLY_UI,
         circulatingSupply: 500_000_000,
         maxSupply: null,
@@ -297,10 +298,14 @@ describe('evm-rpc supply leg (todo 54: eth_call totalSupply + decimals)', () => 
       expect(outcome.quote.circulatingSupply).toBeNull();
       expect(outcome.sources).toContain('evm-rpc');
       expect(outcome.sources).toContain('dexscreener');
+      // Dedicated DSC-leg field rides the merge (todo 61) but computed
+      // supply is present → the seam must not import it.
+      expect(outcome.quote.dexscreenerFdvUsd).toBe(14029);
       const sealed = applyComputedFdv({
         priceUsd: outcome.quote.priceUsd,
         marketCapUsd: outcome.quote.marketCapUsd,
         fdvUsd: outcome.quote.fdvUsd,
+        dexscreenerFdvUsd: outcome.quote.dexscreenerFdvUsd,
         totalSupply: outcome.quote.totalSupply,
         circulatingSupply: outcome.quote.circulatingSupply,
         maxSupply: outcome.quote.maxSupply,

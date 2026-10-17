@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Null-only DexScreener FDV fallback — provenance-tagged (dexter plan
+  todo 61):** the single computed-FDV seam
+  (`applyComputedFdv`/`buildSnapshot`) now serves
+  `fdvUsd = computedFdvOf(...) ?? sane(dexscreenerFdvUsd)` — the
+  DexScreener pair `fdv` fills the value ONLY when the computed product
+  is null, from a DEDICATED quote field (`dexscreenerFdvUsd`) written
+  by the `dexscreener` fetcher alone (the generic merged `fdvUsd` can
+  never feed it — Gecko lesson: INCOME-class reporteds with foreign
+  supply bases stay structurally out). A healthy computed product wins
+  ALWAYS: WENCAT/INCOME cards byte-identical, the Solana fast path
+  (no DSC payload) unchanged; fallback guard reuses the product-guard
+  vocabulary (finite, > 0; no new validation). `FdvProvenance` extends
+  to `'computed' | 'dexscreener'` (`'computed'` never reused for a
+  reported value; `isComputedFdvProvenance` validates the whole union —
+  only `null` is pre-seam); computed-null + no DSC keeps `'computed'` +
+  null.
+  No migration (jsonb). ATH keeps max-all with NO query change —
+  only-fallback tokens still accrue `fdvAth` (docstrings extended in
+  `snapshot-fdv-ath.ts` + the history repository). Verified live
+  (2026-10-17): DSC SCRIP fdv 2653 = price × RPC supply 2652.34
+  (0.025% display rounding); WENCAT computed 21020 vs DSC 21040 never
+  swapped while healthy. Specs: provenance matrix (computed-win /
+  fallback / both-null / garbage-fallback / Gecko-lesson) + fixtures
+  SCRIP, WENCAT, JUP-like. Evidence:
+  `.omo/evidence/task-fe-fdv-fallback.log`.
+
 - **Keyed OHLC fallback — Birdeye token-level candles (dexter plan todo 55):**
   three keyed doors probed once each (≥8s spacing; key values read by
   NAME at runtime, never echoed): Moralis `/erc20/metadata` → HTTP 401

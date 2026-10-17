@@ -3,6 +3,7 @@ import {
   coherentMarketCapOf,
   computedFdvEpsilonBound,
   computedFdvOf,
+  isComputedFdvProvenance,
 } from './snapshot-computed-fdv';
 
 /**
@@ -90,6 +91,7 @@ describe('applyComputedFdv (seam patch)', () => {
     priceUsd: 10,
     marketCapUsd: 999,
     fdvUsd: 3016,
+    dexscreenerFdvUsd: null,
     totalSupply: 1_000_000,
     circulatingSupply: 400_000,
     maxSupply: 10_000_000,
@@ -156,4 +158,147 @@ describe('applyComputedFdv (seam patch)', () => {
     expect(patched.marketCapUsd).toBe(999);
     expect(patched.fdvProvenance).toBe('computed');
   });
+});
+
+/**
+ * Null-only DexScreener fallback (dexter plan todo 61; research 59
+ * veredicto `ship`). Provenance matrix: computed-sana → `computed`
+ * ALWAYS (fallback never fires); supply null + dedicated DSC field
+ * sane → `dexscreener`; both null → `computed` + null (seam ran).
+ * Fixtures reuse the research numbers: SCRIP 2659, WENCAT
+ * computed 21020 vs DSC 21040, JUP-like corrupt pair.
+ */
+describe('applyComputedFdv null-only DexScreener fallback (plan todo 61)', () => {
+  it('SCRIP fixture: supply null + DSC fdv 2659 → served 2659, provenance dexscreener', () => {
+    // Live ground truth 2026-10-17: DSC pair pumpswap fdv 2659,
+    // marketCap 2659, priceUsd 0.000002837; the supply leg was
+    // transiently null at research time (todo 59).
+    const patched = applyComputedFdv({
+      priceUsd: 0.000002837,
+      marketCapUsd: 2659,
+      fdvUsd: 2659,
+      dexscreenerFdvUsd: 2659,
+      totalSupply: null,
+      circulatingSupply: null,
+      maxSupply: null,
+    });
+    expect(patched.fdvUsd).toBe(2659);
+    expect(patched.fdvProvenance).toBe('dexscreener');
+    // Reported value is still surfaced for the discard-log (log-only).
+    expect(patched.reportedFdvUsd).toBe(2659);
+    // No circ → merged MC kept (fixed-supply MC≈FDV assumption).
+    expect(patched.marketCapUsd).toBe(2659);
+    expect(patched.marketCapRecomputed).toBe(false);
+  });
+
+  it('WENCAT fixture: computed healthy → computed wins ALWAYS, DSC 21040 never served', () => {
+    // Same-minute live deltas (research 59, notepad f): computed 21020
+    // (price 0.00002102 × 1e9) vs DSC 21040 (+0.095%) — null-only
+    // means the fallback must NOT fire and the card stays
+    // byte-identical to todo 38.
+    const patched = applyComputedFdv({
+      priceUsd: 0.00002102,
+      marketCapUsd: 21040,
+      fdvUsd: 21040,
+      dexscreenerFdvUsd: 21040,
+      totalSupply: 1_000_000_000,
+      circulatingSupply: null,
+      maxSupply: null,
+    });
+    expect(patched.fdvUsd).toBeCloseTo(21020, 0);
+    expect(patched.fdvUsd).not.toBe(21040);
+    expect(patched.fdvProvenance).toBe('computed');
+  });
+
+  it('both null: no computed and no DSC → computed + null (same as todo 38)', () => {
+    const patched = applyComputedFdv({
+      priceUsd: 1.5,
+      marketCapUsd: 12345,
+      fdvUsd: 12345,
+      dexscreenerFdvUsd: null,
+      totalSupply: null,
+      circulatingSupply: null,
+      maxSupply: null,
+    });
+    expect(patched.fdvUsd).toBeNull();
+    expect(patched.fdvProvenance).toBe('computed');
+  });
+
+  it('Gecko lesson: generic reported fdv NEVER feeds the fallback (dedicated field only)', () => {
+    // INCOME-class reported (Gecko 3016 with its own supply base) sits
+    // in the merged `fdvUsd`; with no dedicated DSC value the seam
+    // must stay null — a reported value must not resurrect.
+    const patched = applyComputedFdv({
+      priceUsd: 0.000002689,
+      marketCapUsd: 3016,
+      fdvUsd: 3016,
+      dexscreenerFdvUsd: null,
+      totalSupply: null,
+      circulatingSupply: null,
+      maxSupply: null,
+    });
+    expect(patched.fdvUsd).toBeNull();
+    expect(patched.fdvProvenance).toBe('computed');
+  });
+
+  it.each([
+    ['NaN DSC fdv', Number.NaN],
+    ['Infinity DSC fdv', Number.POSITIVE_INFINITY],
+    ['negative DSC fdv', -2659],
+    ['zero DSC fdv', 0],
+  ])('garbage fallback (%s) is not taken → computed + null', (_label, bad) => {
+    const patched = applyComputedFdv({
+      priceUsd: 0.000002837,
+      marketCapUsd: 2659,
+      fdvUsd: 2659,
+      dexscreenerFdvUsd: bad,
+      totalSupply: null,
+      circulatingSupply: null,
+      maxSupply: null,
+    });
+    expect(patched.fdvUsd).toBeNull();
+    expect(patched.fdvProvenance).toBe('computed');
+  });
+
+  it('JUP-like corrupt pair: no worse — computed (same pair) wins, DSC delta never imported', () => {
+    // JUP live: the best-liquidity meteora DLMM pair reports an absurd
+    // price; computed fdv 10.18T vs DSC fdv 10.39T (+2.0%) from that
+    // SAME pair. Computed is non-null, so the fallback cannot fire —
+    // the +2% DSC delta is never imported.
+    const price = 1483.91;
+    const total = 6_860_000_000;
+    const patched = applyComputedFdv({
+      priceUsd: price,
+      marketCapUsd: null,
+      fdvUsd: 10_390_000_000_000,
+      dexscreenerFdvUsd: 10_390_000_000_000,
+      totalSupply: total,
+      circulatingSupply: null,
+      maxSupply: null,
+    });
+    expect(patched.fdvUsd).toBeCloseTo(price * total, 0);
+    expect(patched.fdvUsd).not.toBe(10_390_000_000_000);
+    expect(patched.fdvProvenance).toBe('computed');
+  });
+});
+
+/**
+ * Union validation (plan todo 61): the predicate must span the WHOLE
+ * `FdvProvenance` union — both seam-minted tags mark new history rows;
+ * only `null` is the pre-seam marker.
+ */
+describe('isComputedFdvProvenance (union validation, plan todo 61)', () => {
+  it.each(['computed', 'dexscreener'])(
+    'accepts %s (seam-minted tag)',
+    (tag) => {
+      expect(isComputedFdvProvenance(tag)).toBe(true);
+    },
+  );
+
+  it.each([null, undefined, '', 'reported', 'Computed'])(
+    'rejects %p (pre-seam or foreign value)',
+    (bad) => {
+      expect(isComputedFdvProvenance(bad)).toBe(false);
+    },
+  );
 });

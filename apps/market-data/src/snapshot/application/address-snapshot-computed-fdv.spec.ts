@@ -13,12 +13,15 @@ import {
 } from '../domain/snapshot-quote.types';
 
 /**
- * Single-seam computed FDV at the merge exit (dexter plan todo 38).
+ * Single-seam computed FDV at the merge exit (dexter plan todo 38;
+ * null-only DexScreener fallback todo 61).
  *
  * The fetcher below stands in for the merged provider outcome (the
  * aggregator contract is first-non-null per field — pinned
  * elsewhere); these specs prove the EXIT: reported FDV never
- * survives, MC recoheres, history rows are tagged.
+ * survives as computed (except the null-only, provenance-tagged
+ * `dexscreener` fallback fed ONLY by the dedicated `dexscreenerFdvUsd`
+ * field), MC recoheres, history rows are tagged.
  */
 const INCOME = '7DyyqPAz5RZMiAu9e6h3ynbiREzbNu46gxpJNvimkYdX';
 
@@ -110,7 +113,10 @@ describe('AddressSnapshotService computed-FDV seam (plan todo 38)', () => {
     );
   });
 
-  it('null-supply → null FDV (honest, never 0) with provenance tagged', async () => {
+  it('INCOME-class: generic reported fdv with no DSC dedicated field → null FDV (Gecko lesson)', async () => {
+    // The merged generic `fdvUsd` carries a reported number (Gecko
+    // 3016-class, wrong supply base); with no dedicated
+    // `dexscreenerFdvUsd` the null-only fallback must NOT fire.
     const { snapshots, history } = await buildService({
       priceUsd: 1.5,
       fdvUsd: 12345,
@@ -123,6 +129,7 @@ describe('AddressSnapshotService computed-FDV seam (plan todo 38)', () => {
       kindHint: 'token',
     });
     expect(snapshot.fdvUsd).toBeNull();
+    expect(snapshot.dexscreenerFdvUsd).toBeNull();
     expect(snapshot.fdvProvenance).toBe('computed');
     const rows = await history.listRecent(1);
     expect(rows[0].quote.fdvProvenance).toBe('computed');
@@ -142,5 +149,54 @@ describe('AddressSnapshotService computed-FDV seam (plan todo 38)', () => {
       });
       expect(snapshot.fdvUsd).toBeNull();
     }
+  });
+
+  it('SCRIP fixture: supply-less snapshot serves DSC 2659 tagged dexscreener (plan todo 61)', async () => {
+    // Research 59 live truth: DSC pair pumpswap fdv/mc 2659, priceUsd
+    // 0.000002837, supply leg transiently null. The seam fills the
+    // null with the DEDICATED DSC value and tags provenance.
+    const { snapshots, history } = await buildService({
+      priceUsd: 0.000002837,
+      marketCapUsd: 2659,
+      fdvUsd: 2659,
+      dexscreenerFdvUsd: 2659,
+      symbol: 'SCRIP',
+      name: 'SCRIP',
+    });
+    const snapshot = await snapshots.getSnapshot({
+      chain: 'solana',
+      value: 'Y95bhwzuUapjJ9gEbXFEbuZzECcrVw6kQXKQcZcpump',
+      kindHint: 'token',
+    });
+    expect(snapshot.status).toBe('ready');
+    expect(snapshot.fdvUsd).toBe(2659);
+    expect(snapshot.fdvProvenance).toBe('dexscreener');
+    // No circ → merged MC kept (unchanged behavior).
+    expect(snapshot.marketCapUsd).toBe(2659);
+    const rows = await history.listRecent(1);
+    expect(rows[0].quote.fdvUsd).toBe(2659);
+    expect(rows[0].quote.fdvProvenance).toBe('dexscreener');
+  });
+
+  it('WENCAT fixture: computed healthy wins over DSC 21040 → computed 21020, no fallback (plan todo 61)', async () => {
+    const { snapshots, history } = await buildService({
+      priceUsd: 0.00002102,
+      marketCapUsd: 21040,
+      fdvUsd: 21040,
+      dexscreenerFdvUsd: 21040,
+      totalSupply: 1_000_000_000,
+      symbol: 'WENCAT',
+      name: 'WenCat',
+    });
+    const snapshot = await snapshots.getSnapshot({
+      chain: 'ethereum',
+      value: '0xCfb3a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2',
+      kindHint: 'token',
+    });
+    expect(snapshot.fdvUsd).toBeCloseTo(21020, 0);
+    expect(snapshot.fdvUsd).not.toBe(21040);
+    expect(snapshot.fdvProvenance).toBe('computed');
+    const rows = await history.listRecent(1);
+    expect(rows[0].quote.fdvProvenance).toBe('computed');
   });
 });

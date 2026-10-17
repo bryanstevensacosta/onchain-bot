@@ -164,6 +164,10 @@ describe('DexScreener top-5 (todo 31: search + tokens/v1 + unichain)', () => {
     });
     const quote = await dexFetcher(d).fetch('solana', MINT);
     expect(quote?.symbol).toBe('SOL');
+    // Dedicated DSC-leg FDV (todo 61) is written by this fetcher alone
+    // (pair fdv 2000 in the fixture) and rides beside the generic field.
+    expect(quote?.fdvUsd).toBe(2000);
+    expect(quote?.dexscreenerFdvUsd).toBe(2000);
     expect(search).not.toHaveBeenCalled();
     expect(getTokensInfo).not.toHaveBeenCalled();
   });
@@ -179,6 +183,7 @@ describe('DexScreener top-5 (todo 31: search + tokens/v1 + unichain)', () => {
     const quote = await dexFetcher(d).fetch('solana', MINT);
     expect(quote?.symbol).toBe('SOL');
     expect(quote?.priceUsd).toBe(109.44);
+    expect(quote?.dexscreenerFdvUsd).toBe(2000);
   });
 
   it('search + strict miss falls back to tokens/v1', async () => {

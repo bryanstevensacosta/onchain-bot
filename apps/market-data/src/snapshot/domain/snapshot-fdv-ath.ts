@@ -20,6 +20,17 @@
  * is over one semantics going forward; the 90d window is
  * mixed-transient (pre-seam provider-reported rows age out via the
  * janitor, no backfill).
+ *
+ * FALLBACK NOTE (dexter plan todo 61, max-all kept deliberately): the
+ * null-only DexScreener fallback (`fdvProvenance: 'dexscreener'`) also
+ * feeds this max with NO query change — rows exist here regardless of
+ * provenance. Filtering to `'computed'` would leave tokens whose FDV
+ * is only ever fallback-filled WITHOUT any `fdvAth` forever
+ * (cold-start-honest but UX-dead), and the two semantics measurably
+ * agree (DSC pair fdv ≈ `price × on-chain supply`; SCRIP live
+ * 2653 vs 2652.34, WENCAT same-minute delta ~0.1% — DSC's integer
+ * rounding is the residual). Mixed-semantics is therefore accepted
+ * and documented, not hidden.
  */
 export interface SnapshotFdvAth {
   readonly fdvUsd: number;

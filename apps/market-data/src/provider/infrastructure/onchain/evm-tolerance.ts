@@ -94,6 +94,13 @@ export function selectPreferredQuote(
     priceUsd: pickDefined(direct.priceUsd, aggregator.priceUsd),
     marketCapUsd: pickDefined(direct.marketCapUsd, aggregator.marketCapUsd),
     fdvUsd: pickDefined(direct.fdvUsd, aggregator.fdvUsd),
+    // Dedicated DSC fallback field (todo 61) rides the same pick; the
+    // direct fast path never sets it (no DSC payload), so the
+    // aggregator's DSC-leg value survives untouched.
+    dexscreenerFdvUsd: pickDefined(
+      direct.dexscreenerFdvUsd,
+      aggregator.dexscreenerFdvUsd,
+    ),
     liquidityUsd: pickDefined(direct.liquidityUsd, aggregator.liquidityUsd),
     volume24hUsd: pickDefined(direct.volume24hUsd, aggregator.volume24hUsd),
     priceChange24h: pickDefined(
