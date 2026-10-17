@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Money compact at 1 decimal (dexter plan todo 64; owner re-pin
+  2026-10-17 post research 58, supersedes the up-to-2-dec rule):**
+  `formatMoneyText` applies `trimFixed(x, 1)` on all four branches
+  (B/M/K/sub-1000) — every money key (`marketCapUsd`, `fdvUsd`,
+  `liquidityUsd`, `volume24hUsd`, `fdvAth`) and the own scan-card
+  (`formatMoneyV2`) now renders `55.7K`/`1.5B`/`983.8`; trailing-zero
+  strip, no `$`, `N/A` on null and sign preserved intact. Old verbatim
+  values re-pinned (`1.46B` → `1.5B`, `30.22K` → `30.2K`, `983.78` →
+  `983.8`, `94.31` → `94.3`); new pins `55.7K`, `11K` (`.0` strip),
+  `999.9K` and the documented no-carry edge `1000K` (`999.96` carries
+  the mantissa only, never rolls to `1M`; same as the old 2-dec rule,
+  unobserved in Rick). `priceUsd`/percent/counts/`devPctSupply`
+  untouched. Specs re-pinned in `scan-card.spec.ts`,
+  `template-renderer.service.spec.ts` and
+  `template-renderer-fdv-ath.spec.ts`.
+
 ### Added
 
 - **Pair-age derived placeholder `{{age}}` (dexter plan todo 63):**

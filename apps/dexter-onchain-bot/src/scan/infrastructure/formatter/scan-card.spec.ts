@@ -58,8 +58,8 @@ describe('MessageFormatterAdapter.formatScanCard (dexter own template)', () => {
     expect(out.text).toContain('💰 0\\.00000086 ');
     // marketCapUsd 752 — compact, no `$`.
     expect(out.text).toContain('MC 752');
-    // liquidityUsd 983.78 — compact, no `$`.
-    expect(out.text).toContain('Liq 983\\.78');
+    // liquidityUsd 983.78 — compact 1-dec (plan todo 64), no `$`.
+    expect(out.text).toContain('Liq 983\\.8');
     // priceChange24h -0.7 — trimmed, negative sign only.
     expect(out.text).toContain('\\-0\\.7%');
     expect(out.text).not.toContain('+');
@@ -70,9 +70,19 @@ describe('MessageFormatterAdapter statics (Rick-parity number policy)', () => {
   it.each([
     [23_300, '23.3K'],
     [7_900, '7.9K'],
-    [1_460_000_000, '1.46B'],
+    [1_460_000_000, '1.5B'],
     [80_000_000_000, '80B'],
     [752, '752'],
+    [55_670, '55.7K'],
+    // toFixed(1) yields `11.0`; the dangling `.0` is stripped.
+    [10_974.57, '11K'],
+    [999_949, '999.9K'],
+    // Edge (plan todo 64): rounding carries the mantissa, not the unit —
+    // `999.96` rounds to `1000.0` → `1000K`. NO roll to `1M` (same as the
+    // old 2-dec rule; unobserved in Rick; documented and pinned).
+    [999_960, '1000K'],
+    [983.78, '983.8'],
+    [94.31, '94.3'],
     [null, 'N/A'],
   ])('formatMoneyText(%p) → %p', (value, expected) => {
     expect(MessageFormatterAdapter.formatMoneyText(value)).toBe(expected);

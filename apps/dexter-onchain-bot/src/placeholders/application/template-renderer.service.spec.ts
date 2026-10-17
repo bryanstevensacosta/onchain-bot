@@ -236,12 +236,19 @@ describe('Rick-parity number policy (plan todo 13, evidence examples.md)', () =>
   it.each([
     [23_300, '23\\.3K'],
     [7_900, '7\\.9K'],
-    [1_460_000_000, '1\\.46B'],
+    [1_460_000_000, '1\\.5B'],
     [80_000_000_000, '80B'],
     [12_900, '12\\.9K'],
     [752, '752'],
-    [983.78, '983\\.78'],
-    [94.31, '94\\.31'],
+    [983.78, '983\\.8'],
+    [94.31, '94\\.3'],
+    [55_670, '55\\.7K'],
+    // toFixed(1) yields `11.0`; the dangling `.0` is stripped.
+    [10_974.57, '11K'],
+    [999_949, '999\\.9K'],
+    // Edge (plan todo 64): mantissa carries, unit never — `999.96` →
+    // `1000.0` → `1000K`, NOT rolled up to `1M`.
+    [999_960, '1000K'],
   ])('money %p renders compact without `$`: %p', (value, expected) => {
     const out = policyRenderer().render(
       '{{marketCapUsd}}',
@@ -329,13 +336,13 @@ describe('Rick-parity number policy (plan todo 13, evidence examples.md)', () =>
     expect(out.text).toBe('**MC:** $27\\.3K');
   });
 
-  it('KOLscope style gets `$` from literal body text (`MC $30.22K`)', () => {
+  it('KOLscope style gets `$` from literal body text (`MC $30.2K`)', () => {
     const out = policyRenderer().render(
       '`MC` **${{marketCapUsd}}**',
       { ...TOKEN, marketCapUsd: 30_220 },
       'ca',
     );
-    expect(out.text).toBe('`MC` **$30\\.22K**');
+    expect(out.text).toBe('`MC` **$30\\.2K**');
   });
 
   it('Soul dust renders plain (`USD: 0.0000413`, never `$0.00`)', () => {

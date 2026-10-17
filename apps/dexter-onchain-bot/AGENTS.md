@@ -560,9 +560,13 @@ matchValue:'pump-fun', display:'Pump'}`.
   Chain-agnostic by design (one row per mint, all chains).
 
 - Number policy Rick-parity (plan todo 13): formatters emit NO `$`
-  (money → compact K/M/B trimmed `23.3K`/`7.9K`/`1.46B`; `priceUsd` →
-  adaptive `<1` full digits `0.00002434` / `>=1` grouped max-2 `3,457`;
-  percent → trimmed sign-only-when-negative `80%`/`-34.4%`, `-0` → `0%`;
+  (money → compact K/M/B at 1 decimal trimmed, owner re-pin plan
+  todo 64 2026-10-17 post research 58: `23.3K`/`7.9K`/`1.5B`/`983.8`;
+  supersedes the old up-to-2-dec rule `1.46B`/`30.22K`. Rounding
+  carries the mantissa only, never the unit: `999.96K` → `1000K`
+  (no roll to `1M`). `priceUsd` → adaptive `<1` max-3-sig-figs
+  half-up `0.0000243` / `>=1` grouped max-2 `3,457`; percent →
+  trimmed sign-only-when-negative `80%`/`-34.4%`, `-0` → `0%`;
   counts unchanged; `N/A` on null). `$` is literal body text where a
   style wants it (Proficy-style `MC: ${{marketCapUsd}}` → `$27.3K`;
   Rick-style bodies carry none). Raw `$` is valid MarkdownV2 (not in

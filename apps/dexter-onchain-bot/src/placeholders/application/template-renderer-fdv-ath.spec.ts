@@ -81,14 +81,14 @@ describe('TemplateRendererService fdv-ath keys (plan todo 16)', () => {
     );
   });
 
-  it('renders fdvAth money-compact with todo-13 policy (no $)', () => {
+  it('renders fdvAth money-compact with todo-13 policy, 1-dec re-pin todo 64 (no $)', () => {
     const token = baseToken({
       fdvUsd: 5100,
       fdvAthUsd: 1460000000,
       fdvAthAt: ATH_AT,
     });
     expect(render('FDV {{fdvUsd}} / ATH {{fdvAth}}', token)).toBe(
-      'FDV 5\\.1K / ATH 1\\.46B',
+      'FDV 5\\.1K / ATH 1\\.5B',
     );
   });
 

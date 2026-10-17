@@ -70,9 +70,10 @@ export class MessageFormatterAdapter {
    * `USD: 0.00234`, `Ether [3,457/-2.5%]`).
    *
    * One rule per metric, presentation layer only:
-   * - money (mc/fdv/liq/vol/ath) → compact K/M/B, NO `$` prefix
-   *   (`23.3K`, `7.9K`, `1.46B`, `752`); `$` lives in template bodies
-   *   as literal static text where a style wants it (Proficy-style).
+   * - money (mc/fdv/liq/vol/ath) → compact K/M/B at 1 decimal, NO `$`
+   *   prefix (`23.3K`, `7.9K`, `1.5B`, `983.8`, `752`); `$` lives in
+   *   template bodies as literal static text where a style wants it
+   *   (Proficy-style).
    * - price (`priceUsd` only) → adaptive: `<1` max 3 significant
    *   figures half-up, trailing zeros stripped (`0.00000242`,
    *   `0.0000243`, never `$0.00`); `>=1` grouped
@@ -85,9 +86,16 @@ export class MessageFormatterAdapter {
    *
    * Shared helper: `trimFixed` = `toFixed(n)` with trailing zeros
    * (and a dangling dot) stripped; `-0` normalizes to `0`.
-   * Money keeps up to 2 decimals so evidence values render verbatim
-   * (`30.22K`, `1.46B`) while 1-decimal evidence is untouched
-   * (`23.3K`, `7.9K`); percent is strictly 1-decimal per the ticket.
+   * Money is strictly 1 decimal (owner re-pin 2026-10-17, plan
+   * todo 64, post research 58: the 3-significant-figures vs
+   * 1-decimal tie was sample-indecidable and the owner picked 1 dec;
+   * this supersedes the old "up to 2 decimals so evidence renders
+   * verbatim (`30.22K`, `1.46B`)" rationale). Every Rick money sample
+   * (`23.3K`, `7.9K`, `1.8K`, `2.4K`, `12.9K`, `19.1K`, `86K`, `170K`,
+   * `1.2M`, `2.3M`, `749`) is covered. Edge: rounding carries the
+   * mantissa only, never the unit — `999.96K` renders `1000K` (same as
+   * the old 2-dec rule; unobserved in Rick; documented and pinned,
+   * NOT rolled up to `1M`).
    */
   private static trimFixed(value: number, maxDecimals: number): string {
     let text = value.toFixed(maxDecimals);
@@ -103,12 +111,12 @@ export class MessageFormatterAdapter {
     const sign = value < 0 ? '-' : '';
     const abs = Math.abs(value);
     if (abs >= 1_000_000_000)
-      return `${sign}${MessageFormatterAdapter.trimFixed(abs / 1_000_000_000, 2)}B`;
+      return `${sign}${MessageFormatterAdapter.trimFixed(abs / 1_000_000_000, 1)}B`;
     if (abs >= 1_000_000)
-      return `${sign}${MessageFormatterAdapter.trimFixed(abs / 1_000_000, 2)}M`;
+      return `${sign}${MessageFormatterAdapter.trimFixed(abs / 1_000_000, 1)}M`;
     if (abs >= 1_000)
-      return `${sign}${MessageFormatterAdapter.trimFixed(abs / 1_000, 2)}K`;
-    return `${sign}${MessageFormatterAdapter.trimFixed(abs, 2)}`;
+      return `${sign}${MessageFormatterAdapter.trimFixed(abs / 1_000, 1)}K`;
+    return `${sign}${MessageFormatterAdapter.trimFixed(abs, 1)}`;
   }
 
   /**
