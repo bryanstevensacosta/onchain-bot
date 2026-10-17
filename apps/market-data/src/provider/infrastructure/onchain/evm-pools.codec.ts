@@ -223,6 +223,54 @@ export function decodeUint128Return(data: string): bigint | null {
   }
 }
 
+// ── ERC-20 supply normalization (dexter plan todo 54) ────────────────
+
+/**
+ * ERC-20 raw uint256 -> UI amount, the todo-54 wiring rule:
+ * `ui = uint256_raw / 10^decimals`.
+ *
+ * BigInt is MANDATORY for the division: a `Number(raw)` FIRST would
+ * silently round supplies up to 2^256 down to 53-bit precision — the
+ * WENCAT 1e27 raw is already beyond `Number.MAX_SAFE_INTEGER` (the
+ * notepad's live proof pairs this exact raw with `decimals = 18`).
+ * Integer part + fractional digits are assembled as an exact decimal
+ * string FROM the BigInt; only the FINAL conversion is a double — the
+ * same lossy-to-Number boundary every price/supply number in this app
+ * crosses.
+ *
+ * `decimals` MUST be an integer in [0, 255] (ERC-20 uint8; the
+ * non-standard `>255` word already decodes to `null` upstream in
+ * `decodeDecimalsReturn` — both gates enforce the rule) and `raw`
+ * non-negative — anything else resolves `null` (fail-open, never
+ * throws, same contract as every decoder above).
+ */
+export function rawAmountToUiAmount(
+  raw: bigint | null,
+  decimals: number | null,
+): number | null {
+  try {
+    if (raw === null || raw < 0n) return null;
+    if (
+      decimals === null ||
+      !Number.isInteger(decimals) ||
+      decimals < 0 ||
+      decimals > 255
+    ) {
+      return null;
+    }
+    const digits = raw.toString(10).padStart(decimals + 1, '0');
+    const cut = digits.length - decimals;
+    const intPart = digits.slice(0, cut);
+    const fracPart = digits.slice(cut);
+    const ui = Number(
+      fracPart.length === 0 ? intPart : `${intPart}.${fracPart}`,
+    );
+    return Number.isFinite(ui) && ui >= 0 ? ui : null;
+  } catch {
+    return null;
+  }
+}
+
 export interface DecodedV3Slot0 {
   readonly sqrtPriceX96: bigint;
   readonly tick: number;

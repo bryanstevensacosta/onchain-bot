@@ -9,6 +9,7 @@ import {
   decodeV4Slot0,
   encodeBytes32ArgCall,
   encodeNoArgCall,
+  rawAmountToUiAmount,
   sqrtPriceX96ToPrice1Per0,
   v2ReservesToPrice1Per0,
   v4StateViewForChain,
@@ -118,6 +119,29 @@ describe('evm pools codec (selectors derived 2026-10-05)', () => {
     expect(decodeUint256Return(word(2n ** 200n))).toBe(2n ** 200n);
     expect(decodeUint128Return(word(2n ** 128n - 1n))).toBe(2n ** 128n - 1n);
     expect(decodeUint256Return('0x')).toBeNull();
+  });
+
+  it('normalizes raw supplies BigInt-first (todo 54: ui = raw / 10^decimals)', () => {
+    // WENCAT live fixture (todo-52 notepad): 1e27 raw / 10^18 = 1e9.
+    expect(rawAmountToUiAmount(10n ** 27n, 18)).toBe(1_000_000_000);
+    expect(rawAmountToUiAmount(1_500_000n, 6)).toBe(1.5);
+    expect(rawAmountToUiAmount(1_500_000n, 0)).toBe(1_500_000);
+    expect(rawAmountToUiAmount(1n, 18)).toBe(1e-18);
+    expect(rawAmountToUiAmount(1n, 255)).toBe(1e-255);
+    expect(rawAmountToUiAmount(0n, 18)).toBe(0);
+    // 2^256-1 raw stays far beyond 53-bit precision — Number(raw)
+    // FIRST would round; the exact string path does not fabricate digits
+    // (only the final double conversion rounds, same as every price).
+    expect(rawAmountToUiAmount(2n ** 256n - 1n, 18)).toBeGreaterThan(1e58);
+  });
+
+  it('normalization null-cases (decimals out of range / null raw)', () => {
+    expect(rawAmountToUiAmount(null, 18)).toBeNull();
+    expect(rawAmountToUiAmount(10n ** 27n, null)).toBeNull();
+    expect(rawAmountToUiAmount(10n ** 27n, 256)).toBeNull();
+    expect(rawAmountToUiAmount(10n ** 27n, -1)).toBeNull();
+    expect(rawAmountToUiAmount(10n ** 27n, 1.5)).toBeNull();
+    expect(rawAmountToUiAmount(-1n, 18)).toBeNull();
   });
 
   it('decodes V3 slot0 at parity (synthetic, sqrtPrice = 2^96)', () => {

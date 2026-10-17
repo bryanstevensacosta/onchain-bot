@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **EVM on-chain supply leg — `eth_call` totalSupply + decimals (dexter plan todo 54):**
+  new `evm-rpc` quote fetcher reads ERC-20 `totalSupply()` (`0x18160ddd`)
+  - `decimals()` (`0x313ce567`) in ONE Multicall3 `tryAggregate` across
+    the 8 multicall-verified chains (ethereum/base/bsc/arbitrum/polygon/
+    optimism/unichain/robinhood), normalized BigInt-first
+    (`ui = uint256_raw / 10^decimals`; `decimals >255` | null → `null`;
+    revert/empty/short raw → `null`; fail-open, never throws). Last FREE
+    leg (after defillama, before keyed — zero-cost invariant intact);
+    keyed legs untouched, geckoterminal still wins when it carries supply.
+    Proxy-safe by construction (reads execute the token's own code — the
+    delegatecall target for EIP-1967/UUPS/Beacon proxies — no slot
+    arithmetic); registry: deliberately not a `DEFAULT_PROVIDERS` row
+    (`onchain-direct` precedent). Emits ONLY `totalSupply` — computed-FDV
+    seam (todo 38) untouched, `circ` never feeds FDV. WENCAT live: 1e27 /
+    10^18 = 1,000,000,000 (DexScreener fdv 14029 / price 0.00001402
+    corroborates). Specs: 18-test host spec + `rawAmountToUiAmount` codec
+    unit block; AGENTS "EVM ON-CHAIN SUPPLY (todo 54)". Evidence:
+    `.omo/evidence/task-fe-ethcall-supply.log`.
+
 - **CoinGecko supply transport, no price-gated discard (dexter plan todo 47):**
   `getTokenContractInfo` no longer null-collapses when price AND mcap
   are both null — supply-only rows (`total/circulating/max`) now ride

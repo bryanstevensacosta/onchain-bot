@@ -446,7 +446,7 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartUrl}}`co
       Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; WENCAT renderiza `BNB` + `Flap` donde antes vacio/crudo.
       QA scenarios: happy (5 fixes) + failure (slugs excluidos intactos). Evidence .omo/evidence/task-fe-slug-fixes.log
       Commit: Y | fix(dexter-display): slugs auditados (docs si aplica)
-- [ ] 54. Leg `eth_call` supply+decimals (Wave 1 follow-up, sale de research 52: viable 2-fuentes)
+- [x] 54. Leg `eth_call` supply+decimals (Wave 1 follow-up, verificado 2026-10-17, suite 944 verde)
       What to do / Must NOT do: Cablear leg `eth_call totalSupply()` (`0x18160ddd`) + `decimals()` (`0x313ce567`) via multicall existente (tryAggregate, BigInt obligatorio; `decimals>255/null → null`; proxy-safe documentado) en las 8 chains con multicall verificado. Regla: `ui = uint256_raw / 10^decimals`. NUNCA `circ` para FDV (invariante). Excluidos por research (NO re-abrir): CoinPaprika, Etherscan-tokensupply, Helius-como-nuevo, DeFiLlama/DexScreener-derivado. Specs: 1B-WENCAT exacto + decimales-edge + proxy + null-cases + invariante FDV intacta. Docs: market-data AGENTS + CHANGELOG (ADD-only).
       Parallelization: Wave 1 follow-up (1 worker) | Blocked by: — (research 52 cerrada) | Blocks: —
       References: `.omo/notepads/dexter-supply-legs.md` (prueba 1B vs DexScreener), `multicall.service.ts:81-116`, `evm-pools.codec.ts:88-89`.

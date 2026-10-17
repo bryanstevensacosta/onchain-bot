@@ -59,6 +59,7 @@ describe('ccxt-first cascade order (P48-bis)', () => {
       'solana-rpc',
       'rugcheck',
       'defillama',
+      'evm-rpc',
       'birdeye',
       'coingecko',
       'mobula',

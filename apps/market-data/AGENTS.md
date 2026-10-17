@@ -1593,6 +1593,9 @@ todos-los-legs-null elsewhere. Evidence:
 - EVM CHAIN (verbatim): Birdeye→Gecko→CoinGecko→null (the on-chain leg
   is Solana-only — no EVM `getTokenSupply` equivalent exists in the
   fan-out, so EVM supply depends on aggregator legs alone).
+  - TODO 54 UPDATE (2026-10-17): an EVM on-chain leg now EXISTS — see
+    "EVM ON-CHAIN SUPPLY (todo 54)" below; this line stays as the
+    todo-47 audit record (honesty touch, not a rewrite).
 - MINT-AUTHORITY ASSUMPTION: on-chain `getTokenSupply` reads
   current-minted, which ≡ total supply under disabled mint authority —
   valid scope pump.fun fixed-supply (graduated mints are renounced;
@@ -1600,6 +1603,60 @@ todos-los-legs-null elsewhere. Evidence:
 - Specs: `coingecko-supply-transport.spec.ts` (supply-only transports,
   price-only/full byte-identical, all-null still null, keyless skip,
   fetcher end-to-end + order pinned).
+
+## EVM ON-CHAIN SUPPLY (todo 54, 2026-10-17)
+
+Closes the todo-47 EVM line above with a real EVM on-chain leg.
+Excluded alternatives stay excluded (research 52: CoinPaprika;
+Etherscan `tokensupply` — raw without decimals; Helius-as-new —
+Solana-only; DeFiLlama/DexScreener-derived).
+
+- `evm-rpc` quote fetcher: `totalSupply()` (`0x18160ddd`) +
+  `decimals()` (`0x313ce567`) in ONE Multicall3 `tryAggregate` (~26 CU
+  flat; the service-internal per-call fallback fires only when the
+  aggregate transport itself misses) across the 8 multicall-verified
+  chains — ethereum/base/bsc/arbitrum/polygon/optimism/unichain/
+  robinhood, pinned TABLE-EQUAL to the non-null
+  `EVM_CHAIN_TRANSPORTS.multicall3` rows. Normalization
+  `ui = uint256_raw / 10^decimals` is BigInt-first (`rawAmountToUiAmount`
+  in `evm-pools.codec.ts`; `Number(raw)` first would round 1e27-scale
+  supplies to 53-bit precision). `decimals >255` | null → `null`
+  (non-standard/reverted word); raw decode miss (revert, empty `0x`,
+  short word) → `null`. Fail-open like the transport: never throws,
+  unknown chain → all `ok:false` → `null`.
+- PRECEDENCE: LAST free leg (after `defillama`, before every keyed leg —
+  zero-cost-before-keyed invariant intact; cost tier `free`). On EVM
+  chains on-chain supply outranks keyed providers' `totalSupply` for
+  multi-hit fields — the intended ground-truth rule; geckoterminal still
+  wins when it carries supply (it sits earlier) and no keyed quota is
+  burned for it.
+- NAME/REGISTRY: `evm-rpc` matches the existing `served-by=evm-rpc`
+  debug terminology; deliberately NOT a `DEFAULT_PROVIDERS` row — same
+  precedent as `onchain-direct` (unknown names skip the breaker; the
+  outbound budget falls to the 60/min default). No new physical adapter:
+  the transport is the existing Alchemy Multicall3 service; the
+  `multicall` dep is optional (absent → skip with `null`, byte-identical
+  for old callers/specs).
+- PROXY-SAFE by construction: both calls execute the token's OWN code —
+  for EIP-1967/UUPS/Beacon proxies that is the delegatecall target (the
+  live implementation reading its live storage); no code inspection and
+  no storage-slot arithmetic, so a proxy upgrade cannot desync the read.
+  Rebasing/deflationary tokens resolve SPOT supply at head block — the
+  honest `total` denominator.
+- FDV INVARIANT (todo 38) UNTOUCHED: the leg emits ONLY `totalSupply`
+  and cannot bypass the computed-FDV seam (`fdv = price × (total ?? max)`;
+  `circ` never feeds FDV — it stays an MC input). WENCAT live
+  (`0xB596…7777`, BSC): raw `1e27` / `10^18` = 1,000,000,000 exactly;
+  DexScreener fdv 14029 / price 0.00001402 corroborates (price rounding,
+  not a parity pin). Evidence:
+  `.omo/evidence/task-fe-ethcall-supply.log`.
+- Specs: `provider-quote-fetchers-evm-supply.spec.ts` (18: coverage
+  table-equal, WENCAT exact + selector/call-shape pins, decimals-edge
+  0/6/18/255/256, null matrix, proxy no-extra-round-trips, ALL_FALSE,
+  absent-dep, transport-throw aggregator fail-open, FDV invariant +
+  end-to-end seal) + `rawAmountToUiAmount` unit block in
+  `evm-pools.codec.spec.ts`; order pins updated in
+  `cascade-order.spec.ts` / `provider-quote-newprov.spec.ts`.
 
 ## SECURITY (P46, todo 10)
 

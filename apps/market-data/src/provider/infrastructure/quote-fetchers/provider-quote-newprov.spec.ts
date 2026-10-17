@@ -53,6 +53,7 @@ describe('new-provider legs (todo 32: defillama + etherscan last)', () => {
       'solana-rpc',
       'rugcheck',
       'defillama',
+      'evm-rpc',
       'birdeye',
       'coingecko',
       'mobula',

@@ -119,6 +119,7 @@ import { QuotaGovernorService } from './application/quota-governor.service';
         DiscoveryCacheService,
         DefiLlamaService,
         EtherscanService,
+        MulticallService,
       ],
       useFactory: (
         dexscreener: DexScreenerService,
@@ -133,6 +134,7 @@ import { QuotaGovernorService } from './application/quota-governor.service';
         discoveryCache: DiscoveryCacheService,
         defillama: DefiLlamaService,
         etherscan: EtherscanService,
+        multicall: MulticallService,
       ) =>
         buildProviderQuoteFetchers({
           dexscreener,
@@ -147,6 +149,7 @@ import { QuotaGovernorService } from './application/quota-governor.service';
           discoveryCache,
           defillama,
           etherscan,
+          multicall,
         }),
     },
   ],

@@ -19,6 +19,15 @@ import { MobulaService } from 'provider/infrastructure/mobula';
 import { MoralisService } from 'provider/infrastructure/moralis';
 import { RugCheckService } from 'provider/infrastructure/rugcheck';
 import { SolanaRpcService } from 'provider/infrastructure/solana-rpc';
+import type { MulticallClient } from 'provider/infrastructure/alchemy/multicall.service';
+import {
+  decodeDecimalsReturn,
+  decodeUint256Return,
+  encodeNoArgCall,
+  ERC20_DECIMALS_SELECTOR,
+  ERC20_TOTAL_SUPPLY_SELECTOR,
+  rawAmountToUiAmount,
+} from 'provider/infrastructure/onchain/evm-pools.codec';
 import type {
   QuoteFetcher,
   SnapshotQuote,
@@ -72,6 +81,27 @@ export const GECKO_SUPPORTED_CHAINS: ReadonlyArray<string> = [
   'robinhood',
 ];
 
+/**
+ * EVM chains with a VERIFIED Multicall3 deployment (dexter plan todo
+ * 54): exactly the `EVM_CHAIN_TRANSPORTS` rows whose `multicall3` is
+ * non-null — 7 verified via `eth_getCode` 2026-10-05 (eth/base/bsc/arb/
+ * poly/op/uni) + robinhood 2026-10-06 (see `alchemy.chains.ts` header
+ * for the proof trail; a transposed address already burned us once, so
+ * no row is ever inherited from memory). A spec pins this list EQUAL
+ * to the transport table's non-null rows, so coverage can never
+ * silently outgrow its `eth_getCode` proof.
+ */
+export const EVM_ONCHAIN_SUPPLY_CHAINS: ReadonlyArray<string> = [
+  'ethereum',
+  'base',
+  'bsc',
+  'arbitrum',
+  'polygon',
+  'optimism',
+  'unichain',
+  'robinhood',
+];
+
 export interface ProviderQuoteDeps {
   readonly dexscreener: DexScreenerService;
   readonly geckoterminal: GeckoTerminalService;
@@ -104,6 +134,14 @@ export interface ProviderQuoteDeps {
       address: string,
     ): Promise<DexScreenerPairSummary | null>;
   };
+  /**
+   * EVM on-chain supply leg (dexter plan todo 54, optional):
+   * `totalSupply()` + `decimals()` batched through the frozen Multicall3
+   * `tryAggregate` transport (`MulticallService`, same seam Lane E uses).
+   * Absent (every pre-existing caller/spec) -> the leg skips with `null`,
+   * byte-identical — same precedent as `defillama`/`etherscan`.
+   */
+  readonly multicall?: MulticallClient;
 }
 
 /**
@@ -125,6 +163,7 @@ export const QUOTE_FETCHER_COST_TIER: Readonly<
   'solana-rpc': 'free',
   rugcheck: 'free',
   defillama: 'free',
+  'evm-rpc': 'free',
   birdeye: 'keyed',
   coingecko: 'keyed',
   mobula: 'keyed',
@@ -142,7 +181,9 @@ export const QUOTE_FETCHER_COST_TIER: Readonly<
  * free providers ordered by coverage (ccxt CEX-only via `covers`,
  * dexscreener broadest onchain, geckoterminal broad onchain + supplies,
  * solana-rpc solana-only on-chain ground truth (totalSupply +
- * top10HolderPercent), rugcheck free security fields), then keyed providers as fallback
+ * top10HolderPercent), rugcheck free security fields, evm-rpc EVM
+ * on-chain supply ground truth (todo 54, same `tryAggregate` seam)),
+ * then keyed providers as fallback
  * (birdeye, coingecko, mobula, moralis — null without keys, never
  * throwing). The aggregator merges first-non-null per field across all
  * of them in parallel. The ccxt fetcher short-circuits to null for
@@ -624,6 +665,72 @@ export function buildProviderQuoteFetchers(
   };
 
   /**
+   * EVM on-chain supply leg (dexter plan todo 54, LAST free leg):
+   * `totalSupply()` (`0x18160ddd`) + `decimals()` (`0x313ce567`) in ONE
+   * Multicall3 `tryAggregate` (~26 CU flat; the documented per-call
+   * fallback fires only when the aggregate transport itself misses)
+   * across the 8 multicall-verified chains, normalized with the
+   * BigInt-first `rawAmountToUiAmount` (`ui = uint256_raw / 10^decimals`;
+   * `decimals > 255 | null` -> `null`; raw decode miss -> `null`).
+   *
+   * PROXY-SAFE by construction: both reads execute the token's OWN
+   * code — for EIP-1967/UUPS/Beacon proxies that means the delegatecall
+   * target (the live implementation reading its live storage); this leg
+   * assumes NO implementation shape, pokes NO storage slots and reads NO
+   * admin/impl slots, so a proxy upgrade cannot desync it. Worst case a
+   * non-ERC20 / self-destructed target makes the inner call revert ->
+   * `ok:false` -> `null` (fail-open, never a crash). Rebasing or
+   * deflationary tokens resolve the SPOT supply at head block — the
+   * honest FDV denominator (`fdv = price x total`, NEVER `circ`;
+   * todo-38 invariant untouched: this leg emits ONLY `totalSupply` and
+   * cannot bypass the computed-FDV seam, and `parseRetryAfter`-style
+   * retry lives in the 19b2 wrapper, not here).
+   *
+   * Excluded by research 52 (do NOT re-open in this leg): CoinPaprika,
+   * Etherscan `tokensupply` (raw without decimals), Helius-as-new
+   * (Solana-only, already covered by `solana-rpc`), DeFiLlama /
+   * DexScreener-derived. Supply here is chain ground truth (WENCAT 1B
+   * live-verified vs DexScreener FDV within rounding — notepad
+   * `.omo/notepads/dexter-supply-legs.md`).
+   */
+  const evmRpc: QuoteFetcher = {
+    name: 'evm-rpc',
+    supportsChains: [...EVM_ONCHAIN_SUPPLY_CHAINS],
+    fetch: async (chain: string, address: string) => {
+      if (deps.multicall === undefined || deps.multicall === null) {
+        return null;
+      }
+      const results = await deps.multicall.tryAggregate(chain, [
+        {
+          target: address,
+          callData: encodeNoArgCall(ERC20_TOTAL_SUPPLY_SELECTOR),
+        },
+        {
+          target: address,
+          callData: encodeNoArgCall(ERC20_DECIMALS_SELECTOR),
+        },
+      ]);
+      const supplyRow = results[0] ?? null;
+      const decimalsRow = results[1] ?? null;
+      const supplyHex =
+        supplyRow !== null && supplyRow.ok === true ? supplyRow.value : null;
+      const decimalsHex =
+        decimalsRow !== null && decimalsRow.ok === true
+          ? decimalsRow.value
+          : null;
+      const raw = supplyHex === null ? null : decodeUint256Return(supplyHex);
+      const decimals =
+        decimalsHex === null ? null : decodeDecimalsReturn(decimalsHex);
+      const totalSupply = rawAmountToUiAmount(raw, decimals);
+      if (totalSupply === null) {
+        return null;
+      }
+      const quote: Partial<SnapshotQuote> = { totalSupply };
+      return quote;
+    },
+  };
+
+  /**
    * Etherscan V2 keyed holders leg (dexter plan todo 32, LAST leg
    * overall — fallback-after-incumbents). Maps ONLY the exact holder
    * count (`action=tokenholdercount`, PRO-gated so free-key answers
@@ -656,6 +763,7 @@ export function buildProviderQuoteFetchers(
     solanaRpc,
     rugcheck,
     defillama,
+    evmRpc,
     birdeye,
     coingecko,
     mobula,
