@@ -11,12 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Liquidity-ratio derived placeholder (dexter plan todo 62):**
   `{{liquidityRatio}}` on every command renders the Rick-parity
-  `[xN]` bracket with `N = Math.round(fdvUsd / liquidityUsd)` over
-  the SERVED values (incl. the todo-61 `dexscreener` fallback
-  provenance). Pure renderer computation — no snapshot/market-data
-  field, zero external calls. Escaped once like any value
-  (`\[x3\]`); empty when either side is absent/non-finite/≤0 or
-  `N < 1` (never `N/A`, never `[x0]`). Registry 18→19 derived keys
+  `xN` multiplier (`N = Math.round(fdvUsd / liquidityUsd)` over
+  the SERVED values, incl. the todo-61 `dexscreener` fallback
+  provenance; brackets are self-composed by the template author —
+  `[{{liquidityRatio}}]` → `[x3]`). Pure renderer computation — no
+  snapshot/market-data field, zero external calls. Escaped once like
+  any value; empty when either side is absent/non-finite/≤0 or
+  `N < 1` (never `N/A`, never `x0`). Registry 18→19 derived keys
   (41 keys for `ca|x|z|bare`, 42 for `c|cc`); catalog META entry +
   focal spec (`template-renderer-liquidity-ratio.spec.ts`:
   Chale 23300/7900 → `[x3]`, WENCAT-Rick 19100/6700 → `[x3]`,

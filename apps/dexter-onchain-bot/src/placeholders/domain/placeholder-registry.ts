@@ -67,8 +67,9 @@ export const DERIVED_PLACEHOLDERS: readonly string[] = [
   'fdvAth',
   'fdvAthAgo',
   'alternatives',
-  // Plan todo 62: `[xN]` multiplier bracket (round of fdvUsd÷liquidityUsd)
-  // — pure renderer computation, never a snapshot/market-data field.
+  // Plan todo 62: `xN` multiplier value (round of fdvUsd÷liquidityUsd;
+  // brackets are template-author-composed) — pure renderer
+  // computation, never a snapshot/market-data field.
   'liquidityRatio',
 ];
 

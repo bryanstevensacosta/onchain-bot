@@ -132,9 +132,9 @@ const PLACEHOLDER_META: Record<string, Omit<PlaceholderDescriptor, 'key'>> = {
   liquidityRatio: {
     type: 'derived',
     nullable: true,
-    example: '[x3]',
+    example: 'x3',
     description:
-      'FDV÷liquidity multiplier bracket (round); empty below 1× or unknown.',
+      'FDV÷liquidity multiplier (round); brackets are author-composed. Empty below 1× or unknown.',
   },
   timeframe: { type: 'string', nullable: true, example: '5m' },
   botStartUrl: {

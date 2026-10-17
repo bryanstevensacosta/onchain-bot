@@ -574,12 +574,15 @@ matchValue:'pump-fun', display:'Pump'}`.
   zero/negative/NaN pass through).
 
 - Liquidity-ratio placeholder (plan todo 62): derived key
-  `liquidityRatio` on EVERY command — Rick-parity `[xN]` bracket of
-  the SERVED `fdvUsd ÷ liquidityUsd`, `N = Math.round(...)`
+  `liquidityRatio` on EVERY command — Rick-parity `xN` multiplier
+  value of the SERVED `fdvUsd ÷ liquidityUsd`, `N = Math.round(...)`
   (half-up, legacy `toFixed(0)` convention; round-vs-ceil is
-  sample-indecidable, round is the pin). Value escaped once like any
-  other (`esc` → `\[x3\]`); `""` when either side is absent,
-  non-finite, ≤0 or the rounded `N < 1` — NEVER `N/A` nor `[x0]`
+  sample-indecidable, round is the pin). The value carries NO
+  brackets — bracket composition is template-author-owned
+  (`[{{liquidityRatio}}]` → `[x3]`; owner rev. 2026-10-17). Value
+  escaped once like any other (no-op on `xN`); `""` when either side
+  is absent, non-finite, ≤0 or the rounded `N < 1` — NEVER `N/A`
+  nor `x0`
   (PERPS sample `Liq: 1.8K ⚠️` carries no bracket; low-liq markers
   out of v1 scope). Pure renderer computation: no snapshot /
   market-data field, no network; the ratio mirrors the served FDV
