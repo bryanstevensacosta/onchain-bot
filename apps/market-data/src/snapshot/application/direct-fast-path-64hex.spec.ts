@@ -31,6 +31,7 @@ const v4Summary = (
   marketCap: 3676,
   priceChange24h: 1.5,
   txns24h: { buys: 3, sells: 1 },
+  pairCreatedAt: null,
   ...overrides,
 });
 

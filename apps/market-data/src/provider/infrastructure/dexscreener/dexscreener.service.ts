@@ -474,6 +474,14 @@ function toPairSummary(pair: DexScreenerPair): DexScreenerPairSummary {
     volume24h: vol24h,
     fdv: pair.fdv,
     marketCap: pair.marketCap,
+    // Best-pair creation ms (plan todo 63): same guard as the
+    // tripwire mapper (`toSummaryFromTripwire` — parity pinned).
+    pairCreatedAt:
+      typeof pair.pairCreatedAt === 'number' &&
+      Number.isFinite(pair.pairCreatedAt) &&
+      pair.pairCreatedAt > 0
+        ? pair.pairCreatedAt
+        : null,
     priceChange24h: pair.priceChange?.h24 ?? null,
     txns24h,
   };

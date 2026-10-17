@@ -83,3 +83,37 @@ describe('TokenScanPipeline venue passthrough (plan todo 14)', () => {
     expect(token?.venue).toEqual({ dexId: 'meteoradbc', labels: [] });
   });
 });
+
+describe('TokenScanPipeline pairCreatedAt passthrough (plan todo 63)', () => {
+  const PAIR_AT = '2026-10-13T12:01:14.000Z';
+
+  it('passes snapshot.pairCreatedAt through to token.pairCreatedAt', async () => {
+    const client = {
+      detectChain: async () => null,
+      getSnapshot: async () => snapshot({ pairCreatedAt: PAIR_AT }),
+    };
+    const pipeline = new TokenScanPipeline(client as never);
+    const token = await pipeline.resolve(`solana:${CHALE_MINT}`);
+    expect(token?.pairCreatedAt).toBe(PAIR_AT);
+  });
+
+  it('resolves pairCreatedAt null when the snapshot carries none (cold-start)', async () => {
+    const client = {
+      detectChain: async () => null,
+      getSnapshot: async () => snapshot(),
+    };
+    const pipeline = new TokenScanPipeline(client as never);
+    const token = await pipeline.resolve(`solana:${CHALE_MINT}`);
+    expect(token?.pairCreatedAt).toBeNull();
+  });
+
+  it('nulls a malformed pairCreatedAt at the pipeline boundary, never crashes', async () => {
+    const client = {
+      detectChain: async () => null,
+      getSnapshot: async () => snapshot({ pairCreatedAt: 'not-a-date' }),
+    };
+    const pipeline = new TokenScanPipeline(client as never);
+    const token = await pipeline.resolve(`solana:${CHALE_MINT}`);
+    expect(token?.pairCreatedAt).toBeNull();
+  });
+});

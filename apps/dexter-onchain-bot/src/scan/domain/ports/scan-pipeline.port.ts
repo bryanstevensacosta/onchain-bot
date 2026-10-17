@@ -91,6 +91,14 @@ export interface ResolvedToken {
   readonly launchpad?: LaunchpadInfo | null;
   readonly venue?: VenueInfo | null;
   /**
+   * Best-pair creation ISO (dexter `{{age}}`, plan todo 63): the
+   * best-liquidity PAIR creation time from the market-data snapshot.
+   * `null`/absent when market-data lacks it (cold-start) — the
+   * renderer renders `""`, never a guessed age. PAIR proxy, NEVER
+   * token deploy age: a migration under-reports (documented caveat).
+   */
+  readonly pairCreatedAt?: string | null;
+  /**
    * FDV ATH over the token's own snapshot history (dexter fdv-ath,
    * plan todo 16): max FDV + ISO timestamp of the setting row.
    * Both `null` on cold-start — the current FDV is NEVER

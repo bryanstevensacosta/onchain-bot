@@ -108,6 +108,7 @@ describe('gateway market-data snapshot compat edge (todo 5)', () => {
     expect(res.body.status).toBe('pending');
     expect(res.body).toHaveProperty('launchpad', null);
     expect(res.body).toHaveProperty('venue', null);
+    expect(res.body).toHaveProperty('pairCreatedAt', null);
     expect(res.body).toHaveProperty('identityProvenance', null);
   });
 
@@ -162,6 +163,7 @@ describe('gateway market-data snapshot launchpad plumbing (Lane D)', () => {
           pairAddress: 'pair1',
           dexId: 'raydium',
           labels: ['CLMM'],
+          pairCreatedAt: 1791892874000,
         }),
       })
       .overrideProvider(GeckoTerminalService)
@@ -205,5 +207,13 @@ describe('gateway market-data snapshot launchpad plumbing (Lane D)', () => {
     );
     expect(res.status).toBe(200);
     expect(res.body.venue).toEqual({ dexId: 'raydium', labels: ['CLMM'] });
+  });
+
+  it('exposes snapshot.pairCreatedAt as ISO from the best pair (dexter contract)', async () => {
+    const res = await request(app.getHttpServer()).get(
+      `/api/market-data/snapshot?chain=solana&address=${SOL}`,
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.pairCreatedAt).toBe('2026-10-13T12:01:14.000Z');
   });
 });

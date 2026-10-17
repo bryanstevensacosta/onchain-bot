@@ -5,6 +5,7 @@ import {
   toFdvAthUsdOrNull,
   toIdentityProvenanceOrNull,
   toLaunchpadOrNull,
+  toPairCreatedAtOrNull,
   toStaleAgeMsOrNull,
   toStaleAsOfOrNull,
   toStaleOrFalse,
@@ -327,6 +328,7 @@ export class TokenScanPipeline implements ScanPipeline {
       readonly devPctSupply?: number | null;
       readonly launchpad?: unknown;
       readonly venue?: unknown;
+      readonly pairCreatedAt?: unknown;
       readonly identityProvenance?: unknown;
       readonly fdvAthUsd?: unknown;
       readonly fdvAthAt?: unknown;
@@ -366,6 +368,7 @@ export class TokenScanPipeline implements ScanPipeline {
         snapshot.launchpad,
       ),
       venue: toVenueOrNull(snapshot.venue),
+      pairCreatedAt: toPairCreatedAtOrNull(snapshot.pairCreatedAt),
       identityProvenance:
         toIdentityProvenanceOrNull(snapshot.identityProvenance) ?? 'market',
       fdvAthUsd: toFdvAthUsdOrNull(snapshot.fdvAthUsd),

@@ -407,6 +407,23 @@ export class TemplateRendererService {
           MessageFormatterAdapter.formatCompactAgeText(values.fdvAthAt),
         );
       }
+      case 'age': {
+        // Best-pair age proxy (plan todo 63): the snapshot's top-level
+        // ISO `pairCreatedAt` — best-liquidity PAIR creation time,
+        // never token deploy age (migration under-reports; documented
+        // caveat). Absent/empty/unparseable → `""` (cold-start
+        // honesty, same rule as `fdvAthAgo`); future timestamps clamp
+        // to `0m` inside the shared formatter — never forked here.
+        if (
+          typeof values.pairCreatedAt !== 'string' ||
+          Number.isNaN(Date.parse(values.pairCreatedAt))
+        ) {
+          return '';
+        }
+        return esc(
+          MessageFormatterAdapter.formatCompactAgeText(values.pairCreatedAt),
+        );
+      }
       case 'liquidityRatio': {
         // Rick-parity `xN` multiplier (plan todo 62): `N` = round of
         // the SERVED `fdvUsd ÷ liquidityUsd` (includes the todo-61

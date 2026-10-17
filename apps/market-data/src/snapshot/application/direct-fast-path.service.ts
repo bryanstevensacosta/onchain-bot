@@ -86,6 +86,15 @@ export interface DirectFastPathResult {
   readonly outcome: AggregationOutcome;
   /** Venue derived from the discovery pair (no extra call). */
   readonly venue: SnapshotVenue | null;
+  /**
+   * Raw best-pair creation epoch ms from the SAME discovery summary
+   * that named the venue (dexter plan todo 63) — zero extra calls.
+   * `null` when discovery is absent or omitted the field. The ONE
+   * ms→ISO conversion happens at the snapshot seam
+   * (`buildSnapshot`/`toIsoPairCreatedAt`); this field stays raw so
+   * the guards live in a single place.
+   */
+  readonly pairCreatedAt: number | null;
   /** Launchpad raced inside the deadline (null = slow/unknown). */
   readonly launchpad: LaunchpadInfo | null;
   readonly timings: {
@@ -503,6 +512,7 @@ export class DirectFastPathService {
         discovery === null
           ? null
           : toVenueOrNull({ dexId: discovery.dexId, labels: discovery.labels }),
+      pairCreatedAt: discovery === null ? null : discovery.pairCreatedAt,
       launchpad,
       timings: {
         discoveryMs,
@@ -825,6 +835,9 @@ export class DirectFastPathService {
           dexId: discovery.dexId,
           labels: discovery.labels,
         }),
+        // Best-pair creation rides the same discovery summary (todo
+        // 63) — no extra call; raw ms, ISO at the snapshot seam.
+        pairCreatedAt: discovery.pairCreatedAt,
         launchpad: launchReady ? launchpadValue : null,
         timings: {
           discoveryMs,

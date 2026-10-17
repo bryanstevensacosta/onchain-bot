@@ -24,6 +24,8 @@ const fastResult = {
   },
   venue: null,
   launchpad: null,
+  // Raw ms, exactly as DirectFastPathService now resolves it (todo 63).
+  pairCreatedAt: 1791892874000,
   timings: { discoveryMs: 10, directMs: 50, launchpadMs: null, totalMs: 60 },
 };
 
@@ -61,6 +63,8 @@ describe('AddressSnapshotService fast-path wiring', () => {
     const first = await snapshots.getSnapshot(input);
     expect(first.status).toBe('ready');
     expect(first.sources).toEqual(['onchain-direct']);
+    // Fast-path ms converted ONCE to ISO at buildSnapshot (todo 63).
+    expect(first.pairCreatedAt).toBe('2026-10-13T12:01:14.000Z');
     expect(first.priceUsd).toBe(2);
     expect(first.liquidityUsd).toBe(20);
     expect(first.devWallets).toBeNull();
@@ -84,6 +88,7 @@ describe('AddressSnapshotService fast-path wiring', () => {
     // Same contract as the pre-wire pipeline: all-null fan-out.
     expect(snapshot.status).toBe('pending');
     expect(snapshot.priceUsd).toBeNull();
+    expect(snapshot.pairCreatedAt).toBeNull();
     expect(snapshot.providerErrors['dev:fast-path']).toBeUndefined();
     await module.close();
   });

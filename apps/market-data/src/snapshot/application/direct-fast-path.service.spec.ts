@@ -29,6 +29,7 @@ const summary = (
   marketCap: 1_500_000,
   priceChange24h: 2.5,
   txns24h: { buys: 10, sells: 5 },
+  pairCreatedAt: null,
   ...overrides,
 });
 
@@ -50,6 +51,7 @@ describe('DirectFastPathService (mocked readers, no network)', () => {
           labels: ['v2'],
           baseToken: { address: TOKEN_ETH, name: 'Tok', symbol: 'TOK' },
           quoteToken: { address: USDC_ETH, name: 'USD Coin', symbol: 'USDC' },
+          pairCreatedAt: 1791892874000,
         }),
     };
     const evmReader = {
@@ -83,6 +85,9 @@ describe('DirectFastPathService (mocked readers, no network)', () => {
     expect(result?.outcome.quote.symbol).toBe('TOK');
     expect(result?.venue).not.toBeNull();
     expect(result?.launchpad).toEqual({ origin: 'uniswap' });
+    // Raw ms threads through the fast result (the snapshot converts
+    // ONCE to ISO — todo 63).
+    expect(result?.pairCreatedAt).toBe(1791892874000);
     expect(result?.timings.totalMs).toBeGreaterThanOrEqual(0);
   });
 

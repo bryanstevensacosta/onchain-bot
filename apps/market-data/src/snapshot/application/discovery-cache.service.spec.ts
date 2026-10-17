@@ -49,6 +49,7 @@ function discoveredSummary(
     marketCap: 110000,
     priceChange24h: 2.5,
     txns24h: { buys: 10, sells: 5 },
+    pairCreatedAt: null,
     ...overrides,
   };
 }
@@ -98,9 +99,14 @@ describe('DiscoveryCacheService', () => {
     await service.resolveDiscovery('solana', MINT);
     dexscreener.getBestPairSummaryForChain.mockClear();
     dexscreener.getPairsByChain.mockClear();
-    // Tripwire answers the live pair (same dexId, fresher numbers).
+    // Tripwire answers the live pair (same dexId, fresher numbers,
+    // pair creation ms — todo 63 parity with the discovery mapper).
     dexscreener.getPairByAddress.mockResolvedValue(
-      tripwirePair({ priceUsd: '0.014', dexId: 'pumpfun' }),
+      tripwirePair({
+        priceUsd: '0.014',
+        dexId: 'pumpfun',
+        pairCreatedAt: 1791892874000,
+      }),
     );
     const out = await service.resolveDiscovery('solana', MINT);
     expect(dexscreener.getPairByAddress).toHaveBeenCalledTimes(1);
@@ -112,6 +118,8 @@ describe('DiscoveryCacheService', () => {
     expect(dexscreener.getBestPairSummaryForChain).not.toHaveBeenCalled();
     // Numbers ride the live tripwire pair, never the stale pin.
     expect(out?.priceUsd).toBe('0.014');
+    // Raw ms rides the tripwire mapper too (todo 63 byte-parity).
+    expect(out?.pairCreatedAt).toBe(1791892874000);
     expect(out).toMatchObject({ pairAddress: CURVE_PDA, dexId: 'pumpfun' });
   });
 

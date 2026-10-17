@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Pair-age derived placeholder `{{age}}` (dexter plan todo 63):**
+  `{{age}}` on every command renders the best-liquidity PAIR age
+  from the market-data snapshot's top-level ISO `pairCreatedAt`
+  (raw ms converted ONCE at market-data `buildSnapshot`; dexter
+  validates via the new `toPairCreatedAtOrNull` client guard →
+  `ResolvedToken.pairCreatedAt?` via the `toResolvedToken` mapping).
+  Formatting reuses the shared
+  `MessageFormatterAdapter.formatCompactAgeText` — never forked:
+  floored d/w/mo/y rungs, future timestamps clamp to `0m`;
+  absent/empty/unparseable render `""` (cold-start honesty, never a
+  guessed age). PAIR PROXY, never token deploy age (a migration
+  under-reports — caveat documented both sides). Registry 19→20
+  derived keys (42 keys for `ca|x|z|bare`, 43 for `c|cc`); catalog
+  META `{type:'derived', nullable:true, example:'3d'}`. Zero new
+  HTTP calls (the field rides the existing snapshot response).
+  Specs: `template-renderer-age.spec.ts` (WENCAT probe sample `4d`,
+  2d/5h/12m rungs, future `0m`, malformed matrix, whitelist + META +
+  `placeholdersUsed` + catalog counts),
+  `market-data-client-pair-created-at.spec.ts` (boundary guard +
+  fetch mapping), `token-scan-venue.spec.ts` passthrough cases,
+  registry counts. Evidence: `.omo/evidence/task-fe-age.log`.
+
 - **Liquidity-ratio derived placeholder (dexter plan todo 62):**
   `{{liquidityRatio}}` on every command renders the Rick-parity
   `xN` multiplier (`N = Math.round(fdvUsd / liquidityUsd)` over

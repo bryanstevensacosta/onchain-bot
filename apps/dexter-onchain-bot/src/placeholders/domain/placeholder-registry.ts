@@ -71,6 +71,11 @@ export const DERIVED_PLACEHOLDERS: readonly string[] = [
   // brackets are template-author-composed) — pure renderer
   // computation, never a snapshot/market-data field.
   'liquidityRatio',
+  // Plan todo 63: `age` — best-pair age rendered from the snapshot's
+  // top-level ISO `pairCreatedAt` (best-liquidity PAIR proxy, never
+  // token deploy age; absent/unparseable renders `""`). Pure renderer
+  // computation reusing the shared compact-age formatter.
+  'age',
 ];
 
 /** Chart timeframe — valid ONLY inside `c`/`cc` bodies. */

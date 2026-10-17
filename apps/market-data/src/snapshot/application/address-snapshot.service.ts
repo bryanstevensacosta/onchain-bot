@@ -97,6 +97,21 @@ const roundMs = (ms: number | null): string =>
   ms === null ? 'n/a' : String(Math.round(ms));
 
 /**
+ * Raw epoch ms → ISO for `AddressSnapshot.pairCreatedAt` (dexter
+ * plan todo 63). Single conversion seam: the tail (`resolveVenue`,
+ * hit and miss) and the fast-path handoff both carry RAW ms; this
+ * helper is the only ms→ISO step. Guards: a non-number (absent on
+ * legacy hand-mocks/summaries), non-finite or `<= 0` value resolves
+ * `null`; an ISO-invalid magnitude (finite but outside the Date
+ * range) also resolves `null` — never an `Invalid Date` throw.
+ */
+export function toIsoPairCreatedAt(ms: unknown): string | null {
+  if (typeof ms !== 'number' || !Number.isFinite(ms) || ms <= 0) return null;
+  const at = new Date(ms);
+  return Number.isNaN(at.getTime()) ? null : at.toISOString();
+}
+
+/**
  * Snapshot-tail budgets (dexter plan todo 29 — the tail is the
  * launchpad/venue/dev extras that run AFTER the quote fan-out; the
  * 28 re-measurement attributes ~2.5-6s of cold p95 to this tail).
@@ -405,11 +420,23 @@ export class AddressSnapshotService {
    * `pons-v2-dex`). The dex id passes through verbatim with empty
    * labels — dexter's display table capitalizes unknown ids, so the
    * card stays non-empty without a new table on either side.
+   *
+   * Pair creation (dexter plan todo 63): the SAME `best` summary that
+   * names the venue (hit AND miss — the object is in hand on both)
+   * carries the best-pair `pairCreatedAt` raw ms; it rides out beside
+   * the venue and `buildSnapshot` converts it once to ISO. The Gecko
+   * leg carries NO creation time (`pairCreatedAtMs: null` — its
+   * `pool_created_at` would be an extra fetch on a path that only
+   * fires when DexScreener has no pair; documented caveat, dexter
+   * `{{age}}` renders `""` there).
    */
   private async resolveVenue(
     chain: string,
     address: string,
-  ): Promise<SnapshotVenue | null> {
+  ): Promise<{
+    readonly venue: SnapshotVenue | null;
+    readonly pairCreatedAtMs: number | null;
+  }> {
     if (this.dexscreener !== null && this.dexscreener !== undefined) {
       try {
         // Discovery cache first (dexter plan todo 30b): tripwire-
@@ -420,7 +447,10 @@ export class AddressSnapshotService {
             ? await this.discoveryCache.resolveDiscovery(chain, address)
             : await this.dexscreener.getBestPairSummaryForChain(chain, address);
         if (best !== null) {
-          return toVenueOrNull({ dexId: best.dexId, labels: best.labels });
+          return {
+            venue: toVenueOrNull({ dexId: best.dexId, labels: best.labels }),
+            pairCreatedAtMs: best.pairCreatedAt ?? null,
+          };
         }
       } catch {
         // Fall through to the Gecko leg below (fail-open, never throws).
@@ -431,16 +461,23 @@ export class AddressSnapshotService {
       this.geckoterminal === undefined ||
       !GECKO_SUPPORTED_CHAINS.includes(chain)
     ) {
-      return null;
+      return { venue: null, pairCreatedAtMs: null };
     }
     try {
       const slug = GECKO_NETWORK_SLUGS[chain] ?? chain;
       const pools = await this.geckoterminal.getTokenPools(slug, address);
       const pick = selectPoolQuote(pools, address);
-      if (pick === null || pick.dexId === null) return null;
-      return toVenueOrNull({ dexId: pick.dexId, labels: [] });
+      if (pick === null || pick.dexId === null) {
+        return { venue: null, pairCreatedAtMs: null };
+      }
+      // Gecko carries no pair-creation read here (todo 63 caveat:
+      // extra fetch avoided on the no-DSC-pair path) → ms stays null.
+      return {
+        venue: toVenueOrNull({ dexId: pick.dexId, labels: [] }),
+        pairCreatedAtMs: null,
+      };
     } catch {
-      return null;
+      return { venue: null, pairCreatedAtMs: null };
     }
   }
 
@@ -910,7 +947,11 @@ export class AddressSnapshotService {
         supporting,
         outcome: fast.outcome,
         launchpad: { resolved: true, value: fast.launchpad },
-        venue: { resolved: true, value: fast.venue },
+        venue: {
+          resolved: true,
+          value: fast.venue,
+          pairCreatedAt: fast.pairCreatedAt,
+        },
         skipDevHoldings: true,
         breakerSkipped: breakerGate.skipped,
         breakerAdmitted: [],
@@ -946,7 +987,7 @@ export class AddressSnapshotService {
       supporting,
       outcome,
       launchpad: { resolved: false, value: null },
-      venue: { resolved: false, value: null },
+      venue: { resolved: false, value: null, pairCreatedAt: null },
       skipDevHoldings: false,
       breakerSkipped: breakerGate.skipped,
       breakerAdmitted: breakerGate.admitted.map((fetcher) => fetcher.name),
@@ -1083,6 +1124,14 @@ export class AddressSnapshotService {
     readonly venue: {
       readonly resolved: boolean;
       readonly value: SnapshotVenue | null;
+      /**
+       * Raw best-pair creation ms handoff (dexter plan todo 63): the
+       * fast path threads `fast.pairCreatedAt` (already fetched with
+       * the discovery summary — zero extra calls); the fanout path
+       * passes `null` and the venue tail resolves its own. Converted
+       * ONCE below via `toIsoPairCreatedAt`.
+       */
+      readonly pairCreatedAt: number | null;
     };
     readonly skipDevHoldings: boolean;
     readonly breakerSkipped: ReadonlyArray<string>;
@@ -1182,6 +1231,9 @@ export class AddressSnapshotService {
     );
     let launchpad = args.launchpad.resolved ? args.launchpad.value : null;
     let venue = args.venue.resolved ? args.venue.value : null;
+    // Pair-creation ms (todo 63): fast-path handoff first; the venue
+    // tail below overwrites it on the fanout path (resolved:false).
+    let pairCreatedAtMs: number | null = args.venue.pairCreatedAt;
     let devWallets: AddressSnapshot['devWallets'] = null;
     let devPctSupply: number | null = null;
     const devErrors: Record<string, string> = {};
@@ -1191,7 +1243,12 @@ export class AddressSnapshotService {
       if (slot === 'launchpad') {
         launchpad = (value as LaunchpadInfo | null) ?? null;
       } else if (slot === 'venue') {
-        venue = (value as SnapshotVenue | null) ?? null;
+        const resolved = value as {
+          readonly venue: SnapshotVenue | null;
+          readonly pairCreatedAtMs: number | null;
+        } | null;
+        venue = resolved?.venue ?? null;
+        pairCreatedAtMs = resolved?.pairCreatedAtMs ?? null;
       } else if (value !== null && value !== undefined) {
         const dev = value as {
           readonly devWallets?: AddressSnapshot['devWallets'];
@@ -1206,6 +1263,9 @@ export class AddressSnapshotService {
       }
     }
     const tailMs = Math.round(performance.now() - tailStartedAt);
+    // Best-pair creation → ISO (todo 63): the ONLY ms→ISO step, right
+    // after the tail settled (fast-path handoff or tail-resolved ms).
+    const pairCreatedAt = toIsoPairCreatedAt(pairCreatedAtMs);
     // OHLC-derived change (dexter plan todo 33): runs AFTER the tail,
     // outside the 400ms tail budget (pool discovery + one OHLC call
     // need seconds on throttled tiers — capping it would degrade the
@@ -1423,6 +1483,7 @@ export class AddressSnapshotService {
             ),
             launchpad,
             venue,
+            pairCreatedAt,
             fdvAth,
             providers: supporting,
             sources: [...staleRow.sources],
@@ -1483,6 +1544,7 @@ export class AddressSnapshotService {
       assetId: await this.resolveAssetId(knownId, inputValue, resolvedQuote),
       launchpad,
       venue,
+      pairCreatedAt,
       fdvAth,
       providers: supporting,
       sources,

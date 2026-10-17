@@ -150,6 +150,20 @@ export function toIdentityProvenanceOrNull(
   return raw === 'market' || raw === 'metadata' ? raw : null;
 }
 
+/**
+ * Best-pair creation time (dexter `{{age}}`, plan todo 63): top-level
+ * ISO string from market-data (`AddressSnapshot.pairCreatedAt`), or
+ * `null`. Same rule as `toFdvAthAtOrNull` — a non-empty ISO-parseable
+ * string, else `null`, so opaque JSON never reaches the renderer.
+ * This is PAIR age (best-liquidity pool), never token deploy age: a
+ * migration under-reports (documented proxy caveat). The renderer
+ * formats it with the shared compact-age formatter, never a fork.
+ */
+export function toPairCreatedAtOrNull(raw: unknown): string | null {
+  if (typeof raw !== 'string' || raw === '') return null;
+  return Number.isNaN(Date.parse(raw)) ? null : raw;
+}
+
 export interface MarketDataSnapshot {
   readonly chain: string;
   readonly address: string;
@@ -177,6 +191,12 @@ export interface MarketDataSnapshot {
   readonly degraded?: boolean | null;
   readonly launchpad?: MarketDataLaunchpad | null;
   readonly venue?: MarketDataVenue | null;
+  /**
+   * Best-pair creation ISO (dexter `{{age}}`, plan todo 63), top-level
+   * on the market-data snapshot. Validated by `toPairCreatedAtOrNull`
+   * at this boundary; absent/null on cold-start or older answers.
+   */
+  readonly pairCreatedAt?: string | null;
   readonly identityProvenance?: 'market' | 'metadata' | null;
   readonly fdvAthUsd?: number | null;
   readonly fdvAthAt?: string | null;
@@ -255,6 +275,7 @@ export class MarketDataClient {
         degraded: toDegradedOrFalse(body.degraded),
         launchpad: toLaunchpadOrNull(body.launchpad),
         venue: toVenueOrNull(body.venue),
+        pairCreatedAt: toPairCreatedAtOrNull(body.pairCreatedAt),
         identityProvenance: toIdentityProvenanceOrNull(body.identityProvenance),
         fdvAthUsd: toFdvAthUsdOrNull(body.fdvAthUsd),
         fdvAthAt: toFdvAthAtOrNull(body.fdvAthAt),

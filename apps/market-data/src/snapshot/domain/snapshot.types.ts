@@ -78,6 +78,19 @@ export interface AddressSnapshot extends SnapshotQuote {
    */
   readonly venue: SnapshotVenue | null;
   /**
+   * Best-liquidity pair creation time, ISO (dexter plan todo 63,
+   * dexter `{{age}}`): converted ONCE from the discovery summary's
+   * raw epoch ms (`buildSnapshot` — guards `typeof === 'number' &&
+   * Number.isFinite && > 0`), `null` when no DexScreener pair exists
+   * (incl. the Gecko venue fallback leg, which carries no creation
+   * time) or the raw value is absent/garbage. TOP-LEVEL — never
+   * inside `SnapshotVenue` (pinned). Resolved live per call, never
+   * persisted to history (same lifecycle as `venue`). PAIR age, not
+   * token deploy age: a migration can under-report (documented proxy
+   * caveat).
+   */
+  readonly pairCreatedAt: string | null;
+  /**
    * FDV ATH over own snapshot history (dexter fdv-ath, plan todo
    * 16): max `fdvUsd` + setting row timestamp, or `null` on
    * cold-start. Strictly historical — read BEFORE the current row is

@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Best-pair age proxy on the snapshot (dexter plan todo 63):**
+  `AddressSnapshot.pairCreatedAt: string | null` (TOP-LEVEL, after
+  `venue`) carries the best-liquidity pair creation time for dexter's
+  derived `{{age}}`. `DexScreenerPairSummary.pairCreatedAt: number |
+null` is mapped by BOTH `toPairSummary` and `toSummaryFromTripwire`
+  under the SAME guard (`finite && > 0`, else `null` — byte-parity
+  pinned); `resolveVenue` returns `{venue, pairCreatedAtMs}` (tripwire
+  hit → the live pair's value, miss → the discovery best; the
+  GeckoTerminal fallback leg carries no creation time → `null`, no
+  extra fetch) and the Solana fast path threads
+  `DirectFastPathResult.pairCreatedAt`; `buildSnapshot` converts raw
+  ms → ISO ONCE (`toIsoPairCreatedAt`, non-number/non-finite/≤0 →
+  null) into BOTH snapshot literals; the controller exposes it. ZERO
+  new HTTP calls (existing call-count specs pass unchanged); history
+  rows untouched. PAIR age proxy, NOT token deploy age — a migration
+  under-reports (caveat documented). Specs: tripwire mapping,
+  fast-path threading, venue plumbing (absent → null; `1791892874000`
+  → `2026-10-13T12:01:14.000Z`), fast-path handoff ISO, gateway edge
+  (`pairCreatedAt: null` on pending shells + ISO plumbing), mapper
+  guard (0/NaN → null). Evidence: `.omo/evidence/task-fe-age.log`.
+
 - **Flapsh-pair launchpad corroboration — keyless `flap` upgrade (dexter plan todo 60):**
   presence of a pair with `dexId: 'flapsh'` in the token's DexScreener
   pair list (`/latest/dex/tokens/<mint>`, quote side included) now

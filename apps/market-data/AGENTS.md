@@ -2139,3 +2139,42 @@ explicit-chain snapshot` (Solana 2 legs / EVM ≤3 reads, ×2 retry
   empty-miss + unmapped + pump→pool + separation + partial-surface),
   `discovery-cache.repository.spec.ts` (TTL/janitor primitives),
   `discovery-cache-janitor.service.spec.ts` (30d vs 90d).
+
+## BEST-PAIR AGE PROXY (todo 63, 2026-10-17) — raw ms snapped to ISO once, zero new calls
+
+`AddressSnapshot.pairCreatedAt: string | null` (TOP-LEVEL, after
+`venue`; NOT inside `SnapshotVenue`) — the best-liquidity pair creation
+time, source for dexter's derived `{{age}}`.
+
+- MAPPERS (byte-parity pinned): `DexScreenerPairSummary.pairCreatedAt:
+number | null` carried by BOTH `toPairSummary` (dexscreener.service)
+  and `toSummaryFromTripwire` (discovery-cache.service) under the SAME
+  guard — `typeof number && Number.isFinite && > 0`, else `null` (raw
+  `DexScreenerPair` already had the optional upstream field).
+- SEAM: both resolution legs thread RAW ms — `resolveVenue` returns
+  `{venue, pairCreatedAtMs}` (tripwire hit re-uses the live pair's
+  value, miss reads the discovery `best`; the GeckoTerminal fallback
+  leg carries NO creation time → `null`, no extra fetch — documented
+  caveat) and the Solana fast path threads
+  `DirectFastPathResult.pairCreatedAt` (`discovery.pairCreatedAt` or
+  `null`). `buildSnapshot` converts ONCE via the module-level
+  `toIsoPairCreatedAt(ms)` (non-number / non-finite / ≤0 / Invalid
+  Date → `null`) and writes the SAME ISO into both snapshot literals
+  (fast + fanout). Controller exposes `pairCreatedAt:
+snap.pairCreatedAt`; stale replays carry the same live-resolved
+  value as `venue` (same lifecycle).
+- ZERO new HTTP calls: the value rides the pairs already fetched by
+  discovery/tripwire; existing call-count specs pass unchanged.
+  History persistence untouched (no `pairCreatedAt` in history rows).
+- PROXY CAVEAT (for dexter consumers): this is PAIR age (the
+  best-liquidity pool), NOT token deploy age — a migration
+  (curve → AMM) under-reports; tokens whose only venue is Gecko read
+  honest `null`.
+- Specs: discovery tripwire mapping (`discovery-cache.service.spec`),
+  fast-path threading (`direct-fast-path.service.spec`), venue plumbing
+  (absent → null; `1791892874000` → `2026-10-13T12:01:14.000Z`) +
+  mapper guard (0/NaN → null) (`address-snapshot-venue.spec`),
+  fast-path handoff ISO (`address-snapshot-fast-path.spec`), gateway
+  edge (`pairCreatedAt: null` on pending shells + ISO plumbing)
+  (`gateway-market-data-snapshot.spec`). Evidence:
+  `.omo/evidence/task-fe-age.log`.

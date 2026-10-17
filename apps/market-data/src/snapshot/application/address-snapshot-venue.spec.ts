@@ -98,6 +98,22 @@ describe('AddressSnapshotService venue plumbing (dexter venue-line)', () => {
       kindHint: 'token',
     });
     expect(snapshot.venue).toEqual({ dexId: 'pancakeswap', labels: ['v3'] });
+    // Pair without a creation time -> honest null (todo 63).
+    expect(snapshot.pairCreatedAt).toBeNull();
+  });
+
+  it('exposes snapshot.pairCreatedAt as ISO from the best pair ms (todo 63)', async () => {
+    const service = await buildService({
+      dexId: 'pancakeswap',
+      labels: ['v3'],
+      pairCreatedAt: 1791892874000,
+    });
+    const snapshot = await service.getSnapshot({
+      chain: 'solana',
+      value: SOL,
+      kindHint: 'token',
+    });
+    expect(snapshot.pairCreatedAt).toBe('2026-10-13T12:01:14.000Z');
   });
 
   it('resolves null when the best pair is absent', async () => {
@@ -198,6 +214,74 @@ describe('DexScreenerService.getBestPairSummary labels (venue source)', () => {
     ]);
     const summary = await service.getBestPairSummary(SOL);
     expect(summary?.labels).toEqual([]);
+    await module.close();
+  });
+
+  it('carries the raw pairCreatedAt ms through the summary (todo 63)', async () => {
+    const module = await Test.createTestingModule({
+      imports: [ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true })],
+      providers: [
+        DexScreenerService,
+        { provide: DEXSCREENER_CONFIG, useValue: {} },
+      ],
+    }).compile();
+    const service = module.get(DexScreenerService);
+    jest.spyOn(service, 'getPairsByToken').mockResolvedValue([
+      {
+        chainId: 'solana',
+        dexId: 'raydium',
+        url: 'https://dexscreener.com/solana/pair3',
+        pairAddress: 'pair3',
+        baseToken: { address: SOL, name: 'Wrapped SOL', symbol: 'SOL' },
+        quoteToken: { address: null, name: null, symbol: null },
+        priceNative: '1',
+        priceUsd: '2',
+        txns: { h24: { buys: 1, sells: 1 } },
+        volume: { h24: 100 },
+        priceChange: { h24: 1 },
+        liquidity: { usd: 1000, base: 1, quote: 1 },
+        fdv: null,
+        marketCap: null,
+        pairCreatedAt: 1791892874000,
+      },
+    ]);
+    const summary = await service.getBestPairSummary(SOL);
+    expect(summary?.pairCreatedAt).toBe(1791892874000);
+    await module.close();
+  });
+
+  it('guards junk pairCreatedAt to null (0 / NaN, todo 63)', async () => {
+    const module = await Test.createTestingModule({
+      imports: [ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true })],
+      providers: [
+        DexScreenerService,
+        { provide: DEXSCREENER_CONFIG, useValue: {} },
+      ],
+    }).compile();
+    const service = module.get(DexScreenerService);
+    const raw = {
+      chainId: 'solana',
+      dexId: 'raydium',
+      url: 'https://dexscreener.com/solana/pair4',
+      pairAddress: 'pair4',
+      baseToken: { address: SOL, name: 'Wrapped SOL', symbol: 'SOL' },
+      quoteToken: { address: null, name: null, symbol: null },
+      priceNative: '1',
+      priceUsd: '2',
+      txns: { h24: { buys: 1, sells: 1 } },
+      volume: { h24: 100 },
+      priceChange: { h24: 1 },
+      liquidity: { usd: 1000, base: 1, quote: 1 },
+      fdv: null,
+      marketCap: null,
+      pairCreatedAt: 0,
+    };
+    jest.spyOn(service, 'getPairsByToken').mockResolvedValue([raw]);
+    expect((await service.getBestPairSummary(SOL))?.pairCreatedAt).toBeNull();
+    jest
+      .spyOn(service, 'getPairsByToken')
+      .mockResolvedValue([{ ...raw, pairCreatedAt: Number.NaN }]);
+    expect((await service.getBestPairSummary(SOL))?.pairCreatedAt).toBeNull();
     await module.close();
   });
 });

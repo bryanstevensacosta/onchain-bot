@@ -94,7 +94,7 @@ src/
 │   │   └── seed/message-template-seed.service.ts # seeds 7 templates/6 commands (ca/x/z/c/cc/bare)
 │   └── api/http/               # message-templates + template-preview + display-maps controllers (management via HTTP API only)
 ├── placeholders/               # renderer + registry ({{key}} only, {% rejected)
-│   ├── domain/placeholder-registry.ts # 22 base + 19 derived keys + per-command whitelist
+│   ├── domain/placeholder-registry.ts # 22 base + 20 derived keys + per-command whitelist
 │   ├── application/template-renderer.service.ts # TemplateRendererService (DISPLAY_RESOLVER-backed)
 │   └── api/http/placeholders.controller.ts # placeholder catalog reference
 └── settings/                   # chat config + bot config
@@ -169,7 +169,7 @@ text with no contract gets the "no veo ningún contrato" reply.
 > Message templates note (todos 1-13, DONE 2026-10-01): all command
 > cards (`ca`/`x`/`z`/`c`/`cc`/bare) render from DB templates in
 > MarkdownV2 with `{{double-brace}}` syntax (`{%` rejected; 22 base +
-> 19 derived keys + `timeframe`), exactly 1 active template per command
+> 20 derived keys + `timeframe`), exactly 1 active template per command
 > (partial unique index + in-memory guard). Keyboards abandoned on
 > `c`/`cc` — chart-link-only text cards (no `reply_markup` until
 > gateway todo 7 covers it; gateway `SendDto` has none). Management
@@ -729,3 +729,25 @@ pending for … — retry shortly`). `MARKET_DATA_TIMEOUT_MS` default
   spread. Stale AND degraded are independent bits (a stale-degraded
   card carries both). Frontend badges it `Partial data` (preview +
   live editor, English per page convention).
+
+- Pair-age placeholder (plan todo 63): derived key `age` on EVERY
+  command renders the best-liquidity PAIR age from the snapshot's
+  top-level ISO `pairCreatedAt` (market-data converts raw ms → ISO
+  ONCE at `buildSnapshot`; dexter validates via the new
+  `toPairCreatedAtOrNull` client guard → `ResolvedToken.pairCreatedAt?`
+  via the `toResolvedToken` mapping). Formatter is the shared
+  `MessageFormatterAdapter.formatCompactAgeText` — never forked:
+  floored d/w/mo/y rungs, future timestamps clamp to `0m`,
+  absent/empty/unparseable render `""` (cold-start honesty — never a
+  guessed age). PAIR PROXY, never token deploy age: a migration
+  (curve → AMM) under-reports (documented caveat both sides; the
+  GeckoTerminal-only venue path carries honest `null`). Registry
+  19→20 derived keys (42 keys for `ca|x|z|bare`, 43 for `c|cc`);
+  catalog META `{type:'derived', nullable:true, example:'3d'}`. Zero
+  new HTTP calls — the field rides the existing snapshot response.
+  Samples: WENCAT pair `2026-10-13T12:01:14Z` → `4d`; SCRIP
+  `2026-10-15T15:22:11Z` → `2d`. Specs:
+  `template-renderer-age.spec.ts`,
+  `market-data-client-pair-created-at.spec.ts`,
+  `token-scan-venue.spec.ts` (passthrough) + registry counts.
+  Evidence: `.omo/evidence/task-fe-age.log`.

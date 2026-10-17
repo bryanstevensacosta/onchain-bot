@@ -158,6 +158,18 @@ export interface DexScreenerPairSummary {
   readonly volume24h: number;
   readonly fdv: number | null;
   readonly marketCap: number | null;
+  /**
+   * Best-liquidity pair creation time, raw epoch ms (dexter plan todo
+   * 63, dexter `{{age}}`). Carried from the pair object verbatim when
+   * it passes the mapper guard (finite number, `> 0`), else `null` —
+   * both mappers apply the same guard (`toPairSummary` in
+   * `dexscreener.service.ts` and `toSummaryFromTripwire` in
+   * `discovery-cache.service.ts`, byte-parity pinned). The snapshot
+   * converts ONCE to ISO at `buildSnapshot`; this is PAIR age (the
+   * best-liquidity pool), never token deploy age — a migration can
+   * under-report (documented proxy caveat, todo 63).
+   */
+  readonly pairCreatedAt: number | null;
   readonly priceChange24h: number | null;
   readonly txns24h: { readonly buys: number; readonly sells: number };
 }
