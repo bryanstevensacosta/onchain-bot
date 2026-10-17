@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Liquidity-ratio derived placeholder (dexter plan todo 62):**
+  `{{liquidityRatio}}` on every command renders the Rick-parity
+  `[xN]` bracket with `N = Math.round(fdvUsd / liquidityUsd)` over
+  the SERVED values (incl. the todo-61 `dexscreener` fallback
+  provenance). Pure renderer computation — no snapshot/market-data
+  field, zero external calls. Escaped once like any value
+  (`\[x3\]`); empty when either side is absent/non-finite/≤0 or
+  `N < 1` (never `N/A`, never `[x0]`). Registry 18→19 derived keys
+  (41 keys for `ca|x|z|bare`, 42 for `c|cc`); catalog META entry +
+  focal spec (`template-renderer-liquidity-ratio.spec.ts`:
+  Chale 23300/7900 → `[x3]`, WENCAT-Rick 19100/6700 → `[x3]`,
+  round/half-up + 0.5 boundary, omission + invalid-input matrix,
+  catalog membership).
+
 - **Price adaptive 3-sig-fig cap (dexter plan todo 45):**
   `formatPriceText` sub-`1` prices cap at 3 significant figures,
   half-up, trailing zeros stripped (`0.000002417035478` →

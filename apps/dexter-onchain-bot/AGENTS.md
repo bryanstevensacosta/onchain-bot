@@ -94,7 +94,7 @@ src/
 │   │   └── seed/message-template-seed.service.ts # seeds 7 templates/6 commands (ca/x/z/c/cc/bare)
 │   └── api/http/               # message-templates + template-preview + display-maps controllers (management via HTTP API only)
 ├── placeholders/               # renderer + registry ({{key}} only, {% rejected)
-│   ├── domain/placeholder-registry.ts # 22 base + 6 derived keys + per-command whitelist
+│   ├── domain/placeholder-registry.ts # 22 base + 19 derived keys + per-command whitelist
 │   ├── application/template-renderer.service.ts # TemplateRendererService (DISPLAY_RESOLVER-backed)
 │   └── api/http/placeholders.controller.ts # placeholder catalog reference
 └── settings/                   # chat config + bot config
@@ -169,7 +169,7 @@ text with no contract gets the "no veo ningún contrato" reply.
 > Message templates note (todos 1-13, DONE 2026-10-01): all command
 > cards (`ca`/`x`/`z`/`c`/`cc`/bare) render from DB templates in
 > MarkdownV2 with `{{double-brace}}` syntax (`{%` rejected; 22 base +
-> 6 derived keys + `timeframe`), exactly 1 active template per command
+> 19 derived keys + `timeframe`), exactly 1 active template per command
 > (partial unique index + in-memory guard). Keyboards abandoned on
 > `c`/`cc` — chart-link-only text cards (no `reply_markup` until
 > gateway todo 7 covers it; gateway `SendDto` has none). Management
@@ -572,6 +572,22 @@ matchValue:'pump-fun', display:'Pump'}`.
   `priceUsd <1` capped at 3 sig figs half-up, trailing zeros
   stripped (`0.000002417035478` → `0.00000242`; `0.5`/`3,457` intact;
   zero/negative/NaN pass through).
+
+- Liquidity-ratio placeholder (plan todo 62): derived key
+  `liquidityRatio` on EVERY command — Rick-parity `[xN]` bracket of
+  the SERVED `fdvUsd ÷ liquidityUsd`, `N = Math.round(...)`
+  (half-up, legacy `toFixed(0)` convention; round-vs-ceil is
+  sample-indecidable, round is the pin). Value escaped once like any
+  other (`esc` → `\[x3\]`); `""` when either side is absent,
+  non-finite, ≤0 or the rounded `N < 1` — NEVER `N/A` nor `[x0]`
+  (PERPS sample `Liq: 1.8K ⚠️` carries no bracket; low-liq markers
+  out of v1 scope). Pure renderer computation: no snapshot /
+  market-data field, no network; the ratio mirrors the served FDV
+  (incl. the todo-61 `dexscreener` fallback provenance). Samples:
+  Chale `7.9K [x3]` (23300/7900), WENCAT-Rick `6.7K [x3]`
+  (19100/6700). STEP-0 hostile review (todo 62): vol/liq, liq/fdv,
+  floor/trunc, ATH-FDV numerators all refuted by samples; caveats
+  documented in `.omo/evidence/task-fe-liquidity-ratio.log`.
 
 - Holders + dev-wallet (2026-09-27, feat/mega-refactor-tramos):
   `ResolvedToken` carries `devWallets[]` + `devPctSupply` (market-data

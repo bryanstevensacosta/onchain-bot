@@ -407,6 +407,28 @@ export class TemplateRendererService {
           MessageFormatterAdapter.formatCompactAgeText(values.fdvAthAt),
         );
       }
+      case 'liquidityRatio': {
+        // Rick-parity `[xN]` bracket (plan todo 62): `N` = round of
+        // the SERVED `fdvUsd ÷ liquidityUsd` (includes the todo-61
+        // `dexscreener` fallback provenance — the ratio mirrors what
+        // the card shows). Absent / non-finite / `<= 0` inputs or
+        // `N < 1` render `""` — never `N/A` nor `[x0]` (the PERPS
+        // low-liq sample carries no bracket — `⚠️` markers are out
+        // of v1 scope).
+        const fdv =
+          typeof values.fdvUsd === 'number' && Number.isFinite(values.fdvUsd)
+            ? values.fdvUsd
+            : null;
+        const liq =
+          typeof values.liquidityUsd === 'number' &&
+          Number.isFinite(values.liquidityUsd)
+            ? values.liquidityUsd
+            : null;
+        if (fdv === null || liq === null || fdv <= 0 || liq <= 0) return '';
+        const n = Math.round(fdv / liq);
+        if (!Number.isFinite(n) || n < 1) return '';
+        return esc(`[x${n}]`);
+      }
       default: {
         return '';
       }
