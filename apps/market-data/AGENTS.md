@@ -952,6 +952,15 @@ factories:[0xe2cE…C9De0 (bnb), 0x2660…Eb09 (robinhood)]}` verbatim
   create). Evidence: `.omo/evidence/task-fe-flap-intake.log`
   (appended Phase B).
 
+  RESEARCH-49 CLOSEOUT (todo 56, 2026-10-17): BSC creation-tx has NO
+  keyless source — 9 vías probadas y muertas (BNB Blockscout 404,
+  Etherscan free excluye BSC textualmente, Routescan sin soporte,
+  BscScan legacy retirada, scraping 403; tabla completa en
+  `.omo/notepads/dexter-bsc-creation-research.md`). Flap-BSC
+  (WENCAT class) resolves launchpad por override manual únicamente
+  (o la pata `flapsh`-pair si se aprueba). Do not re-open without a
+  keyed/owner decision.
+
 ## OHLC-DERIVED 24H CHANGE (todo 33, 2026-10-10)
 
 Fallback leg for Gecko-only tokens (STAGEVEIL-pattern: `/info` has no
@@ -1064,6 +1073,14 @@ HTTP 403 (Free plan; moot once Birdeye passed).
   (38 total; +5: `source`-tag domain pin + 4 WENCAT-class fallback
   tests on verbatim probe candles). Evidence:
   `.omo/evidence/task-fe-keyed-smokes.log`.
+- RESIDUAL (research-51 closeout, todo 56): tokens that DO carry a
+  native 24h change (WENCAT: DexScreener) never trigger the
+  derivation pipeline — natives win by design, zero calls, zero
+  seeds — so no candle history is backfilled and `fdvAth` accrues
+  from live persisted samples only (`findFdvAth` max over rows). No
+  keyless historical source exists for this class (research 51; the
+  Moralis/Mobula doors above are keyed-broken) — do not re-open
+  without a new seed source or an owner decision.
 
 ## TOP-5 PROVIDER EXPLOITATION (todo 31, 2026-10-09)
 

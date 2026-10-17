@@ -460,7 +460,7 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartUrl}}`co
       Acceptance criteria: veredicto por puerta (cableado-con-specs o `wontfix` con prueba) + suites verdes.
       QA scenarios: happy + failure por puerta. Evidence .omo/evidence/task-fe-keyed-smokes.log
       Commit: Y solo si hay cableado | feat(market-data): smokes keyed (docs si aplica)
-- [ ] 56. Cierre honestos research 49/51 (Wave 1 follow-up, veredictos `wontfix-documentado`)
+- [x] 56. Cierre honestos research 49/51 (pinned en AGENTS 2026-10-17, solo docs)
       What to do / Must NOT do: CERO codigo. Registrar como decision pineada (notepad + linea AGENTS si aplica): 49 → sin creation-tx keyless en BSC (Flap-BSC solo por override manual o smoke owner-gated con key existente); 51 → sin historial keyless sin-Gecko (acumulacion-live unica via honesta; Birdeye/Mobula movidos al 55). Marcar 49/51 `[x]` con veredicto en el titulo o nota. NADA mas.
       Parallelization: — | Blocked by: — | Blocks: —
       References: `.omo/notepads/dexter-bsc-creation-research.md`, `.omo/notepads/dexter-no-gecko-history.md`.
