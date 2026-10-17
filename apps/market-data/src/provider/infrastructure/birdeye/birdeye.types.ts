@@ -37,6 +37,41 @@ export interface BirdeyeTradesData {
   readonly hasMore: boolean;
 }
 
+/**
+ * One `GET /defi/v3/ohlcv` item (dexter plan todo 55, keyed WENCAT-class
+ * leg). Shape verified live 2026-10-17 (WENCAT bsc, `type=1H`, keyed):
+ * `unix_time` is epoch SECONDS and every price/volume field arrives as
+ * a number (typed liberally here — numeric strings are tolerated by the
+ * adapter mapping, same as the Gecko OHLCV mapper).
+ */
+export interface BirdeyeOhlcvItem {
+  readonly unix_time?: number | string | null;
+  readonly o?: number | string | null;
+  readonly h?: number | string | null;
+  readonly l?: number | string | null;
+  readonly c?: number | string | null;
+  readonly v?: number | string | null;
+}
+
+export interface BirdeyeOhlcvData {
+  readonly items?: ReadonlyArray<BirdeyeOhlcvItem> | null;
+}
+
+/**
+ * Birdeye OHLCV row normalized to the verbatim Gecko tuple order
+ * (`[timestampSec, open, high, low, close, volume]`, epoch seconds) so
+ * the snapshot OHLC backfill consumes ONE candle shape regardless of
+ * source. Structurally identical to `GeckoOhlcvCandle`/`OhlcvCandle`.
+ */
+export type BirdeyeOhlcvCandle = readonly [
+  timestampSec: number,
+  open: number,
+  high: number,
+  low: number,
+  close: number,
+  volume: number,
+];
+
 export interface BirdeyeHolderTagEntry {
   readonly tag: string;
   readonly count?: number | null;

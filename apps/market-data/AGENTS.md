@@ -1019,6 +1019,52 @@ task-fe-ohlc-change-ohlcv.json` — the ticket's "IP: 23 velas"
   seeded), native precedence (0 calls, 0 seeds), 55h-gap null.
   Evidence: `.omo/evidence/task-fe-backfill24.log`.
 
+## KEYED OHLC FALLBACK — BIRDEYE TOKEN-LEVEL (todo 55, 2026-10-17)
+
+Closes the todo-33/46 derivation+backfill pipeline for the WENCAT class
+(token with NO Gecko-indexed pool: discovery answers empty, so the
+pool route had nothing to fetch). Three keyed doors probed ONCE each
+(≥8s spacing; key values read at runtime by NAME from
+`apps/market-data/.env` ONLY, never echoed/logged): Moralis
+`/erc20/metadata` → HTTP 401 (Free usage paused — todo-27
+suspected-broken key confirmed; no extension), Birdeye
+`/defi/v3/ohlcv` → HTTP 200 (WIRED below), Mobula OHLC backup →
+HTTP 403 (Free plan; moot once Birdeye passed).
+
+- LADDER (`acquireDerivationCandles`): Gecko pool route first,
+  UNCHANGED (keyless, preferred). Only a candle-less Gecko answer —
+  no picked pool, or an empty `ohlcv_list` — escalates to the keyed
+  Birdeye token-level route (`BIRDEYE_SUPPORTED_CHAINS`: solana/
+  ethereum/bsc/base/arbitrum/polygon). Pre-55 branch fidelity kept:
+  a picked-but-empty Gecko answer still proceeds to the history-anchor
+  attempt with zero seeds; no-pick / gecko-threw dead ends skip exactly
+  as before (keyless or unmapped Birdeye encounters stay zero-network
+  → `null`).
+- ADAPTER (`BirdeyeService.getTokenOhlcv`, default `type=1H`): `GET
+/defi/v3/ohlcv` (`address`, `type`, `time_from`/`time_to` epoch
+  SECONDS, `x-chain` header; verified live 2026-10-17: WENCAT bsc 18x
+  `1H` candles over the 24h window, `unix_time` seconds, fields
+  o/h/l/c/v). Rows normalize to the verbatim `[ts,o,h,l,c,v]` tuple
+  (ONE candle shape for the backfill regardless of source). 404 →
+  `null` fast-path; malformed rows skipped; empty/absent items →
+  `null`; keyless/unmapped → `null` zero-network; transient surfacing
+  per 19b2 (`throwIfRetryableProviderError`).
+- PROVENANCE is honest per source: `source` threads through
+  `seedOhlcvBackfill` → `OhlcvSeedContext.source` →
+  `buildOhlcvSeedRows`; seeds/sources tag `birdeye-ohlcv` (new
+  `OHLC_BACKFILL_SOURCE_BIRDEYE`) vs `geckoterminal-ohlcv` — never
+  claims Gecko for data Gecko did not index.
+- NATIVE-WINS intact: any non-null native change = zero calls, zero
+  seeds; window math, idempotency and ATH seams untouched. Birdeye
+  request window = 26h (`OHLC_BACKFILL_WINDOW_MS`) = 24h + ±2h
+  anchor tolerance.
+- SPECS: `birdeye-ohlcv.spec.ts` (5: verbatim probe mapping +
+  params/headers pin, param omission, malformed/empty/failed envelope,
+  keyless + unmapped zero-network, 404) + `address-snapshot-ohlcv-backfill.spec.ts`
+  (38 total; +5: `source`-tag domain pin + 4 WENCAT-class fallback
+  tests on verbatim probe candles). Evidence:
+  `.omo/evidence/task-fe-keyed-smokes.log`.
+
 ## TOP-5 PROVIDER EXPLOITATION (todo 31, 2026-10-09)
 
 Five legs over EXISTING providers (zero new vendors/keys). Rule for

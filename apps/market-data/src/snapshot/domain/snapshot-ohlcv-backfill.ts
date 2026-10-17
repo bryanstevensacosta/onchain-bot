@@ -49,6 +49,15 @@ import { emptySnapshotQuote, type SnapshotQuote } from './snapshot-quote.types';
  */
 export const OHLC_BACKFILL_SOURCE = 'geckoterminal-ohlcv';
 
+/**
+ * Source tag for rows seeded from the keyed token-level fallback
+ * (dexter plan todo 55): when the Gecko pool route yields no candles
+ * (WENCAT class — no indexed pools), the derivation may source candles
+ * from Birdeye `/defi/v3/ohlcv` instead. The tag stays honest per
+ * source — a seeded row is exactly the OHLC data that fed it.
+ */
+export const OHLC_BACKFILL_SOURCE_BIRDEYE = 'birdeye-ohlcv';
+
 /** Seed window edge: the 24h window plus the past-leg tolerance. */
 export const OHLC_BACKFILL_WINDOW_MS =
   OHLC_CHANGE_WINDOW_MS + OHLC_CHANGE_PAST_TOLERANCE_MS;
@@ -78,6 +87,13 @@ export interface OhlcvSeedContext {
   readonly kind: string;
   readonly totalSupply: number | null;
   readonly maxSupply: number | null;
+  /**
+   * Provenance tag for the seeded rows (todo 55): defaults to
+   * `OHLC_BACKFILL_SOURCE` (Gecko) — pass
+   * `OHLC_BACKFILL_SOURCE_BIRDEYE` when the candles came from the
+   * keyed token-level fallback. Never lies about the source.
+   */
+  readonly source?: string;
 }
 
 /**
@@ -137,7 +153,7 @@ export function buildOhlcvSeedRows(
           fdvUsd,
           fdvProvenance: 'computed',
         },
-        sources: [OHLC_BACKFILL_SOURCE],
+        sources: [ctx.source ?? OHLC_BACKFILL_SOURCE],
         providerErrors: {},
         createdAt: new Date(ts * 1000).toISOString(),
       },

@@ -6,12 +6,14 @@ import { DirectFastPathService } from './direct-fast-path.service';
 import { LaunchpadDetectorService } from 'launchpad/application/launchpad-detector.service';
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
 import { GeckoTerminalService } from 'provider/infrastructure/geckoterminal';
+import { BirdeyeService } from 'provider/infrastructure/birdeye';
 import { SNAPSHOT_QUOTE_PROVIDERS } from '../domain/snapshot-quote.types';
 import type { OhlcvCandle } from '../domain/snapshot-ohlcv-change';
 import {
   buildOhlcvSeedRows,
   deriveOutrightVsLiveChange,
   OHLC_BACKFILL_SOURCE,
+  OHLC_BACKFILL_SOURCE_BIRDEYE,
 } from '../domain/snapshot-ohlcv-backfill';
 import { SnapshotHistoryRepository } from '../infrastructure/snapshot-history.repository';
 import type { AddressKind } from 'address/domain/address-kind';
@@ -171,6 +173,18 @@ describe('buildOhlcvSeedRows (todo 46, verbatim STAGEVEIL rows)', () => {
     const doubled = [...VERBATIM_OHLC, ...VERBATIM_OHLC];
     const rows = buildOhlcvSeedRows(doubled, CTX, NOW_A);
     expect(rows).toHaveLength(5);
+  });
+
+  it('honours an explicit source tag (todo 55: birdeye-ohlcv never claims gecko)', () => {
+    const rows = buildOhlcvSeedRows(
+      VERBATIM_OHLC,
+      { ...CTX, source: OHLC_BACKFILL_SOURCE_BIRDEYE },
+      NOW_A,
+    );
+    expect(rows).toHaveLength(5);
+    for (const row of rows) {
+      expect(row.sources).toEqual([OHLC_BACKFILL_SOURCE_BIRDEYE]);
+    }
   });
 });
 
@@ -402,6 +416,13 @@ async function buildService(options: {
   readonly pools: unknown;
   readonly ohlcv: unknown;
   readonly ohlcvCalls?: Array<[string, string, string]>;
+  /** Chain the stub-native fetcher supports (default robinhood). */
+  readonly stubChain?: string;
+  /** Stubbed keyed token-level OHLC rows (todo 55 fallback). */
+  readonly tokenOhlcv?: unknown;
+  readonly tokenOhlcvCalls?: Array<[string, string, string, number, number]>;
+  /** Make the keyed fallback throw (fail-open path). */
+  readonly tokenOhlcvThrows?: boolean;
 }): Promise<{
   readonly service: AddressSnapshotService;
   readonly history: SnapshotHistoryRepository;
@@ -416,7 +437,7 @@ async function buildService(options: {
     .useValue([
       {
         name: 'stub-native',
-        supportsChains: ['robinhood'],
+        supportsChains: [options.stubChain ?? 'robinhood'],
         fetch: async () =>
           options.nativeChange === null && options.livePrice === null
             ? null
@@ -438,6 +459,24 @@ async function buildService(options: {
       getPoolOhlcv: async (slug: string, pool: string, side: string) => {
         options.ohlcvCalls?.push([slug, pool, side]);
         return options.ohlcv;
+      },
+    })
+    // Keyed token-level OHLC fallback (todo 55): always stubbed so the
+    // real adapter never runs inside this suite (no key, no network).
+    .overrideProvider(BirdeyeService)
+    .useValue({
+      getTokenOhlcv: async (
+        address: string,
+        chain: string,
+        type: string,
+        from: number,
+        to: number,
+      ) => {
+        options.tokenOhlcvCalls?.push([address, chain, type, from, to]);
+        if (options.tokenOhlcvThrows === true) {
+          throw new Error('keyed OHLC leg down');
+        }
+        return options.tokenOhlcv ?? null;
       },
     })
     .overrideProvider(DirectFastPathService)
@@ -566,5 +605,174 @@ describe('AddressSnapshotService OHLC backfill (todo 46)', () => {
     );
     expect(seeded).toHaveLength(1);
     expect(seeded[0].createdAt).toBe(new Date(1791295200 * 1000).toISOString());
+  });
+});
+
+/**
+ * Keyed OHLC fallback (dexter plan todo 55): probe-verified live
+ * 2026-10-17 (`.omo/evidence/task-fe-keyed-smokes.log`) — Birdeye
+ * `/defi/v3/ohlcv` WENCAT bsc `type=1H` answers 18 hourly candles
+ * covering the 24h window, while Gecko returns no pools for the class
+ * (`{"data":[]}` — research 51). Candles below are a VERBATIM subset
+ * of that probe (`unix_time` epoch seconds mapped to the tuple).
+ */
+const WENCAT = '0xB596fc1980BA251B25B1D4BED33CB0B91bc17777';
+/** 1h20m after the newest probe candle: now-leg fresh, anchor = first candle. */
+const WENCAT_NOW = 1792239600 * 1000;
+const WENCAT_CANDLES: ReadonlyArray<OhlcvCandle> = [
+  [
+    1792152000, 0.000012107787152685499, 0.000013945530999805002,
+    0.00001205082638452316, 0.000013945530999805002, 62792996.77303118,
+  ],
+  [
+    1792155600, 0.000013945530999805002, 0.000014062961116487644,
+    0.00001299725862644272, 0.00001299725862644272, 22844507.695657387,
+  ],
+  [
+    1792162800, 0.000014714391005373771, 0.000014714391005373771,
+    0.000013817128871776037, 0.00001470491427029855, 5673569.19080091,
+  ],
+  [
+    1792180800, 0.000015831681834938673, 0.000015831681834938673,
+    0.000013396989211001683, 0.000013396989211001683, 64045006.783277765,
+  ],
+  [
+    1792224000, 0.00001348560572956229, 0.000056302474219735946,
+    0.00001348560572956229, 0.00002778323859517848, 1294660632.3304346,
+  ],
+  [
+    1792234800, 0.00001987106806930963, 0.00001989453755850527,
+    0.000019515402173685134, 0.000019646778620411308, 7555047.119087909,
+  ],
+];
+/** Close of the 1792152000 candle: the history anchor (nearest to 24h-ago). */
+const WENCAT_PAST_CLOSE = 0.000013945530999805002;
+/** Live merged price for the outright leg (newest probe close). */
+const WENCAT_LIVE = 0.000019646778620411308;
+/** Window the service must request: [now - 26h, now] in epoch seconds. */
+const WENCAT_WINDOW_FROM = 1792239600 - 26 * 60 * 60;
+
+describe('AddressSnapshotService keyed OHLC fallback (todo 55, WENCAT class)', () => {
+  let nowSpy: jest.SpyInstance | undefined;
+  afterEach(() => {
+    nowSpy?.mockRestore();
+    nowSpy = undefined;
+  });
+
+  it('no gecko pools escalates to the keyed token route; derives outright and seeds birdeye-ohlcv rows', async () => {
+    nowSpy = jest.spyOn(Date, 'now').mockReturnValue(WENCAT_NOW);
+    const ohlcvCalls: Array<[string, string, string]> = [];
+    const tokenOhlcvCalls: Array<[string, string, string, number, number]> = [];
+    const { service, history } = await buildService({
+      nativeChange: null,
+      livePrice: WENCAT_LIVE,
+      pools: [],
+      ohlcv: null,
+      ohlcvCalls,
+      stubChain: 'bsc',
+      tokenOhlcv: WENCAT_CANDLES,
+      tokenOhlcvCalls,
+    });
+    const snapshot = await service.getSnapshot({
+      chain: 'bsc',
+      value: WENCAT,
+      kindHint: 'token',
+    });
+    const expected =
+      ((WENCAT_LIVE - WENCAT_PAST_CLOSE) / WENCAT_PAST_CLOSE) * 100;
+    expect(snapshot.priceChange24h).toBeCloseTo(expected, 6);
+    expect(snapshot.sources).toContain('birdeye-ohlcv');
+    expect(snapshot.sources).not.toContain('geckoterminal-ohlcv');
+    // Gecko picked no pool: its pool-OHLCV route was never called.
+    expect(ohlcvCalls).toEqual([]);
+    // Keyed fallback requested exactly the 26h seed window at 1H.
+    expect(tokenOhlcvCalls).toEqual([
+      [WENCAT, 'bsc', '1H', WENCAT_WINDOW_FROM, 1792239600],
+    ]);
+    // Six seeded rows (source-tagged anchors) + one live row.
+    expect(await history.count()).toBe(7);
+    const rows = await history.listRecent(50);
+    const seeded = rows.filter(
+      (row) =>
+        row.sources.includes('birdeye-ohlcv') &&
+        row.quote.priceChange24h === null,
+    );
+    expect(seeded).toHaveLength(6);
+    const expectedStamps = WENCAT_CANDLES.map((candle) =>
+      new Date(candle[0] * 1000).toISOString(),
+    ).sort();
+    expect(seeded.map((row) => row.createdAt).sort()).toEqual(expectedStamps);
+    // ATH reads backfill+live: the 1792224000 spike close x supply wins.
+    expect(snapshot.fdvAth?.at).toBe(new Date(1792224000 * 1000).toISOString());
+    expect(snapshot.fdvAth?.fdvUsd).toBeCloseTo(
+      0.00002778323859517848 * SUPPLY,
+      6,
+    );
+  });
+
+  it('gecko candles win; the keyed route is never called', async () => {
+    nowSpy = jest.spyOn(Date, 'now').mockReturnValue(NOW_A);
+    const tokenOhlcvCalls: Array<[string, string, string, number, number]> = [];
+    const { service } = await buildService({
+      nativeChange: null,
+      livePrice: LIVE_PRICE,
+      pools: stageveilPools(),
+      ohlcv: VERBATIM_OHLC,
+      tokenOhlcv: WENCAT_CANDLES,
+      tokenOhlcvCalls,
+    });
+    const snapshot = await service.getSnapshot({
+      chain: 'robinhood',
+      value: STAGEVEIL,
+      kindHint: 'token',
+    });
+    expect(snapshot.priceChange24h).toBeCloseTo(EXPECTED_OUTRIGHT, 6);
+    expect(snapshot.sources).toContain('geckoterminal-ohlcv');
+    expect(snapshot.sources).not.toContain('birdeye-ohlcv');
+    expect(tokenOhlcvCalls).toEqual([]);
+  });
+
+  it('keyed fallback miss keeps the pre-55 dead-end shape (null, no seeds, no source tag)', async () => {
+    nowSpy = jest.spyOn(Date, 'now').mockReturnValue(WENCAT_NOW);
+    const tokenOhlcvCalls: Array<[string, string, string, number, number]> = [];
+    const { service, history } = await buildService({
+      nativeChange: null,
+      livePrice: WENCAT_LIVE,
+      pools: [],
+      ohlcv: null,
+      stubChain: 'bsc',
+      tokenOhlcv: null,
+      tokenOhlcvCalls,
+    });
+    const snapshot = await service.getSnapshot({
+      chain: 'bsc',
+      value: WENCAT,
+      kindHint: 'token',
+    });
+    expect(snapshot.priceChange24h).toBeNull();
+    expect(snapshot.sources).not.toContain('birdeye-ohlcv');
+    expect(snapshot.sources).not.toContain('geckoterminal-ohlcv');
+    expect(tokenOhlcvCalls).toHaveLength(1);
+    // Only the live row persists — the seed never fires.
+    expect(await history.count()).toBe(1);
+  });
+
+  it('keyed fallback throw fails open to the same dead-end shape', async () => {
+    nowSpy = jest.spyOn(Date, 'now').mockReturnValue(WENCAT_NOW);
+    const { service, history } = await buildService({
+      nativeChange: null,
+      livePrice: WENCAT_LIVE,
+      pools: [],
+      ohlcv: null,
+      stubChain: 'bsc',
+      tokenOhlcvThrows: true,
+    });
+    const snapshot = await service.getSnapshot({
+      chain: 'bsc',
+      value: WENCAT,
+      kindHint: 'token',
+    });
+    expect(snapshot.priceChange24h).toBeNull();
+    expect(await history.count()).toBe(1);
   });
 });

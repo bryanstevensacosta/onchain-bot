@@ -36,6 +36,8 @@ import {
 import type { LaunchpadInfo } from 'launchpad/domain/launchpad-info';
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
 import { GeckoTerminalService } from 'provider/infrastructure/geckoterminal';
+import { BirdeyeService } from 'provider/infrastructure/birdeye';
+import { BIRDEYE_SUPPORTED_CHAINS } from 'provider/infrastructure/birdeye/birdeye.service';
 import {
   GECKO_NETWORK_SLUGS,
   GECKO_SUPPORTED_CHAINS,
@@ -51,6 +53,9 @@ import {
 import {
   buildOhlcvSeedRows,
   deriveOutrightVsLiveChange,
+  OHLC_BACKFILL_SOURCE,
+  OHLC_BACKFILL_SOURCE_BIRDEYE,
+  OHLC_BACKFILL_WINDOW_MS,
 } from '../domain/snapshot-ohlcv-backfill';
 import {
   applyComputedFdv,
@@ -289,6 +294,13 @@ export class AddressSnapshotService {
     @Optional()
     @Inject(QuotaGovernorService)
     private readonly governor: QuotaGovernorService | null = null,
+    // Keyed token-level OHLC fallback (dexter plan todo 55): fires ONLY
+    // when the Gecko pool route yields no candles (WENCAT class — no
+    // indexed pools at all). Null in hand-built specs -> gecko-only,
+    // byte-identical to pre-55.
+    @Optional()
+    @Inject(BirdeyeService)
+    private readonly birdeye: BirdeyeService | null = null,
   ) {}
 
   /** In-flight half-open probe key (at most ONE globally — the single cheapest-fetcher probe). */
@@ -433,19 +445,28 @@ export class AddressSnapshotService {
   }
 
   /**
-   * OHLC-derived 24h change (dexter plan todos 33 + 46, fallback leg).
+   * OHLC-derived 24h change (dexter plan todos 33 + 46 + 55, fallback leg).
    *
    * PRECEDENCE (structural, not advisory): a non-null `nativeChange`
    * — i.e. ANY native field surviving the fan-out merge (DexScreener,
    * Birdeye, CoinGecko, Moralis, Gecko `/info` itself) — returns null
    * here with ZERO extra calls, so natives always win. The leg fires
-   * only when every native is null: pool discovery (same two-step as
-   * the gecko fetcher: `getTokenPools`, then `searchPools` on miss)
-   * plus ONE `hour/aggregate=1` OHLC call, then the exact-24h-window
-   * math. Anything missing or out-of-window resolves null (fail-open,
-   * never throws — same contract as `resolveVenue` above).
+   * only when every native is null. Source ladder (todo 55):
    *
-   * TODO 46 (backfill, camino al 0% honesto): the fetched candles
+   * 1. Gecko pool route (keyless, preferred, unchanged): pool discovery
+   *    (same two-step as the gecko fetcher: `getTokenPools`, then
+   *    `searchPools` on miss) plus ONE `hour/aggregate=1` OHLC call.
+   * 2. When that yields NO candles (no pool row at all — the WENCAT
+   *    class — or an empty fetch), the keyed Birdeye token-level route
+   *    (`/defi/v3/ohlcv`, `type=1H` over the seed window) backs the leg
+   *    instead, tagged `birdeye-ohlcv` end-to-end so seeds/provenance
+   *    never claim Gecko for data Gecko did not index.
+   *
+   * The exact-24h-window math and the backfill below are IDENTICAL for
+   * both sources. Anything missing or out-of-window resolves null
+   * (fail-open, never throws — same contract as `resolveVenue` above).
+   *
+   * TODO 46 (backfill, camino al 0% honesto): the acquired candles
    * ALSO seed history once per pool (`seedOhlcvBackfill` — candle-time
    * `createdAt`, idempotent via `unique(key, createdAt)`), and the
    * derivation prefers outright-24h-vs-now-live (history anchor vs
@@ -464,47 +485,29 @@ export class AddressSnapshotService {
       readonly maxSupply: number | null;
     },
     identity: { readonly key: string; readonly kind: string },
-  ): Promise<{ readonly change: number | null; readonly seeded: number }> {
+  ): Promise<{
+    readonly change: number | null;
+    readonly seeded: number;
+    readonly source: string | null;
+  }> {
     if (nativeChange !== null && nativeChange !== undefined) {
-      return { change: null, seeded: 0 };
+      return { change: null, seeded: 0, source: null };
     }
-    if (
-      this.geckoterminal === null ||
-      this.geckoterminal === undefined ||
-      !GECKO_SUPPORTED_CHAINS.includes(chain)
-    ) {
-      return { change: null, seeded: 0 };
+    const nowMs = Date.now();
+    const acquired = await this.acquireDerivationCandles(chain, address, nowMs);
+    if (acquired === null) {
+      return { change: null, seeded: 0, source: null };
     }
     try {
-      const slug = GECKO_NETWORK_SLUGS[chain] ?? chain;
-      const pools = await this.geckoterminal.getTokenPools(slug, address);
-      let pick = selectPoolQuote(pools, address);
-      if (pick === null) {
-        const searchPools = this.geckoterminal.searchPools?.bind(
-          this.geckoterminal,
-        );
-        if (typeof searchPools !== 'function') {
-          return { change: null, seeded: 0 };
-        }
-        pick = selectPoolQuote(await searchPools(address), address);
-      }
-      if (pick === null || pick.poolAddress === null) {
-        return { change: null, seeded: 0 };
-      }
-      const candles = await this.geckoterminal.getPoolOhlcv(
-        slug,
-        pick.poolAddress,
-        pick.side ?? 'base',
-      );
-      const nowMs = Date.now();
       const seeded = await this.seedOhlcvBackfill(
         identity.key,
         identity.kind,
         chain,
         address,
-        candles,
+        acquired.candles,
         live,
         nowMs,
+        acquired.source,
       );
       const outright = await this.resolveOutrightVsLiveChange(
         chain,
@@ -512,20 +515,119 @@ export class AddressSnapshotService {
         live.priceUsd,
         nowMs,
       );
-      if (outright !== null) return { change: outright, seeded };
-      return { change: deriveChange24hFromOhlcv(candles, nowMs), seeded };
+      if (outright !== null) {
+        return { change: outright, seeded, source: acquired.source };
+      }
+      return {
+        change: deriveChange24hFromOhlcv(acquired.candles, nowMs),
+        seeded,
+        source: acquired.source,
+      };
     } catch {
-      return { change: null, seeded: 0 };
+      return { change: null, seeded: 0, source: null };
     }
   }
 
   /**
-   * One-time per-pool OHLC seed (dexter plan todo 46). Builds rows
-   * from the derivation fetch's candles (same merged supply the FDV
-   * seam seals this encounter with) and persists them with
-   * candle-time `createdAt`. Fail-open: any store error degrades to
-   * zero seeded (the change leg below still runs on the candles).
-   * Returns the count of newly inserted rows (collisions report 0).
+   * Candle acquisition ladder (todo 55): Gecko pool route first — once
+   * it has PICKED a pool its answer is final-shape (possibly empty,
+   * which pre-55 used to proceed to the history-anchor attempt with
+   * zero seeds; that fidelity is preserved below). Only a candle-less
+   * Gecko answer escalates to the keyed Birdeye token-level route
+   * (WENCAT class). `null` = no source served candles → the caller
+   * answers the pre-55 dead-end shape (`{change: null, seeded: 0}`)
+   * WITHOUT a history-anchor attempt, exactly like the old no-pick /
+   * gecko-threw branches.
+   */
+  private async acquireDerivationCandles(
+    chain: string,
+    address: string,
+    nowMs: number,
+  ): Promise<{
+    readonly candles: ReadonlyArray<OhlcvCandle> | null;
+    readonly source: string;
+  } | null> {
+    let geckoPicked = false;
+    let geckoAnswered = false;
+    let candles: ReadonlyArray<OhlcvCandle> | null = null;
+    if (
+      this.geckoterminal !== null &&
+      this.geckoterminal !== undefined &&
+      GECKO_SUPPORTED_CHAINS.includes(chain)
+    ) {
+      try {
+        const slug = GECKO_NETWORK_SLUGS[chain] ?? chain;
+        const pools = await this.geckoterminal.getTokenPools(slug, address);
+        let pick = selectPoolQuote(pools, address);
+        if (pick === null) {
+          const searchPools = this.geckoterminal.searchPools?.bind(
+            this.geckoterminal,
+          );
+          if (typeof searchPools === 'function') {
+            pick = selectPoolQuote(await searchPools(address), address);
+          }
+        }
+        if (pick !== null && pick.poolAddress !== null) {
+          geckoPicked = true;
+          candles = await this.geckoterminal.getPoolOhlcv(
+            slug,
+            pick.poolAddress,
+            pick.side ?? 'base',
+          );
+          geckoAnswered = true;
+        } else {
+          // Definitive no-pool answer (pre-55 early return).
+          geckoAnswered = true;
+        }
+      } catch {
+        // Gecko leg dead — the keyed fallback below may still serve.
+      }
+    }
+    let source: string | null =
+      candles !== null && candles.length > 0 ? OHLC_BACKFILL_SOURCE : null;
+    if (
+      source === null &&
+      this.birdeye !== null &&
+      this.birdeye !== undefined &&
+      BIRDEYE_SUPPORTED_CHAINS.includes(chain)
+    ) {
+      try {
+        const tokenCandles = await this.birdeye.getTokenOhlcv(
+          address,
+          chain,
+          '1H',
+          Math.floor((nowMs - OHLC_BACKFILL_WINDOW_MS) / 1000),
+          Math.floor(nowMs / 1000),
+        );
+        if (tokenCandles !== null && tokenCandles.length > 0) {
+          candles = tokenCandles;
+          source = OHLC_BACKFILL_SOURCE_BIRDEYE;
+        }
+      } catch {
+        // Fallback dead — keep whatever the Gecko leg produced.
+      }
+    }
+    if (source === null) {
+      // No candles from either source. Pre-55 fidelity: a picked Gecko
+      // answer that came back empty still proceeds (zero seeds; the
+      // history-anchor attempt stands); every other dead end skips.
+      if (geckoPicked && geckoAnswered) {
+        return { candles, source: OHLC_BACKFILL_SOURCE };
+      }
+      return null;
+    }
+    return { candles, source };
+  }
+
+  /**
+   * One-time per-pool OHLC seed (dexter plan todo 46; source-aware
+   * todo 55). Builds rows from the derivation fetch's candles (same
+   * merged supply the FDV seam seals this encounter with) and persists
+   * them with candle-time `createdAt`, tagged with the ACTUAL source
+   * that produced them (`geckoterminal-ohlcv` | `birdeye-ohlcv`).
+   * Fail-open: any store error degrades to zero seeded (the change leg
+   * below still runs on the candles). Returns the count of newly
+   * inserted rows (collisions report 0).
    */
   private async seedOhlcvBackfill(
     key: string,
@@ -538,6 +640,7 @@ export class AddressSnapshotService {
       readonly maxSupply: number | null;
     },
     nowMs: number,
+    source: string,
   ): Promise<number> {
     try {
       const rows = buildOhlcvSeedRows(
@@ -549,6 +652,7 @@ export class AddressSnapshotService {
           kind,
           totalSupply: live.totalSupply,
           maxSupply: live.maxSupply,
+          source,
         },
         nowMs,
       );
@@ -1164,10 +1268,11 @@ export class AddressSnapshotService {
         fdvProvenance: sealed.fdvProvenance,
       };
     })();
+    const derivedSource = derivedResolution.source;
     const sources =
-      derivedChange24h === null
+      derivedChange24h === null || derivedSource === null
         ? outcome.sources
-        : [...outcome.sources, 'geckoterminal-ohlcv'];
+        : [...outcome.sources, derivedSource];
     // A derived change rescues an otherwise field-less aggregate: the
     // snapshot carries one honest live field, so stale replay and the
     // pending status both stand down for it.

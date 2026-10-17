@@ -453,7 +453,7 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartUrl}}`co
       Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; WENCAT supply=1B live (o fixture exacta + smoke); resto intacto.
       QA scenarios: happy (supply correcto) + failure (decimals-null → null, proxy). Evidence .omo/evidence/task-fe-ethcall-supply.log
       Commit: Y | feat(market-data-supply): leg eth_call (docs AGENTS+CHANGELOG)
-- [ ] 55. Smokes keyed condicionales (Wave 1 follow-up, puertas abiertas de research 51/52)
+- [x] 55. Smokes keyed condicionales (Wave 1 follow-up, Birdeye cableado 2026-10-17; Moralis 401 / Mobula 403 `wontfix`)
       What to do / Must NOT do: SOLO smokes con keys EXISTENTES en `.env` (leer en runtime, NUNCA imprimir/guardar valores; longitudes solo en reportes): (a) Moralis `GET /erc20/metadata` WENCAT (¿trae `total_supply`? — si si, cablear leg con extension tipada; si no, `wontfix-documentado`); (b) Birdeye OHLC BSC WENCAT (¿velas ≤1h 24h cubiertas? — si si, generalizar backfill no-Gecko; si no, `wontfix-documentado`); (c) Mobula como backup OHLC (mismo criterio). 1 probe por puerta, spacing ≥8s, backoff ante 429. Sin keys presentes → `wontfix-documentado` sin tocar codigo. Specs SOLO de lo que se cablee. Docs: AGENTS + CHANGELOG (ADD-only, solo si hay cableado).
       Parallelization: Wave 1 follow-up (1 worker) | Blocked by: keys en `.env` (verificar presencia por NOMBRE; si ausentes → cerrar sin codigo) | Blocks: —
       References: research 51/52 (puertas exactas), `.env.example` (nombres, jamas valores).

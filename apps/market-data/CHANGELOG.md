@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Keyed OHLC fallback — Birdeye token-level candles (dexter plan todo 55):**
+  three keyed doors probed once each (≥8s spacing; key values read by
+  NAME at runtime, never echoed): Moralis `/erc20/metadata` → HTTP 401
+  (Free plan paused — todo-27 suspicion confirmed; no extension), Mobula
+  OHLC backup → HTTP 403 (Free plan; moot), Birdeye `/defi/v3/ohlcv` →
+  HTTP 200 → WIRED. The todo-33/46 derivation+backfill pipeline gained
+  a keyed second rung: Gecko pool route stays first/keyless and
+  unchanged; ONLY a candle-less Gecko answer (WENCAT class — no indexed
+  pools) escalates to `BirdeyeService.getTokenOhlcv` (`type=1H`,
+  `x-chain`, epoch-second window = 26h = 24h + ±2h anchor tolerance).
+  Rows normalize to the verbatim `[ts,o,h,l,c,v]` Gecko tuple; honest
+  per-source provenance (`birdeye-ohlcv` vs `geckoterminal-ohlcv`)
+  threads through seeds + sources. 404→null, malformed rows skipped,
+  keyless/unmapped zero-network, 19b2 transient surfacing, native-wins
+  precedence intact, pre-55 branch fidelity preserved (picked-but-empty
+  Gecko still attempts the history anchor; no-pick/throw dead ends skip
+  as before). Specs: `birdeye-ohlcv.spec.ts` (5) +
+  `address-snapshot-ohlcv-backfill.spec.ts` (38 total, +5). Evidence:
+  `.omo/evidence/task-fe-keyed-smokes.log`.
+
 - **EVM on-chain supply leg — `eth_call` totalSupply + decimals (dexter plan todo 54):**
   new `evm-rpc` quote fetcher reads ERC-20 `totalSupply()` (`0x18160ddd`)
   - `decimals()` (`0x313ce567`) in ONE Multicall3 `tryAggregate` across
