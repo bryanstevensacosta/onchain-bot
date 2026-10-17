@@ -95,14 +95,20 @@ export class DexScreenerService extends DataProviderPort {
   /**
    * Get all DEX pairs for a token by its contract address.
    * Cross-chain — returns pairs from every DEX/chain where the token is traded.
+   *
+   * The optional `signal` (dexter plan todo 60) lets the launchpad
+   * detector's flapsh-corroboration leg cut this request at its shared
+   * ~2s deadline; every existing caller stays byte-identical (no
+   * signal → the plain 8s axios backstop as before).
    */
   public async getPairsByToken(
     address: string,
+    signal?: AbortSignal,
   ): Promise<ReadonlyArray<DexScreenerPair> | null> {
     try {
       const { data } = await axios.get<DexScreenerPairsResponse>(
         `${BASE}/latest/dex/tokens/${address}`,
-        { timeout: 8_000 },
+        { timeout: 8_000, signal },
       );
       return data.pairs ?? null;
     } catch (err) {

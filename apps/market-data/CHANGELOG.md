@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Flapsh-pair launchpad corroboration — keyless `flap` upgrade (dexter plan todo 60):**
+  presence of a pair with `dexId: 'flapsh'` in the token's DexScreener
+  pair list (`/latest/dex/tokens/<mint>`, quote side included) now
+  corroborates launchpad `flap` on BSC ONLY when NO detector positive
+  exists. Precedence pinned: dexter override (rank 1, untouched) >
+  detector-positive > flapsh-corroborated > null. Presence-only
+  (research 57 caveat a: absence is NEVER negative evidence —
+  flapsh-less Flap tokens resolve null honestly, nulls never cached);
+  era ≥2026-09-29 documented (caveat b); stock-paired empty pairs
+  valid (caveat c); pair-list read without a `baseToken.address ==
+mint` requirement (caveat d); platform-level Flap corroboration
+  (caveat e). ONE concurrent keyless DSC leg inside the detector's
+  shared deadline (Phase-2 factory-miss, `bsc` gate, `chainId` filter
+  = chain honesty); positive corroborations ride the existing flap
+  positive cache. Specs: `launchpad-detector-flapsh.spec.ts` (18 —
+  WENCAT/Froggie/stock-paired positives; fourmeme/CAKE negatives;
+  absence-no-negation; era; chain honesty; precedence; deadline/abort;
+  cache). Evidence: `.omo/evidence/task-fe-flapsh-leg.log`.
+
 - **Null-only DexScreener FDV fallback — provenance-tagged (dexter plan
   todo 61):** the single computed-FDV seam
   (`applyComputedFdv`/`buildSnapshot`) now serves

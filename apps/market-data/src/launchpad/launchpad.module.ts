@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { DexScreenerModule } from 'provider/infrastructure/dexscreener';
 import { HeliusModule } from 'provider/infrastructure/helius/helius.module';
 import { SolanaRpcModule } from 'provider/infrastructure/solana-rpc/solana-rpc.module';
 import { LaunchpadDetectorService } from './application/launchpad-detector.service';
@@ -16,10 +17,13 @@ import { LAUNCHPAD_DETECTOR } from './domain/launchpad-detector.port';
  * `HeliusModule` is imported for the todo-36 LAST-resort archival
  * leg only (Solana history → origin program; `@Optional()` in the
  * detector, so hand-built specs without it stay byte-identical).
- * No cycle: `HeliusModule` depends on config alone.
+ * `DexScreenerModule` is imported for the todo-60 BSC flapsh-pair
+ * corroboration leg only (ONE keyless pair-list read; `@Optional()`
+ * in the detector, same byte-identical-no-DI property).
+ * No cycle: `HeliusModule`/`DexScreenerModule` depend on config alone.
  */
 @Module({
-  imports: [SolanaRpcModule, HeliusModule],
+  imports: [SolanaRpcModule, HeliusModule, DexScreenerModule],
   providers: [
     LaunchpadDetectorService,
     { provide: LAUNCHPAD_DETECTOR, useExisting: LaunchpadDetectorService },

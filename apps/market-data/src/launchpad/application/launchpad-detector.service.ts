@@ -1,6 +1,8 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import axios from 'axios';
 import { CacheService } from 'cache/application/cache.service';
+import { DexScreenerService } from 'provider/infrastructure/dexscreener';
+import { resolveDexScreenerSlug } from 'provider/infrastructure/dexscreener/dexscreener.service';
 import { HeliusService } from 'provider/infrastructure/helius/helius.service';
 import { SolanaRpcService } from 'provider/infrastructure/solana-rpc/solana-rpc.service';
 import type { LaunchpadInfo } from '../domain/launchpad-info';
@@ -258,6 +260,22 @@ const BANKR_CHAINS = new Set(['base', 'robinhood']);
 /** Chains where the Pons SSR registry leg may fire (Pons is Robinhood-native). */
 const PONS_CHAINS = new Set(['robinhood']);
 
+/**
+ * flapsh-corroboration gate (dexter plan todo 60, from research 57):
+ * `dexId: 'flapsh'` is Flap's own DEX id — 6 pairs observed in
+ * research 57 (`dexter-flapsh-pair-research.md`), ALL `chainId: bsc`
+ * (live bonding, stock-paired, and frozen post-migration), zero
+ * outside BSC. The gate keeps the ONE keyless DSC pair-list call
+ * scoped to where the marker can exist; extend it (with a fresh
+ * probe, never from memory) if Flap ever ships `flapsh` on another
+ * chain. The pair read ALSO filters `chainId === <slug>` inside
+ * `detectFlapshPair`, so a cross-chain row can never corroborate a
+ * different chain's card (chain-honesty doctrine, todo 18).
+ */
+export const FLAPSH_CORROBORATION_CHAINS: ReadonlySet<string> = new Set([
+  'bsc',
+]);
+
 const RECEIPT_MATCH_ORDER = EVM_LAUNCHPAD_ORDER.filter(
   (id) => !(id in EVM_RECEIPT_EXCLUDED),
 );
@@ -305,6 +323,17 @@ function containsBytes(haystack: Uint8Array, needle: Uint8Array): boolean {
  * touches Helius — Solana Enhanced-API only). Every external call
  * carries a timeout; anything unknown, slow, or failed resolves to
  * `null` — this service never throws outward.
+ *
+ * BSC flapsh corroboration (todo 60, from research 57): Phase 2 also
+ * carries ONE keyless DSC pair-list check (`/latest/dex/tokens/<mint>`)
+ * run CONCURRENTLY with the factory leg under the same shared
+ * deadline. A `dexId: 'flapsh'` pair corroborates launchpad `flap`
+ * ONLY when every detector positive missed (never the reverse);
+ * absence is NEVER negative evidence (caveat a) and the read accepts
+ * the quote side (stock-paired tokens have the launch on
+ * `quoteToken`). Precedence pinned: dexter override (rank 1,
+ * dexter-side, untouched here) > detector-positive >
+ * flapsh-corroborated > null.
  */
 @Injectable()
 export class LaunchpadDetectorService implements LaunchpadDetectorPort {
@@ -338,6 +367,9 @@ export class LaunchpadDetectorService implements LaunchpadDetectorPort {
     private readonly ponsCache: CacheService | null = null,
     @Optional()
     private readonly helius: HeliusService | null = null,
+    @Optional()
+    @Inject(DexScreenerService)
+    private readonly dexscreener: DexScreenerService | null = null,
   ) {}
 
   public async detectLaunchpad(
@@ -598,24 +630,84 @@ export class LaunchpadDetectorService implements LaunchpadDetectorPort {
     // NOTE (todo 36): NO Helius leg on EVM — the history seam is the
     // Solana Enhanced Transactions API, so EVM all-miss stays null
     // with zero Helius calls (Solana-only by construction).
+    //
+    // FLAPSH CORROBORATION (todo 60, research 57 — bsc-gated): ONE
+    // keyless DSC pair-list read (`/latest/dex/tokens/<mint>`, the
+    // existing DexScreenerService seam + an AbortSignal cut at the
+    // SAME shared deadline) runs CONCURRENTLY with the factory leg —
+    // latency ~= max, not sum — and is consulted ONLY after every
+    // detector positive missed. A pair with `dexId: 'flapsh'` then
+    // upgrades the null to `flap` (platform-Flap corroboration,
+    // caveat e); its ABSENCE stays an honest null and is NEVER
+    // negative evidence (caveat a). Positive corroborations ride the
+    // flap positive cache below; nulls are never cached (19a).
     const factoryLeg = armLeg();
+    const flapshLeg = FLAPSH_CORROBORATION_CHAINS.has(chain) ? armLeg() : null;
     try {
       if (await this.getCachedFlap(chain, address)) {
         this.logger.debug(`flap-cache hit (chain=${chain}) — receipt skipped`);
         return launchpadInfo('flap', chain, address);
       }
-      const factory = await this.detectFactoryTo(
-        chain,
-        address,
-        factoryLeg.signal,
-      );
-      if (factory === null) return null;
-      if (factory === 'flap') {
-        await this.putCachedFlap(chain, address);
+      const settled = await Promise.allSettled([
+        this.detectFactoryTo(chain, address, factoryLeg.signal),
+        flapshLeg !== null
+          ? this.detectFlapshPair(chain, address, flapshLeg.signal)
+          : Promise.resolve(false),
+      ] as const);
+      const factory =
+        settled[0].status === 'fulfilled' ? settled[0].value : null;
+      if (factory !== null) {
+        if (factory === 'flap') {
+          await this.putCachedFlap(chain, address);
+        }
+        return launchpadInfo(factory, chain, address);
       }
-      return launchpadInfo(factory, chain, address);
+      if (settled[1].status === 'fulfilled' && settled[1].value === true) {
+        this.logger.debug(
+          `flapsh-pair corroborated (chain=${chain}) — factory miss upgraded`,
+        );
+        await this.putCachedFlap(chain, address);
+        return launchpadInfo('flap', chain, address);
+      }
+      return null;
     } finally {
       factoryLeg.done();
+      flapshLeg?.done();
+    }
+  }
+
+  /**
+   * flapsh-pair corroboration leg (dexter plan todo 60, from research
+   * 57): read the token's DexScreener pair LIST cross-chain
+   * (`/latest/dex/tokens/<mint>` — the same endpoint the research
+   * probed) and corroborate ONLY on the exact `dexId: 'flapsh'` of a
+   * pair on the SAME chain (`chainId === <our slug>`, belt +
+   * suspenders: cross-chain rows never corroborate a chain's card).
+   * The list read includes pairs where the token sits on the QUOTE
+   * side — stock-paired launches quote the token (caveat d) — so NO
+   * `baseToken.address == mint` check exists by design. Fail-open
+   * `false` on EVERY ambiguity: DSC service absent (hand-built
+   * specs), unmapped slug, transport failure, abort over the shared
+   * deadline. `false`/absence is NEVER negative evidence (caveat a:
+   * Flap tokens without a flapsh pair exist — null stays honest).
+   */
+  private async detectFlapshPair(
+    chain: string,
+    address: string,
+    signal?: AbortSignal,
+  ): Promise<boolean> {
+    const dexscreener = this.dexscreener;
+    if (dexscreener === null || dexscreener === undefined) return false;
+    const slug = resolveDexScreenerSlug(chain);
+    if (slug === null) return false;
+    try {
+      const pairs = await dexscreener.getPairsByToken(address, signal);
+      if (pairs === null || pairs === undefined) return false;
+      return pairs.some(
+        (pair) => pair.dexId === 'flapsh' && pair.chainId === slug,
+      );
+    } catch {
+      return false;
     }
   }
 

@@ -961,6 +961,64 @@ factories:[0xe2cE…C9De0 (bnb), 0x2660…Eb09 (robinhood)]}` verbatim
   (o la pata `flapsh`-pair si se aprueba). Do not re-open without a
   keyed/owner decision.
 
+## FLAPSH-PAIR CORROBORATION (todo 60, 2026-10-17 — from research 57)
+
+Keyless launchpad-`flap` corroboration for BSC mints (research 57
+verdict `ship`, `.omo/notepads/dexter-flapsh-pair-research.md`) — the
+"pata `flapsh`-pair" the RESEARCH-49 closeout above left pending.
+
+- SEAM: Phase-2 leg of `LaunchpadDetectorService.detectEvm`
+  (`FLAPSH_CORROBORATION_CHAINS = {bsc}` gate): ONE keyless DSC
+  pair-list read (`/latest/dex/tokens/<mint>` via the existing
+  `DexScreenerService.getPairsByToken`, AbortSignal cut at the SAME
+  shared ~2s deadline) runs CONCURRENTLY with the factory leg
+  (latency ~= max, not sum) and is consulted ONLY after every
+  detector positive missed. A pair with exact `dexId: 'flapsh'` AND
+  `chainId === <our slug>` upgrades the null to `flap`; positive
+  corroborations are written to the EXISTING flap positive cache
+  (`flap:launchpad:<chain>:<mint>`, same TTL) — a cache hit skips
+  factory + flapsh legs. Nulls are NEVER cached (19a).
+- PRECEDENCE (pinned): dexter override row (rank 1, dexter-side —
+  this seam never touches it) > detector-positive (Phase-1 brand
+  APIs + factory receipt `to`) > flapsh-corroborated > null.
+  Phase-1 hits short-circuit with ZERO DSC traffic (spy-pinned).
+- CAVEATS (research 57, pinned — must survive any future re-pin):
+  (a) POSITIVE-ONLY: absence is NEVER negative evidence. Flap
+  tokens without a flapsh pair exist (A2/A3 in-era PCS-only,
+  A4 stock-paired via PCS) — a missing pair resolves null
+  honestly and never subtracts from any other verdict.
+  (b) ERA: flapsh pairs observed only since 2026-09-29 05:04:14Z;
+  pre-era tokens (A1/A5, 2025) may not carry the marker — their
+  absence is null, not a verdict.
+  (c) STOCK-PAIRED: empty pairs (price/liq null, zero volume) count
+  as presence (P3/P4 fixtures).
+  (d) SIDE RULE: read the pair LIST — stock-paired launches have
+  the token on the `quoteToken` side; NO
+  `baseToken.address == mint` check exists by design.
+  (e) PLATFORM semantics: flapsh marks "touches Flap's DEX"
+  (bonding live / stock-paired / frozen post-migration), mapped
+  to launchpad `flap` for memecoin CAs — platform-level
+  corroboration, never per-launch proof.
+- CHAIN GATE: research 57 saw flapsh ONLY on BSC (6 pairs, zero
+  outside); the leg fires for `bsc` only and the pair read also
+  filters `chainId === <slug>` (chain-honesty, todo 18). Extend the
+  gate only with a fresh probe.
+- COST (documented decision): the factory-miss Phase 2 adds exactly
+  ONE keyless DSC call (no new provider, no new key), concurrent,
+  fail-open. Piggyback of the existing discovery fetch was NOT
+  viable: the discovery summary carries only the best-liquidity pair
+  (WENCAT's flapsh pair has liq null — never the best) and the
+  discovery-cache separation pin (30b) forbids venue→launchpad flow.
+  This is the plan-sanctioned "1 keyless dentro del budget tail".
+- MEASURED (2026-10-17, ≥8s spacing, re-probed at implementation):
+  WENCAT flapsh present + frozen (fdv 52090, liq null, price
+  0.00005208 — byte-identical to research); Froggie flapsh live
+  (liq 8863.5); CAKE 0/30 pairs flapsh; the fourmeme probe now
+  answers `pairs: null` (not indexed — the research-payload fixture
+  stands). Discriminator recap: 4/4 positives vs 0/86 negative
+  pairs. Specs: `launchpad-detector-flapsh.spec.ts` (18). Evidence:
+  `.omo/evidence/task-fe-flapsh-leg.log`.
+
 ## OHLC-DERIVED 24H CHANGE (todo 33, 2026-10-10)
 
 Fallback leg for Gecko-only tokens (STAGEVEIL-pattern: `/info` has no
