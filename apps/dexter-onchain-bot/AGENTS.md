@@ -592,7 +592,7 @@ matchValue:'pump-fun', display:'Pump'}`.
 
 - Origin-aware venue line (plan todo 14): 4 renderer keys on every
   command — `chainName` (code table: solana→Solana, ethereum→Ethereum,
-  bnb→BNB, base→Base, arbitrum→Arbitrum, polygon→Polygon,
+  bnb→BNB, bsc→BNB, base→Base, arbitrum→Arbitrum, polygon→Polygon,
   robinhood→Robinhood, unichain→Unichain; unlisted → `""`, never the
   raw slug), `venue` (launchpad known → its `name`, ignoring the DEX
   display entirely — no hybrids; else `DexDisplay + labels`),

@@ -415,6 +415,57 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartUrl}}`co
       Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; override documentado y probado live; Helius con gate medido (implementado o `wontfix-medido` con numeros).
       QA scenarios: happy (override resuelve) + failure (Helius caido → null). Evidence .omo/evidence/task-fe-graduated-origin.log
       Commit: Y | feat(market-data-origin): graduados pump (docs AGENTS+CHANGELOG)
+- [x] 49. Research: fuentes gratis de creation-tx en BSC (veredicto: `wontfix-documentado`, sin via keyless) (Wave 1 follow-up, evidencia WENCAT 2026-10-16: Blockscout-404 + Etherscan-free-excluye-BSC)
+      What to do / Must NOT do: SOLO research, cero codigo: inventariar vias gratis para `getcontractcreation` (o equivalente: receipt de creacion) en BSC — Routescan, otros explorers con API libre, endpoints publicos Blockscout alternativos, Etherscan-V2 con key (alcance real del free: cadenas incluidas/excluidas con prueba), Flap page leg YA rechazada (JS shell, no re-abrir sin evidencia nueva). Por via: URL exacta, auth, rate-limit, prueba live con WENCAT (`0xB596…`, respuesta con `txHash` o rechazo documentado). GATE falsable: viable SSI (a) `txHash` correcto verificable contra receipt on-chain, Y (b) sin keys nuevas; si no → `wontfix-documentado` con pruebas. Evidence .omo/evidence/task-fe-bsc-creation-research.log (comandos + salidas). NADA de implementacion (el plan concreto sale de este research).
+      Parallelization: research (1 worker) | Blocked by: — | Blocks: plan-concreto-Flap-BSC
+      References: `detectFactoryTo` + `creationTxHash` actuales (Blockscout-only), pruebas 2026-10-16 (404 + NOTOK-free-excluido).
+      Acceptance criteria: tabla via×(auth, rate, prueba-live, veredicto) completa o `wontfix` con pruebas.
+      Commit: N (research; tabla al notepad)
+- [x] 50. Research: auditoria slugs chain + huecos DEX_DISPLAY (5 fixes listos en 53) (Wave 1 follow-up, evidencia WENCAT: `chainName('bsc')=""`, `dexDisplayOf('flapsh')="Flapsh"`)
+      What to do / Must NOT do: SOLO inventario (codigo + docs, cero cambios): listar TODOS los slugs chain internos (`ChainIdentifier`/uniones/puertos) vs llaves de `CHAIN_NAMES` (faltar `bsc`, otros?) + `dexId` reales vistos en snapshots (logs/evidencia: `flapsh`, resto) vs llaves `DEX_DISPLAY`. Por hueco: fix de una linea propuesto (sin aplicarlo). GATE: ninguno (inventario exhaustivo = done). Evidence en notepad (tabla slug×tabla×veredicto).
+      Parallelization: research (1 worker, rapido) | Blocked by: — | Blocks: plan-concreto
+      References: `venue-display.ts:16-47`, `ChainIdentifier`, caso WENCAT.
+      Acceptance criteria: tabla exhaustiva, cero slugs sin veredicto.
+      Commit: N (research; tabla al notepad)
+- [x] 51. Research: sembrar historial/ATH sin pools Gecko (veredicto: `wontfix-documentado` keyless; puertas en 55) (Wave 1 follow-up, evidencia: Gecko `data:[]`, backfill sin fuente)
+      What to do / Must NOT do: SOLO research, cero codigo: para tokens con mercado SOLO en DexScreener (sin pools Gecko, sin OHLC): que vias pueden sembrar ventana-24h + ATH (DexScreener candles? endpoint `chart`/`candles` existe keyless? Birdeye OHLC con key existente? Helius DAS/archival? otro agregador con history keyless?). Por via: endpoint exacto, granularidad minima, cobertura BSC/Solana, costo-cuota, prueba live con WENCAT (candles reales o rechazo documentado). GATE falsable: viable SSI velas ≤1h con 24h cubiertas sin keys nuevas; si no → `wontfix-documentado` (acumulacion-live como unica via, honesto). Regla intacta: flatness-inferida PROHIBIDA. Evidence .omo/evidence/task-fe-no-gecko-history-research.log.
+      Parallelization: research (1 worker) | Blocked by: — | Blocks: plan-concreto-ATH
+      References: backfill OHLC existente (solo-Gecko hoy), caso WENCAT (Gecko vacio).
+      Acceptance criteria: tabla via×(velas, cobertura, costo, prueba) o `wontfix` con pruebas.
+      Commit: N (research; tabla al notepad)
+- [x] 52. Research: legs nuevos de supply incl. `eth_call` directo (veredicto: ship (a), resto cae) (Wave 1 follow-up, pregunta owner: de donde mas)
+      What to do / Must NOT do: SOLO research, cero codigo: factibilidad por leg nuevo — (a) `eth_call totalSupply()`+`decimals()` via multicall existente (selectores, chains con multicall verificado, manejo Token-deflacionarios/proxy con motivo); (b) CMC supply fields (key existente? plan); (c) CoinPaprika supply (cobertura long-tail?); (d) Helius `getTokenSupply` (Solana, key existente, costo); (e) Moralis metadata supply (existe el campo?); (f) otros que aparezcan. Por leg: endpoint/selector exacto, unidades/decimales (regla de normalizacion propuesta), cobertura chains, costo-cuota, prueba live (supply real de WENCAT o rechazo documentado). GATE falsable por leg: viable SSI supply-correcto-verificable contra 2 fuentes independientes; si no → descartado-con-motivo. Evidence .omo/evidence/task-fe-supply-legs-research.log.
+      Parallelization: research (1 worker) | Blocked by: — | Blocks: plan-concreto-supply
+      References: legs actuales (Gecko/CoinGecko/Birdeye/Mobula/solanaRpc; Etherscan excluido por unidades), multicall existente, caso WENCAT (supply triple-null hoy).
+      Acceptance criteria: tabla leg×(factibilidad, unidades, cobertura, costo, prueba) completa.
+      Commit: N (research; tabla al notepad)
+- [x] 53. Aplicar fixes slug/display auditados (Wave 1 follow-up, verificado 2026-10-17)
+      What to do / Must NOT do: Aplicar EXACTAMENTE los 5 fixes de una linea del audit (`.omo/notepads/dexter-slug-audit.md`: #C1 `bsc: 'BNB'` en `CHAIN_NAMES`; #D1 `pumpfun: 'Pump.fun'`; #D2 `flapsh: 'Flap'`; #D3 `'pons-v2-dex': 'Pons'`; #D4 `pulsex: 'PulseX'` en `DEX_DISPLAY` de `venue-display.ts:16-47`). NADA mas (resto veredictado: excluir sin tocar). Specs: 5 casos (uno por fix) + regresion resto intacto. Docs: linea AGENTS si la convencion lo pide (ADD-only). NO re-abrir slugs excluidos-con-motivo.
+      Parallelization: Wave 1 follow-up (1 worker, rapido) | Blocked by: — (research 50 cerrada) | Blocks: —
+      References: `.omo/notepads/dexter-slug-audit.md` (tabla + veredictos), caso WENCAT (`Flapsh` crudo → `Flap`, `chainName('bsc')` vacio → `BNB`).
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; WENCAT renderiza `BNB` + `Flap` donde antes vacio/crudo.
+      QA scenarios: happy (5 fixes) + failure (slugs excluidos intactos). Evidence .omo/evidence/task-fe-slug-fixes.log
+      Commit: Y | fix(dexter-display): slugs auditados (docs si aplica)
+- [ ] 54. Leg `eth_call` supply+decimals (Wave 1 follow-up, sale de research 52: viable 2-fuentes)
+      What to do / Must NOT do: Cablear leg `eth_call totalSupply()` (`0x18160ddd`) + `decimals()` (`0x313ce567`) via multicall existente (tryAggregate, BigInt obligatorio; `decimals>255/null → null`; proxy-safe documentado) en las 8 chains con multicall verificado. Regla: `ui = uint256_raw / 10^decimals`. NUNCA `circ` para FDV (invariante). Excluidos por research (NO re-abrir): CoinPaprika, Etherscan-tokensupply, Helius-como-nuevo, DeFiLlama/DexScreener-derivado. Specs: 1B-WENCAT exacto + decimales-edge + proxy + null-cases + invariante FDV intacta. Docs: market-data AGENTS + CHANGELOG (ADD-only).
+      Parallelization: Wave 1 follow-up (1 worker) | Blocked by: — (research 52 cerrada) | Blocks: —
+      References: `.omo/notepads/dexter-supply-legs.md` (prueba 1B vs DexScreener), `multicall.service.ts:81-116`, `evm-pools.codec.ts:88-89`.
+      Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; WENCAT supply=1B live (o fixture exacta + smoke); resto intacto.
+      QA scenarios: happy (supply correcto) + failure (decimals-null → null, proxy). Evidence .omo/evidence/task-fe-ethcall-supply.log
+      Commit: Y | feat(market-data-supply): leg eth_call (docs AGENTS+CHANGELOG)
+- [ ] 55. Smokes keyed condicionales (Wave 1 follow-up, puertas abiertas de research 51/52)
+      What to do / Must NOT do: SOLO smokes con keys EXISTENTES en `.env` (leer en runtime, NUNCA imprimir/guardar valores; longitudes solo en reportes): (a) Moralis `GET /erc20/metadata` WENCAT (¿trae `total_supply`? — si si, cablear leg con extension tipada; si no, `wontfix-documentado`); (b) Birdeye OHLC BSC WENCAT (¿velas ≤1h 24h cubiertas? — si si, generalizar backfill no-Gecko; si no, `wontfix-documentado`); (c) Mobula como backup OHLC (mismo criterio). 1 probe por puerta, spacing ≥8s, backoff ante 429. Sin keys presentes → `wontfix-documentado` sin tocar codigo. Specs SOLO de lo que se cablee. Docs: AGENTS + CHANGELOG (ADD-only, solo si hay cableado).
+      Parallelization: Wave 1 follow-up (1 worker) | Blocked by: keys en `.env` (verificar presencia por NOMBRE; si ausentes → cerrar sin codigo) | Blocks: —
+      References: research 51/52 (puertas exactas), `.env.example` (nombres, jamas valores).
+      Acceptance criteria: veredicto por puerta (cableado-con-specs o `wontfix` con prueba) + suites verdes.
+      QA scenarios: happy + failure por puerta. Evidence .omo/evidence/task-fe-keyed-smokes.log
+      Commit: Y solo si hay cableado | feat(market-data): smokes keyed (docs si aplica)
+- [ ] 56. Cierre honestos research 49/51 (Wave 1 follow-up, veredictos `wontfix-documentado`)
+      What to do / Must NOT do: CERO codigo. Registrar como decision pineada (notepad + linea AGENTS si aplica): 49 → sin creation-tx keyless en BSC (Flap-BSC solo por override manual o smoke owner-gated con key existente); 51 → sin historial keyless sin-Gecko (acumulacion-live unica via honesta; Birdeye/Mobula movidos al 55). Marcar 49/51 `[x]` con veredicto en el titulo o nota. NADA mas.
+      Parallelization: — | Blocked by: — | Blocks: —
+      References: `.omo/notepads/dexter-bsc-creation-research.md`, `.omo/notepads/dexter-no-gecko-history.md`.
+      Acceptance criteria: veredictos registrados y visibles en el plan.
+      Commit: N (solo plan)
 
 ### Wave 0 — guion local owner (10 min, dexter `:4060` + frontend `:5173`)
 
@@ -503,6 +554,14 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartUrl}}`co
 | 46 backfill24           | —                | —            | 2                    |
 | 47 supply-fallback      | —                | —            | 2                    |
 | 48 graduated-origin     | —                | —            | 2                    |
+| 49 bsc-creation-R       | —                | —            | 2                    |
+| 50 slug-audit-R         | —                | —            | 2                    |
+| 51 no-gecko-history-R   | —                | —            | 2                    |
+| 52 supply-legs-R        | —                | —            | 2                    |
+| 53 slug-fixes           | —                | —            | 2                    |
+| 54 ethcall-supply       | —                | —            | 2                    |
+| 55 keyed-smokes         | —                | —            | 2                    |
+| 56 honest-closeouts     | —                | —            | 2                    |
 
 ## Invariants
 

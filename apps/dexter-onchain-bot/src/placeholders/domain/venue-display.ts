@@ -17,6 +17,7 @@ export const CHAIN_NAMES: Readonly<Record<string, string>> = {
   solana: 'Solana',
   ethereum: 'Ethereum',
   bnb: 'BNB',
+  bsc: 'BNB',
   base: 'Base',
   arbitrum: 'Arbitrum',
   polygon: 'Polygon',
@@ -33,6 +34,10 @@ export const DEX_DISPLAY: Readonly<Record<string, string>> = {
   uniswap: 'Uniswap',
   baseline: 'Baseline',
   fourmeme: 'FourMeme',
+  pumpfun: 'Pump.fun',
+  flapsh: 'Flap',
+  'pons-v2-dex': 'Pons',
+  pulsex: 'PulseX',
 };
 
 export function chainNameOf(chain: string | null | undefined): string {

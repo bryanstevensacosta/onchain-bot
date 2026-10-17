@@ -74,6 +74,7 @@ describe('TemplateRendererService venue keys (plan todo 14)', () => {
     ['solana', 'Solana'],
     ['ethereum', 'Ethereum'],
     ['bnb', 'BNB'],
+    ['bsc', 'BNB'],
     ['base', 'Base'],
     ['arbitrum', 'Arbitrum'],
     ['polygon', 'Polygon'],
@@ -86,7 +87,7 @@ describe('TemplateRendererService venue keys (plan todo 14)', () => {
     );
   });
 
-  it.each([['bsc'], ['unknown'], ['fantom'], ['ton'], ['']])(
+  it.each([['unknown'], ['fantom'], ['ton'], ['']])(
     'chainName %s → empty (never the raw slug)',
     (chain) => {
       expect(
@@ -104,6 +105,10 @@ describe('TemplateRendererService venue keys (plan todo 14)', () => {
     ['uniswap', 'Uniswap'],
     ['baseline', 'Baseline'],
     ['fourmeme', 'FourMeme'],
+    ['pumpfun', 'Pump\\.fun'],
+    ['flapsh', 'Flap'],
+    ['pons-v2-dex', 'Pons'],
+    ['pulsex', 'PulseX'],
     ['meteoradbc', 'Meteoradbc'],
     ['clanker', 'Clanker'],
     ['some-new-dex', 'Some\\-new\\-dex'],
