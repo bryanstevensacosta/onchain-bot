@@ -39,22 +39,6 @@ export function timeAgo(iso: string | null, nowMs = Date.now()): string {
   return `${diffD}d ago`;
 }
 
-export function formatMc(mc: number | null): string {
-  if (mc === null || mc === undefined || Number.isNaN(mc)) {
-    return '—';
-  }
-  if (mc >= 1_000_000_000) {
-    return `$${(mc / 1_000_000_000).toFixed(2)}B`;
-  }
-  if (mc >= 1_000_000) {
-    return `$${(mc / 1_000_000).toFixed(2)}M`;
-  }
-  if (mc >= 1_000) {
-    return `$${(mc / 1_000).toFixed(1)}K`;
-  }
-  return `$${mc.toFixed(0)}`;
-}
-
 /**
  * P16: template stores kolSourceIds, empty = all sources.
  */

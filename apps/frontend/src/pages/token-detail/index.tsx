@@ -12,7 +12,12 @@ import {
   TokenImage,
 } from '@/shared/ui';
 import { ScoreGauge, ScoreBreakdown } from '@/entities/token-score';
-import { formatPercent, formatRelativeTime, formatUsd } from '@/shared/lib';
+import {
+  formatPercent,
+  formatPriceUsd,
+  formatRelativeTime,
+  formatUsd,
+} from '@/shared/lib';
 import {
   DevRiskBadge,
   useCompatSnapshot,
@@ -96,7 +101,10 @@ export function TokenDetailPage() {
           </h3>
           {snapshot.data ? (
             <div className="grid grid-cols-2 gap-2 text-sm">
-              <Field label="Price" value={formatUsd(snapshot.data.priceUsd)} />
+              <Field
+                label="Price"
+                value={formatPriceUsd(snapshot.data.priceUsd)}
+              />
               <Field
                 label="Liquidity"
                 value={

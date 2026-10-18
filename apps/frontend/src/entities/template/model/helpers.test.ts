@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   avatarSrcFor,
   filterCallsBySources,
-  formatMc,
   sortRankings,
   splitRankingHalves,
   timeAgo,
@@ -46,13 +45,6 @@ describe('timeAgo', () => {
   it('renders placeholder for null/invalid', () => {
     expect(timeAgo(null)).toBe('—');
     expect(timeAgo('not-a-date')).toBe('—');
-  });
-});
-
-describe('formatMc', () => {
-  it('formats millions and handles null', () => {
-    expect(formatMc(2_500_000)).toBe('$2.50M');
-    expect(formatMc(null)).toBe('—');
   });
 });
 

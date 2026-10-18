@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { TemplateCallRow } from '@/entities/template';
-import { formatMc, timeAgo, trackingLabelFor } from '@/entities/template';
+import { timeAgo, trackingLabelFor } from '@/entities/template';
+import { formatUsd } from '@/shared/lib';
 import { KolAvatar } from './kol-avatar';
 
 interface CallsTableProps {
@@ -131,7 +132,7 @@ export function CallsTable({ rows, isLoading, isError }: CallsTableProps) {
                   ) : null}
                 </td>
                 <td className="px-3 py-2 text-slate-200">
-                  {formatMc(row.mcAt)}
+                  {formatUsd(row.mcAt)}
                 </td>
                 <td className="px-3 py-2">
                   <span

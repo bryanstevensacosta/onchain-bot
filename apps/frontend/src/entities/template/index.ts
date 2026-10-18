@@ -19,7 +19,6 @@ export {
   TEMPLATE_AVATAR_PLACEHOLDER,
   avatarSrcFor,
   filterCallsBySources,
-  formatMc,
   sortRankings,
   splitRankingHalves,
   timeAgo,

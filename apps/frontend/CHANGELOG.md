@@ -6,6 +6,21 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ### Added
 
+- **Formatters money unificados a las reglas dexter (dexter plan todo 70):**
+  `formatUsd` (`shared/lib/format.ts`) reemplaza la regla 2-decimales por la
+  money vigente de dexter (todos 64/65: compacto B/M/K a 1 decimal con ceros
+  colgantes recortados, entero más cercano bajo 1000 — `2.5M`/`1.5B`/`55.7K`,
+  `10.85`→`$11`; sin arrastre de unidad: `999960`→`$1000K`, `999.5`→`$1K`;
+  signo preservado, `—` en null/NaN) y se agrega `formatPriceUsd` (todo 66:
+  `<1` a 8 decimales fijos half-up con ceros recortados, fallback a 3 cifras
+  significativas bajo 1e-8, `>=1` agrupado máx. 2 decimales, `$0` para cero).
+  El duplicado `formatMc` (`entities/template/model/helpers.ts`) se elimina:
+  `CallsTable` (`widgets/template-dashboard`) y el campo Price de token-detail
+  ahora consumen `@/shared/lib`. Tests: nuevo `shared/lib/format.test.ts`
+  (pins dexter 64/65/66, 9 tests) + `helpers.test.ts` sin `formatMc`. Suite
+  completa 55 files / 559 tests verde, `tsc -b` + eslint limpios (evidencia
+  `.omo/evidence/task-fe-frontend-money-vitest.log`).
+
 - **Tail-degraded badge (dexter plan todo 41b):**
   `ResolvedTokenSnapshot` gains optional `degraded?` (backend always
   sets it, older shapes read full). `PreviewSection`
