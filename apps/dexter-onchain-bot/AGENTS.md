@@ -241,6 +241,13 @@ repo-wide by grep. Compose `name:` is explicit (`onchain-bot-dexter`,
   class for `redis`). Owner note: realign or rotate the stale
   `.env.staging` credential in ONE coordinated change (volume + compose
   interpolation + workflow literal).
+- RUN 39127374679 (second run, 2026-10-18): dry-run ✓ + `migration:run`
+  ✓ — the DATABASE_URL fix works (4 migrations applied to
+  `onchain_bot_dexter_staging`); then failed pulling the app image: the
+  build was amd64-only while the Oracle host is aarch64 (`no matching
+manifest for linux/arm64/v8`). Fixed same day: multi-arch build
+  (setup-qemu + `linux/amd64,linux/arm64`, mirroring `deploy.yml`).
+  Evidence: `.omo/evidence/task-dexter-run2-diagnosis.log`.
 - Compose: `docker-compose.staging.yml` (staging `:4061`/`:5441`/`:6388`,
   DB `onchain_bot_dexter_staging`) + `docker-compose.prod.yml` (prod
   `:4062`/`:5448`/`:6395`, DB `onchain_bot_dexter`, `name:
@@ -249,7 +256,10 @@ onchain-bot-dexter-prod`, network `onchain-bot-net`). Prod ports verified
 - Workflows: `.github/workflows/deploy-dexter-staging.yml` (push `dev`,
   tags `:sha` + `:staging-latest`, manual rollback lane) +
   `deploy-dexter-prod.yml` (push `master`, tags `:sha` + `:latest`,
-  automatic rollback lane mirroring `deploy.yml`). Both amd64-only, both own
+  automatic rollback lane mirroring `deploy.yml`). Both build multi-arch
+  (`linux/amd64,linux/arm64` via setup-qemu — Oracle hosts are aarch64;
+  the original amd64-only note was corrected 2026-10-18 after run
+  39127374679 died pulling on arm64), both own
   dexter paths only (anti-double-fire: disjoint from backend/frontend/
   ingestion workflows). Oracle lanes: `pg_dump` backup → precondition SELECT
   probe → `migration:run` in a throwaway `--target builder` one-off

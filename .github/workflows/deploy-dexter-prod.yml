@@ -23,6 +23,10 @@ name: Deploy Dexter to production
 # gate revisits credential policy — if real prod creds get pinned via
 # compose interpolation, update the `-e DATABASE_URL` below in the SAME
 # change.
+# MULTI-ARCH (same-day fix, 2026-10-18): the Oracle host is aarch64 —
+# the amd64-only build died pulling on staging (run 39127374679, `no
+# matching manifest for linux/arm64/v8`). Both workflows now build
+# `linux/amd64,linux/arm64` via setup-qemu (mirror deploy.yml).
 #
 # ANTI-DOUBLE-FIRE: this workflow owns dexter paths ONLY
 # (apps/dexter-onchain-bot/** + itself). Disjoint from deploy.yml
@@ -64,6 +68,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -74,7 +81,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push dexter (amd64-only)
+      - name: Build and push dexter (multi-arch amd64+arm64)
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -85,9 +92,11 @@ jobs:
           tags: ghcr.io/${{ github.repository }}-dexter:${{ github.sha }},ghcr.io/${{ github.repository }}-dexter:latest
           cache-from: type=registry,ref=ghcr.io/${{ github.repository }}-dexter:cache
           cache-to: type=registry,ref=ghcr.io/${{ github.repository }}-dexter:cache,mode=max
-          # amd64-only per plan decision (Oracle runner is amd64; no
-          # multi-arch images for dexter).
-          platforms: linux/amd64
+          # multi-arch: Oracle hosts are aarch64 (verified 2026-10-18;
+          # run 39127374679 died pulling an amd64-only build there).
+          # Mirrors deploy.yml (backend prod, same host). Supersedes the
+          # plan's amd64-only note (its premise was wrong).
+          platforms: linux/amd64,linux/arm64
 
   deploy:
     name: Deploy dexter to Oracle production

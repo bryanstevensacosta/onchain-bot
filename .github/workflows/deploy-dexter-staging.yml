@@ -22,7 +22,13 @@ name: Deploy Dexter to staging
 # match the volume's initialized credential. Fixed same day: explicit
 # `-e DATABASE_URL` on the DB one-offs (no `--env-file` for them) and
 # unique container-name hosts in the compose `environment:` block.
-# Re-run PENDING on this push.
+# RUN 39127374679 (second run, 2026-10-18): dry-run migrations ✓ AND
+# `migration:run` ✓ (4 migrations applied — the DATABASE_URL fix works);
+# then failed at "Pull dexter image and recreate service": the build was
+# amd64-only while the Oracle host is aarch64 (`no matching manifest for
+# linux/arm64/v8`). Fixed same day: multi-arch build (setup-qemu +
+# `linux/amd64,linux/arm64`, mirroring deploy.yml). Re-run PENDING on
+# this push.
 #
 # ANTI-DOUBLE-FIRE: this workflow owns dexter paths ONLY
 # (apps/dexter-onchain-bot/** + itself). Disjoint from deploy.yml /
@@ -65,6 +71,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -75,7 +84,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push dexter (amd64-only)
+      - name: Build and push dexter (multi-arch amd64+arm64)
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -86,9 +95,11 @@ jobs:
           tags: ghcr.io/${{ github.repository }}-dexter:${{ github.sha }},ghcr.io/${{ github.repository }}-dexter:staging-latest
           cache-from: type=registry,ref=ghcr.io/${{ github.repository }}-dexter:cache
           cache-to: type=registry,ref=ghcr.io/${{ github.repository }}-dexter:cache,mode=max
-          # amd64-only per plan decision (Oracle runner is amd64; no
-          # multi-arch images for dexter).
-          platforms: linux/amd64
+          # multi-arch: Oracle hosts are aarch64 (verified 2026-10-18;
+          # run 39127374679 died pulling an amd64-only build there).
+          # Mirrors deploy.yml (backend prod, same host). Supersedes the
+          # plan's amd64-only note (its premise was wrong).
+          platforms: linux/amd64,linux/arm64
 
   deploy:
     name: Deploy dexter to Oracle staging
