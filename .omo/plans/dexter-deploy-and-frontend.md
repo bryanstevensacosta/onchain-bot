@@ -182,7 +182,7 @@ Acceptance criteria:`npx tsc --noEmit`+ full`npm test`verdes;`{{botStartUrl}}`co
       Acceptance criteria: `npx tsc --noEmit` + full `npm test` verdes; specs: retry-uno-solo, cap-respetado, 404-sin-retry, jitter-decorrelaciona.
       QA scenarios: happy + failure (Retry-After:120s → espera 2s, no 120s). Evidence .omo/evidence/task-fe-retry.log
       Commit: Y | feat(market-data-retry): un reintento con cap (docs AGENTS+CHANGELOG)
-- [ ] 19b3. Breaker cableado como skip + half-open de una sonda (Wave 1 follow-up)
+- [x] 19b3. Breaker cableado como skip + half-open de una sonda (Wave 1 follow-up)
       What to do / Must NOT do: Pine UNA: store memoria + reset-on-deploy ACEPTADO y documentado (o Redis — una sola, documentada, no las dos); thresholds (p. ej. 5 fails → 30s cool-off, consistente con defaults existentes); gate en wrapper (`canExecute` → fetcher NO contribuye, jamas throw/gate-bloqueante: fail-open preservado); half-open = UNA sonda al fetcher mas barato (no fan-out completo); metrica de estado. Flapping bajo outage parcial: documentado (cool-off fijo, sin adaptativo). Docs: AGENTS + CHANGELOG.
       Parallelization: solo | Blocked by: 19b2 (retry define la senal que el breaker observa) | Blocks: —
       References: `CircuitBreakerService` (`shared/.../circuit-breaker.service.ts:21-72`) vs `ProviderRegistryService.recordFailure` (`:73-79`, hoy ciego) — UNA sola via, documentada.

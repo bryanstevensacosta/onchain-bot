@@ -5,6 +5,8 @@ import {
 import { SnapshotAggregatorService } from 'aggregators/application/snapshot-aggregator.service';
 import { SnapshotHistoryRepository } from '../infrastructure/snapshot-history.repository';
 import { CircuitBreakerService } from 'shared/infrastructure/rate-limiter/application/circuit-breaker.service';
+import { ProviderHealthChecker } from 'provider/application/provider-health-checker.service';
+import { ProviderRegistryService } from 'provider/application/provider-registry.service';
 import type { QuoteFetcher } from '../domain/snapshot-quote.types';
 
 function healthyFetcher(
@@ -54,19 +56,17 @@ function buildService(
   breaker: CircuitBreakerService | null,
 ) {
   const catalog = { findById: async (id: string) => ({ id }) };
-  const providers = {
-    listProviders: () => [
-      { name: 'dexscreener', supportsChains: ['solana'] },
-      { name: 'geckoterminal', supportsChains: ['solana'] },
-      { name: 'birdeye', supportsChains: ['solana'] },
-    ],
-    recordSuccess: jest.fn(),
-    recordFailure: jest.fn(),
-  };
+  // REAL registry (todo 19b3): the failure relay under test lives
+  // there (`recordFailure` ticks telemetry AND feeds the shared
+  // breaker), so a stub would mock the behavior being pinned.
+  const providers = new ProviderRegistryService(
+    new ProviderHealthChecker(),
+    breaker,
+  );
   const kinds = { detect: async () => 'token' as const };
   const service = new AddressSnapshotService(
     catalog as never,
-    providers as never,
+    providers,
     kinds as never,
     new SnapshotAggregatorService(),
     new SnapshotHistoryRepository(),
@@ -92,13 +92,15 @@ const INPUT = {
 };
 
 /**
- * Breaker wiring (dexter plan todo 29, 19b3): the ONE gating path is
- * the existing CircuitBreakerService (memory store, 5 fails -> 30s
- * cool-off defaults); the registry counters stay telemetry-only.
- * `canExecute === false` skips the fetcher (fail-open, never throws);
- * half-open admits a SINGLE cheapest-fetcher probe; state is exposed
- * via `breakerStates()`. Specs use threshold 2 for speed — the
- * production default (5/30s) is pinned in the service's own spec.
+ * Breaker wiring (dexter plan todo 29 gate + todo 19b3 single-path
+ * relay): the ONE breaker is the existing CircuitBreakerService
+ * (memory store, 5 fails -> 30s cool-off defaults), fed by the REAL
+ * registry (`ProviderRegistryService.recordFailure` — telemetry tick +
+ * relay; `'no data'` never relays). `canExecute === false` skips the
+ * fetcher (fail-open, never throws); half-open admits a SINGLE
+ * cheapest-fetcher probe; state is exposed via `breakerStates()`.
+ * Specs use threshold 2 for speed — the production default (5/30s) is
+ * pinned in the service's own spec.
  */
 describe('AddressSnapshotService breaker gate (todo 29)', () => {
   it('closed breakers admit every fetcher (throws stay visible)', async () => {
@@ -266,13 +268,15 @@ describe('AddressSnapshotService breaker gate (todo 29)', () => {
       [healthyFetcher('dexscreener', calls), mystery],
       breaker,
     );
+    const report = jest.spyOn(providers, 'recordFailure');
     await service.getSnapshot(INPUT);
     await service.getSnapshot(INPUT);
-    // The service still reports the throw to the registry (the REAL
-    // registry ignores unknown names via its descriptor guard — the
-    // stub has no guard, so it records); the BREAKER never creates a
-    // row for a non-fetcher.
-    expect(providers.recordFailure).toHaveBeenCalledWith('mystery');
+    // The service still reports the throw to the registry; the REAL
+    // registry then ignores the unknown name via its descriptor guard
+    // (spy calls through), so the BREAKER never creates a row for a
+    // non-fetcher.
+    expect(report).toHaveBeenCalledWith('mystery', 'transport boom');
+    expect(providers.getStatus('mystery')).toBeNull();
     expect(breaker.getState(snapshotBreakerKey('mystery'))).toBe('closed');
     expect(service.breakerStates()).not.toHaveProperty('mystery');
   });

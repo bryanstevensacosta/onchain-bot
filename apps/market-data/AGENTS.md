@@ -1300,25 +1300,34 @@ host=<hostname>, public fallback armed)` or `public-only
   worst case ~10 outbound calls per cold snapshot (launchpad ≤4, venue
   ≤2, dev ≤3 solana-only), spread over tiers; each extra abandoned at
   400ms, never retried — bursts cannot stack past one 400ms window.
-- Breaker — ONE way (19b3): the existing `CircuitBreakerService`
-  (defaults: 5 consecutive failures → 30s cool-off) gates the fan-out
-  (`canExecute === false` REMOVES the fetcher for that snapshot with an
-  explicit skip note — fail-open, never throws). Registry
-  `recordFailure` counters stay TELEMETRY-only (gateway `listStatus`),
-  never a gate. Memory store + reset-on-deploy ACCEPTED (deploy wipes
-  counts — flapping providers get a clean slate per deploy). Observed
-  signal = THROWS only (timeout / outbound-deny / adapter errors);
-  `'no data'` is conservatively ignored (an exhausted 19b2 retry
-  collapses to the same `'no data'` as honest-empty — documented blind
-  spot, no new taxonomy). Success = contributed OR ran-clean-without-
-  contributing (aggregate-settled fanout only — fast-path in-flight
-  fetchers are never prematurely blessed). Half-open = SINGLE cheapest
+- Breaker — ONE failure path (19b3 wiring, todo-29 gate): the existing
+  `CircuitBreakerService` (defaults: 5 consecutive failures → 30s
+  cool-off) gates the fan-out (`canExecute === false` REMOVES the
+  fetcher for that snapshot with an explicit skip note — fail-open,
+  never throws) and is fed by the ONE failure writer:
+  `ProviderRegistryService.recordFailure(name, reason?)` ticks its
+  telemetry counters (gateway `listStatus`) AND relays every failure
+  except `'no data'` to the breaker under `snapshotBreakerKey`
+  (`snapshot-fetcher:<name>`; single definition in
+  `shared/infrastructure/rate-limiter/domain/snapshot-breaker-key.ts`
+  shared by relay + gate — the registry cannot import the snapshot
+  service, cycle). Success side = documented asymmetry: both flavors
+  (contributed AND ran-clean-without-contributing, aggregate-settled
+  fanout only — fast-path in-flight fetchers are never prematurely
+  blessed) stay direct at the snapshot seam; idle-success has no
+  registry counterpart. Memory store + reset-on-deploy ACCEPTED
+  (deploy wipes counts — flapping providers get a clean slate per
+  deploy). Observed signal = THROWS only (timeout / outbound-deny /
+  adapter errors); `'no data'` is conservatively ignored (an exhausted
+  19b2 retry collapses to the same `'no data'` as honest-empty —
+  documented blind spot, no new taxonomy). Half-open = SINGLE cheapest
   probe (first half-open fetcher in policy order; the rest skip until
   the probe settles). Flapping = fixed cool-off re-open, no adaptive
   backoff. State metric: `breakerStates()` + transition logs
-  (`breaker open` warn / `half-open probe admitted` + `breaker closed`
-  log). Specs: open / close / half-open-single-probe / flapping /
-  no-data-neutral / unknown-name-parity.
+  (registry `breaker open` warn / `half-open probe admitted` +
+  `breaker closed` log). Specs: relay-opens / close /
+  half-open-single-probe / flapping / no-data-neutral /
+  unknown-name-parity.
 - EVM-miss spans (no new tracing lib): `DirectFastPathResult.timings`
   gains nullable `v2Ms` / `v3Ms` / `anchorMs` (per-family reads +
   native-anchor leg; Solana leaves them null by design); every EVM-miss
@@ -1514,8 +1523,8 @@ buckets · ccxt 600/min (ohlcv cost 5) · Helius archival bounded (dev ≤1/fire
 400ms tail; origin ≤2/fire 8s Solana-LAST) · Shyft M-healthy (cold-scan 4 ≤
 20/s ✓) · public Solana A-40/10s · Alchemy M-healthy (8/8 nets) · dRPC
 M-healthy. Retry worst case 2 req/miss (cap 2000ms + jitter); tail ≤10
-calls/cold @400ms abandon; breaker 5 fails → 30s (registry counters
-telemetry-only).
+calls/cold @400ms abandon; breaker 5 fails → 30s (registry relays
+failures AND ticks telemetry — ONE path since 19b3).
 
 Staleness/refresh rules (UNCHANGEABLE without a quota todo): edge 30s TTL ·
 SWR ≤24h + bit · history 90d janitor · discovery cache 30d + tripwire · PONS

@@ -9,6 +9,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Breaker single failure path — registry relay (dexter plan todo
+  19b3):** `ProviderRegistryService.recordFailure(name, reason?)` is now
+  the ONE failure writer — it ticks its telemetry counters (gateway
+  `listStatus`, unchanged) AND relays every failure except the exact
+  `'no data'` marker into the shared `CircuitBreakerService` under
+  `snapshotBreakerKey(name)` (`snapshot-fetcher:<name>`), the SAME key
+  `AddressSnapshotService.applyBreakerGate` reads (`canExecute ===
+false` removes the fetcher with an explicit skip note — fail-open,
+  never throws). `AddressSnapshotService` no longer writes the breaker
+  directly on the failure side — the `'no data'` blind-spot guard, the
+  unknown-name descriptor parity skip and the `breaker open` warn log
+  moved into the registry (its failure loop is now one call:
+  `providers.recordFailure(name, outcome.errors[name])`). Success side
+  stays direct at the snapshot seam (contributed + idle-success —
+  documented asymmetry: idle-success has no registry counterpart). Key
+  definition moved to
+  `shared/infrastructure/rate-limiter/domain/snapshot-breaker-key.ts`
+  so relay + gate share ONE definition (the registry cannot import the
+  snapshot service — cycle); re-exported from
+  `address-snapshot.service.ts` for compat. Thresholds UNCHANGED
+  (defaults 5 consecutive failures → 30s cool-off; memory store +
+  reset-on-deploy accepted; flapping = fixed cool-off, no adaptive
+  backoff). Specs: 5 new relay specs in
+  `provider-registry.service.spec.ts` (relay opens, `'no data'` never
+  relays, missing reason counts, unknown-name parity, no-breaker
+  telemetry-identical), the registry↔breaker DI wire in
+  `provider.module.spec.ts`, and the `address-snapshot-breaker.spec.ts`
+  acceptance set now runs against the REAL registry (open / close /
+  half-open-single-probe / flapping / no-data-neutral /
+  unknown-name-parity). 144 suites / 1034 tests green (baseline 1028;
+  +6), `tsc --noEmit` clean. Evidence:
+  `.omo/evidence/task-fe-breaker.log`.
+
 - **One-shot historical FDV-ATH seed — keyless GeckoTerminal `ohlcv/day`
   (dexter plan todo 68, owner decision 2026-10-18):** on a token's first
   sight (marker `geckoterminal-ath-seed` absent on any of its history

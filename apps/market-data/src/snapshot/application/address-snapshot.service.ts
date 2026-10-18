@@ -78,6 +78,7 @@ import { applySingleRetryFetchers } from 'provider/infrastructure/quote-fetchers
 import { DevHoldingsPort } from '../../holders/domain/holdings.port';
 import { AssetResolverService } from 'asset-registry/application/asset-resolver.service';
 import { CircuitBreakerService } from 'shared/infrastructure/rate-limiter/application/circuit-breaker.service';
+import { snapshotBreakerKey } from 'shared/infrastructure/rate-limiter/domain/snapshot-breaker-key';
 import {
   DIRECT_FAST_PATH_DEADLINE_MS,
   DirectFastPathService,
@@ -177,9 +178,12 @@ export const METADATA_IDENTITY_BUDGET_MS = 2000;
 export const SNAPSHOT_TAIL_LAUNCHPAD_TIMEOUT_MS_DEFAULT =
   DETECTOR_SLOW_LEG_TIMEOUT_MS_DEFAULT;
 
-/** Breaker key namespace (disjoint from the `outbound:` buckets). */
-export const snapshotBreakerKey = (name: string): string =>
-  `snapshot-fetcher:${name}`;
+// Breaker key namespace moved to
+// `shared/infrastructure/rate-limiter/domain/snapshot-breaker-key.ts`
+// (dexter plan todo 19b3): the registry failure relay and this gate
+// share ONE definition (the registry cannot import this service —
+// cycle). Re-exported here so existing spec imports keep working.
+export { snapshotBreakerKey };
 
 /**
  * Chunked parallel runner (todo 29: no p-limit-style helper exists in
@@ -1633,29 +1637,17 @@ export class AddressSnapshotService {
         }
       }
     }
+    // Failure recording is ONE path (dexter plan todo 19b3): the
+    // registry ticks its telemetry counters AND relays the transport
+    // failure to the shared breaker under the same `snapshotBreakerKey`
+    // this gate reads. `'no data'` stays the conservative blind spot
+    // and unknown names keep the registry's descriptor parity skip —
+    // both documented on `ProviderRegistryService.recordFailure`. The
+    // success side stays direct below (idle-success has no registry
+    // counterpart — documented asymmetry).
     for (const name of Object.keys(outcome.errors)) {
       if (!outcome.sources.includes(name)) {
-        this.providers.recordFailure(name);
-        // KNOWN BLIND SPOT (documented, not hidden): an exhausted 19b2
-        // retry collapses to fulfilled-null, so the aggregator records
-        // the SAME `'no data'` as an honest empty — the breaker cannot
-        // tell a 429-storm from no-market without a new taxonomy, and
-        // inventing one here would churn the merge contract. The
-        // breaker therefore counts only THROWS (timeout / outbound-deny
-        // / adapter errors) and stays conservative on `'no data'`.
-        if (knownFetcherNames.has(name) && outcome.errors[name] !== 'no data') {
-          const key = snapshotBreakerKey(name);
-          this.breaker?.recordFailure(key);
-          if (
-            this.breaker?.getState(key) === 'open' &&
-            this.breaker !== null &&
-            this.breaker !== undefined
-          ) {
-            this.logger.warn(
-              `breaker open: ${name} (5 consecutive transport failures — 30s cool-off, skips fail-open; resets on deploy)`,
-            );
-          }
-        }
+        this.providers.recordFailure(name, outcome.errors[name]);
       }
     }
     // Idle-success (fanout path only): an admitted fetcher that ran
