@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Money sub-1000 whole integer + price 8 fixed decimals (dexter plan
+  todos 65/66; re-pin 2026-10-18 with SPEED BSC evidence):**
+  `formatMoneyText` keeps K/M/B at 1 decimal (todo 64 intact:
+  `55.7K`/`1.5B`/`11K`/`999.9K` and the no-carry edge `1000K`) while
+  the sub-1000 branch now rounds to the nearest WHOLE integer
+  (`983.78` → `984`, `94.31` → `94`, `752.1` → `752`, `10.85` → `11`,
+  `146.285` → `146`, `0.94` → `1`, `749`) — SPEED: Rick renders all
+  four sub-1000 money samples whole (`752`/`146`/`11`/`749`) and
+  `10.85`→`11` discards truncation (nearest, not floor). Guard: a
+  sub-1000 whole rounding up to a bare unit-less `1000`
+  (`999.5`–`999.99…`) carries to `1K`, never `1000` — mirror of the
+  ≥1000 no-carry edge. `formatPriceText` `<1` now renders fixed 8
+  decimals half-up with trailing zeros stripped (`0.00002434` — was
+  `0.0000243`; `0.00004128` — was `0.0000413`; `0.002345`; `0.5`)
+  per SPEED (DS raw `0.0000007521` → Rick `0.00000075`, which
+  discriminates the old 3-sig-figs rule); ultra-dust below 1e-8 falls
+  back to the legacy 3-sig-figs rule, never `0` (`1.23e-9` →
+  `0.00000000123`); `>=1` grouped max-2 intact. Specs re-pinned in
+  `scan-card.spec.ts` and `template-renderer.service.spec.ts` (+20
+  pinned cases; suite 690→710). Evidence:
+  `.omo/evidence/task-fe-format2.log`.
+
 - **Money compact at 1 decimal (dexter plan todo 64; owner re-pin
   2026-10-17 post research 58, supersedes the up-to-2-dec rule):**
   `formatMoneyText` applies `trimFixed(x, 1)` on all four branches

@@ -70,15 +70,17 @@ export class MessageFormatterAdapter {
    * `USD: 0.00234`, `Ether [3,457/-2.5%]`).
    *
    * One rule per metric, presentation layer only:
-   * - money (mc/fdv/liq/vol/ath) → compact K/M/B at 1 decimal, NO `$`
-   *   prefix (`23.3K`, `7.9K`, `1.5B`, `983.8`, `752`); `$` lives in
-   *   template bodies as literal static text where a style wants it
-   *   (Proficy-style).
-   * - price (`priceUsd` only) → adaptive: `<1` max 3 significant
-   *   figures half-up, trailing zeros stripped (`0.00000242`,
-   *   `0.0000243`, never `$0.00`); `>=1` grouped
-   *   max-2 (`3,457`, `164.32`). Routed by the renderer, NOT via
-   *   `formatMoneyText` (other money fields keep the compact rule).
+   * - money (mc/fdv/liq/vol/ath) → compact K/M/B at 1 decimal and a
+   *   nearest whole integer below 1000 (`23.3K`, `7.9K`, `1.5B`, `984`,
+   *   `752`, `11`; whole-integer sub-1000 re-pin 2026-10-18 with SPEED
+   *   evidence), NO `$` prefix; `$` lives in template bodies as literal
+   *   static text where a style wants it (Proficy-style).
+   * - price (`priceUsd` only) → adaptive: `<1` fixed 8 decimals
+   *   half-up, trailing zeros stripped (`0.00002434`, `0.00000075`,
+   *   never `$0.00`; ultra-dust below 1e-8 falls back to the legacy
+   *   3-significant-figure rule); `>=1` grouped max-2 (`3,457`,
+   *   `164.32`). Routed by the renderer, NOT via `formatMoneyText`
+   *   (other money fields keep the compact rule).
    * - percent → 1-decimal-trimmed, sign ONLY when negative
    *   (`80%`, `-34.4%`, never `+`; `-0` normalizes to `0%`).
    * - counts → `formatNumberText`, unchanged.
@@ -86,16 +88,20 @@ export class MessageFormatterAdapter {
    *
    * Shared helper: `trimFixed` = `toFixed(n)` with trailing zeros
    * (and a dangling dot) stripped; `-0` normalizes to `0`.
-   * Money is strictly 1 decimal (owner re-pin 2026-10-17, plan
+   * Money is 1 decimal at K/M/B (owner re-pin 2026-10-17, plan
    * todo 64, post research 58: the 3-significant-figures vs
    * 1-decimal tie was sample-indecidable and the owner picked 1 dec;
-   * this supersedes the old "up to 2 decimals so evidence renders
-   * verbatim (`30.22K`, `1.46B`)" rationale). Every Rick money sample
-   * (`23.3K`, `7.9K`, `1.8K`, `2.4K`, `12.9K`, `19.1K`, `86K`, `170K`,
-   * `1.2M`, `2.3M`, `749`) is covered. Edge: rounding carries the
-   * mantissa only, never the unit — `999.96K` renders `1000K` (same as
-   * the old 2-dec rule; unobserved in Rick; documented and pinned,
-   * NOT rolled up to `1M`).
+   * supersedes the old "up to 2 decimals so evidence renders
+   * verbatim (`30.22K`, `1.46B`)" rationale) and a nearest WHOLE
+   * integer below 1000 (re-pin 2026-10-18, plan todo 65: 4/4 SPEED
+   * money samples sub-1000 are whole — `752` ← 752.1, `146` ← 146.285,
+   * `11` ← 10.85, `749` — and 10.85→11 discards truncation, so
+   * nearest, not floor). Edge at ≥1000: rounding carries the mantissa
+   * only, never the unit — `999.96K` renders `1000K` (same as the old
+   * 2-dec rule; unobserved in Rick; documented and pinned, NOT rolled
+   * up to `1M`). Edge below 1000 (`formatMoneyText` guard): a whole
+   * that rounds up to `1000` (999.5–999.99…) renders `1K`, never a
+   * bare unit-less `1000`.
    */
   private static trimFixed(value: number, maxDecimals: number): string {
     let text = value.toFixed(maxDecimals);
@@ -106,6 +112,15 @@ export class MessageFormatterAdapter {
     return text;
   }
 
+  /**
+   * Money rule (plan todos 13/64/65): compact B/M/K at 1 decimal with
+   * trailing-zero strip; below 1000 a nearest whole integer (SPEED
+   * evidence 2026-10-18: `752.1→752`, `10.85→11`, `146.285→146`,
+   * `749`). Guard (todo 65): a sub-1000 whole rounding up to `1000`
+   * (`999.5`–`999.99…`) renders `1K`, never a bare unit-less `1000`
+   * — mirror of the ≥1000 no-carry edge (`999.96K` stays `1000K`).
+   * Sign preserved, no `$`, null/undefined → `N/A`.
+   */
   public static formatMoneyText(value: number | null): string {
     if (value === null || value === undefined) return 'N/A';
     const sign = value < 0 ? '-' : '';
@@ -116,33 +131,55 @@ export class MessageFormatterAdapter {
       return `${sign}${MessageFormatterAdapter.trimFixed(abs / 1_000_000, 1)}M`;
     if (abs >= 1_000)
       return `${sign}${MessageFormatterAdapter.trimFixed(abs / 1_000, 1)}K`;
-    return `${sign}${MessageFormatterAdapter.trimFixed(abs, 1)}`;
+    const whole = MessageFormatterAdapter.trimFixed(abs, 0);
+    if (whole === '1000') return `${sign}1K`;
+    return `${sign}${whole}`;
   }
 
   /**
    * Adaptive price rule for `priceUsd` (fixes the live `$0.00`-for-dust
    * bug: dust used to flow through `formatMoneyText`). `<1` renders
-   * at most 3 significant figures, half-up, trailing zeros stripped
-   * (plan todo 45: `0.000002417035478` → `0.00000242`, `0.5` intact;
-   * exponent form expanded, never scientific); `>=1` renders grouped
-   * with max 2 decimals (`3,457` intact). Zero/negative/NaN pass
-   * through untouched (`0`, `-`-prefixed, `NaN` respectively).
+   * fixed 8 decimals half-up via `toFixed(8)`, trailing zeros stripped
+   * (`0.00002434`, `0.002345`, `0.00000075`) — re-pin 2026-10-18, plan
+   * todo 66, SPEED evidence: DS raw `0.0000007521` → Rick
+   * `0.00000075`, which discriminates against the previous max-3-
+   * significant-figures rule (4 sig figs would yield `0.0000007521`
+   * verbatim); S3b rounding-boundary sample absent, `toFixed` half-up
+   * pinned and documented. Guard: ultra-dust below 1e-8 collapses to
+   * `0` at 8 decimals — fall back to the legacy 3-significant-figure
+   * rule (`significant3Text`), never `0` for a non-zero value. `>=1`
+   * renders grouped with max 2 decimals (`3,457` intact). Exponent
+   * form expanded, never scientific. Zero/negative/NaN pass through
+   * untouched (`0`, `-`-prefixed, `NaN` respectively).
    */
   public static formatPriceText(value: number | null): string {
     if (value === null || value === undefined) return 'N/A';
     if (value === 0) return '0';
     const abs = Math.abs(value);
+    const sign = value < 0 ? '-' : '';
     if (abs < 1) {
-      const sig3 = abs.toPrecision(3);
-      const plain = sig3.includes('e')
-        ? MessageFormatterAdapter.expandExponential(sig3)
-        : sig3;
-      const stripped = plain.includes('.')
-        ? plain.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '')
-        : plain;
-      return `${value < 0 ? '-' : ''}${stripped}`;
+      const fixed8 = MessageFormatterAdapter.trimFixed(abs, 8);
+      if (fixed8 === '0') {
+        return `${sign}${MessageFormatterAdapter.significant3Text(abs)}`;
+      }
+      return `${sign}${fixed8}`;
     }
     return value.toLocaleString('en-US', { maximumFractionDigits: 2 });
+  }
+
+  /**
+   * Legacy sub-1 price rule (plan todo 45): max 3 significant figures,
+   * half-up, exponent form expanded, trailing zeros stripped. Now only
+   * the <1e-8 dust fallback inside `formatPriceText` (todo 66).
+   */
+  private static significant3Text(abs: number): string {
+    const sig3 = abs.toPrecision(3);
+    const plain = sig3.includes('e')
+      ? MessageFormatterAdapter.expandExponential(sig3)
+      : sig3;
+    return plain.includes('.')
+      ? plain.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '')
+      : plain;
   }
 
   private static expandExponential(raw: string): string {

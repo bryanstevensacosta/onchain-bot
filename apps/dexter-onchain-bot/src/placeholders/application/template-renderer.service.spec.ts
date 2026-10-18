@@ -240,8 +240,16 @@ describe('Rick-parity number policy (plan todo 13, evidence examples.md)', () =>
     [80_000_000_000, '80B'],
     [12_900, '12\\.9K'],
     [752, '752'],
-    [983.78, '983\\.8'],
-    [94.31, '94\\.3'],
+    // Sub-1000 whole-integer re-pin (plan todo 65, SPEED evidence
+    // 2026-10-18): nearest, not truncation (`10.85` → `11`).
+    [983.78, '984'],
+    [94.31, '94'],
+    [752.1, '752'],
+    [10.85, '11'],
+    [146.285, '146'],
+    [749, '749'],
+    [0.94, '1'],
+    [999.4, '999'],
     [55_670, '55\\.7K'],
     // toFixed(1) yields `11.0`; the dangling `.0` is stripped.
     [10_974.57, '11K'],
@@ -249,6 +257,9 @@ describe('Rick-parity number policy (plan todo 13, evidence examples.md)', () =>
     // Edge (plan todo 64): mantissa carries, unit never — `999.96` →
     // `1000.0` → `1000K`, NOT rolled up to `1M`.
     [999_960, '1000K'],
+    // Edge (plan todo 65): sub-1000 whole that rounds up to a bare
+    // `1000` carries to `1K` instead (999.5–999.99…).
+    [999.5, '1K'],
   ])('money %p renders compact without `$`: %p', (value, expected) => {
     const out = policyRenderer().render(
       '{{marketCapUsd}}',
@@ -261,16 +272,22 @@ describe('Rick-parity number policy (plan todo 13, evidence examples.md)', () =>
 
   it.each([
     [0.000002417035478, '0\\.00000242'],
-    [0.00002434, '0\\.0000243'],
-    [0.00004128, '0\\.0000413'],
+    // Price 8-dp re-pin (plan todo 66, SPEED evidence 2026-10-18):
+    // fixed 8 decimals half-up, trailing zeros stripped.
+    [0.00002434, '0\\.00002434'],
+    [0.00004128, '0\\.00004128'],
     [0.00000086, '0\\.00000086'],
-    [0.002345, '0\\.00234'],
+    [0.002345, '0\\.002345'],
+    [7.521e-7, '0\\.00000075'],
+    [0.0000007521, '0\\.00000075'],
+    // Ultra-dust below 1e-8 → legacy 3-sig-fig fallback, never `0`.
+    [1.23e-9, '0\\.00000000123'],
     [0.5, '0\\.5'],
     [3457, '3,457'],
     [164.32, '164\\.32'],
     [100, '100'],
   ])(
-    'priceUsd %p renders adaptive (3 sig figs, never `$0.00`)',
+    'priceUsd %p renders fixed 8 decimals stripped, never `$0.00`',
     (value, expected) => {
       const out = policyRenderer().render(
         'USD: {{priceUsd}}',
@@ -312,7 +329,7 @@ describe('Rick-parity number policy (plan todo 13, evidence examples.md)', () =>
     },
   );
 
-  it('Rick evidence body renders `[23.3K/80%]` + `USD: 0.0000243` + `Liq: 7.9K`', () => {
+  it('Rick evidence body renders `[23.3K/80%]` + `USD: 0.00002434` + `Liq: 7.9K`', () => {
     const out = policyRenderer().render(
       '[{{marketCapUsd}}/{{priceChange24h}}]\nUSD: {{priceUsd}}\nLiq: {{liquidityUsd}}',
       {
@@ -324,7 +341,7 @@ describe('Rick-parity number policy (plan todo 13, evidence examples.md)', () =>
       },
       'ca',
     );
-    expect(out.text).toBe('[23\\.3K/80%]\nUSD: 0\\.0000243\nLiq: 7\\.9K');
+    expect(out.text).toBe('[23\\.3K/80%]\nUSD: 0\\.00002434\nLiq: 7\\.9K');
   });
 
   it('Proficy style gets `$` from literal body text (`MC: $27.3K`)', () => {
@@ -345,13 +362,13 @@ describe('Rick-parity number policy (plan todo 13, evidence examples.md)', () =>
     expect(out.text).toBe('`MC` **$30\\.2K**');
   });
 
-  it('Soul dust renders plain (`USD: 0.0000413`, never `$0.00`)', () => {
+  it('Soul dust renders plain (`USD: 0.00004128`, never `$0.00`)', () => {
     const out = policyRenderer().render(
       '`USD:` **{{priceUsd}}**',
       { ...TOKEN, priceUsd: 0.00004128 },
       'ca',
     );
-    expect(out.text).toBe('`USD:` **0\\.0000413**');
+    expect(out.text).toBe('`USD:` **0\\.00004128**');
   });
 
   it('nulls still render `N/A` on every numeric key', () => {

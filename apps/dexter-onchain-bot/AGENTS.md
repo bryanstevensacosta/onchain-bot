@@ -560,22 +560,32 @@ matchValue:'pump-fun', display:'Pump'}`.
   Chain-agnostic by design (one row per mint, all chains).
 
 - Number policy Rick-parity (plan todo 13): formatters emit NO `$`
-  (money → compact K/M/B at 1 decimal trimmed, owner re-pin plan
-  todo 64 2026-10-17 post research 58: `23.3K`/`7.9K`/`1.5B`/`983.8`;
+  (money → compact K/M/B at 1 decimal trimmed at ≥1000 (`23.3K`/`7.9K`/
+  `1.5B`; owner re-pin plan todo 64 2026-10-17 post research 58) and a
+  nearest WHOLE integer below 1000 (`984`/`752`/`146`/`11`/`749`;
+  re-pin plan todo 65 2026-10-18, SPEED evidence: Rick renders all four
+  sub-1000 money samples whole and `10.85`→`11` discards truncation);
   supersedes the old up-to-2-dec rule `1.46B`/`30.22K`. Rounding
   carries the mantissa only, never the unit: `999.96K` → `1000K`
-  (no roll to `1M`). `priceUsd` → adaptive `<1` max-3-sig-figs
-  half-up `0.0000243` / `>=1` grouped max-2 `3,457`; percent →
-  trimmed sign-only-when-negative `80%`/`-34.4%`, `-0` → `0%`;
-  counts unchanged; `N/A` on null). `$` is literal body text where a
-  style wants it (Proficy-style `MC: ${{marketCapUsd}}` → `$27.3K`;
-  Rick-style bodies carry none). Raw `$` is valid MarkdownV2 (not in
-  the reserved set — no escaping needed; the renderer escapes VALUES
-  only, bodies travel raw).
-  Cap de significativos en precio adaptativo (plan todo 45):
-  `priceUsd <1` capped at 3 sig figs half-up, trailing zeros
-  stripped (`0.000002417035478` → `0.00000242`; `0.5`/`3,457` intact;
-  zero/negative/NaN pass through).
+  (no roll to `1M`); below 1000 a whole rounding up to `1000`
+  (`999.5`–`999.99…`) carries to `1K`, never a bare unit-less `1000`.
+  `priceUsd` → adaptive `<1` fixed 8 decimals half-up, trailing zeros
+  stripped (`0.00002434`, `0.00000075`; re-pin plan todo 66 2026-10-18,
+  SPEED evidence: DS raw `0.0000007521` → Rick `0.00000075`,
+  which discriminates the old 3-sig-figs rule; ultra-dust below 1e-8
+  falls back to the legacy 3-sig-figs rule, never `0`) / `>=1` grouped
+  max-2 `3,457`; percent → trimmed sign-only-when-negative
+  `80%`/`-34.4%`, `-0` → `0%`; counts unchanged; `N/A` on null). `$` is
+  literal body text where a style wants it (Proficy-style
+  `MC: ${{marketCapUsd}}` → `$27.3K`; Rick-style bodies carry none).
+  Raw `$` is valid MarkdownV2 (not in the reserved set — no escaping
+  needed; the renderer escapes VALUES only, bodies travel raw).
+  Legacy cap de significativos en precio adaptativo (plan todo 45):
+  max-3-sig-figs half-up, trailing zeros stripped
+  (`0.000002417035478` → `0.00000242`; `0.5`/`3,457` intact;
+  zero/negative/NaN pass through) — SUPERSEDED by the 8-dp rule above
+  for values ≥1e-8; retained ONLY as the <1e-8 dust fallback (never
+  renders `0` for a non-zero price).
 
 - Liquidity-ratio placeholder (plan todo 62): derived key
   `liquidityRatio` on EVERY command — Rick-parity `xN` multiplier

@@ -51,15 +51,15 @@ describe('MessageFormatterAdapter.formatScanCard (dexter own template)', () => {
     expect(out.text.length).toBeLessThanOrEqual(4096);
   });
 
-  it('Rick parity: dust price renders full digits, MC/liq compact, percent trimmed', () => {
+  it('Rick parity: sub-1 price renders 8 fixed decimals, MC/liq compact/whole, percent trimmed', () => {
     const formatter = new MessageFormatterAdapter();
     const out = formatter.formatScanCard(FIXTURE);
-    // priceUsd 0.00000086 — adaptive dust path, exact segment (never `$0.00`).
+    // priceUsd 0.00000086 — fixed-8-dp path, exact segment (never `$0.00`).
     expect(out.text).toContain('💰 0\\.00000086 ');
     // marketCapUsd 752 — compact, no `$`.
     expect(out.text).toContain('MC 752');
-    // liquidityUsd 983.78 — compact 1-dec (plan todo 64), no `$`.
-    expect(out.text).toContain('Liq 983\\.8');
+    // liquidityUsd 983.78 — sub-1000 nearest whole (plan todo 65), no `$`.
+    expect(out.text).toContain('Liq 984');
     // priceChange24h -0.7 — trimmed, negative sign only.
     expect(out.text).toContain('\\-0\\.7%');
     expect(out.text).not.toContain('+');
@@ -81,8 +81,20 @@ describe('MessageFormatterAdapter statics (Rick-parity number policy)', () => {
     // `999.96` rounds to `1000.0` → `1000K`. NO roll to `1M` (same as the
     // old 2-dec rule; unobserved in Rick; documented and pinned).
     [999_960, '1000K'],
-    [983.78, '983.8'],
-    [94.31, '94.3'],
+    // Sub-1000 whole-integer re-pin (plan todo 65, SPEED evidence
+    // 2026-10-18): nearest, not truncation (`10.85` → `11`).
+    [983.78, '984'],
+    [94.31, '94'],
+    [752.1, '752'],
+    [10.85, '11'],
+    [146.285, '146'],
+    [749, '749'],
+    [0.94, '1'],
+    [999.4, '999'],
+    // Edge (plan todo 65): 999.5 rounds up to a bare unit-less `1000`,
+    // which the sub-1000 branch must never render → carry to `1K`
+    // (mirror of the ≥1000 no-carry edge above).
+    [999.5, '1K'],
     [null, 'N/A'],
   ])('formatMoneyText(%p) → %p', (value, expected) => {
     expect(MessageFormatterAdapter.formatMoneyText(value)).toBe(expected);
@@ -90,12 +102,19 @@ describe('MessageFormatterAdapter statics (Rick-parity number policy)', () => {
 
   it.each([
     [0.000002417035478, '0.00000242'],
-    [0.00002434, '0.0000243'],
-    [0.00004128, '0.0000413'],
+    // Price 8-dp re-pin (plan todo 66, SPEED evidence 2026-10-18):
+    // fixed 8 decimals half-up, trailing zeros stripped.
+    [0.00002434, '0.00002434'],
+    [0.00004128, '0.00004128'],
     [0.00000086, '0.00000086'],
-    [0.002345, '0.00234'],
+    [0.002345, '0.002345'],
+    [7.521e-7, '0.00000075'],
+    [0.0000007521, '0.00000075'],
     [0.5, '0.5'],
     [0.001, '0.001'],
+    // Ultra-dust below 1e-8 collapses to `0` at 8 dp → legacy
+    // 3-sig-fig fallback, never `0` (plan todo 66 guard).
+    [1.23e-9, '0.00000000123'],
     [0, '0'],
     [-0.000002417035478, '-0.00000242'],
     [-0.5, '-0.5'],
