@@ -225,6 +225,22 @@ repo-wide by grep. Compose `name:` is explicit (`onchain-bot-dexter`,
   2026-10-18; the sync excludes `.env*`). The prod workflow stays DORMANT
   until the master merge gate; `/opt/onchain-bot/apps/dexter-onchain-bot/`
   is CREATED by the prod sync on its first run (absent on Oracle today).
+- RUN 39126203303 (first real rollout, 2026-10-18): provisioning steps
+  ALL passed; aborted PRE-WRITE at the migration dry-run (`28P01`).
+  Double root cause (evidence
+  `.omo/evidence/task-dexter-run1-diagnosis.log`): (1) ALIAS COLLISION —
+  the shared `onchain-bot-staging-net` has ~7 postgres containers
+  claiming the `postgres` alias (Docker DNS round-robins; a one-off hit
+  the wrong server); (2) CREDENTIAL DRIFT — the staging volume was
+  initialized (2026-09-27) with the compose defaults (`onchain_bot`),
+  while the operator `.env.staging` carries a different password (never
+  exercised: the running app boots with `DATABASE_ENABLED` unset =
+  in-memory mode). Fix: DB one-offs take an explicit `-e DATABASE_URL`
+  with the UNIQUE container-name host (no `--env-file`); compose
+  `DATABASE_URL`/`REDIS_URL` hosts are unique container names too (same
+  class for `redis`). Owner note: realign or rotate the stale
+  `.env.staging` credential in ONE coordinated change (volume + compose
+  interpolation + workflow literal).
 - Compose: `docker-compose.staging.yml` (staging `:4061`/`:5441`/`:6388`,
   DB `onchain_bot_dexter_staging`) + `docker-compose.prod.yml` (prod
   `:4062`/`:5448`/`:6395`, DB `onchain_bot_dexter`, `name:

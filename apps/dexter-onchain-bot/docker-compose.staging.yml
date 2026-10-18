@@ -3,8 +3,10 @@ name: onchain-bot-dexter-staging
 # Staging environment - dexter-onchain-bot (Tramo 3, todo 9, P13, per-env model)
 #
 # MIRROR of apps/market-data/docker-compose.staging.yml (Tramo 3 staging
-# prep). DRY-RUN ONLY — no dexter deploy workflow exists yet; nothing
-# here has ever been applied to Oracle.
+# prep). LIVE on Oracle since 2026-09-27 (manual bootstrap); provisioned
+# + deployed by `.github/workflows/deploy-dexter-staging.yml` since the
+# 2026-10-18 fix (first workflow rollout: run 39126203303, re-run
+# pending after the DATABASE_URL/alias-collision fix).
 #
 # Project name EXPLÍCITO: sin `name:`, compose usa el basename del
 # directorio (`dexter-onchain-bot`), que COLISIONA con el proyecto del dev
@@ -87,9 +89,14 @@ services:
       # (staging `<base>_<app>_staging`); TypeORM wired since
       # dexter-message-templates todo 1 (DATABASE_ENABLED=true).
       DATABASE_ENABLED: true
-      DATABASE_URL: postgres://${POSTGRES_USER:-onchain_bot}:${POSTGRES_PASSWORD:-onchain_bot}@postgres:5432/${POSTGRES_DB:-onchain_bot_dexter_staging}
+      # Host = container name (UNIQUE network alias): `postgres` alone is
+      # claimed by ~7 staging stacks on the shared network and Docker DNS
+      # round-robins it (run 39126203303 aborted pre-write because of
+      # this — see .omo/evidence/task-dexter-run1-diagnosis.log).
+      DATABASE_URL: postgres://${POSTGRES_USER:-onchain_bot}:${POSTGRES_PASSWORD:-onchain_bot}@onchain-bot-dexter-postgres-staging:5432/${POSTGRES_DB:-onchain_bot_dexter_staging}
       DATABASE_SYNCHRONIZE: false
-      REDIS_URL: ${DEXTER_REDIS_URL:-redis://redis:6379/2}
+      # Same alias-collision class (`redis` is re-claimed by every stack).
+      REDIS_URL: ${DEXTER_REDIS_URL:-redis://onchain-bot-dexter-redis-staging:6379/2}
     ports:
       - '4061:4060'
     depends_on:

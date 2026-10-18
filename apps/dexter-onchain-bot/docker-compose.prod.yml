@@ -88,9 +88,14 @@ services:
       # (prod `<base>_<app>`); TypeORM wired since
       # dexter-message-templates todo 1 (DATABASE_ENABLED=true).
       DATABASE_ENABLED: true
-      DATABASE_URL: postgres://${POSTGRES_USER:-onchain_bot}:${POSTGRES_PASSWORD:-onchain_bot}@postgres:5432/${POSTGRES_DB:-onchain_bot_dexter}
+      # Host = container name (UNIQUE network alias): `postgres` alone is
+      # ambiguous on shared deploy networks (Docker DNS round-robins) —
+      # same fix as staging after run 39126203303 (see
+      # .omo/evidence/task-dexter-run1-diagnosis.log).
+      DATABASE_URL: postgres://${POSTGRES_USER:-onchain_bot}:${POSTGRES_PASSWORD:-onchain_bot}@onchain-bot-dexter-postgres-prod:5432/${POSTGRES_DB:-onchain_bot_dexter}
       DATABASE_SYNCHRONIZE: false
-      REDIS_URL: ${DEXTER_REDIS_URL:-redis://redis:6379/2}
+      # Same alias-collision class (`redis` is re-claimed by every stack).
+      REDIS_URL: ${DEXTER_REDIS_URL:-redis://onchain-bot-dexter-redis-prod:6379/2}
     ports:
       - '4062:4060'
     depends_on:

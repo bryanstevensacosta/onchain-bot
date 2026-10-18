@@ -12,8 +12,17 @@ name: Deploy Dexter to staging
 # repo tree (mirroring deploy-staging.yml), so the compose file and
 # Dockerfile it needs are provisioned BY THE WORKFLOW. `.env.staging` is
 # operator-owned (values never in git, never touched by rsync — the sync
-# excludes `.env*`) and confirmed present on Oracle 2026-10-18. First
-# real rollout via this workflow is PENDING (next dexter push to dev).
+# excludes `.env*`) and confirmed present on Oracle 2026-10-18.
+# RUN 39126203303 (first real rollout, 2026-10-18): provisioning ALL
+# passed, aborted PRE-WRITE at the migration dry-run. Root cause (see
+# `.omo/evidence/task-dexter-run1-diagnosis.log`): (1) ~7 postgres
+# containers claim the alias `postgres` on the shared staging network —
+# Docker DNS round-robins, so one-offs must use the UNIQUE container-name
+# host; (2) the operator `.env.staging` DATABASE_URL password does not
+# match the volume's initialized credential. Fixed same day: explicit
+# `-e DATABASE_URL` on the DB one-offs (no `--env-file` for them) and
+# unique container-name hosts in the compose `environment:` block.
+# Re-run PENDING on this push.
 #
 # ANTI-DOUBLE-FIRE: this workflow owns dexter paths ONLY
 # (apps/dexter-onchain-bot/** + itself). Disjoint from deploy.yml /
@@ -235,8 +244,14 @@ jobs:
         run: |
           set -euo pipefail
           echo "=== Dry-run: pending migrations (migration:show, read-only, no writes) ==="
+          # DB one-offs: explicit DATABASE_URL, NOT --env-file (fix for
+          # run 39126203303): host = UNIQUE container name (`postgres` is
+          # claimed by ~7 staging postgres containers — Docker DNS
+          # round-robins); creds = compose-interpolation defaults, which
+          # the volume was initialized with 2026-09-27 (the operator
+          # file's password does not match it — flagged to the owner).
           if docker run --rm --network onchain-bot-staging-net \
-            --env-file /opt/onchain-bot-staging/apps/dexter-onchain-bot/.env.staging \
+            -e "DATABASE_URL=postgres://onchain_bot:onchain_bot@onchain-bot-dexter-postgres-staging:5432/onchain_bot_dexter_staging" \
             ghcr.io/${{ github.repository }}-dexter-migrate:${{ github.sha }} \
             npm run migration:show --workspace=@onchain-bot/dexter-onchain-bot; then
             echo "migration:show OK"
@@ -247,7 +262,7 @@ jobs:
 
           echo "=== Dry-run: precondition probe (read-only SELECT, no writes) ==="
           if docker run --rm --network onchain-bot-staging-net \
-            --env-file /opt/onchain-bot-staging/apps/dexter-onchain-bot/.env.staging \
+            -e "DATABASE_URL=postgres://onchain_bot:onchain_bot@onchain-bot-dexter-postgres-staging:5432/onchain_bot_dexter_staging" \
             ghcr.io/${{ github.repository }}-dexter-migrate:${{ github.sha }} \
             npm run typeorm --workspace=@onchain-bot/dexter-onchain-bot -- query "SELECT 1 AS dry_run_ok"; then
             echo "precondition probe OK"
@@ -262,8 +277,10 @@ jobs:
         run: |
           set -euo pipefail
           echo "=== Running dexter TypeORM migrations in staging ==="
+          # Same explicit DATABASE_URL as the dry-run step (unique host +
+          # compose-default creds — see the comment there).
           docker run --rm --network onchain-bot-staging-net \
-            --env-file /opt/onchain-bot-staging/apps/dexter-onchain-bot/.env.staging \
+            -e "DATABASE_URL=postgres://onchain_bot:onchain_bot@onchain-bot-dexter-postgres-staging:5432/onchain_bot_dexter_staging" \
             ghcr.io/${{ github.repository }}-dexter-migrate:${{ github.sha }} \
             npm run migration:run --workspace=@onchain-bot/dexter-onchain-bot
           echo "=== Migrations applied successfully ==="

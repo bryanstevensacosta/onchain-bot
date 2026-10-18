@@ -16,6 +16,13 @@ name: Deploy Dexter to production
 # any mutation until the operator places it.
 # OPERATOR-CONFIRM at first rollout: .env.production values and host
 # ports :4062/:5448/:6395 with lsof (Wave 4 gate).
+# STAGING RUN 39126203303 (2026-10-18) surfaced two defects mirrored
+# here: Docker DNS alias `postgres` is ambiguous on shared deploy
+# networks (use the UNIQUE container-name host) and one-off DB creds
+# must be explicit (the operator file proved unreliable). Wave 4 owner
+# gate revisits credential policy — if real prod creds get pinned via
+# compose interpolation, update the `-e DATABASE_URL` below in the SAME
+# change.
 #
 # ANTI-DOUBLE-FIRE: this workflow owns dexter paths ONLY
 # (apps/dexter-onchain-bot/** + itself). Disjoint from deploy.yml
@@ -234,8 +241,13 @@ jobs:
         run: |
           set -euo pipefail
           echo "=== Dry-run: pending migrations (migration:show, read-only, no writes) ==="
+          # Explicit DATABASE_URL, NOT --env-file (staging run
+          # 39126203303 fix): host = UNIQUE container name (the bare
+          # `postgres` alias is ambiguous on shared deploy networks);
+          # creds = compose-interpolation defaults. Wave 4 gate revisits
+          # real prod creds (see header).
           if docker run --rm --network onchain-bot-net \
-            --env-file /opt/onchain-bot/apps/dexter-onchain-bot/.env.production \
+            -e "DATABASE_URL=postgres://onchain_bot:onchain_bot@onchain-bot-dexter-postgres-prod:5432/onchain_bot_dexter" \
             ghcr.io/${{ github.repository }}-dexter-migrate:${{ github.sha }} \
             npm run migration:show --workspace=@onchain-bot/dexter-onchain-bot; then
             echo "migration:show OK"
@@ -246,7 +258,7 @@ jobs:
 
           echo "=== Dry-run: precondition probe (read-only SELECT, no writes) ==="
           if docker run --rm --network onchain-bot-net \
-            --env-file /opt/onchain-bot/apps/dexter-onchain-bot/.env.production \
+            -e "DATABASE_URL=postgres://onchain_bot:onchain_bot@onchain-bot-dexter-postgres-prod:5432/onchain_bot_dexter" \
             ghcr.io/${{ github.repository }}-dexter-migrate:${{ github.sha }} \
             npm run typeorm --workspace=@onchain-bot/dexter-onchain-bot -- query "SELECT 1 AS dry_run_ok"; then
             echo "precondition probe OK"
@@ -261,8 +273,10 @@ jobs:
         run: |
           set -euo pipefail
           echo "=== Running dexter TypeORM migrations in production ==="
+          # Same explicit DATABASE_URL as the dry-run step (unique host —
+          # see the comment there).
           docker run --rm --network onchain-bot-net \
-            --env-file /opt/onchain-bot/apps/dexter-onchain-bot/.env.production \
+            -e "DATABASE_URL=postgres://onchain_bot:onchain_bot@onchain-bot-dexter-postgres-prod:5432/onchain_bot_dexter" \
             ghcr.io/${{ github.repository }}-dexter-migrate:${{ github.sha }} \
             npm run migration:run --workspace=@onchain-bot/dexter-onchain-bot
           echo "=== Migrations applied successfully ==="
