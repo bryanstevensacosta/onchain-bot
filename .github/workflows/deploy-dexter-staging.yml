@@ -27,8 +27,10 @@ name: Deploy Dexter to staging
 # then failed at "Pull dexter image and recreate service": the build was
 # amd64-only while the Oracle host is aarch64 (`no matching manifest for
 # linux/arm64/v8`). Fixed same day: multi-arch build (setup-qemu +
-# `linux/amd64,linux/arm64`, mirroring deploy.yml). Re-run PENDING on
-# this push.
+# `linux/amd64,linux/arm64`, mirroring deploy.yml). RESULT: run
+# 39127827233 GREEN — first GOOD deploy (pin :staging-prev-dexter
+# written, smoke ✓). Rollback lane simulated green same day (run
+# 39130971794, throwaway branch, 26s, downtime window 13s).
 #
 # ANTI-DOUBLE-FIRE: this workflow owns dexter paths ONLY
 # (apps/dexter-onchain-bot/** + itself). Disjoint from deploy.yml /

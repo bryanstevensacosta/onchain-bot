@@ -220,8 +220,9 @@ repo-wide by grep. Compose `name:` is explicit (`onchain-bot-dexter`,
   dexter staging databases running" — nothing had provisioned
   `/opt/onchain-bot-staging/apps/dexter-onchain-bot/` (compose file
   absent). The dexter staging stack itself was bootstrapped MANUALLY on
-  2026-09-27 (old image, healthy); first rollout via the workflow is
-  PENDING. `.env.staging` is operator-owned (confirmed present on Oracle
+  2026-09-27 (old image, healthy); first rollout via the workflow DONE
+  2026-10-18 — run 39127827233 GREEN (see RUN bullets below).
+  `.env.staging` is operator-owned (confirmed present on Oracle
   2026-10-18; the sync excludes `.env*`). The prod workflow stays DORMANT
   until the master merge gate; `/opt/onchain-bot/apps/dexter-onchain-bot/`
   is CREATED by the prod sync on its first run (absent on Oracle today).
@@ -248,6 +249,18 @@ repo-wide by grep. Compose `name:` is explicit (`onchain-bot-dexter`,
 manifest for linux/arm64/v8`). Fixed same day: multi-arch build
   (setup-qemu + `linux/amd64,linux/arm64`, mirroring `deploy.yml`).
   Evidence: `.omo/evidence/task-dexter-run2-diagnosis.log`.
+- RUN 39127827233 (third run, 2026-10-18): GREEN — first GOOD deploy
+  (multi-arch build 4m14s → pull ✓ → recreate ✓ → healthcheck ✓ → pin
+  `:staging-prev-dexter` written → smoke ✓). Live: container recreated
+  (healthy), `DATABASE_ENABLED=true`, unique-host `DATABASE_URL`, seed
+  `created=7 activeEnsured=6`. Evidence:
+  `.omo/evidence/task-dexter-run3-green.log`.
+- Rollback lane SIMULATED green (run 39130971794, throwaway branch
+  `test/dexter-rollback-sim`, dispatch-only — never dev/master):
+  pulled `:staging-prev-dexter` from GHCR → stop (grace 30) → local
+  retag + recreate (no pull) → healthcheck ✓ (`healthy after ~20s`;
+  downtime window 13s). Evidence:
+  `.omo/evidence/task-dexter-rollbacksim.log`.
 - Compose: `docker-compose.staging.yml` (staging `:4061`/`:5441`/`:6388`,
   DB `onchain_bot_dexter_staging`) + `docker-compose.prod.yml` (prod
   `:4062`/`:5448`/`:6395`, DB `onchain_bot_dexter`, `name:
@@ -663,9 +676,10 @@ matchValue:'pump-fun', display:'Pump'}`.
   `GET /dexter/token` returns them via the pipeline token spread.
 - Backend `chain-dexter-bot/` is the read-only move source: do NOT edit
   it here; deprecate/remove only at the FINAL REVIEW (C4-bis).
-- Staging stack live on Oracle since 2026-09-27 (manual bootstrap, old
-  image); the staging deploy workflow now self-syncs its tree (fix
-  2026-10-18, first workflow rollout pending). Prod compose + env
+- Staging stack live on Oracle since 2026-09-27 (manual bootstrap);
+  replaced by the workflow-deployed image on 2026-10-18 (first GOOD
+  deploy, run 39127827233; rollback lane sim green — see RUN bullets).
+  Prod compose + env
   templates remain unapplied (prod dormant, Wave 4 gate — operator
   confirms `.env.production` + ports with lsof).
 - `.kiro/` left alone per task constraint.

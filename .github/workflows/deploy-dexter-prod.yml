@@ -27,6 +27,9 @@ name: Deploy Dexter to production
 # the amd64-only build died pulling on staging (run 39127374679, `no
 # matching manifest for linux/arm64/v8`). Both workflows now build
 # `linux/amd64,linux/arm64` via setup-qemu (mirror deploy.yml).
+# Staging validation 2026-10-18: first GOOD deploy (run 39127827233) +
+# rollback lane sim green. This prod lane stays dormant (never
+# deployed; Wave 4 gate).
 #
 # ANTI-DOUBLE-FIRE: this workflow owns dexter paths ONLY
 # (apps/dexter-onchain-bot/** + itself). Disjoint from deploy.yml
