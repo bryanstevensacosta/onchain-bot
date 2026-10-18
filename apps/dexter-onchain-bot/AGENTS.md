@@ -598,7 +598,12 @@ matchValue:'pump-fun', display:'Pump'}`.
   is absent, non-finite, ≤0 or the rounded `N < 1` — NEVER `N/A`
   nor `x0`
   (PERPS sample `Liq: 1.8K ⚠️` carries no bracket; low-liq markers
-  out of v1 scope). Pure renderer computation: no snapshot /
+  out of v1 scope). Empty-value composition (plan todo 69):
+  `[{{liquidityRatio}}]` renders `[x3]` with a value and NO bracket
+  at all when empty — the renderer cleanup (`cleanupDanglingSeparators`)
+  collapses empty `[]` pairs (same family as `[{{alternatives}}]` /
+  `[{{chainDisplay}}]`), guarded so `[](...)` links are never touched.
+  Pure renderer computation: no snapshot /
   market-data field, no network; the ratio mirrors the served FDV
   (incl. the todo-61 `dexscreener` fallback provenance). Samples:
   Chale `7.9K [x3]` (23300/7900), WENCAT-Rick `6.7K [x3]`

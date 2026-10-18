@@ -204,7 +204,8 @@ describe('TemplateRendererService (todo 4 closed semantics)', () => {
   it('falls back to "" when no display resolver is injected', () => {
     const renderer = new TemplateRendererService();
     const out = renderer.render('[{{chainDisplay}}] {{symbol}}', TOKEN, 'bare');
-    expect(out.text).toBe('[] SOL');
+    // Todo 69: an empty-value `[...]` pair collapses — never `[] SOL`.
+    expect(out.text).toBe('SOL');
   });
 
   it('fuzzes 50 bodies with unknown keys: every error carries the valid list', () => {
@@ -226,6 +227,70 @@ describe('TemplateRendererService (todo 4 closed semantics)', () => {
       expect((caught as UnknownPlaceholder).key).toBe(`unknown${i}`);
       expect((caught as UnknownPlaceholder).valid).toEqual(expected);
     }
+  });
+});
+
+describe('TemplateRendererService empty-bracket cleanup (plan todo 69)', () => {
+  const clean = TemplateRendererService.cleanupDanglingSeparators;
+
+  it('collapses a trailing empty bracket pair (line end) with adjacent hspace', () => {
+    expect(clean('Liq: 7.9K []')).toBe('Liq: 7.9K');
+    expect(clean('[]')).toBe('');
+    expect(clean('Liq: 7.9K [] ')).toBe('Liq: 7.9K');
+    expect(clean('[] ')).toBe('');
+  });
+
+  it('collapses a leading empty bracket pair, keeping the line text', () => {
+    expect(clean('[] SOL')).toBe('SOL');
+    expect(clean('  [] SOL')).toBe('SOL');
+  });
+
+  it('collapses a mid-line empty bracket pair, consuming only the previous hspace', () => {
+    expect(clean('A [] B')).toBe('A B');
+  });
+
+  it('collapses the spaced family member `[ ]` (optional inner tabs/spaces)', () => {
+    expect(clean('A [ ] B')).toBe('A B');
+  });
+
+  it('never touches a text-less link `[](...)` (guard) nor a non-empty link', () => {
+    expect(clean('[](https://t.me/x)')).toBe('[](https://t.me/x)');
+    expect(clean('[Virtuals](url)')).toBe('[Virtuals](url)');
+  });
+
+  it('never touches brackets with content', () => {
+    expect(clean('[x3]')).toBe('[x3]');
+  });
+
+  it('never touches escapeV2-escaped brackets (`\\[\\]` — backslash between them)', () => {
+    expect(clean('\\[\\]')).toBe('\\[\\]');
+  });
+
+  it('an empty bracket alone on its line collapses to an empty line (neighbours kept)', () => {
+    // Same line-drop contract as the dangling-`@` family: only the
+    // bracket pair is removed, the `\n` separators stay — the line
+    // itself remains as a blank line (`L1\n\nL2`).
+    expect(clean('L1\n[]\nL2')).toBe('L1\n\nL2');
+  });
+
+  it('render-level: an empty derived value composed as `[...]` leaves no `[]`', () => {
+    const out = new TemplateRendererService().render(
+      '[{{chainDisplay}}] SOL',
+      TOKEN,
+      'ca',
+    );
+    expect(out.text).toBe('SOL');
+  });
+
+  it('render-level: a text-less link composed from an empty value survives cleanup', () => {
+    const out = new TemplateRendererService().render(
+      '[{{timeframe}}]({{dexscreenerUrl}})',
+      { ...TOKEN, timeframe: '' },
+      'c',
+    );
+    expect(out.text).toBe(
+      '[](https://dexscreener.com/solana/So11111111111111111111111111111111111111112)',
+    );
   });
 });
 

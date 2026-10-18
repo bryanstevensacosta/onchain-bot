@@ -113,6 +113,13 @@ describe('TemplateRendererService liquidityRatio key (plan todo 62)', () => {
     ).toBe('');
   });
 
+  it('collapses the author bracket when the ratio omits (todo 69): PERPS 749/1800 → no `[]`', () => {
+    const token = baseToken({ fdvUsd: 749, liquidityUsd: 1800 });
+    expect(render('💦 Liq: {{liquidityUsd}} [{{liquidityRatio}}]', token)).toBe(
+      '💦 Liq: 1\\.8K',
+    );
+  });
+
   it.each([
     ['fdv null', { fdvUsd: null, liquidityUsd: 100 }],
     ['liq null', { fdvUsd: 100, liquidityUsd: null }],

@@ -188,12 +188,39 @@ export class TemplateRendererService {
     };
   }
 
+  /**
+   * Collapses remnants left behind by values that rendered `""`:
+   * the dangling `•`/`|`/`@` families (todo 4) plus EMPTY bracket
+   * pairs from author-composed bodies like `[{{liquidityRatio}}]` /
+   * `[{{alternatives}}]` / `[{{chainDisplay}}]` (todo 69) — an empty
+   * derived value must never leave an ugly `[]` on the card.
+   *
+   * Bracket rules run trailing → leading → mid-line in that order:
+   * `Liq: 7.9K []` and a bare `[]` collapse whole (`''`), `[] SOL`
+   * keeps its text (`SOL`), `A [] B` loses only the previous hspace
+   * (`A B`). Every rule carries the `(?!\()` guard on `]` so a
+   * text-less LINK (`[](...)`, e.g. the documented
+   * `[{{name}}]({{botStartUrl}})` bodies) is never touched.
+   * Brackets with content (`[x3]`, `[Virtuals](url)`) never match,
+   * and neither does escapeV2 output: escaping turns `[`/`]` into
+   * `\[`/`\]`, so a backslash always sits between the raw brackets
+   * of an escaped value.
+   */
   public static cleanupDanglingSeparators(text: string): string {
-    return text
-      .replace(/[ \t]*[•|][ \t]*(?=\n|$)/g, '')
-      .replace(/(^|\n)[ \t]*[•|][ \t]*/g, '$1')
-      .replace(/^[ \t]*[^@\n]*[ \t]@[ \t]*(?=\n|$)/gm, '')
-      .replace(/(^|\n)[ \t]*@[ \t]+/g, '$1');
+    return (
+      text
+        .replace(/[ \t]*[•|][ \t]*(?=\n|$)/g, '')
+        .replace(/(^|\n)[ \t]*[•|][ \t]*/g, '$1')
+        .replace(/^[ \t]*[^@\n]*[ \t]@[ \t]*(?=\n|$)/gm, '')
+        .replace(/(^|\n)[ \t]*@[ \t]+/g, '$1')
+        // Trailing: pair ends the line — consume adjacent hspace too.
+        .replace(/[ \t]*\[[ \t]*\](?!\()[ \t]*(?=\n|$)/g, '')
+        // Leading: pair starts the line — keep the line text.
+        .replace(/(^|\n)[ \t]*\[[ \t]*\](?!\()[ \t]*/g, '$1')
+        // Mid-line: pair floats between text — consume only the
+        // previous hspace (the one before the brackets).
+        .replace(/[ \t]*\[[ \t]*\](?!\()/g, '')
+    );
   }
 
   private resolveValue(key: string, values: TemplateValues): string {

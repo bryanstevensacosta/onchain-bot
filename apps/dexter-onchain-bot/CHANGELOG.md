@@ -49,6 +49,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Empty-bracket cleanup for omitted derived values (dexter plan todo
+  69):** `TemplateRendererService.cleanupDanglingSeparators` now also
+  collapses EMPTY bracket pairs left by author-composed bodies
+  (`[{{liquidityRatio}}]`, `[{{alternatives}}]`, `[{{chainDisplay}}]`)
+  when the derived value renders `""` — never a literal `[]` on the
+  card. Three ordered rules: trailing (`Liq: 7.9K []` → `Liq: 7.9K`;
+  bare `[]` → gone), leading (`[] SOL` → `SOL`), mid-line
+  (`A [] B` → `A B`). Every rule guards `(?!\()` so a text-less LINK
+  (`[](...)`, e.g. the documented `[{{name}}]({{botStartUrl}})`
+  bodies) is never touched; brackets with content (`[x3]`,
+  `[Virtuals](url)`) and escapeV2-escaped values (`\[\]` — backslash
+  between the raw brackets) never match. Specs re-pinned
+  (`template-renderer-alternatives.spec.ts`,
+  `template-renderer.service.spec.ts`) + new cleanup matrix;
+  `template-renderer-liquidity-ratio.spec.ts` gains the bracketless
+  PERPS case (749/1800 → `💦 Liq: 1.8K`). Evidence:
+  `.omo/evidence/task-fe-cleanup-brackets-*.log`.
+
 - **Pair-age derived placeholder `{{age}}` (dexter plan todo 63):**
   `{{age}}` on every command renders the best-liquidity PAIR age
   from the market-data snapshot's top-level ISO `pairCreatedAt`

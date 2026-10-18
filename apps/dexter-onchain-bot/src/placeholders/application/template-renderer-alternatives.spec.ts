@@ -54,10 +54,17 @@ describe('TemplateRendererService alternatives key (plan todo 17)', () => {
     expect(entry?.example).toBe('Also on: bsc, eth');
   });
 
-  it('renders empty when the token resolved alone (no alternatives)', () => {
-    expect(render('[{{alternatives}}]', baseToken())).toBe('[]');
+  it('renders empty when the token resolved alone (no alternatives) — the author `[]` collapses (todo 69)', () => {
+    // The derived VALUE stays `""` (cleanup runs after substitution);
+    // the author-composed `[{{alternatives}}]` pair must never survive
+    // as a literal `[]` on the card.
+    expect(render('{{alternatives}}', baseToken())).toBe('');
+    expect(render('[{{alternatives}}]', baseToken())).toBe('');
+    expect(render('{{alternatives}}', baseToken({ alternatives: [] }))).toBe(
+      '',
+    );
     expect(render('[{{alternatives}}]', baseToken({ alternatives: [] }))).toBe(
-      '[]',
+      '',
     );
   });
 
