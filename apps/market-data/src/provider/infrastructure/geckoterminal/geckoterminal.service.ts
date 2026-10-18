@@ -1,6 +1,9 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
-import { throwIfRetryableProviderError } from '../../domain/retryable-provider.error';
+import {
+  RetryableProviderError,
+  throwIfRetryableProviderError,
+} from '../../domain/retryable-provider.error';
 import { DataProviderPort } from '../../domain/data-provider.port';
 import type { GeckoTerminalConfig } from './geckoterminal.config';
 import { GECKOTERMINAL_CONFIG } from './geckoterminal.config';
@@ -14,6 +17,15 @@ import type {
 } from './geckoterminal.types';
 
 const BASE = 'https://api.geckoterminal.com/api/v2';
+
+/**
+ * ATH-seed day-leg budgets (dexter plan todo 68, pinned — mirror
+ * `snapshot-ath-seed.ts`): one `day?limit=100` call covers the 90d
+ * retention window, and the adapter timeout mirrors the caller's
+ * `withTailBudget` so the abandoned socket dies on the adapter.
+ */
+const SEED_DAY_LIMIT = 100;
+const SEED_DAY_TIMEOUT_MS = 2_000;
 
 /**
  * GeckoTerminal market data provider — free, no API key required.
@@ -294,6 +306,94 @@ export class GeckoTerminalService extends DataProviderPort {
       throwIfRetryableProviderError(err, 'geckoterminal');
       this.logger.debug(
         `GeckoTerminal getPoolOhlcv failed: ${(err as Error).message}`,
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Daily pool OHLCV for the one-shot historical FDV-ATH seed
+   * (dexter plan todo 68; keyless, verified live 2026-10-18 —
+   * `.omo/evidence/task-fe-ath-backfill-ext.log` [B1]).
+   *
+   * Live shape = the SAME `ohlcv_list` rows as `getPoolOhlcv`
+   * (`[ts, o, h, l, c, v]`, epoch seconds, USD prices of the requested
+   * side): `day/aggregate=1&limit=100&currency=usd&token=<side>`.
+   * A SEPARATE method on purpose (todo 68): the derivation leg's
+   * `hour` call keeps its own spies/call-count specs byte-identical —
+   * this day leg is only ever the ATH seed's call.
+   *
+   * PINNED BUDGETS (todo 68): ONE call covers the 90d janitor
+   * retention (`limit=100` day rows >= 90d; the keyless public window
+   * is 180d but rows past retention would be pruned before any read —
+   * the seed skips them instead). Own SHORT timeout
+   * (`SEED_DAY_TIMEOUT_MS`, 2s): the caller ladders this call with
+   * `withTailBudget` (same pinned value), so a first sight never waits
+   * more than the budget and the abandoned socket dies on the adapter
+   * timeout.
+   *
+   * Failure taxonomy (used by the seed's negative memo): `null` =
+   * DEFINITIVE absence (404 pool/no series, 401 outside the public
+   * window, 400 bad params, empty/invalid `ohlcv_list`) — memoizable;
+   * THROWS the 19b2 `RetryableProviderError` for TRANSIENT classes
+   * (429 — headerless included — and 5xx/timeout) — never memoized,
+   * retried on the next request. Same `throwIfRetryableProviderError`
+   * convention as every leg above, plus the headerless-429 guard.
+   *
+   * @see https://api.geckoterminal.com/docs (attribution: "On-chain
+   * data provided by GeckoTerminal" — see AGENTS attribution note).
+   */
+  public async getPoolOhlcvDay(
+    networkSlug: string,
+    poolAddress: string,
+    side: 'base' | 'quote',
+  ): Promise<ReadonlyArray<GeckoOhlcvCandle> | null> {
+    try {
+      const { data } = await axios.get<{
+        readonly data?: {
+          readonly attributes?: {
+            readonly ohlcv_list?: ReadonlyArray<ReadonlyArray<unknown>>;
+          } | null;
+        } | null;
+      }>(`${BASE}/networks/${networkSlug}/pools/${poolAddress}/ohlcv/day`, {
+        params: {
+          aggregate: 1,
+          limit: SEED_DAY_LIMIT,
+          currency: 'usd',
+          token: side,
+        },
+        timeout: SEED_DAY_TIMEOUT_MS,
+      });
+      const raw = data?.data?.attributes?.ohlcv_list;
+      if (!Array.isArray(raw)) return null;
+      const rows: GeckoOhlcvCandle[] = [];
+      for (const entry of raw) {
+        if (!Array.isArray(entry) || entry.length < 6) continue;
+        const cells = entry
+          .slice(0, 6)
+          .map((cell) =>
+            typeof cell === 'number' ? cell : parseFloat(String(cell)),
+          );
+        if (!cells.every((cell) => Number.isFinite(cell))) continue;
+        rows.push(cells as unknown as GeckoOhlcvCandle);
+      }
+      return rows.length > 0 ? rows : null;
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.status === 404) return null;
+      // 19b2 convention: 429-with-Retry-After / 5xx / timeout throw.
+      throwIfRetryableProviderError(err, 'geckoterminal');
+      if (axios.isAxiosError(err) && err.response?.status === 429) {
+        // Headerless 429 is still a THROTTLE, not an absence: surface
+        // it as transient so the seed never memoizes it as definitive.
+        throw new RetryableProviderError(
+          'geckoterminal',
+          'rate-limited',
+          0,
+          429,
+        );
+      }
+      this.logger.debug(
+        `GeckoTerminal getPoolOhlcvDay failed: ${(err as Error).message}`,
       );
       return null;
     }

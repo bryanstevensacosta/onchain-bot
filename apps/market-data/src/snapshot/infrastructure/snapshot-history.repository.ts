@@ -3,7 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 import type { AddressKind } from 'address/domain/address-kind';
 import type { SnapshotQuote } from '../domain/snapshot-quote.types';
-import type { SnapshotFdvAth } from '../domain/snapshot-fdv-ath';
+import type { FdvAthLookup, SnapshotFdvAth } from '../domain/snapshot-fdv-ath';
+import { ATH_SEED_SOURCE } from '../domain/snapshot-ath-seed';
 import { SnapshotHistoryEntity, toHistoryRow } from './snapshot-history.entity';
 
 export interface SnapshotHistoryRow {
@@ -216,13 +217,25 @@ export class SnapshotHistoryRepository {
   }
 
   /**
-   * FDV ATH over own history (dexter fdv-ath, plan todo 16).
+   * FDV ATH over own history (dexter fdv-ath, plan todo 16; seed
+   * marker todo 68).
    * READ-ONLY aggregate: max `quote.fdvUsd` + the `createdAt` of the
    * row that set it, scoped to one `(chain, address)` (normalized
    * lowercase-trimmed, same key rule as `AddressIdVo`). Rows with a
-   * missing/non-finite FDV are skipped, never crash. Returns `null`
-   * when no row carries a usable FDV (cold-start / single-null
-   * history). NEVER mutates history or retention.
+   * missing/non-finite FDV are skipped, never crash. Returns
+   * `{ ath: null, seeded: false }` when no row carries a usable FDV
+   * (cold-start / single-null history). NEVER mutates history or
+   * retention.
+   *
+   * SEED MARKER (dexter plan todo 68): the same loop reports whether
+   * any row of THIS token carries `sources: ['geckoterminal-ath-seed']`
+   * (the one-shot historical ATH seed tag). This is the anti-masking
+   * guard input: the todo-46 hour backfill seeds rows BEFORE the
+   * service's ATH read, so "ath === null" can no longer stand in for
+   * "never seeded" — the marker can. The read is zero-cost (the same
+   * `(chain, address)` scan, one extra `includes`) and happens BEFORE
+   * the current snapshot row persists (read-before-save rule intact;
+   * the seeded day rows are written earlier in the same request).
    *
    * RETENTION LIMIT: the janitor (`SnapshotHistoryJanitorService`)
    * prunes rows older than `SNAPSHOT_HISTORY_RETENTION_DAYS` (90),
@@ -237,7 +250,9 @@ export class SnapshotHistoryRepository {
    * (~90d). The todo-46 one-time per-pool OHLC seed EXTENDS the
    * append-only history (seeded rows carry candle-time `createdAt`
    * + computed FDV, so they max here like any live row) — the
-   * transient is accepted and documented here, not hidden.
+   * transient is accepted and documented here, not hidden. The
+   * todo-68 ATH seed adds ONE more computed row per token (peak day
+   * candle, `createdAt` = candle open + 1ms) to the same max.
    *
    * FALLBACK NOTE (dexter plan todo 61): the null-only DexScreener
    * fallback rows (`fdvProvenance: 'dexscreener'`) are maxed here too
@@ -250,7 +265,7 @@ export class SnapshotHistoryRepository {
   public async findFdvAth(
     chain: string,
     address: string,
-  ): Promise<SnapshotFdvAth | null> {
+  ): Promise<FdvAthLookup> {
     const wantedChain = (chain ?? '').trim().toLowerCase();
     const wantedAddress = (address ?? '').trim().toLowerCase();
     let rows: ReadonlyArray<SnapshotHistoryRow>;
@@ -264,12 +279,16 @@ export class SnapshotHistoryRepository {
       rows = entities.map((entity) => toHistoryRow(entity));
     }
     let best: SnapshotFdvAth | null = null;
+    let seeded = false;
     for (const row of rows) {
       if (
         row.chain.trim().toLowerCase() !== wantedChain ||
         row.address.trim().toLowerCase() !== wantedAddress
       ) {
         continue;
+      }
+      if (row.sources?.includes(ATH_SEED_SOURCE) === true) {
+        seeded = true;
       }
       const fdv = row.quote?.fdvUsd;
       if (typeof fdv !== 'number' || !Number.isFinite(fdv)) continue;
@@ -279,7 +298,7 @@ export class SnapshotHistoryRepository {
         best = { fdvUsd: fdv, at };
       }
     }
-    return best;
+    return { ath: best, seeded };
   }
 
   /**

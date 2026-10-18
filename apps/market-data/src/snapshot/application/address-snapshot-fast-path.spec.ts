@@ -5,6 +5,8 @@ import { AddressSnapshotService } from './address-snapshot.service';
 import { DirectFastPathService } from './direct-fast-path.service';
 import { LaunchpadDetectorService } from 'launchpad/application/launchpad-detector.service';
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
+import { GeckoTerminalService } from 'provider/infrastructure/geckoterminal';
+import { BirdeyeService } from 'provider/infrastructure/birdeye';
 import { SNAPSHOT_QUOTE_PROVIDERS } from '../domain/snapshot-quote.types';
 import { emptySnapshotQuote } from '../domain/snapshot-quote.types';
 import { selectPreferredQuote } from 'provider/infrastructure/onchain/evm-tolerance';
@@ -26,6 +28,10 @@ const fastResult = {
   launchpad: null,
   // Raw ms, exactly as DirectFastPathService now resolves it (todo 63).
   pairCreatedAt: 1791892874000,
+  // ATH-seed plumbing (todo 68): same handoff shape as the real
+  // service (`null` = no GT pool on the fast card -> seed no-op).
+  pairAddress: null,
+  pairSide: null,
   timings: { discoveryMs: 10, directMs: 50, launchpadMs: null, totalMs: 60 },
 };
 
@@ -45,6 +51,21 @@ const moduleWithFastPath = (fastPath: unknown) =>
       getBestPairSummary: async () => null,
       getBestPairSummaryForChain: async () => null,
     })
+    // Hermetic derivation legs (todo 33/46/68): the real adapters must
+    // never run inside this suite. This spec previously leaked onto the
+    // live Gecko API for `So111...112` (a real WSOL pool appends
+    // `geckoterminal-ohlcv` to `sources` and flips the pinned
+    // assertions — reproduced on the BASELINE via a scoped stash, so it
+    // is pre-existing network flake, not the todo-68 seam).
+    .overrideProvider(GeckoTerminalService)
+    .useValue({
+      getTokenPools: async () => null,
+      searchPools: async () => null,
+      getPoolOhlcv: async () => null,
+      getPoolOhlcvDay: async () => null,
+    })
+    .overrideProvider(BirdeyeService)
+    .useValue({ getTokenOhlcv: async () => null })
     .overrideProvider(DirectFastPathService)
     .useValue(fastPath)
     .compile();

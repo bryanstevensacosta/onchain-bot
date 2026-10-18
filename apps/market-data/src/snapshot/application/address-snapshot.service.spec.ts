@@ -5,6 +5,8 @@ import { AddressSnapshotService } from './address-snapshot.service';
 import { DirectFastPathService } from './direct-fast-path.service';
 import { LaunchpadDetectorService } from 'launchpad/application/launchpad-detector.service';
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
+import { GeckoTerminalService } from 'provider/infrastructure/geckoterminal';
+import { BirdeyeService } from 'provider/infrastructure/birdeye';
 import { SNAPSHOT_QUOTE_PROVIDERS } from '../domain/snapshot-quote.types';
 
 const nullFetcher = {
@@ -37,6 +39,19 @@ describe('AddressSnapshotService (snapshot per kind)', () => {
       // dedicated fast-path specs — no live readers here).
       .overrideProvider(DirectFastPathService)
       .useValue({ tryResolve: async () => null })
+      // Hermetic derivation/seed legs (todo 33/46/68): the real adapters
+      // must never run in this suite — a live Gecko pool answer for
+      // `So111...112` derives a change and flips this pin to `ready`
+      // (pre-existing network flake class; see the fast-path spec note).
+      .overrideProvider(GeckoTerminalService)
+      .useValue({
+        getTokenPools: async () => null,
+        searchPools: async () => null,
+        getPoolOhlcv: async () => null,
+        getPoolOhlcvDay: async () => null,
+      })
+      .overrideProvider(BirdeyeService)
+      .useValue({ getTokenOhlcv: async () => null })
       .compile();
     snapshots = module.get(AddressSnapshotService);
   });

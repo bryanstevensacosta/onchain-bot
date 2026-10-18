@@ -1138,7 +1138,11 @@ HTTP 403 (Free plan; moot once Birdeye passed).
   from live persisted samples only (`findFdvAth` max over rows). No
   keyless historical source exists for this class (research 51; the
   Moralis/Mobula doors above are keyed-broken) — do not re-open
-  without a new seed source or an owner decision.
+  without a new seed source or an owner decision. **RE-OPENED BY
+  OWNER DECISION 2026-10-18 (todo 68, section below): the one-shot
+  Gecko `ohlcv/day` ATH seed now backfills `fdvAth` history for
+  exactly this class (and every token), keyless — this residual is
+  closed by that seed, none of the doors above were touched.**
 
 ## TOP-5 PROVIDER EXPLOITATION (todo 31, 2026-10-09)
 
@@ -2178,3 +2182,69 @@ snap.pairCreatedAt`; stale replays carry the same live-resolved
   edge (`pairCreatedAt: null` on pending shells + ISO plumbing)
   (`gateway-market-data-snapshot.spec`). Evidence:
   `.omo/evidence/task-fe-age.log`.
+
+## ONE-SHOT HISTORICAL FDV-ATH SEED (todo 68, 2026-10-18) — keyless Gecko `ohlcv/day`, one row per token
+
+Cold tokens used to serve `fdvAth: null` until enough live samples
+accrued (and WENCAT-class natives win the derivation race, so their
+history never backfilled at all — residual above, now closed by OWNER
+DECISION). On a token's first sight the pipeline now makes ONE keyless
+GeckoTerminal day-call and seeds the historical peak into the SAME
+append-only history `findFdvAth` reads, so the first card can serve a
+real ATH. Attribution: **on-chain data provided by GeckoTerminal**
+(public API, no key).
+
+- SEMANTICS (pinned): `fdvAth = max(high over day candles) x supply`
+  (`totalSupply ?? maxSupply` of the merged leg, same
+  `computedFdvOf` seam); ATH age = the PEAK CANDLE's open time + 1ms.
+  `max(close)` was REJECTED (underestimates CHALE -64% with a false
+  30d age; `high` overshoots the Rick reference +8%..+43% on the two
+  measured samples — SAME sign as Rick's documented anti-spike
+  filter). Thin-wick caveat documented, not hidden: true-session-max
+  is our own `fdvAth` semantics extended into history, never a Rick
+  parity claim.
+- ONE CALL: `getPoolOhlcvDay` → `GET /networks/{slug}/pools/{pool}/ohlcv/day` with
+  params `aggregate=1&limit=100&currency=usd&token={base|quote}`, own
+  2s axios timeout, caller-side `withTailBudget(2s)`
+  (`SNAPSHOT_ATH_SEED_TIMEOUT_MS`). 100 day rows ≥ 90d janitor
+  retention; peaks OLDER than the window are skipped (they would be
+  pruned before any read — no seed rows outside the surviving window).
+- ANTI-MASKING MARKER: the seed writes exactly ONE row
+  (`sources: ['geckoterminal-ath-seed']`, `status: 'ready'`,
+  `fdvProvenance: 'computed'`, `priceUsd` = peak high,
+  `createdAt` = candle open + 1ms — the +1ms keeps it DISTINCT from a
+  todo-46 hourly row at the same midnight under
+  `unique(key, createdAt)`). `findFdvAth` reports
+  `{ath, seeded}`; the seed runs only when `seeded === false` (NOT
+  `ath === null` — the hour backfill masks that forever). Anti-masking
+  is per `(chain, address)`.
+- PLUMBING (todo-63 anatomy, ZERO extra calls): `pairAddress` +
+  `pairSide` ride the fast path's discovery summary / the venue tail's
+  DSC best summary (DSC `pairAddress` IS the GT pool id; side from
+  `baseToken`/`quoteToken` addresses) or the Gecko venue fallback's
+  `pick.poolAddress` + `pick.side`. Any null (no pool, unknown side,
+  non-token kind, unsupported chain, supply null/≤0) → 0 calls.
+- FAIL-OPEN TOTAL: 429/401/404/empty/timeout → no seed, card
+  unaffected, NEVER a throw. IN-PROCESS NEGATIVE MEMO (bounded 500,
+  TTL 6h) covers DEFINITIVE absences only (method answered `null`);
+  TRANSIENT classes (429 incl. headerless, 5xx, timeout) are NEVER
+  memoized and retry next request. Kill-switch:
+  `SNAPSHOT_ATH_SEED_ENABLED` (default ENABLED; explicit false-ish
+  disables) + `SNAPSHOT_ATH_SEED_DAYS` (default 90, capped 180).
+- SWR/ANCHOR INTERACTION (decided, spec-pinned): the seeded row IS a
+  coherent ready sample at candle time — no query changes. It
+  participates in `findFdvAth` (the ATH itself), in `findAnchorAt`
+  (24h-change anchor), and in the `findLatestReady` stale floor
+  (age-bound as usual: a 2h-old seed can serve stale when providers
+  fail; a >24h-old one never can). The live snapshot row stays the
+  newest ready row after the first sight.
+- CLAMP (served-only): ATH never displays BELOW the in-flight FDV —
+  when `quote.fdvUsd > ath.fdvUsd` the served `fdvAth` becomes the
+  live value with `at = now`. Max-only: history is never rewritten,
+  nothing lowered, and `ath === null` is never invented from the live
+  value.
+- Specs: `address-snapshot-ath-seed.spec.ts` (22: builder, resolvers,
+  memo, 13 acceptance edges incl. midnight collision, idempotency,
+  memo TTL, timeout retry, clamp, SWR) + `geckoterminal-ohlcv-day.spec.ts`
+  (9: params/timeout/404/429 headerless/5xx) + `address-snapshot-fdv-ath.spec.ts`
+  (marker pins). Evidence: `.omo/evidence/task-fe-ath-seed.log`.

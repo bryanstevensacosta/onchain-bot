@@ -95,6 +95,26 @@ export interface DirectFastPathResult {
    * the guards live in a single place.
    */
   readonly pairCreatedAt: number | null;
+  /**
+   * Raw best-pair address from the SAME discovery summary that named
+   * the venue (dexter plan todo 68 plumbing, todo-63 anatomy): the
+   * one-shot ATH seed's GeckoTerminal pool id. DexScreener's
+   * `pairAddress` IS the GT pool address (verified live on SPEED
+   * pancakeswap_v2 + CHALE pumpswap,
+   * `.omo/evidence/task-fe-ath-backfill-ext.log` [3d]) — zero extra
+   * discovery calls. `null` when discovery is absent; the ATH seed
+   * then skips (0 calls, documented).
+   */
+  readonly pairAddress: string | null;
+  /**
+   * Which side of `pairAddress` our queried address sits on (todo 68):
+   * the day-candle series must be quoted for OUR token
+   * (`token=base|quote`), never its pair. Derived from the discovery
+   * summary's base/quote token addresses (side-verified by the
+   * discovery selection itself); `null` when discovery is absent or
+   * matches neither side.
+   */
+  readonly pairSide: 'base' | 'quote' | null;
   /** Launchpad raced inside the deadline (null = slow/unknown). */
   readonly launchpad: LaunchpadInfo | null;
   readonly timings: {
@@ -513,6 +533,18 @@ export class DirectFastPathService {
           ? null
           : toVenueOrNull({ dexId: discovery.dexId, labels: discovery.labels }),
       pairCreatedAt: discovery === null ? null : discovery.pairCreatedAt,
+      // ATH-seed plumbing (todo 68): same discovery summary, zero extra
+      // calls. `side-mismatch` (neither leg is the mint) never reaches
+      // this return (guarded above), so a non-null discovery resolves a
+      // side by construction.
+      pairAddress:
+        discovery === null ? null : nonEmptyString(discovery.pairAddress),
+      pairSide:
+        discovery === null
+          ? null
+          : lower(discovery.baseToken.address) === lower(mint)
+            ? 'base'
+            : 'quote',
       launchpad,
       timings: {
         discoveryMs,
@@ -838,6 +870,11 @@ export class DirectFastPathService {
         // Best-pair creation rides the same discovery summary (todo
         // 63) — no extra call; raw ms, ISO at the snapshot seam.
         pairCreatedAt: discovery.pairCreatedAt,
+        // Best-pair address + side (todo 68 ATH-seed plumbing): the
+        // discovery side check above (`baseIsMint`/`quoteIsMint`)
+        // already named our leg — pass it through with zero calls.
+        pairAddress: nonEmptyString(discovery.pairAddress),
+        pairSide: baseIsMint ? 'base' : 'quote',
         launchpad: launchReady ? launchpadValue : null,
         timings: {
           discoveryMs,

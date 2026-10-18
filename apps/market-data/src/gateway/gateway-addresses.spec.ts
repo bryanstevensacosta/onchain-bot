@@ -9,8 +9,11 @@ import { RateLimiterModule } from 'rate-limiter/rate-limiter.module';
 import { AddressModule } from 'address/address.module';
 import { GatewayModule } from 'gateway/gateway.module';
 import { SNAPSHOT_QUOTE_PROVIDERS } from 'snapshot/domain/snapshot-quote.types';
+import { DirectFastPathService } from 'snapshot/application/direct-fast-path.service';
 import { LaunchpadDetectorService } from 'launchpad/application/launchpad-detector.service';
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
+import { GeckoTerminalService } from 'provider/infrastructure/geckoterminal';
+import { BirdeyeService } from 'provider/infrastructure/birdeye';
 
 const nullFetcher = {
   name: 'dexscreener',
@@ -24,6 +27,11 @@ const nullFetcher = {
  * GET /api/v1/addresses/:chain/:address[?kind=] resolves the kind
  * (explicit hint wins, garbage resolves to explicit unknown) while
  * the /tokens/* shell stays as a deprecated kind=token alias.
+ *
+ * HERMETIC (todo 68 note): the direct fast path and the Gecko/Birdeye
+ * derivation+seed legs are stubbed — this spec pins the shell
+ * contract, and live answers for `So111...112` flaked it (a real GT
+ * pool derives a change -> `ready` instead of the pinned `pending`).
  */
 describe('gateway addresses edge (P45)', () => {
   let app: INestApplication;
@@ -49,6 +57,17 @@ describe('gateway addresses edge (P45)', () => {
         getBestPairSummary: async () => null,
         getBestPairSummaryForChain: async () => null,
       })
+      .overrideProvider(DirectFastPathService)
+      .useValue({ tryResolve: async () => null })
+      .overrideProvider(GeckoTerminalService)
+      .useValue({
+        getTokenPools: async () => null,
+        searchPools: async () => null,
+        getPoolOhlcv: async () => null,
+        getPoolOhlcvDay: async () => null,
+      })
+      .overrideProvider(BirdeyeService)
+      .useValue({ getTokenOhlcv: async () => null })
       .compile();
     app = module.createNestApplication();
     await app.init();

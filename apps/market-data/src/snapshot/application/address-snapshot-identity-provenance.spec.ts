@@ -9,6 +9,8 @@ import {
 import { SnapshotHistoryRepository } from '../infrastructure/snapshot-history.repository';
 import { LaunchpadDetectorService } from 'launchpad/application/launchpad-detector.service';
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
+import { GeckoTerminalService } from 'provider/infrastructure/geckoterminal';
+import { BirdeyeService } from 'provider/infrastructure/birdeye';
 import { OnchainSolanaReaderService } from 'provider/infrastructure/onchain/onchain-solana.reader';
 import {
   SNAPSHOT_QUOTE_PROVIDERS,
@@ -99,6 +101,17 @@ async function buildService(args: {
         tryResolve: async () => null,
       },
     )
+    // Hermetic derivation/seed legs (todo 33/46/68): no live Gecko in
+    // this suite (network flake class — see fast-path spec note).
+    .overrideProvider(GeckoTerminalService)
+    .useValue({
+      getTokenPools: async () => null,
+      searchPools: async () => null,
+      getPoolOhlcv: async () => null,
+      getPoolOhlcvDay: async () => null,
+    })
+    .overrideProvider(BirdeyeService)
+    .useValue({ getTokenOhlcv: async () => null })
     .compile();
   return {
     snapshots: module.get(AddressSnapshotService),

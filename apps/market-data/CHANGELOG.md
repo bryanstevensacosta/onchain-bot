@@ -9,6 +9,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **One-shot historical FDV-ATH seed — keyless GeckoTerminal `ohlcv/day`
+  (dexter plan todo 68, owner decision 2026-10-18):** on a token's first
+  sight (marker `geckoterminal-ath-seed` absent on any of its history
+  rows — NOT `ath === null`, which the todo-46 hour backfill masks
+  forever) the pipeline makes ONE keyless
+  `GET /networks/{slug}/pools/{pool}/ohlcv/day` call (params
+  `aggregate=1&limit=100&currency=usd&token={base|quote}`) through the
+  NEW `GeckoTerminalService.getPoolOhlcvDay` (own 2s axios timeout, caller
+  `withTailBudget` 2s) and seeds exactly ONE row: peak day candle,
+  `fdvAth = max(high) × supply` (`totalSupply ?? maxSupply`,
+  `fdvProvenance: 'computed'`), `status: 'ready'`, `priceUsd` = peak
+  high, `createdAt` = candle open + 1ms (distinct from a todo-46 hourly
+  row at the same midnight under `unique(key, createdAt)`). Peaks older
+  than the 90d janitor retention are SKIPPED (100 day rows ≥ 90d; no
+  seed rows outside the surviving window). `findFdvAth` now returns
+  `{ath, seeded}` (`FdvAthLookup`); the seeded row participates in
+  `findFdvAth`/`findAnchorAt`/the `findLatestReady` stale floor like any
+  coherent ready sample (no query changes; SWR age binding unchanged —
+  spec-pinned). Served-only CLAMP: `fdvAth` never displays below the
+  in-flight FDV (live value + `at = now` when the peak is being set
+  live; history never rewritten; `null` never invented). PLUMBING
+  (todo-63 anatomy, ZERO extra calls): `pairAddress` + `pairSide` ride
+  the fast-path discovery summary / the venue tail's DSC best summary
+  (DSC `pairAddress` IS the GT pool id; side from
+  `baseToken`/`quoteToken` addresses) or the Gecko venue fallback's
+  `pick.poolAddress`/`pick.side`. FAIL-OPEN TOTAL: 429/401/404/[]/timeout
+  → no seed, card unaffected, never a throw; in-process negative memo
+  (bounded 500, TTL 6h) memoizes DEFINITIVE absences only — transient
+  classes (429 incl. headerless, 5xx, timeout) retry next request.
+  Guards (0 calls): non-token kind, Gecko-unsupported chain, empty pool
+  id, unknown side, supply null/≤0, legacy stubs without the method.
+  Kill-switch `SNAPSHOT_ATH_SEED_ENABLED` (default enabled) +
+  `SNAPSHOT_ATH_SEED_DAYS` (default 90, cap 180). Semantics evidence:
+  max(close) rejected (CHALE −64% vs Rick), max(high) within Rick's
+  documented anti-spike band (+8..+43%) —
+  `.omo/evidence/task-fe-ath-backfill-ext.log`. Attribution: on-chain
+  data provided by GeckoTerminal. Specs:
+  `address-snapshot-ath-seed.spec.ts` (22),
+  `geckoterminal-ohlcv-day.spec.ts` (9), `findFdvAth` marker pins in
+  `address-snapshot-fdv-ath.spec.ts`; flake-class hardening
+  (Gecko/Birdeye/fast-path stubs) in the fast-path, service,
+  computed-fdv, identity-provenance, chain-honest and gateway specs.
+  Evidence: `.omo/evidence/task-fe-ath-seed.log`.
+
 - **Best-pair age proxy on the snapshot (dexter plan todo 63):**
   `AddressSnapshot.pairCreatedAt: string | null` (TOP-LEVEL, after
   `venue`) carries the best-liquidity pair creation time for dexter's

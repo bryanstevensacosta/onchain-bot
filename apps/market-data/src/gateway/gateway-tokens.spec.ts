@@ -8,8 +8,11 @@ import { CacheModule } from 'cache/cache.module';
 import { RateLimiterModule } from 'rate-limiter/rate-limiter.module';
 import { GatewayModule } from 'gateway/gateway.module';
 import { SNAPSHOT_QUOTE_PROVIDERS } from 'snapshot/domain/snapshot-quote.types';
+import { DirectFastPathService } from 'snapshot/application/direct-fast-path.service';
 import { LaunchpadDetectorService } from 'launchpad/application/launchpad-detector.service';
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
+import { GeckoTerminalService } from 'provider/infrastructure/geckoterminal';
+import { BirdeyeService } from 'provider/infrastructure/birdeye';
 
 const nullFetcher = {
   name: 'dexscreener',
@@ -23,6 +26,10 @@ const nullFetcher = {
  * The full snapshot lands in todo 3 (token/ untouched here): the gateway
  * answers a composed shell (chain validation + provider hints) so the
  * edge contract is testable from day one.
+ *
+ * HERMETIC (todo 68 note): fast path + Gecko/Birdeye derivation+seed
+ * legs stubbed — live answers for `So111...112` flaked the pinned
+ * `pending` shell (a real GT pool derives a change -> `ready`).
  */
 describe('gateway token snapshot shell (P43)', () => {
   let app: INestApplication;
@@ -47,6 +54,17 @@ describe('gateway token snapshot shell (P43)', () => {
         getBestPairSummary: async () => null,
         getBestPairSummaryForChain: async () => null,
       })
+      .overrideProvider(DirectFastPathService)
+      .useValue({ tryResolve: async () => null })
+      .overrideProvider(GeckoTerminalService)
+      .useValue({
+        getTokenPools: async () => null,
+        searchPools: async () => null,
+        getPoolOhlcv: async () => null,
+        getPoolOhlcvDay: async () => null,
+      })
+      .overrideProvider(BirdeyeService)
+      .useValue({ getTokenOhlcv: async () => null })
       .compile();
     app = module.createNestApplication();
     await app.init();

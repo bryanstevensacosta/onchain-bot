@@ -58,6 +58,13 @@ import {
   OHLC_BACKFILL_WINDOW_MS,
 } from '../domain/snapshot-ohlcv-backfill';
 import {
+  AthSeedNegativeMemo,
+  buildFdvAthSeedRow,
+  resolveAthSeedDays,
+  resolveAthSeedEnabled,
+  SNAPSHOT_ATH_SEED_TIMEOUT_MS,
+} from '../domain/snapshot-ath-seed';
+import {
   applyComputedFdv,
   computedFdvEpsilonBound,
 } from '../domain/snapshot-computed-fdv';
@@ -109,6 +116,38 @@ export function toIsoPairCreatedAt(ms: unknown): string | null {
   if (typeof ms !== 'number' || !Number.isFinite(ms) || ms <= 0) return null;
   const at = new Date(ms);
   return Number.isNaN(at.getTime()) ? null : at.toISOString();
+}
+
+/**
+ * Trimmed-or-null string guard for the ATH-seed plumbing (dexter plan
+ * todo 68): a blank/absent pool address resolves `null` (the seed then
+ * skips with zero calls), never an empty-string key.
+ */
+export function nonEmptyTrimmed(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed === '' ? null : trimmed;
+}
+
+/**
+ * Which side of a DexScreener best pair OUR address sits on (dexter
+ * plan todo 68): compares the summary's base/quote token addresses
+ * case-insensitively and resolves `null` when neither matches (the
+ * discovery selection side-checks already, todo 20 — this is the
+ * plumbing tail, not a second validation layer).
+ */
+export function dexscreenerPoolSide(
+  baseTokenAddress: unknown,
+  quoteTokenAddress: unknown,
+  address: string,
+): 'base' | 'quote' | null {
+  const wanted = (address ?? '').trim().toLowerCase();
+  if (wanted === '') return null;
+  const base = nonEmptyTrimmed(baseTokenAddress)?.toLowerCase();
+  if (base === wanted) return 'base';
+  const quote = nonEmptyTrimmed(quoteTokenAddress)?.toLowerCase();
+  if (quote === wanted) return 'quote';
+  return null;
 }
 
 /**
@@ -234,6 +273,27 @@ export class AddressSnapshotService {
   private readonly launchpadTailMs: number = resolveDetectorSlowLegTimeoutMs(
     process.env['LAUNCHPAD_SLOW_LEG_TIMEOUT_MS'],
   );
+
+  /**
+   * ATH-seed kill-switch + window (dexter plan todo 68): read ONCE at
+   * construction (same pattern as `staleMaxAgeMs`). `SNAPSHOT_ATH_SEED_ENABLED`
+   * defaults ENABLED (only an explicit false-ish token disables);
+   * `SNAPSHOT_ATH_SEED_DAYS` defaults 90 (janitor retention) and is
+   * capped at 180 (GT's keyless public window).
+   */
+  private readonly athSeedEnabled: boolean = resolveAthSeedEnabled(
+    process.env['SNAPSHOT_ATH_SEED_ENABLED'],
+  );
+  private readonly athSeedDays: number = resolveAthSeedDays(
+    process.env['SNAPSHOT_ATH_SEED_DAYS'],
+  );
+  /**
+   * Bounded in-process negative memo (todo 68): DEFINITIVE absences
+   * (`[]`/404/401/400 — the day leg answered null) suppress re-fires
+   * for the pinned TTL; transient classes (429/5xx/timeout) are never
+   * remembered and retry next request. Resets on deploy (documented).
+   */
+  private readonly athSeedNegativeMemo = new AthSeedNegativeMemo();
 
   public constructor(
     private readonly catalog: ChainCatalogPort,
@@ -429,6 +489,16 @@ export class AddressSnapshotService {
    * `pool_created_at` would be an extra fetch on a path that only
    * fires when DexScreener has no pair; documented caveat, dexter
    * `{{age}}` renders `""` there).
+   *
+   * ATH-seed plumbing (dexter plan todo 68, todo-63 anatomy): the
+   * same summary also carries the best-pair address and OUR side
+   * (`pairAddress`/`pairSide`) — the one-shot ATH seed's Gecko pool id
+   * and `token=base|quote` series selector. ZERO extra calls: DSC's
+   * `pairAddress` IS the GT pool id (live-verified), and the side
+   * comes from the summary's own `baseToken`/`quoteToken` addresses
+   * (already side-checked by the discovery selection, todo 20). The
+   * Gecko fallback leg passes `pick.poolAddress` + `pick.side`
+   * verbatim. `null` anywhere -> the seed skips (0 calls).
    */
   private async resolveVenue(
     chain: string,
@@ -436,6 +506,8 @@ export class AddressSnapshotService {
   ): Promise<{
     readonly venue: SnapshotVenue | null;
     readonly pairCreatedAtMs: number | null;
+    readonly pairAddress: string | null;
+    readonly pairSide: 'base' | 'quote' | null;
   }> {
     if (this.dexscreener !== null && this.dexscreener !== undefined) {
       try {
@@ -450,6 +522,12 @@ export class AddressSnapshotService {
           return {
             venue: toVenueOrNull({ dexId: best.dexId, labels: best.labels }),
             pairCreatedAtMs: best.pairCreatedAt ?? null,
+            pairAddress: nonEmptyTrimmed(best.pairAddress),
+            pairSide: dexscreenerPoolSide(
+              best.baseToken?.address,
+              best.quoteToken?.address,
+              address,
+            ),
           };
         }
       } catch {
@@ -461,23 +539,40 @@ export class AddressSnapshotService {
       this.geckoterminal === undefined ||
       !GECKO_SUPPORTED_CHAINS.includes(chain)
     ) {
-      return { venue: null, pairCreatedAtMs: null };
+      return {
+        venue: null,
+        pairCreatedAtMs: null,
+        pairAddress: null,
+        pairSide: null,
+      };
     }
     try {
       const slug = GECKO_NETWORK_SLUGS[chain] ?? chain;
       const pools = await this.geckoterminal.getTokenPools(slug, address);
       const pick = selectPoolQuote(pools, address);
       if (pick === null || pick.dexId === null) {
-        return { venue: null, pairCreatedAtMs: null };
+        return {
+          venue: null,
+          pairCreatedAtMs: null,
+          pairAddress: null,
+          pairSide: null,
+        };
       }
       // Gecko carries no pair-creation read here (todo 63 caveat:
       // extra fetch avoided on the no-DSC-pair path) → ms stays null.
       return {
         venue: toVenueOrNull({ dexId: pick.dexId, labels: [] }),
         pairCreatedAtMs: null,
+        pairAddress: nonEmptyTrimmed(pick.poolAddress),
+        pairSide: pick.side ?? null,
       };
     } catch {
-      return { venue: null, pairCreatedAtMs: null };
+      return {
+        venue: null,
+        pairCreatedAtMs: null,
+        pairAddress: null,
+        pairSide: null,
+      };
     }
   }
 
@@ -705,6 +800,106 @@ export class AddressSnapshotService {
       }
       return seeded;
     } catch {
+      return 0;
+    }
+  }
+
+  /**
+   * One-time historical FDV-ATH seed (dexter plan todo 68). Fires ONLY
+   * when `findFdvAth` reported the marker ABSENT (cold OR existing
+   * token — once per token) and every guard holds; at most ONE Gecko
+   * `ohlcv/day` call per request, wrapped in its own
+   * `SNAPSHOT_ATH_SEED_TIMEOUT_MS` budget so the card never waits past
+   * the pinned 2s. No throw ever escapes (fail-open total): 429/401/
+   * 404/[]/timeout all resolve to "no seed this time" and the card
+   * continues as-seen.
+   *
+   * Negative memo discipline: a DEFINITIVE absence (the day leg
+   * answered `null` — 404/401/400/empty, or a series with no seedable
+   * candle) is remembered for the pinned TTL; TRANSIENT classes
+   * (429/5xx/timeout — the leg THROWS `RetryableProviderError`, or the
+   * budget abandons the call) are NEVER remembered and retry on the
+   * next request.
+   *
+   * Guards (todo 68): kind=token, supported chain, non-empty pool id,
+   * KNOWN side, supply `total ?? max` finite > 0, and the pure builder
+   * re-checks candles (non-empty, sane high, ts <= now + inside the
+   * retention window). A fast-path EVM card carries no supply -> the
+   * supply guard answers 0 calls. Legacy hand-mocks without the new
+   * day method skip via the `typeof` guard (same precedent as
+   * `searchPools?.bind`), so every pre-68 spec stays byte-identical.
+   */
+  private async seedFdvAthHistory(args: {
+    readonly key: string;
+    readonly chain: string;
+    readonly address: string;
+    readonly kind: string;
+    readonly totalSupply: number | null;
+    readonly maxSupply: number | null;
+    readonly pairAddress: string | null;
+    readonly pairSide: 'base' | 'quote' | null;
+  }): Promise<number> {
+    if (!this.athSeedEnabled) return 0;
+    if (args.kind !== 'token') return 0;
+    if (!GECKO_SUPPORTED_CHAINS.includes(args.chain)) return 0;
+    const pool = (args.pairAddress ?? '').trim();
+    if (pool === '') return 0;
+    const side = args.pairSide;
+    if (side !== 'base' && side !== 'quote') return 0;
+    const supply = args.totalSupply ?? args.maxSupply;
+    if (typeof supply !== 'number' || !Number.isFinite(supply) || supply <= 0) {
+      return 0;
+    }
+    const gecko = this.geckoterminal;
+    if (gecko === null || gecko === undefined) return 0;
+    const getDay = gecko.getPoolOhlcvDay?.bind(gecko);
+    if (typeof getDay !== 'function') return 0;
+    const nowMs = Date.now();
+    if (this.athSeedNegativeMemo.has(args.key, nowMs)) return 0;
+    try {
+      const slug = GECKO_NETWORK_SLUGS[args.chain] ?? args.chain;
+      const raced = await withTailBudget(
+        getDay(slug, pool, side),
+        SNAPSHOT_ATH_SEED_TIMEOUT_MS,
+      );
+      if (raced === TAIL_TIMEOUT) {
+        // Abandoned, transient by definition: never memoized.
+        this.logger.debug(
+          `fdv-ath seed timeout chain=${args.chain} address=${args.address} ` +
+            `(budget ${SNAPSHOT_ATH_SEED_TIMEOUT_MS}ms) — fail-open, retry next request`,
+        );
+        return 0;
+      }
+      if (raced === null) {
+        this.athSeedNegativeMemo.remember(args.key, nowMs);
+        return 0;
+      }
+      const row = buildFdvAthSeedRow(
+        raced,
+        {
+          key: args.key,
+          chain: args.chain,
+          address: args.address,
+          kind: args.kind,
+          totalSupply: args.totalSupply,
+          maxSupply: args.maxSupply,
+          windowDays: this.athSeedDays,
+        },
+        nowMs,
+      );
+      if (row === null) {
+        this.athSeedNegativeMemo.remember(args.key, nowMs);
+        return 0;
+      }
+      const saved = await this.history.saveSeeded(row);
+      if (saved === null) return 0;
+      this.logger.log(
+        `fdv-ath seed chain=${args.chain} address=${args.address} ` +
+          `pool=${pool} fdvUsd=${row.quote.fdvUsd} at=${row.createdAt}`,
+      );
+      return 1;
+    } catch {
+      // Transient (429/5xx/timeout/network): fail-open, never memoized.
       return 0;
     }
   }
@@ -951,6 +1146,10 @@ export class AddressSnapshotService {
           resolved: true,
           value: fast.venue,
           pairCreatedAt: fast.pairCreatedAt,
+          // ATH-seed plumbing (todo 68): raw pair address + our side
+          // from the SAME discovery summary the fast path priced from.
+          pairAddress: fast.pairAddress,
+          pairSide: fast.pairSide,
         },
         skipDevHoldings: true,
         breakerSkipped: breakerGate.skipped,
@@ -987,7 +1186,13 @@ export class AddressSnapshotService {
       supporting,
       outcome,
       launchpad: { resolved: false, value: null },
-      venue: { resolved: false, value: null, pairCreatedAt: null },
+      venue: {
+        resolved: false,
+        value: null,
+        pairCreatedAt: null,
+        pairAddress: null,
+        pairSide: null,
+      },
       skipDevHoldings: false,
       breakerSkipped: breakerGate.skipped,
       breakerAdmitted: breakerGate.admitted.map((fetcher) => fetcher.name),
@@ -1132,6 +1337,15 @@ export class AddressSnapshotService {
        * ONCE below via `toIsoPairCreatedAt`.
        */
       readonly pairCreatedAt: number | null;
+      /**
+       * ATH-seed plumbing (dexter plan todo 68): raw best-pair address
+       * + our side, same handoff anatomy as `pairCreatedAt` (fast path
+       * threads both from its discovery summary; fanout passes nulls
+       * and the venue tail resolves them). Consumed ONLY by the
+       * one-shot ATH seed — never persisted, never on the wire.
+       */
+      readonly pairAddress: string | null;
+      readonly pairSide: 'base' | 'quote' | null;
     };
     readonly skipDevHoldings: boolean;
     readonly breakerSkipped: ReadonlyArray<string>;
@@ -1165,7 +1379,9 @@ export class AddressSnapshotService {
     // (fast-path serve) cost zero tasks. fdvAth stays SEQUENTIAL
     // below: it is an indexed history read (no outbound, microseconds), and the read-before-save order
     // is the cold-start correctness rule (todo 16) — parallelizing it
-    // would buy nothing and risk the ordering.
+    // would buy nothing and risk the ordering. The todo-68 one-shot
+    // ATH seed rides the SAME sequential seam (marker read -> bounded
+    // day fetch -> saveSeeded -> re-read), never the parallel tail.
     const tailNotes: Record<string, string> = {};
     const runExtra = async <T>(
       name: 'launchpad' | 'venue' | 'dev',
@@ -1234,6 +1450,9 @@ export class AddressSnapshotService {
     // Pair-creation ms (todo 63): fast-path handoff first; the venue
     // tail below overwrites it on the fanout path (resolved:false).
     let pairCreatedAtMs: number | null = args.venue.pairCreatedAt;
+    // ATH-seed plumbing (todo 68): same handoff rule as above.
+    let pairAddress: string | null = args.venue.pairAddress;
+    let pairSide: 'base' | 'quote' | null = args.venue.pairSide;
     let devWallets: AddressSnapshot['devWallets'] = null;
     let devPctSupply: number | null = null;
     const devErrors: Record<string, string> = {};
@@ -1246,9 +1465,13 @@ export class AddressSnapshotService {
         const resolved = value as {
           readonly venue: SnapshotVenue | null;
           readonly pairCreatedAtMs: number | null;
+          readonly pairAddress: string | null;
+          readonly pairSide: 'base' | 'quote' | null;
         } | null;
         venue = resolved?.venue ?? null;
         pairCreatedAtMs = resolved?.pairCreatedAtMs ?? null;
+        pairAddress = resolved?.pairAddress ?? null;
+        pairSide = resolved?.pairSide ?? null;
       } else if (value !== null && value !== undefined) {
         const dev = value as {
           readonly devWallets?: AddressSnapshot['devWallets'];
@@ -1349,7 +1572,48 @@ export class AddressSnapshotService {
     // FDV ATH is strictly historical: read BEFORE the current row is
     // persisted, so cold-start (no history) resolves null and the
     // in-flight FDV is never substituted as ATH (spec-pinned).
-    const fdvAth = await this.history.findFdvAth(knownId, inputValue);
+    //
+    // ONE-SHOT HISTORICAL SEED (dexter plan todo 68): the anti-masking
+    // guard is the `geckoterminal-ath-seed` MARKER on any row of this
+    // token — NOT `ath === null` (the todo-46 hour backfill already
+    // seeds candle rows before this read, so null would mask the seed
+    // forever). Marker absent -> ONE bounded attempt (`seedFdvAthHistory`,
+    // fail-open, negative-memo for definitive absences): it writes the
+    // peak day candle (`max(high) x supply`, stamped candle-open+1ms)
+    // BEFORE this read, so a first sight serves the historical ATH in
+    // the SAME response. Existing tokens get the same one-time attempt
+    // (owner decision 2026-10-18). The re-read is an indexed history
+    // read (no outbound, microseconds) and only runs when a row landed.
+    const athLookup = await this.history.findFdvAth(knownId, inputValue);
+    let fdvAth = athLookup.ath;
+    if (!athLookup.seeded) {
+      const seededRows = await this.seedFdvAthHistory({
+        key: id.key,
+        chain: knownId,
+        address: inputValue,
+        kind,
+        totalSupply: outcome.quote.totalSupply,
+        maxSupply: outcome.quote.maxSupply,
+        pairAddress,
+        pairSide,
+      });
+      if (seededRows > 0) {
+        fdvAth = (await this.history.findFdvAth(knownId, inputValue)).ath;
+      }
+    }
+    // Clamp ATH >= current, ONLY when reachable (todo 68; amended
+    // read-before-save rule below): an EXISTING ATH never displays
+    // below the in-flight FDV (max-only, never retrocedes) — a new
+    // peak being observed live. `ath === null` (cold-start, no seed)
+    // stays null: the clamp NEVER invents an ATH.
+    if (
+      fdvAth !== null &&
+      typeof quote.fdvUsd === 'number' &&
+      Number.isFinite(quote.fdvUsd) &&
+      quote.fdvUsd > fdvAth.fdvUsd
+    ) {
+      fdvAth = { fdvUsd: quote.fdvUsd, at: new Date().toISOString() };
+    }
     const knownFetcherNames = new Set(
       this.providers.listProviders().map((provider) => provider.name),
     );

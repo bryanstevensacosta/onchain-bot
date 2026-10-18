@@ -28,13 +28,34 @@ export const PROVIDER_OUTBOUND_DEFAULT_PER_MIN = 60;
  *   DexScreener misses = <= 2 calls.
  * - dev holdings: 2x Birdeye (parallel) + 1x Helius first-tx = <= 3
  *   calls, solana-only (other chains skip).
- * Total <= ~10 outbound calls per cold snapshot, spread over tiers
+ * - derivation (todo 33/46/55, only when every native 24h change is
+ *   null): 1x Gecko pools (+1 search on miss) + 1x OHLC, or the keyed
+ *   Birdeye token-level route = <= 3 calls.
+ * - ATH seed (todo 68, marker-absent tokens): 1x Gecko `ohlcv/day`,
+ *   keyless, ONCE per token ever (marker) — see the quota note below
+ *   (real GT throttle ~10-30/min, not the 60/min our bucket mirrors).
+ * Total <= ~10-11 outbound calls per cold snapshot, spread over tiers
  * (Helius ~10 rps, public RPC 40/10s per IP, DexScreener/GeckoTerminal
- * 60/min each, Birdeye keyed). At snapshot rate Q/s the tail adds at
- * most ~10Q calls/s spread — and each extra is abandoned after 400ms
- * (never retried, never re-queued), so bursts cannot stack past one
- * 400ms window per snapshot. If snapshot QPS ever grows 10x, the
- * 400ms budget (not the tiers) is the first knob to tighten.
+ * 60/min each, Birdeye keyed). Two of those Gecko calls (derivation
+ * OHLC, ATH seed) answer `< 2s` budgets of their own and the seed is
+ * per-token one-shot, so steady-state per-request cost stays at the
+ * pre-68 level after the first touch. At snapshot rate Q/s the tail
+ * adds at most ~11Q calls/s spread — and each extra is abandoned after
+ * its budget (never retried, never re-queued), so bursts cannot stack
+ * past one budget window per snapshot. If snapshot QPS ever grows 10x,
+ * the 400ms tail budget (not the tiers) is the first knob to tighten.
+ *
+ * INTERNAL-vs-REAL THROTTLE WARNING: the registry `60/min` mirrors a
+ * soft internal ceiling; measured live GeckoTerminal tolerance is
+ * ~10/min bursts (12-30/min over a minute, headerless-429 wall under
+ * parallel load — `.omo/evidence/task-fe-ath-backfill-ext.log`). The
+ * todo-68 ATH seed adds ONE such call per marker-less token, AFTER
+ * the tail and UNMETERED by `outbound:geckoterminal` (same placement
+ * as the derivation OHLC calls — the fan-out bucket gates fetchers,
+ * not these post-serve legs): its real limits are the 2s own budget,
+ * the once-per-token marker and the 6h negative memo — never raise
+ * the bucket to absorb it; expect GT 429s at burst and let the
+ * fail-open/memo path handle them.
  */
 
 export interface ProviderOutboundBudget {

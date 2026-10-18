@@ -91,13 +91,18 @@ export interface AddressSnapshot extends SnapshotQuote {
    */
   readonly pairCreatedAt: string | null;
   /**
-   * FDV ATH over own snapshot history (dexter fdv-ath, plan todo
-   * 16): max `fdvUsd` + setting row timestamp, or `null` on
-   * cold-start. Strictly historical — read BEFORE the current row is
-   * persisted, so the in-flight FDV is never substituted as ATH.
+   * FDV ATH over own snapshot history plus the one-shot historical
+   * seed (dexter fdv-ath, plan todo 16; seed todo 68): max `fdvUsd` +
+   * setting row timestamp, or `null` on cold-start. Strictly
+   * historical — read BEFORE the current row is persisted, so the
+   * in-flight FDV is never substituted as ATH. ONE documented
+   * exception (todo 68 clamp, never persisted): when an ATH exists AND
+   * the in-flight FDV exceeds it, the resolved value is clamped UP to
+   * the current FDV at `now` (a new peak observed live) — the clamp
+   * never invents an ATH from `null` and never lowers an existing max.
    * Capped by the janitor window (`SNAPSHOT_HISTORY_RETENTION_DAYS`,
-   * 90): max over surviving rows, not all time. Never throws into
-   * the snapshot.
+   * 90): max over surviving rows, not all time (the seed's day window
+   * is the same 90d by default). Never throws into the snapshot.
    */
   readonly fdvAth: SnapshotFdvAth | null;
   readonly providers: ReadonlyArray<string>;

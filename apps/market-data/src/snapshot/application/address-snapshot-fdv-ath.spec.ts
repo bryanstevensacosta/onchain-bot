@@ -12,6 +12,9 @@ import {
   emptySnapshotQuote,
 } from '../domain/snapshot-quote.types';
 import { toFdvAthOrNull } from '../domain/snapshot-fdv-ath';
+import { ATH_SEED_SOURCE } from '../domain/snapshot-ath-seed';
+import { GeckoTerminalService } from 'provider/infrastructure/geckoterminal';
+import { BirdeyeService } from 'provider/infrastructure/birdeye';
 
 /**
  * Trivial fixture (plan todo 16): `0xCfb3...` on ethereum, pool
@@ -73,21 +76,28 @@ describe('SnapshotHistoryRepository.findFdvAth (read-only aggregate)', () => {
     const maxRow = await history.save(historyRow(5600));
     await history.save(historyRow(5100));
     const ath = await history.findFdvAth(ETH, CFB3);
-    expect(ath).toEqual({ fdvUsd: 5600, at: maxRow.createdAt });
+    expect(ath.ath).toEqual({ fdvUsd: 5600, at: maxRow.createdAt });
+    // No seed-marker rows: the once-per-token guard stays armed.
+    expect(ath.seeded).toBe(false);
   });
 
   it('returns null on empty history (cold-start)', async () => {
     const history = new SnapshotHistoryRepository();
-    expect(await history.findFdvAth(ETH, CFB3)).toBeNull();
+    expect(await history.findFdvAth(ETH, CFB3)).toEqual({
+      ath: null,
+      seeded: false,
+    });
   });
 
   it('returns the single point on single-point history', async () => {
     const history = new SnapshotHistoryRepository();
     const only = await history.save(historyRow(5600));
-    expect(await history.findFdvAth(ETH, CFB3)).toEqual({
+    const lookup = await history.findFdvAth(ETH, CFB3);
+    expect(lookup.ath).toEqual({
       fdvUsd: 5600,
       at: only.createdAt,
     });
+    expect(lookup.seeded).toBe(false);
   });
 
   it('skips malformed rows (null/NaN/Infinity fdv), never crashes', async () => {
@@ -95,11 +105,14 @@ describe('SnapshotHistoryRepository.findFdvAth (read-only aggregate)', () => {
     await history.save(historyRow(null));
     await history.save(historyRow(Number.NaN));
     await history.save(historyRow(Number.POSITIVE_INFINITY));
-    expect(await history.findFdvAth(ETH, CFB3)).toBeNull();
+    expect(await history.findFdvAth(ETH, CFB3)).toEqual({
+      ath: null,
+      seeded: false,
+    });
     const good = await history.save(historyRow(100));
     expect(await history.findFdvAth(ETH, CFB3)).toEqual({
-      fdvUsd: 100,
-      at: good.createdAt,
+      ath: { fdvUsd: 100, at: good.createdAt },
+      seeded: false,
     });
   });
 
@@ -111,7 +124,10 @@ describe('SnapshotHistoryRepository.findFdvAth (read-only aggregate)', () => {
       address: 'So11111111111111111111111111111111111111112',
       key: 'solana:so11111111111111111111111111111111111111112',
     });
-    expect(await history.findFdvAth(ETH, CFB3)).toBeNull();
+    expect(await history.findFdvAth(ETH, CFB3)).toEqual({
+      ath: null,
+      seeded: false,
+    });
   });
 
   it('janitor window documented: pruned rows stop contributing (90d)', async () => {
@@ -122,7 +138,10 @@ describe('SnapshotHistoryRepository.findFdvAth (read-only aggregate)', () => {
       new Date(Date.now() + 60_000),
     );
     expect(deleted).toBe(1);
-    expect(await history.findFdvAth(ETH, CFB3)).toBeNull();
+    expect(await history.findFdvAth(ETH, CFB3)).toEqual({
+      ath: null,
+      seeded: false,
+    });
   });
 
   it('never mutates history: count unchanged by reads', async () => {
@@ -132,6 +151,83 @@ describe('SnapshotHistoryRepository.findFdvAth (read-only aggregate)', () => {
     await history.findFdvAth(ETH, CFB3);
     await history.findFdvAth(ETH, CFB3);
     expect(await history.count()).toBe(2);
+  });
+
+  it('reports the one-shot seed MARKER from the row sources (todo 68)', async () => {
+    const history = new SnapshotHistoryRepository();
+    await history.save(historyRow(4200));
+    expect((await history.findFdvAth(ETH, CFB3)).seeded).toBe(false);
+    await history.saveSeeded({
+      key: `${ETH}:${CFB3.toLowerCase()}`,
+      chain: ETH,
+      address: CFB3,
+      kind: 'token',
+      status: 'ready',
+      quote: {
+        ...emptySnapshotQuote(),
+        priceUsd: 6,
+        fdvUsd: 6000,
+        fdvProvenance: 'computed',
+      },
+      sources: [ATH_SEED_SOURCE],
+      providerErrors: {},
+      createdAt: '2026-09-01T00:00:00.001Z',
+    });
+    const lookup = await history.findFdvAth(ETH, CFB3);
+    // The marker row (6000) is also the max here: both facts reported.
+    expect(lookup.seeded).toBe(true);
+    expect(lookup.ath).toEqual({
+      fdvUsd: 6000,
+      at: '2026-09-01T00:00:00.001Z',
+    });
+  });
+
+  it('marker is (chain,address)-scoped: a foreign-token seed never arms it', async () => {
+    const history = new SnapshotHistoryRepository();
+    await history.saveSeeded({
+      key: 'solana:so11111111111111111111111111111111111111112',
+      chain: 'solana',
+      address: 'So11111111111111111111111111111111111111112',
+      kind: 'token',
+      status: 'ready',
+      quote: {
+        ...emptySnapshotQuote(),
+        priceUsd: 6,
+        fdvUsd: 6000,
+        fdvProvenance: 'computed',
+      },
+      sources: [ATH_SEED_SOURCE],
+      providerErrors: {},
+      createdAt: '2026-09-01T00:00:00.001Z',
+    });
+    expect(await history.findFdvAth(ETH, CFB3)).toEqual({
+      ath: null,
+      seeded: false,
+    });
+  });
+
+  it('marker survives a losing max: sourced but not the peak', async () => {
+    const history = new SnapshotHistoryRepository();
+    await history.saveSeeded({
+      key: `${ETH}:${CFB3.toLowerCase()}`,
+      chain: ETH,
+      address: CFB3,
+      kind: 'token',
+      status: 'ready',
+      quote: {
+        ...emptySnapshotQuote(),
+        priceUsd: 1,
+        fdvUsd: 100,
+        fdvProvenance: 'computed',
+      },
+      sources: [ATH_SEED_SOURCE],
+      providerErrors: {},
+      createdAt: '2026-09-01T00:00:00.001Z',
+    });
+    const peak = await history.save(historyRow(5600));
+    const lookup = await history.findFdvAth(ETH, CFB3);
+    expect(lookup.seeded).toBe(true);
+    expect(lookup.ath).toEqual({ fdvUsd: 5600, at: peak.createdAt });
   });
 });
 
@@ -158,6 +254,18 @@ describe('AddressSnapshotService fdvAth plumbing (dexter fdv-ath)', () => {
       // No live readers in fallback-contract specs.
       .overrideProvider(DirectFastPathService)
       .useValue({ tryResolve: async () => null })
+      // Hermetic derivation/seed legs (todo 46/68): the real adapters
+      // must never run in this suite (network flake class — see the
+      // fast-path spec note).
+      .overrideProvider(GeckoTerminalService)
+      .useValue({
+        getTokenPools: async () => null,
+        searchPools: async () => null,
+        getPoolOhlcv: async () => null,
+        getPoolOhlcvDay: async () => null,
+      })
+      .overrideProvider(BirdeyeService)
+      .useValue({ getTokenOhlcv: async () => null })
       .compile();
     return {
       snapshots: module.get(AddressSnapshotService),

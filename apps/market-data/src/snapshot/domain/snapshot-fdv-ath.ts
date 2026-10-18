@@ -31,10 +31,35 @@
  * 2653 vs 2652.34, WENCAT same-minute delta ~0.1% — DSC's integer
  * rounding is the residual). Mixed-semantics is therefore accepted
  * and documented, not hidden.
+ *
+ * ADJUSTMENT NOTE (dexter plan todo 68, oracle review absorbed): the
+ * same read-before-save rule resolves the historical one-shot ATH seed
+ * (`geckoterminal-ath-seed`, day `max(high) × supply`) BEFORE the
+ * current row persists — so a first sight can serve the seeded history
+ * immediately, while the in-flight FDV still never becomes an ATH
+ * input. The ONE documented exception is the CLAMP below in
+ * `buildSnapshot`: when history already carries an ATH and the current
+ * in-flight FDV exceeds it, the served (never persisted) ATH is
+ * clamped UP to the current FDV at `now` — a new ATH being observed
+ * live. The clamp never invents an ATH from null (cold-start honesty
+ * intact) and never lowers an existing max (max-only).
  */
 export interface SnapshotFdvAth {
   readonly fdvUsd: number;
   readonly at: string;
+}
+
+/**
+ * `findFdvAth` result (dexter plan todo 68): the max + its timestamp,
+ * AND whether any row of this token carries the one-shot ATH seed
+ * marker (`geckoterminal-ath-seed`). The service's seed guard is
+ * "marker absent -> attempt once" — it covers cold tokens AND tokens
+ * that already have live history (exactly one day-series attempt per
+ * token, per the owner decision 2026-10-18).
+ */
+export interface FdvAthLookup {
+  readonly ath: SnapshotFdvAth | null;
+  readonly seeded: boolean;
 }
 
 export function toFdvAthOrNull(raw: unknown): SnapshotFdvAth | null {

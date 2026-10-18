@@ -12,6 +12,8 @@ import {
 } from 'provider/infrastructure/dexscreener/dexscreener.service';
 import type { DexScreenerPair } from 'provider/infrastructure/dexscreener/dexscreener.types';
 import { buildProviderQuoteFetchers } from 'provider/infrastructure/quote-fetchers/provider-quote.fetchers';
+import { GeckoTerminalService } from 'provider/infrastructure/geckoterminal';
+import { BirdeyeService } from 'provider/infrastructure/birdeye';
 import { SnapshotModule } from '../snapshot.module';
 import { AddressSnapshotService } from './address-snapshot.service';
 import { DirectFastPathService } from './direct-fast-path.service';
@@ -282,6 +284,18 @@ describe('AddressSnapshotService venue (chain-honest, 0xFf81 fixture)', () => {
       // No live readers in fallback-contract specs.
       .overrideProvider(DirectFastPathService)
       .useValue({ tryResolve: async () => null })
+      // Hermetic derivation/seed legs (todo 33/46/68): no live Gecko in
+      // this suite (network flake class — a real pool answer derives a
+      // change / seeds history and shifts pins; see fast-path spec note).
+      .overrideProvider(GeckoTerminalService)
+      .useValue({
+        getTokenPools: async () => null,
+        searchPools: async () => null,
+        getPoolOhlcv: async () => null,
+        getPoolOhlcvDay: async () => null,
+      })
+      .overrideProvider(BirdeyeService)
+      .useValue({ getTokenOhlcv: async () => null })
       .compile();
     return module.get(AddressSnapshotService);
   }
