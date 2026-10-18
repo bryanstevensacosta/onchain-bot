@@ -16,6 +16,15 @@ import {
  *  - GET  / Current config (always present — the domain factory
  *         enforces fail-closed defaults)
  *  - PATCH / Partial update (PATCH semantics via optional fields)
+ *
+ * @deprecated Frozen old route (R-c dual-serve). What this is: the
+ *   pre-`DeliveryPolicy` config surface (scalar `publishDelayMs` +
+ *   `dailyCap` per target, no delay window, no `resetHour`). What
+ *   replaces it: `DeliveryPoliciesController` (`GET/PATCH
+ *   /api/scheduling/delivery-policies/:target`, canonical
+ *   `DeliveryPolicy{delayMinMs, delayMaxMs, dailyCap, resetHour}`).
+ *   Deletion milestone: CUT (cutover — see refactor.md R1). Until then
+ *   this route keeps working with frozen fields only.
  */
 @ApiTags('feed-publisher-scheduling')
 @Controller('api/scheduling/rotation-config')

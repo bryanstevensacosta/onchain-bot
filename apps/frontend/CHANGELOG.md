@@ -18,6 +18,7 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ### Changed
 
+- DeliveryPolicy UI dual (R-c): delivery-policy-api (new-first, 404→rotation-config fallback) + DeliveryPolicyForm beside rotation form, no deletions. (feat/feed-policy)
 - Scheduling app rename `scheduling-posts` → `publishing-queue` (no behaviour change): `SCHEDULING_POSTS_*` env/consts become `PUBLISHING_QUEUE_*`, `VITE_SCHEDULING_POSTS_URL` becomes `VITE_PUBLISHING_QUEUE_URL`. Proxy prefix `/scheduling-api`, routes and ports unchanged. (feat/feed-frontend)
 
 - Manage Sessions moved into the Overview tab (breaking UI change):

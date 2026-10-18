@@ -285,3 +285,4 @@ npm run format              # prettier --write "src/**/*.{ts,tsx}"
 - Strict port: run from root (`predev` port-cleanup) or Vite exits.
 - `@/` is frontend-only (tsconfig paths, not backend).
 - `dist/` + `tsconfig.tsbuildinfo` existen en disco (build local) pero **no trackeados** (root `.gitignore` `**/dist/`) — nada que des-trackear.
+- R-c 2026-10-02: DeliveryPolicy UI dual (delivery-policy-api new-first + DeliveryPolicyForm beside rotation form, no deletions).

@@ -16,6 +16,7 @@ import { PublishScheduledAdNowUseCase } from './application/use-cases/publish-sc
 import { UploadScheduledAdMediaUseCase } from './application/use-cases/upload-scheduled-ad-media.use-case';
 import { ClearScheduledAdMediaUseCase } from './application/use-cases/clear-scheduled-ad-media.use-case';
 import { ReuseLibraryMediaUseCase } from './application/use-cases/reuse-library-media.use-case';
+import { MigrateLlmConfigToPoliciesUseCase } from './application/use-cases/migrate-llm-config-to-policies.use-case';
 import { SchedulingCronScheduler } from './application/scheduling/scheduling-cron.scheduler';
 import { SchedulingHealthState } from './application/state/scheduling-health.state';
 import { InMemoryScheduledAdRepository } from './infrastructure/persistence/in-memory/in-memory-scheduled-ad.repository';
@@ -27,6 +28,7 @@ import { LocalSchedulingMediaStorageAdapter } from './infrastructure/storage/loc
 import { InMemoryScheduledAdDispatcher } from './infrastructure/dispatch/in-memory-scheduled-ad.dispatcher';
 import { SchedulingAdsController } from './api/http/scheduling-ads.controller';
 import { SchedulingRotationConfigController } from './api/http/scheduling-rotation-config.controller';
+import { DeliveryPoliciesController } from './api/http/delivery-policies.controller';
 import { SchedulingMediaController } from './api/http/scheduling-media.controller';
 import { SchedulingHealthIndicator } from './health/scheduling-health.indicator';
 
@@ -42,6 +44,9 @@ import { SchedulingHealthIndicator } from './health/scheduling-health.indicator'
  * `/api/scheduling/rotation-config`, `/api/scheduling/media`).
  * Feed posts only in v1 (no per-post threads targeting yet; the
  * threads DELIVERY target already paces independently).
+ *  * R-c adds `DeliveryPoliciesController` (`/api/scheduling/delivery-policies/:target`,
+ * canonical per-target `DeliveryPolicy`); `rotation-config` stays
+ * dual-served frozen until CUT.
  *
  * TypeORM shapes + mappers ship UNWIRED (GAP-1) with in-memory
  * adapters live (backend `DATABASE_ENABLED=false` pattern).
@@ -51,6 +56,7 @@ import { SchedulingHealthIndicator } from './health/scheduling-health.indicator'
   controllers: [
     SchedulingAdsController,
     SchedulingRotationConfigController,
+    DeliveryPoliciesController,
     SchedulingMediaController,
   ],
   providers: [
@@ -60,6 +66,7 @@ import { SchedulingHealthIndicator } from './health/scheduling-health.indicator'
     UploadScheduledAdMediaUseCase,
     ClearScheduledAdMediaUseCase,
     ReuseLibraryMediaUseCase,
+    MigrateLlmConfigToPoliciesUseCase,
     SchedulingCronScheduler,
     SchedulingHealthState,
     SchedulingHealthIndicator,

@@ -21,6 +21,7 @@ import {
   QueueView,
 } from '@/features/feed-publisher';
 import {
+  DeliveryPolicySection,
   SchedulingManager,
   SchedulingRotationConfigForm,
 } from '@/features/feed-scheduling';
@@ -583,6 +584,7 @@ export function FeedPage() {
             <div className="space-y-4 pt-2">
               <SchedulingManager />
               <SchedulingRotationConfigForm />
+              <DeliveryPolicySection />
             </div>
           </details>
 
