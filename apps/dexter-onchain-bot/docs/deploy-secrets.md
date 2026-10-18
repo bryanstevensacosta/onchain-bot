@@ -2,8 +2,12 @@
 
 > NEVER commit real values. `.env.staging` lives at
 > `/opt/onchain-bot-staging/apps/dexter-onchain-bot/.env.staging` and
-> `.env.production` at `/opt/onchain-bot/apps/dexter-onchain-bot/.env.production`
-> (OPERATOR-CONFIRM both paths on first rollout — DRY-RUN, nothing applied).
+> `.env.production` at `/opt/onchain-bot/apps/dexter-onchain-bot/.env.production`.
+> Staging path confirmed present on Oracle 2026-10-18 (operator-owned; the
+> deploy workflow rsync excludes `.env*`, so it is never synced or
+> deleted). Prod path PENDING — `/opt/onchain-bot/apps/dexter-onchain-bot/`
+> is not provisioned yet (prod workflow dormant until the master merge
+> gate; operator places the file at the Wave 4 rollout).
 > Templates: `.env.staging.template` / `.env.production.template` (placeholders only).
 
 ## Verification against templates (2026-10-10)

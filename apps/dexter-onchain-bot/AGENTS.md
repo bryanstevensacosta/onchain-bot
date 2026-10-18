@@ -212,8 +212,19 @@ DBs: postgres single `:5432` (`onchain_bot_dexter`, consolidated 2026-09-28; sta
 repo-wide by grep. Compose `name:` is explicit (`onchain-bot-dexter`,
 `onchain-bot-dexter-staging`) so dev/staging never recreate each other.
 
-## DEPLOY (dexter-deploy-and-frontend Wave 2 — DRY-RUN, nothing applied)
+## DEPLOY (dexter-deploy-and-frontend Wave 2 — staging provisioning fixed 2026-10-18; prod dormant)
 
+- STATUS (2026-10-18): the staging deploy job now self-syncs the full repo
+  tree before touching anything (provisioning fix mirroring
+  `deploy-staging.yml`). Runs since 2026-10-11 always failed at "Ensure
+  dexter staging databases running" — nothing had provisioned
+  `/opt/onchain-bot-staging/apps/dexter-onchain-bot/` (compose file
+  absent). The dexter staging stack itself was bootstrapped MANUALLY on
+  2026-09-27 (old image, healthy); first rollout via the workflow is
+  PENDING. `.env.staging` is operator-owned (confirmed present on Oracle
+  2026-10-18; the sync excludes `.env*`). The prod workflow stays DORMANT
+  until the master merge gate; `/opt/onchain-bot/apps/dexter-onchain-bot/`
+  is CREATED by the prod sync on its first run (absent on Oracle today).
 - Compose: `docker-compose.staging.yml` (staging `:4061`/`:5441`/`:6388`,
   DB `onchain_bot_dexter_staging`) + `docker-compose.prod.yml` (prod
   `:4062`/`:5448`/`:6395`, DB `onchain_bot_dexter`, `name:
@@ -422,8 +433,10 @@ todo 6 added 10 suites / 35 tests (±0 since); bare-address added
    sequential (6 × timeout worst case); parallelize when p95 matters.
 4. No e2e against a live bot token (unit specs + manual `GET
 /dexter/token` only); needs a sandbox bot before staging.
-5. No dexter deploy workflow / CI job yet (same as market-data staging
-   state: compose files are DRY-RUN).
+5. Deploy workflows exist (staging + prod, Wave 2) and staging now
+   self-provisions its tree (fix 2026-10-18); prod stays dormant until
+   the master merge gate (prod tree absent on Oracle). No dexter CI job
+   yet (same as market-data staging state).
 
 ## DECISIONS
 
@@ -624,8 +637,11 @@ matchValue:'pump-fun', display:'Pump'}`.
   `GET /dexter/token` returns them via the pipeline token spread.
 - Backend `chain-dexter-bot/` is the read-only move source: do NOT edit
   it here; deprecate/remove only at the FINAL REVIEW (C4-bis).
-- Staging/prod compose + env templates are DRY-RUN (no deploy workflow,
-  nothing applied to Oracle — operator confirms paths/ports with lsof).
+- Staging stack live on Oracle since 2026-09-27 (manual bootstrap, old
+  image); the staging deploy workflow now self-syncs its tree (fix
+  2026-10-18, first workflow rollout pending). Prod compose + env
+  templates remain unapplied (prod dormant, Wave 4 gate — operator
+  confirms `.env.production` + ports with lsof).
 - `.kiro/` left alone per task constraint.
 
 - Origin-aware venue line (plan todo 14): 4 renderer keys on every

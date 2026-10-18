@@ -2,13 +2,20 @@ name: Deploy Dexter to production
 
 # Dexter prod deploy (dexter-deploy-and-frontend, Wave 2).
 #
-# DRY-RUN ONLY — this workflow has never run against Oracle. Wave 4 has a
-# HARD owner gate: nothing here executes against prod without the owner's
+# DORMANT (2026-10-18): this workflow has never run against Oracle and
+# stays dormant until the master merge gate opens. Wave 4 keeps a HARD
+# owner gate: nothing here executes against prod without the owner's
 # explicit confirmation at that moment (the push trigger exists so the
 # automation is ready, not so it fires unattended).
-# OPERATOR-CONFIRM on first rollout: destination path
-# /opt/onchain-bot/apps/dexter-onchain-bot/, .env.production values
-# (never in git), and host ports :4062/:5448/:6395 with lsof.
+# As of the provisioning fix (2026-10-18) the deploy job self-syncs the
+# full repo tree (mirroring deploy.yml), so the destination
+# /opt/onchain-bot/apps/dexter-onchain-bot/ is CREATED by the workflow —
+# it does not exist on Oracle yet. `.env.production` is operator-owned
+# (values never in git, never touched by rsync — the sync excludes
+# `.env*`) and NOT provisioned yet; the precondition step aborts before
+# any mutation until the operator places it.
+# OPERATOR-CONFIRM at first rollout: .env.production values and host
+# ports :4062/:5448/:6395 with lsof (Wave 4 gate).
 #
 # ANTI-DOUBLE-FIRE: this workflow owns dexter paths ONLY
 # (apps/dexter-onchain-bot/** + itself). Disjoint from deploy.yml
@@ -108,10 +115,67 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # PROVISIONING (fix 2026-10-18): the three steps below mirror
+      # deploy.yml's sync/ownership pattern so this job provisions its own
+      # tree. /opt/onchain-bot/apps/dexter-onchain-bot/ does not exist yet —
+      # the rsync below CREATES it on the first (Wave 4) run. Workflow
+      # stays DORMANT until the master merge gate; nothing was dispatched.
+
+      - name: Fix ownership before sync (chown -R runner:runner)
+        # Mirror of deploy.yml's tolerant pattern (sudo + non-fatal warn).
+        run: |
+          echo "=== Fixing ownership: /opt/onchain-bot → runner:runner ==="
+          sudo chown -R runner:runner /opt/onchain-bot 2>&1 || echo "chown warning (non-fatal)"
+          echo "=== Ownership fixed ==="
+
+      - name: Sync live source tree with master
+        # Mirror of deploy.yml's sync (sudo rsync + post-sync chown). This
+        # is what creates docker-compose.prod.yml + the Dockerfile under
+        # /opt/onchain-bot/apps/dexter-onchain-bot/ on the first run.
+        run: |
+          set -euo pipefail
+          echo "=== Starting rsync with sudo ==="
+          # `.env*` exclusion is LOAD-BEARING: it protects the
+          # operator-owned, never-in-git
+          # /opt/onchain-bot/apps/dexter-onchain-bot/.env.production
+          # (rsync neither syncs nor deletes it); the precondition step
+          # below asserts it is present before any mutation.
+          sudo rsync -a --delete \
+            --exclude='.git' \
+            --exclude='uploads' \
+            --exclude='.git/**' \
+            --exclude='node_modules' \
+            --exclude='node_modules/**' \
+            --exclude='dist' \
+            --exclude='dist/**' \
+            --exclude='backups' \
+            --exclude='backups/**' \
+            --exclude='logs' \
+            --exclude='logs/**' \
+            --exclude='.env*' \
+            /opt/actions-runner/_work/onchain-bot/onchain-bot/ \
+            /opt/onchain-bot/
+          echo "=== Fixing ownership after rsync ==="
+          sudo chown -R runner:runner /opt/onchain-bot 2>&1 || echo "post-sync chown warning (non-fatal)"
+          echo "=== Post-sync HEAD ==="
+          git -C /opt/onchain-bot rev-parse HEAD 2>/dev/null || echo "no git repo (rsync-synced tree, expected on fresh hosts)"
+
+      - name: 'Precondition: dexter prod env present'
+        # Operator-owned env file (values never in git). Fail loudly BEFORE
+        # the backup/migration/recreate mutations if it is missing on the
+        # host. Not provisioned yet (workflow dormant) — the operator
+        # places .env.production at the Wave 4 rollout.
+        run: |
+          test -s /opt/onchain-bot/apps/dexter-onchain-bot/.env.production || { echo "::error::.env.production missing at /opt/onchain-bot/apps/dexter-onchain-bot/ (operator step; values never in git) — aborting before any mutation"; exit 1; }
+
       - name: Backup dexter production database
         run: |
-          # DRY-RUN NOTE: container name / droplet path OPERATOR-CONFIRM
-          # on first Wave 4 rollout (nothing applied yet; HARD owner gate).
+          # PRE-FIRST-RUN NOTE (2026-10-18): prod is not provisioned yet
+          # (workflow dormant; /opt/onchain-bot/apps/dexter-onchain-bot/
+          # absent until the sync above runs). Container
+          # onchain-bot-dexter-postgres-prod + backup dir
+          # /data/backups/dexter-prod remain OPERATOR-CONFIRM at the
+          # Wave 4 rollout (HARD owner gate).
           set -euo pipefail
           DEXTER_PG="$(docker ps --format '{{.Names}}' | grep -qx 'onchain-bot-dexter-postgres-prod' && echo 'onchain-bot-dexter-postgres-prod' || true)"
           if [ -n "$DEXTER_PG" ]; then
@@ -155,12 +219,16 @@ jobs:
           # `AS builder` at Dockerfile:5 — plan requirement, no redesign).
           # Migrations run in a throwaway builder container so the minimal
           # prod image is never touched.
+          # INVOCATION (fix 2026-10-18, same as the staging twin): cwd ==
+          # build context root and the `-f` path is relative to BOTH, so it
+          # resolves identically under either interpretation
+          # (relative-to-cwd vs relative-to-context) — unambiguous.
           set -euo pipefail
-          cd /opt/onchain-bot/apps/dexter-onchain-bot
+          cd /opt/onchain-bot
           docker build --target builder \
             -f apps/dexter-onchain-bot/Dockerfile \
             -t ghcr.io/${{ github.repository }}-dexter-migrate:${{ github.sha }} \
-            /opt/onchain-bot
+            .
 
       - name: Dry-run migrations (read-only, fail loudly)
         run: |

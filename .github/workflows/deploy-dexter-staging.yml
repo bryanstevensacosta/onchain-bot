@@ -2,10 +2,18 @@ name: Deploy Dexter to staging
 
 # Dexter staging deploy (dexter-deploy-and-frontend, Wave 2).
 #
-# DRY-RUN ONLY — this workflow has never run against Oracle. Before the
-# first Wave 3 rollout the operator confirms on the droplet: destination
-# path /opt/onchain-bot-staging/apps/dexter-onchain-bot/, .env.staging
-# values (never in git), and host ports :4061/:5441/:6388 with lsof.
+# STATUS (2026-10-18): this workflow has fired on every dexter push since
+# 2026-10-11 and ALWAYS failed at the same step ("Ensure dexter staging
+# databases running") — it assumed a pre-provisioned tree that nothing
+# created (docker-compose.staging.yml absent under
+# /opt/onchain-bot-staging/apps/dexter-onchain-bot/). The dexter staging
+# stack itself was bootstrapped MANUALLY on 2026-09-27 (old image,
+# currently healthy). As of this fix the deploy job self-syncs the full
+# repo tree (mirroring deploy-staging.yml), so the compose file and
+# Dockerfile it needs are provisioned BY THE WORKFLOW. `.env.staging` is
+# operator-owned (values never in git, never touched by rsync — the sync
+# excludes `.env*`) and confirmed present on Oracle 2026-10-18. First
+# real rollout via this workflow is PENDING (next dexter push to dev).
 #
 # ANTI-DOUBLE-FIRE: this workflow owns dexter paths ONLY
 # (apps/dexter-onchain-bot/** + itself). Disjoint from deploy.yml /
@@ -101,10 +109,72 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # PROVISIONING (fix 2026-10-18): the four steps below make this job
+      # self-provisioning, mirroring deploy-staging.yml's proven pattern.
+      # Before this fix the job assumed a pre-provisioned tree that nothing
+      # created — every run since 2026-10-11 died at "Ensure dexter staging
+      # databases running" (compose file absent).
+
+      - name: Fix ownership before sync (chown -R runner:runner)
+        # Same tolerant pattern as deploy-staging.yml: sudo first, then a
+        # plain fallback, and a non-fatal echo as last resort.
+        run: |
+          echo "=== chown -R runner:runner /opt/onchain-bot-staging ==="
+          sudo chown -R runner:runner /opt/onchain-bot-staging || chown -R runner:runner /opt/onchain-bot-staging || echo 'chown warning (non-fatal)'
+          echo "=== ownership fixed ==="
+
+      - name: Sync live source tree with dev
+        # Full-tree rsync, same source/destination/excludes as
+        # deploy-staging.yml (the backend/frontend staging sync). This is
+        # what materializes docker-compose.staging.yml + the Dockerfile
+        # under /opt/onchain-bot-staging/apps/dexter-onchain-bot/.
+        run: |
+          set -euo pipefail
+          mkdir -p /opt/onchain-bot-staging
+          # `.env*` exclusion is LOAD-BEARING: it protects the
+          # operator-owned, never-in-git
+          # /opt/onchain-bot-staging/apps/dexter-onchain-bot/.env.staging
+          # (rsync neither syncs nor deletes it); the precondition step
+          # below asserts it is still there before any mutation.
+          rsync -a --delete \
+            --exclude='.git' \
+            --exclude='.git/**' \
+            --exclude='node_modules' \
+            --exclude='node_modules/**' \
+            --exclude='dist' \
+            --exclude='dist/**' \
+            --exclude='backups' \
+            --exclude='backups/**' \
+            --exclude='logs' \
+            --exclude='logs/**' \
+            --exclude='.env*' \
+            /opt/actions-runner/_work/onchain-bot/onchain-bot/ \
+            /opt/onchain-bot-staging/
+          echo "=== Sync complete ==="
+
+      - name: Clean stale node_modules (rsync --exclude prevents deletion)
+        # Same as deploy-staging.yml: rsync --exclude keeps receiver-side
+        # node_modules alive, so remove them explicitly.
+        run: |
+          echo "=== Removing stale node_modules that rsync --exclude preserves ==="
+          find /opt/onchain-bot-staging -name node_modules -type d -prune -exec rm -rf {} + 2>/dev/null || true
+          echo "=== Done ==="
+
+      - name: 'Precondition: dexter staging env present'
+        # Operator-owned env file (values never in git). Fail loudly BEFORE
+        # the backup/migration/recreate mutations if it is missing on the
+        # host. Confirmed present 2026-10-18; the rsync above excludes
+        # `.env*`, so this step also proves the exclusion held.
+        run: |
+          test -s /opt/onchain-bot-staging/apps/dexter-onchain-bot/.env.staging || { echo "::error::.env.staging missing at /opt/onchain-bot-staging/apps/dexter-onchain-bot/ (operator step; values never in git) — aborting before any mutation"; exit 1; }
+
       - name: Backup dexter staging database
         run: |
-          # DRY-RUN NOTE: container name / droplet path OPERATOR-CONFIRM
-          # on first Wave 3 rollout (nothing applied yet).
+          # CONFIRMED 2026-10-18 (read-only recon): container
+          # onchain-bot-dexter-postgres-staging runs healthy (stack
+          # bootstrapped manually 2026-09-27); backup dir
+          # /data/backups/dexter-staging exists. Host ports
+          # :4061/:5441/:6388 held by the running staging stack = expected.
           set -euo pipefail
           DEXTER_PG="$(docker ps --format '{{.Names}}' | grep -qx 'onchain-bot-dexter-postgres-staging' && echo 'onchain-bot-dexter-postgres-staging' || true)"
           if [ -n "$DEXTER_PG" ]; then
@@ -148,12 +218,18 @@ jobs:
           # `AS builder` at Dockerfile:5 — plan requirement, no redesign).
           # Migrations run in a throwaway builder container so the minimal
           # prod image is never touched.
+          # INVOCATION (fix 2026-10-18): cwd == build context root and the
+          # `-f` path is relative to BOTH, so it resolves identically under
+          # either interpretation (relative-to-cwd vs relative-to-context)
+          # — unambiguous. The old form ran from the app dir while the
+          # context was the repo root, so the same relative `-f` string
+          # pointed at two different files depending on the builder.
           set -euo pipefail
-          cd /opt/onchain-bot-staging/apps/dexter-onchain-bot
+          cd /opt/onchain-bot-staging
           docker build --target builder \
             -f apps/dexter-onchain-bot/Dockerfile \
             -t ghcr.io/${{ github.repository }}-dexter-migrate:${{ github.sha }} \
-            /opt/onchain-bot-staging
+            .
 
       - name: Dry-run migrations (read-only, fail loudly)
         run: |
