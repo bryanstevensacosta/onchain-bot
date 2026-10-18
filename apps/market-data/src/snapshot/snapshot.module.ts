@@ -39,6 +39,8 @@ import { DiscoveryCacheService } from './application/discovery-cache.service';
 import { DiscoveryCacheJanitorService } from './application/discovery-cache-janitor.service';
 import { SingleflightService } from './application/singleflight.service';
 import { QuotaGovernorService } from './application/quota-governor.service';
+import { AddressExistenceService } from './application/address-existence.service';
+import { PendingAgingService } from './application/pending-aging.service';
 /**
  * SnapshotModule (Tramo 3, todo 12, P50; market-data restructure:
  * aggregation moved to AggregatorsModule — this module owns history
@@ -88,6 +90,11 @@ import { QuotaGovernorService } from './application/quota-governor.service';
     DiscoveryCacheJanitorService,
     SingleflightService,
     QuotaGovernorService,
+    // Latency package (dexter plan todo 21): pre-fan-out existence
+    // gate + pending-aging escalator. Both in-memory and reset-on-
+    // deploy (same class as the breaker/governor state).
+    AddressExistenceService,
+    PendingAgingService,
     DirectFastPathService,
     // On-chain readers (todo 22 wire-up): built from the frozen Lane T
     // transports via factories (interface-typed ctor params need

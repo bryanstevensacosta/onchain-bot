@@ -12,7 +12,7 @@ export interface SnapshotHistoryRow {
   readonly chain: string;
   readonly address: string;
   readonly kind: AddressKind;
-  readonly status: 'pending' | 'ready';
+  readonly status: 'pending' | 'ready' | 'invalid';
   readonly quote: SnapshotQuote;
   readonly sources: ReadonlyArray<string>;
   readonly providerErrors: Record<string, string>;

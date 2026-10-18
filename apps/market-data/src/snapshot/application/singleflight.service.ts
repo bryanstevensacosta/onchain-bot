@@ -108,6 +108,16 @@ export class SingleflightService {
     return shared;
   }
 
+  /**
+   * Is there an in-flight run for this key right now? (dexter plan
+   * todo 21a background-refresh dedupe: the refresh caller checks
+   * first so a second SWR serve never starts a second fan-out — it
+   * logs `deduped` and adheres instead.)
+   */
+  public has(key: string): boolean {
+    return this.inflight.has(key);
+  }
+
   /** In-flight cardinality (specs + future `/metrics` exporter). */
   public size(): number {
     return this.inflight.size;

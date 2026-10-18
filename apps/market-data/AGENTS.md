@@ -751,8 +751,10 @@ exactly — existing specs pin it with the fast path mocked null).
   pump pool leg is skipped when discovery names the curve PDA
   itself (duplicate read). Union-typed ctor params carry explicit
   `@Inject` (else Nest emits `Object` metadata and resolves null —
-  same latent pattern as the pre-existing `cache`/`assets`/
-  `nullMetrics` params: observed during wire-up, NOT changed).
+  same latent pattern as the pre-existing `assets`/`nullMetrics`
+  params: observed during wire-up, NOT changed there; `cache` carried
+  it until todo 21 fixed the injection — see the LATENCY PACKAGE
+  section).
 - Coverage (honest): Solana pump-PDA (no discovery needed),
   Solana pools via DexScreener pairAddress (owner dispatch),
   EVM V2/V3 via best-pair discovery (V4 poolIds not discoverable).
@@ -2257,3 +2259,135 @@ real ATH. Attribution: **on-chain data provided by GeckoTerminal**
   memo TTL, timeout retry, clamp, SWR) + `geckoterminal-ohlcv-day.spec.ts`
   (9: params/timeout/404/429 headerless/5xx) + `address-snapshot-fdv-ath.spec.ts`
   (marker pins). Evidence: `.omo/evidence/task-fe-ath-seed.log`.
+
+## LATENCY PACKAGE — SWR-NOW + EXISTENCE + RACE DEADLINES + PENDING AGING (dexter plan todo 21, 2026-10-18)
+
+Rick-style <1s budget, four fail-open pieces layered on the existing
+pipeline. Invariants intact: 19a (pending never cached), 19b1 (stale
+trio + floor), 19b2 (single retry), 19b3 (breaker relay), 41
+(singleflight/TTL/governor). Serve order in `getSnapshotInner`:
+cache HIT → SWR-now → existence gate → `prepareFetcherChain`
+(policy → governor tier-skip → outbound bucket → breaker →
+single retry) → fan-out race → pending aging (inside
+`buildSnapshot`, after the stale floor). Per-stage spans are LOG-ONLY
+on the serve lines (`swrMs` / `existenceMs` / `directMs` / `fanoutMs`
+/ `kindMs` / `tailMs` / `totalMs`) — measure before cutting.
+
+- (a) SWR-NOW (`tryServeSwrNow`): a `ready` history row aged in
+  [`SNAPSHOT_SWR_MIN_AGE_MS` = 30s (the numbers TTL — younger rows
+  keep pure pipeline semantics, the service cache covers that range),
+  `staleMaxAgeMs` (24h)] serves IMMEDIATELY with
+  `providerErrors: {'swr-now': <note>}` (exactly one key), stale trio
+  from the row, `launchpad`/`venue`/`pairCreatedAt` null (live
+  extras), `fdvAth` from history ONLY (zero seed/network), `sources`
+  copied, dev fields from the row; clears the aging streak; NEVER
+  cached, never re-persisted. A corrupt row (`isStaleTrioValid`
+  false) falls through. Locked: SWR never serves from the refresh
+  (no loop).
+- REFRESH (async background): deduped via `SingleflightService`
+  under the SEPARATE `refresh:<cacheKey>` key (dedupe checks `has`
+  first — adherents join the leader's promise; `refreshInFlight` +
+  `backgroundRefreshHandle()` is the handle seam). Body = a regular
+  serve minus the SWR shortcut: existence gate → gated fan-out under
+  the same deadline. `outcome.allFailed` is a TOTAL no-op (never
+  persists a pending, never touches stale/aging — pendings reduce to
+  `quoteFailed` only when `allFailed`, so the guard is exact). No
+  `observeGovernor` (the live request already observed the same
+  errors — no double-count). Success persists + caches 30s (the
+  repeat is a cache HIT <100ms — this is what holds "token conocido
+  repetición <200ms" once the row is <30s old); `missing` persists
+  the invalid card. Fire-and-forget with `.catch` — never an
+  unhandled rejection.
+- (b) EXISTENCE GATE (`AddressExistenceService`, NEW —
+  `snapshot/application/`): BEFORE any provider fan-out (zero quota
+  burn) and AFTER SWR (warm tokens never pay the probe); service-level
+  kind gate `token`/`unknown` only (wallet etc. skip). EVM via the
+  tiered transport (`AlchemyService.getCode` → Alchemy → dRPC →
+  public; NEVER a direct public endpoint in the prod path): non-empty
+  code → `exists`; empty + `token` → `missing`
+  (`no contract bytecode (eth_getCode returned empty)`); empty +
+  `unknown` → `getTransactionCount` (zero nonce → `missing`
+  `no contract bytecode and zero transaction count`; non-zero →
+  `exists` EOA). Solana via NEW
+  `SolanaRpcService.probeAccountExistence` over the existing tiers
+  (`value: null` → `missing` `no account for mint (getAccountInfo
+returned null)`). Everything else — unknown chain, bad format,
+  transport gap, `SNAPSHOT_EXISTENCE_DEADLINE_MS` (default 800)
+  expiry — is `unresolved` = fail-open (pipeline byte-identical,
+  probe never throws). `missing` short-circuits to `buildInvalidCard`
+  - `persistInvalid`: `status: 'invalid'` (new union member; all-null
+    quote, `assetId: null`, no fdvAth, `sources: []`,
+    `providerErrors: {existence: <reason>}`), persisted + cached 30s
+    (invalid is neither pending nor stale — 19a intact), zero fetcher
+    calls, aging cleared.
+- (c) RACE DEADLINES: `SnapshotAggregatorService.aggregate(...,
+{deadlineMs})` — at `SNAPSHOT_FANOUT_DEADLINE_MS` (default 4000)
+  unfinished fetchers are abandoned: rejected records
+  `abandoned at fanout deadline (<ms>ms) — fail-open` in
+  `providerErrors` (stragglers never block the serve; the
+  per-fetcher 8s timeout still bounds each call; resolved values
+  keep merging). The probe and the refresh ride the same bound.
+- (d) PENDING AGING (`PendingAgingService`, NEW): consecutive-pending
+  counter per `(chain, address, kind)` — `SNAPSHOT_PENDING_AGING_N`
+  (default 3) pendings within `SNAPSHOT_PENDING_AGING_WINDOW_MS`
+  (default 600s) escalate to `invalid` with
+  `providerErrors.aging` (`pending N consecutive times within Ws —
+escalated to invalid (aging, resets on deploy)`) ON TOP of the
+  provider errors; the entry is KEPT on escalation (further pendings
+  re-escalate, count keeps growing). A window gap or a backwards
+  clock resets the streak to 1; cap 1000 keys (LRU-by-insertion),
+  memory + reset-on-deploy (same rule as breaker/governor). Record
+  site: pending only (inside the stale-floor miss branch); the
+  background refresh NEVER records. Clear sites: fresh ready
+  persist, SWR serve, existence-missing (live + refresh), stale-floor
+  serve. The aging-escalated invalid deliberately does NOT clear —
+  it re-escalates.
+- All env vars are read at construction/compile (same pattern as
+  `staleMaxAgeMs`): `SNAPSHOT_FANOUT_DEADLINE_MS`,
+  `SNAPSHOT_EXISTENCE_DEADLINE_MS`, `SNAPSHOT_PENDING_AGING_N`,
+  `SNAPSHOT_PENDING_AGING_WINDOW_MS`
+  (`resolveFanoutDeadlineMs`/`resolveExistenceDeadlineMs`/
+  `resolvePendingAgingN`/`resolvePendingAgingWindowMs` — non-finite/
+  ≤0/garbage → pinned default).
+- DI LATENT-GAP FIX (found + fixed here): union-typed ctor params
+  without explicit `@Inject` emit `Object` metadata under
+  `strictNullChecks` → Nest resolves the token `Object` → undefined.
+  The service `cache` param carried this since inception (the DI
+  specs observed `undefined`; the same tsconfig governs `nest build`,
+  so the service-level cache was inert in prod too). todo 21 adds
+  `@Inject(CacheService)` — REQUIRED for this package (the refresh
+  cache-warm + the 30s SWR lower-bound rationale both assume "prod
+  cache covers that range"). `assets`/`nullMetrics` remain the same
+  documented-latent pattern (NOT changed — out of scope).
+- MEASURED LIVE (dev `:4000`, 2026-10-18, pm2 restart id 6): cold
+  NYMA `0x968B…5583` / robinhood → `ready` 2.99s (span line:
+  `directMs=199 fanoutMs=738 tailMs=1086 existence=exists
+existenceMs=494 totalMs=2985`); immediate repeat 2.9ms (`x-cache:
+HIT`); SWR serve at age 33.3s (33.3s-old row, 3.5ms,
+  `swr-now … refresh=started`, body `stale:true` + `swr-now` note);
+  post-refresh repeat 1.9ms at edge MISS (service cache warmed by
+  the refresh — the DI fix live); dead address
+  `0x…0001` → `invalid` 453ms
+  (`existence-gate verdict=missing existenceMs=451 totalMs=451`);
+  flap factory `0x2660…Eb09` (contract with no market data) →
+  honest `pending` 2.7s, then pending ×2 → 3rd call `invalid` with
+  the aging note (live escalation, `count=3 escalated=true`). Helius
+  is 429-walled from this network — Solana existence live QA NOT run
+  (spec-pinned; EVM dead address used for the live gate, as the plan
+  directs).
+- Specs (7 suites / 77 tests, all green): `snapshot-latency.spec.ts`
+  (resolvers + notes + governor-clean wording),
+  `address-existence.service.spec.ts` (EVM/Solana verdicts + deadline
+  - fail-open matrix), `snapshot-aggregator-deadline.spec.ts`
+    (abandoned records, resolved values still merge),
+    `address-snapshot-swr.spec.ts` (T1-T5: SWR serve shape + refresh
+    dedupe + cache warm + never-cached), `address-snapshot-existence.spec.ts`
+    (E1-E7: dead/invalid fast, cache repeat, fail-open, kind gate,
+    unknown-kind, exists), `address-snapshot-aging.spec.ts` (A1-A7:
+    escalation, re-escalation, window gap, clear-on-ready,
+    clear-on-existence, unit block, env override),
+    `address-snapshot-rick-parity.spec.ts` (P1-P2: dead <1s without
+    SWR/fan-out; hung fetcher bounded by a 250ms-pinned deadline).
+    Full suite 151/1111 green (baseline 144/1034), dexter 69/721 green,
+    `tsc --noEmit` clean. Evidence:
+    `.omo/evidence/task-fe-latency.log`.

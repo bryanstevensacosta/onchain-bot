@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { SnapshotModule } from '../snapshot.module';
 import { AddressSnapshotService } from './address-snapshot.service';
 import { DirectFastPathService } from './direct-fast-path.service';
+import { AddressExistenceService } from './address-existence.service';
 import { SnapshotHistoryRepository } from '../infrastructure/snapshot-history.repository';
 import { LaunchpadDetectorService } from 'launchpad/application/launchpad-detector.service';
 import { ChainCatalogPort } from 'chain/application/ports/chain-catalog.port';
@@ -193,6 +194,16 @@ async function harness(options: HarnessOptions = {}): Promise<Harness> {
     })
     .overrideProvider(BirdeyeService)
     .useValue({ getTokenOhlcv: async () => null })
+    // Hermetic existence gate (todo 21b): fail-open stub — no live RPC
+    // tier walk inside this suite.
+    .overrideProvider(AddressExistenceService)
+    .useValue({
+      probe: async () => ({
+        verdict: 'unresolved',
+        reason: 'spec stub (fail-open)',
+        ms: 0,
+      }),
+    })
     .compile();
   modules.push(module);
   return {
@@ -378,6 +389,10 @@ describe('AddressSnapshotService one-shot ATH seed (todo 68 acceptance)', () => 
     expect(h.dayCalls).toHaveLength(1); // memoized for 6h
     nowSpy.mockReturnValue(Date.now() + 6 * HOUR_MS + 1);
     await h.snapshots.getSnapshot(input);
+    // SWR-now (todo 21a): the +6h serve is a warm-history latency
+    // serve — the seed retry rides the background refresh; flush it
+    // before counting day calls.
+    await h.snapshots.backgroundRefreshHandle();
     expect(h.dayCalls).toHaveLength(2); // expired -> retried
     expect((await h.history.findFdvAth(CHAIN, TOKEN)).seeded).toBe(false);
   });

@@ -18,6 +18,7 @@ import {
 } from '../domain/snapshot.types';
 import {
   SNAPSHOT_CACHE_TTL_SECONDS,
+  SNAPSHOT_PROVIDER_TIMEOUT_MS,
   SNAPSHOT_QUOTE_PROVIDERS,
   SNAPSHOT_QUOTE_FIELDS,
   emptySnapshotQuote,
@@ -99,6 +100,19 @@ import {
   isStaleTrioValid,
   isTailDegraded,
 } from '../domain/snapshot-ttl-policy';
+import {
+  agingEscalationNote,
+  resolveFanoutDeadlineMs,
+  SNAPSHOT_SWR_MIN_AGE_MS,
+  swrNowNote,
+} from '../domain/snapshot-latency';
+import {
+  AddressExistenceService,
+  type ExistenceProbeResult,
+} from './address-existence.service';
+import { PendingAgingService } from './pending-aging.service';
+import type { SnapshotHistoryRow } from '../infrastructure/snapshot-history.repository';
+import type { SnapshotFdvAth } from '../domain/snapshot-fdv-ath';
 
 /** Log helper: nullable ms renders as `n/a` (never crashes the line). */
 const roundMs = (ms: number | null): string =>
@@ -299,6 +313,27 @@ export class AddressSnapshotService {
    */
   private readonly athSeedNegativeMemo = new AthSeedNegativeMemo();
 
+  /**
+   * Fan-out race deadline (dexter plan todo 21c): the WHOLE fan-out
+   * stops being awaited here — unfinished fetchers are abandoned as
+   * fail-open rejected records, so a straggler never blocks the
+   * serve. Read once at construction (`staleMaxAgeMs` pattern), env
+   * `SNAPSHOT_FANOUT_DEADLINE_MS` (default 4000). The per-fetcher
+   * timeout (8s) still bounds each call; this bounds the whole run.
+   */
+  private readonly fanoutDeadlineMs: number = resolveFanoutDeadlineMs(
+    process.env['SNAPSHOT_FANOUT_DEADLINE_MS'],
+  );
+
+  /**
+   * In-flight background refresh (dexter plan todo 21a): the SWR
+   * serve's fan-out runs fire-and-forget, but specs flush it through
+   * `backgroundRefreshHandle()` before pinning downstream effects
+   * (day-calls, cache/history writes). Last-started handle; in-memory
+   * + reset-on-deploy (same class as the breaker/governor state).
+   */
+  private refreshInFlight: Promise<void> | null = null;
+
   public constructor(
     private readonly catalog: ChainCatalogPort,
     private readonly providers: ProviderRegistryService,
@@ -308,7 +343,14 @@ export class AddressSnapshotService {
     @Optional()
     @Inject(SNAPSHOT_QUOTE_PROVIDERS)
     private readonly fetchers: ReadonlyArray<QuoteFetcher> | null,
-    @Optional() private readonly cache: CacheService | null,
+    // Union-typed param: `@Inject` is mandatory (design:paramtypes
+    // emits `Object` under strictNullChecks — same latent DI gap the
+    // `fastPath` comment below documents, and this lane's SWR refresh
+    // needs the real cache warm: todo 21a + the 30s SWR lower bound
+    // both assume "prod cache covers that range").
+    @Optional()
+    @Inject(CacheService)
+    private readonly cache: CacheService | null,
     @Optional()
     @Inject(RateLimiterPort)
     private readonly outbound: RateLimiterPort | null = null,
@@ -380,6 +422,20 @@ export class AddressSnapshotService {
     @Optional()
     @Inject(BirdeyeService)
     private readonly birdeye: BirdeyeService | null = null,
+    // Existence gate (dexter plan todo 21b): a definitively dead
+    // address answers a differentiated `invalid` fast, BEFORE any
+    // provider fan-out. Null in hand-built specs -> gate skipped,
+    // byte-identical; DI specs override it (hermeticity: the real
+    // service would reach Alchemy/Solana RPC).
+    @Optional()
+    @Inject(AddressExistenceService)
+    private readonly existence: AddressExistenceService | null = null,
+    // Pending aging (dexter plan todo 21d): consecutive-pending
+    // escalation to `invalid`. Null in hand-built specs -> pending
+    // stays pending, byte-identical (counter resets on deploy).
+    @Optional()
+    @Inject(PendingAgingService)
+    private readonly aging: PendingAgingService | null = null,
   ) {}
 
   /** In-flight half-open probe key (at most ONE globally — the single cheapest-fetcher probe). */
@@ -1064,69 +1120,78 @@ export class AddressSnapshotService {
         return cached;
       }
     }
-    const active = (this.fetchers ?? []).filter((fetcher) =>
-      fetcher.supportsChains.includes(knownId),
-    );
-    // Aggregators policy order (market-data restructure): ordered
-    // provider list from context (kind, chain, fields, quota state,
-    // account credits). Empty quota/credits is the identity — the
-    // cascade order is byte-identical to the pre-policy pipeline.
-    const ordered =
-      this.policy === null
-        ? active
-        : this.policy.orderFetchers(active, {
-            kind,
-            chain: knownId,
-            address: inputValue,
-            fields: [...SNAPSHOT_QUOTE_FIELDS],
-            quota: {},
-            credits: {},
-          });
-    // Quota governor (dexter plan todo 41d): read BEFORE the fan-out,
-    // AFTER the cache check above (HITs cost zero quota and never
-    // consult it). Every other call-site funnels through this method
-    // and checks NOTHING itself.
-    const governed = this.applyGovernorTierSkip(ordered);
-    const gated = applyOutboundRateLimit(
-      governed.admitted,
-      this.outbound,
-      (name: string) =>
-        resolveProviderOutboundBudget(this.providers.listProviders(), name),
-    );
-    // Single retry OUTSIDE the gate (dexter plan todo 19b2): each attempt
-    // runs the GATED fetch, so the retry burns from the SAME
-    // `outbound:<name>` bucket — worst case 2 x cost per miss per
-    // fetcher, never a phantom budget. Sibling 19b1 (stale floor
-    // below) untouched: stale serves only when the fanned-out result
-    // below is pending, retry or not.
-    // Breaker sits between the outbound wrap and the retry (todo 29:
-    // policy -> outbound-gate -> breaker-skip -> retry -> aggregate):
-    // a skipped fetcher never runs, so it burns neither retry delay
-    // nor outbound budget.
-    const breakerGate = this.applyBreakerGate(gated);
-    const retried = applySingleRetryFetchers(breakerGate.admitted);
-    // Direct fast-path FIRST (todo 22 wire-up): the fan-out starts
-    // IMMEDIATELY and the on-chain readers race a HARD deadline
-    // against it. Sane direct values serve at direct speed while the
-    // in-flight fan-out completes in background for the log-only
-    // tolerance check (no second run). ANY direct miss (no coverage,
-    // timeout, insane values) awaits the already-running fan-out —
-    // the fallback path below is byte-identical and pays ~zero
-    // direct penalty when the miss is fast (instant-null coverage).
-    const fanoutP = this.aggregator
-      .aggregate(knownId, inputValue, retried)
-      .finally(() => {
-        // Half-open probe release: the probe is the FETCHER call, which
-        // is done when the aggregate settles (the aggregate itself never
-        // rejects — allSettled inside). Release exactly our own key so a
-        // concurrent snapshot's probe is never stolen.
-        if (
-          breakerGate.halfOpenKey !== null &&
-          this.halfOpenProbeInFlight === breakerGate.halfOpenKey
-        ) {
-          this.halfOpenProbeInFlight = null;
-        }
+    // SWR-now (dexter plan todo 21a): a warm `ready` history row within
+    // [numbers TTL, stale bound) serves IMMEDIATELY — the fan-out runs
+    // in background (deduped via singleflight under `refresh:<key>`).
+    // Never cached here; the next request re-serves SWR while the
+    // refresh is in flight and a successful refresh warms the cache.
+    const swrStartedAt = performance.now();
+    const swr = await this.tryServeSwrNow({
+      knownId,
+      inputValue,
+      kind,
+      id,
+      supporting,
+    });
+    if (swr !== null) {
+      const swrMs = Math.round(performance.now() - swrStartedAt);
+      const refresh = this.startBackgroundRefresh({
+        knownId,
+        inputValue,
+        cacheKey,
+        kind,
+        id,
+        supporting,
       });
+      this.logger.log(
+        `swr-now chain=${knownId} ageMs=${roundMs(swr.staleAgeMs)} ` +
+          `swrMs=${swrMs} refresh=${refresh} ` +
+          `totalMs=${Math.round(performance.now() - startedAt)}`,
+      );
+      return swr;
+    }
+    // Existence gate (dexter plan todo 21b): a definitively dead address
+    // answers `invalid` BEFORE any provider fan-out (fast,
+    // differentiated, zero quota burn). Runs AFTER SWR-now (warm tokens
+    // never pay the probe) and ONLY for token/unknown kinds; every
+    // non-`missing` verdict fails open into the pipeline below.
+    const existenceStartedAt = performance.now();
+    const existence = await this.probeExistence(knownId, inputValue, kind);
+    const existenceMs = Math.round(performance.now() - existenceStartedAt);
+    if (existence !== null && existence.verdict === 'missing') {
+      this.aging?.clear(id.key, kind);
+      const invalid = this.buildInvalidCard({
+        id,
+        supporting,
+        providerErrors: { existence: existence.reason },
+      });
+      await this.persistInvalid(invalid, cacheKey);
+      this.logger.log(
+        `existence-gate chain=${knownId} verdict=missing existenceMs=${existenceMs} ` +
+          `kindMs=${kindMs} totalMs=${Math.round(performance.now() - startedAt)}`,
+      );
+      return invalid;
+    }
+    const existenceLabel = existence === null ? 'skipped' : existence.verdict;
+    // Pre-fan-out preparation (policy order -> governor -> outbound gate
+    // -> breaker -> single retry) extracted for the background refresh
+    // (todo 21a): both serve paths run the SAME gate chain.
+    const prepared = this.prepareFetcherChain(kind, knownId, inputValue);
+    // Direct fast-path FIRST (todo 22 wire-up): the fan-out starts
+    // IMMEDIATELY (with the whole-run deadline, todo 21c) and the
+    // on-chain readers race a HARD deadline against it. Sane direct
+    // values serve at direct speed while the in-flight fan-out
+    // completes in background for the log-only tolerance check (no
+    // second run). ANY direct miss (no coverage, timeout, insane
+    // values) awaits the already-running fan-out — the fallback path
+    // below is byte-identical and pays ~zero direct penalty when the
+    // miss is fast (instant-null coverage).
+    const fanoutP = this.startFanout(
+      knownId,
+      inputValue,
+      prepared.retried,
+      prepared.halfOpenKey,
+    );
     const fastStartedAt = performance.now();
     const fast =
       this.fastPath === null
@@ -1156,9 +1221,9 @@ export class AddressSnapshotService {
           pairSide: fast.pairSide,
         },
         skipDevHoldings: true,
-        breakerSkipped: breakerGate.skipped,
+        breakerSkipped: prepared.breakerSkipped,
         breakerAdmitted: [],
-        governor: governed.note,
+        governor: prepared.governor,
         outcomeIsAggregate: false,
       });
       this.observeGovernor(built.snapshot.providerErrors);
@@ -1166,8 +1231,9 @@ export class AddressSnapshotService {
         `direct-fast-path chain=${knownId} served=fast directMs=${directMs} ` +
           `discoveryMs=${roundMs(fast.timings.discoveryMs)} ` +
           `kindMs=${kindMs} tailMs=${built.tailMs} ` +
-          `breakerSkipped=${breakerGate.skipped.length} ` +
-          `governorShed=${governed.skipped.length} ` +
+          `breakerSkipped=${prepared.breakerSkipped.length} ` +
+          `governorShed=${prepared.shedCount} ` +
+          `existence=${existenceLabel} existenceMs=${existenceMs} ` +
           `totalMs=${Math.round(performance.now() - startedAt)}`,
       );
       this.compareToleranceInBackground(
@@ -1198,20 +1264,410 @@ export class AddressSnapshotService {
         pairSide: null,
       },
       skipDevHoldings: false,
-      breakerSkipped: breakerGate.skipped,
-      breakerAdmitted: breakerGate.admitted.map((fetcher) => fetcher.name),
-      governor: governed.note,
+      breakerSkipped: prepared.breakerSkipped,
+      breakerAdmitted: prepared.breakerAdmitted,
+      governor: prepared.governor,
       outcomeIsAggregate: true,
     });
     this.observeGovernor(built.snapshot.providerErrors);
     this.logger.log(
       `direct-fast-path chain=${knownId} served=fanout directMs=${directMs} ` +
         `fanoutMs=${fanoutMs} kindMs=${kindMs} tailMs=${built.tailMs} ` +
-        `breakerSkipped=${breakerGate.skipped.length} ` +
-        `governorShed=${governed.skipped.length} ` +
+        `breakerSkipped=${prepared.breakerSkipped.length} ` +
+        `governorShed=${prepared.shedCount} ` +
+        `existence=${existenceLabel} existenceMs=${existenceMs} ` +
         `totalMs=${Math.round(performance.now() - startedAt)}`,
     );
     return built.snapshot;
+  }
+
+  /**
+   * Pre-fan-out preparation (dexter plan todo 21, extracted for the
+   * SWR background refresh): policy order -> governor tier-skip ->
+   * outbound token-bucket gate -> breaker skip -> single retry. The
+   * live serve and the refresh run the SAME gate chain — body moved
+   * verbatim from the pre-21 pipeline, no behavior change.
+   */
+  private prepareFetcherChain(
+    kind: string,
+    knownId: string,
+    inputValue: string,
+  ): {
+    readonly retried: ReadonlyArray<QuoteFetcher>;
+    readonly breakerSkipped: ReadonlyArray<string>;
+    readonly breakerAdmitted: ReadonlyArray<string>;
+    readonly halfOpenKey: string | null;
+    readonly governor: {
+      readonly key: string;
+      readonly value: string;
+    } | null;
+    readonly shedCount: number;
+  } {
+    const active = (this.fetchers ?? []).filter((fetcher) =>
+      fetcher.supportsChains.includes(knownId),
+    );
+    // Aggregators policy order (market-data restructure): ordered
+    // provider list from context (kind, chain, fields, quota state,
+    // account credits). Empty quota/credits is the identity — the
+    // cascade order is byte-identical to the pre-policy pipeline.
+    const ordered =
+      this.policy === null
+        ? active
+        : this.policy.orderFetchers(active, {
+            kind,
+            chain: knownId,
+            address: inputValue,
+            fields: [...SNAPSHOT_QUOTE_FIELDS],
+            quota: {},
+            credits: {},
+          });
+    // Quota governor (dexter plan todo 41d): read BEFORE the fan-out,
+    // AFTER the cache check (HITs cost zero quota and never consult
+    // it). Every other call-site funnels through this method and
+    // checks NOTHING itself.
+    const governed = this.applyGovernorTierSkip(ordered);
+    const gated = applyOutboundRateLimit(
+      governed.admitted,
+      this.outbound,
+      (name: string) =>
+        resolveProviderOutboundBudget(this.providers.listProviders(), name),
+    );
+    // Single retry OUTSIDE the gate (dexter plan todo 19b2): each attempt
+    // runs the GATED fetch, so the retry burns from the SAME
+    // `outbound:<name>` bucket — worst case 2 x cost per miss per
+    // fetcher, never a phantom budget. Sibling 19b1 (stale floor)
+    // untouched: stale serves only when the fanned-out result is
+    // pending, retry or not.
+    // Breaker sits between the outbound wrap and the retry (todo 29:
+    // policy -> outbound-gate -> breaker-skip -> retry -> aggregate):
+    // a skipped fetcher never runs, so it burns neither retry delay
+    // nor outbound budget.
+    const breakerGate = this.applyBreakerGate(gated);
+    const retried = applySingleRetryFetchers(breakerGate.admitted);
+    return {
+      retried,
+      breakerSkipped: breakerGate.skipped,
+      breakerAdmitted: breakerGate.admitted.map((fetcher) => fetcher.name),
+      halfOpenKey: breakerGate.halfOpenKey,
+      governor: governed.note,
+      shedCount: governed.skipped.length,
+    };
+  }
+
+  /**
+   * Fan-out with the whole-run race deadline (dexter plan todo 21c):
+   * stragglers are abandoned at `SNAPSHOT_FANOUT_DEADLINE_MS` so they
+   * never block the serve. The `.finally` releases a half-open probe
+   * exactly as the pre-21 inline chain did (the aggregate itself
+   * never rejects).
+   */
+  private startFanout(
+    knownId: string,
+    inputValue: string,
+    retried: ReadonlyArray<QuoteFetcher>,
+    halfOpenKey: string | null,
+  ): Promise<AggregationOutcome> {
+    return this.aggregator
+      .aggregate(knownId, inputValue, retried, SNAPSHOT_PROVIDER_TIMEOUT_MS, {
+        deadlineMs: this.fanoutDeadlineMs,
+      })
+      .finally(() => {
+        // Half-open probe release: the probe is the FETCHER call, which
+        // is done when the aggregate settles (the aggregate itself never
+        // rejects — records inside). Release exactly our own key so a
+        // concurrent snapshot's probe is never stolen.
+        if (
+          halfOpenKey !== null &&
+          this.halfOpenProbeInFlight === halfOpenKey
+        ) {
+          this.halfOpenProbeInFlight = null;
+        }
+      });
+  }
+
+  /**
+   * Existence probe wrapper (dexter plan todo 21b). Service-level kind
+   * gate: only `token` (a dead token ask) and `unknown` (identity-less
+   * ask) are probed; every other kind skips (log `existence=skipped`).
+   * Absent service (hand-built specs) -> null (skipped). Never throws;
+   * a null answer is the skip/fail-open marker, an answer object is a
+   * verdict (`exists` | `missing` | `unresolved`).
+   */
+  private async probeExistence(
+    knownId: string,
+    inputValue: string,
+    kind: string,
+  ): Promise<ExistenceProbeResult | null> {
+    if (this.existence === null || this.existence === undefined) return null;
+    if (kind !== 'token' && kind !== 'unknown') return null;
+    try {
+      return await this.existence.probe(knownId, inputValue, kind);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Invalid card (dexter plan todo 21b/21d): the shared builder for
+   * every `invalid` serve (existence hit or aging escalation) — all
+   * quote fields null, `assetId: null` (NO registry upsert), no
+   * `fdvAth`, `degraded: false`, `sources` as passed (empty on both
+   * paths: a dead address has no sources). The reason rides
+   * `providerErrors` (`existence` | `aging`). Persisted + cached by
+   * `persistInvalid` like a normal card (30s numbers TTL; the edge
+   * cache accepts it — only pending/stale bodies skip there).
+   */
+  private buildInvalidCard(args: {
+    readonly id: AddressIdVo;
+    readonly supporting: ReadonlyArray<string>;
+    readonly providerErrors: Record<string, string>;
+    readonly sources?: ReadonlyArray<string>;
+  }): AddressSnapshot {
+    return {
+      chain: args.id.chain,
+      address: args.id.address,
+      kind: args.id.kind,
+      key: args.id.key,
+      status: 'invalid',
+      stale: false,
+      staleAsOf: null,
+      staleAgeMs: null,
+      degraded: false,
+      assetId: null,
+      launchpad: null,
+      venue: null,
+      pairCreatedAt: null,
+      fdvAth: null,
+      providers: args.supporting,
+      sources: args.sources ?? [],
+      providerErrors: args.providerErrors,
+      ...emptySnapshotQuote(),
+    };
+  }
+
+  /**
+   * Persist + cache an invalid card (dexter plan todo 21b/21d): same
+   * directness as the normal `history.save` path — a store error is
+   * not swallowed here either (consistent with the ready path).
+   * Cache: 30s numbers TTL, same writer rule as a ready card (only
+   * pending/stale skip; invalid is a DEFINITIVE verdict, so caching
+   * it is honest — and it is what makes the second hit fast).
+   */
+  private async persistInvalid(
+    snapshot: AddressSnapshot,
+    cacheKey: string,
+  ): Promise<void> {
+    await this.history.save({
+      key: snapshot.key,
+      chain: snapshot.chain,
+      address: snapshot.address,
+      kind: snapshot.kind,
+      status: snapshot.status,
+      quote: emptySnapshotQuote(),
+      sources: snapshot.sources,
+      providerErrors: snapshot.providerErrors,
+    });
+    if (this.cache) {
+      await this.cache.set(cacheKey, snapshot, SNAPSHOT_CACHE_TTL_SECONDS);
+    }
+  }
+
+  /**
+   * In-flight background-refresh flush handle (dexter plan todo 21a):
+   * the SWR serve's refresh is fire-and-forget on the wire, but specs
+   * (and future graceful-shutdown wiring) await it before pinning
+   * downstream effects. `null` when no refresh ever started.
+   */
+  public backgroundRefreshHandle(): Promise<void> | null {
+    return this.refreshInFlight;
+  }
+
+  /**
+   * SWR-now serve (dexter plan todo 21a). A recent `ready` history
+   * row serves without waiting for the fan-out when its age sits in
+   * [numbers TTL, stale bound): the 30s lower bound keeps pure
+   * pipeline semantics for fresh rows (prod cache covers that range;
+   * DI harnesses without a cache stay deterministic), the stale bound
+   * is the same 24h the stale floor uses (wider would serve rows the
+   * floor rejects).
+   *
+   * Card shape: `status: ready` + the stale trio from the row (ONLY
+   * after `isStaleTrioValid` — a corrupt row falls through to the
+   * pipeline, never a bit with no age), `launchpad`/`venue`/
+   * `pairCreatedAt` null (live-only extras), `fdvAth` from existing
+   * history ONLY (no seed, zero network), `sources` copied from the
+   * row, `providerErrors` carrying the `swr-now` audit note (clean of
+   * the governor quota-trigger pattern by construction). NEVER cached
+   * (the refresh warms the cache on success); clears any aging
+   * streak (fresh data is being fetched).
+   */
+  private async tryServeSwrNow(args: {
+    readonly knownId: string;
+    readonly inputValue: string;
+    readonly kind: string;
+    readonly id: AddressIdVo;
+    readonly supporting: ReadonlyArray<string>;
+  }): Promise<AddressSnapshot | null> {
+    let row: SnapshotHistoryRow | null = null;
+    try {
+      row = await this.history.findLatestReady(
+        args.id.key,
+        args.kind,
+        this.staleMaxAgeMs,
+      );
+    } catch {
+      return null;
+    }
+    if (row === null) return null;
+    const ageMs = Date.now() - Date.parse(row.createdAt);
+    if (!Number.isFinite(ageMs) || ageMs < SNAPSHOT_SWR_MIN_AGE_MS) {
+      return null;
+    }
+    if (!isStaleTrioValid(true, row.createdAt, ageMs)) return null;
+    let fdvAth: SnapshotFdvAth | null = null;
+    try {
+      fdvAth = (await this.history.findFdvAth(args.knownId, args.inputValue))
+        .ath;
+    } catch {
+      fdvAth = null;
+    }
+    this.aging?.clear(args.id.key, args.kind);
+    return {
+      chain: args.id.chain,
+      address: args.id.address,
+      kind: args.id.kind,
+      key: args.id.key,
+      status: 'ready',
+      stale: true,
+      staleAsOf: row.createdAt,
+      staleAgeMs: ageMs,
+      degraded: false,
+      assetId: await this.resolveAssetId(
+        args.knownId,
+        args.inputValue,
+        row.quote,
+      ),
+      launchpad: null,
+      venue: null,
+      pairCreatedAt: null,
+      fdvAth,
+      providers: args.supporting,
+      sources: [...row.sources],
+      providerErrors: { 'swr-now': swrNowNote(ageMs) },
+      ...emptySnapshotQuote(),
+      ...row.quote,
+      devWallets: row.quote.devWallets ?? null,
+      devPctSupply: row.quote.devPctSupply ?? null,
+    };
+  }
+
+  /**
+   * Start the SWR background refresh (dexter plan todo 21a), deduped
+   * via `SingleflightService` under the SEPARATE `refresh:<cacheKey>`
+   * key (the serve key stays untouched for adherent callers). When a
+   * refresh is already in flight the fn is NEVER called (no second
+   * fan-out — the work was already started) and this call adheres to
+   * the existing run; the returned mode feeds the `swr-now` log.
+   * Always `.catch`-guarded: the refresh is fire-and-forget by design
+   * (failures are logged inside `runBackgroundRefresh`'s callers'
+   * happy path; nothing here may ever escape as an unhandled
+   * rejection).
+   */
+  private startBackgroundRefresh(args: {
+    readonly knownId: string;
+    readonly inputValue: string;
+    readonly cacheKey: string;
+    readonly kind: string;
+    readonly id: AddressIdVo;
+    readonly supporting: ReadonlyArray<string>;
+  }): 'started' | 'deduped' {
+    const refreshKey = `refresh:${args.cacheKey}`;
+    const sf = this.singleflight;
+    if (sf !== null && sf !== undefined) {
+      if (sf.has(refreshKey)) {
+        this.refreshInFlight = sf
+          .run(refreshKey, () => Promise.resolve())
+          .then(() => undefined)
+          .catch(() => undefined);
+        return 'deduped';
+      }
+      this.refreshInFlight = sf
+        .run(refreshKey, () => this.runBackgroundRefresh(args))
+        .then(() => undefined)
+        .catch(() => undefined);
+      return 'started';
+    }
+    this.refreshInFlight = this.runBackgroundRefresh(args)
+      .then(() => undefined)
+      .catch(() => undefined);
+    return 'started';
+  }
+
+  /**
+   * Background refresh (dexter plan todo 21a): a REGULAR serve minus
+   * the SWR shortcut — existence gate first, then the full gated
+   * fan-out under the same deadline. No `observeGovernor` (the live
+   * request already observed the same provider errors — this avoids
+   * double-counting pressure). Refresh-pending is a TOTAL no-op
+   * (`outcome.allFailed` return BEFORE tail/derived/seed: zero
+   * side effects — with `allFailed` false `quoteFailed` is false
+   * downstream, so the stale floor and the aging escalator are
+   * unreachable and `buildSnapshot` needs no refresh flag). A ready
+   * refresh persists + caches exactly like a live serve; a
+   * definitive `missing` persists the invalid card.
+   */
+  private async runBackgroundRefresh(args: {
+    readonly knownId: string;
+    readonly inputValue: string;
+    readonly cacheKey: string;
+    readonly kind: string;
+    readonly id: AddressIdVo;
+    readonly supporting: ReadonlyArray<string>;
+  }): Promise<void> {
+    const { knownId, inputValue, cacheKey, kind, id, supporting } = args;
+    const existence = await this.probeExistence(knownId, inputValue, kind);
+    if (existence !== null && existence.verdict === 'missing') {
+      this.aging?.clear(id.key, kind);
+      const invalid = this.buildInvalidCard({
+        id,
+        supporting,
+        providerErrors: { existence: existence.reason },
+      });
+      await this.persistInvalid(invalid, cacheKey);
+      return;
+    }
+    const prepared = this.prepareFetcherChain(kind, knownId, inputValue);
+    const outcome = await this.startFanout(
+      knownId,
+      inputValue,
+      prepared.retried,
+      prepared.halfOpenKey,
+    );
+    if (outcome.allFailed) {
+      return;
+    }
+    await this.buildSnapshot({
+      knownId,
+      inputValue,
+      cacheKey,
+      kind,
+      id,
+      supporting,
+      outcome,
+      launchpad: { resolved: false, value: null },
+      venue: {
+        resolved: false,
+        value: null,
+        pairCreatedAt: null,
+        pairAddress: null,
+        pairSide: null,
+      },
+      skipDevHoldings: false,
+      breakerSkipped: prepared.breakerSkipped,
+      breakerAdmitted: prepared.breakerAdmitted,
+      governor: prepared.governor,
+      outcomeIsAggregate: true,
+    });
   }
 
   /**
@@ -1749,7 +2205,37 @@ export class AddressSnapshotService {
             devWallets: staleRow.quote.devWallets ?? null,
             devPctSupply: staleRow.quote.devPctSupply ?? null,
           };
+          // A real history row is serving: the pending streak ends.
+          this.aging?.clear(id.key, kind);
           return { snapshot: stale, tailMs };
+        }
+      }
+      // Pending aging (dexter plan todo 21d): N consecutive pendings
+      // within the window escalate to a differentiated `invalid`
+      // instead of pending-forever. The entry is KEPT on escalation
+      // (further pendings re-escalate until fresh data — or a
+      // definitive existence verdict — clears it). Only pending
+      // serves record; the background refresh never does.
+      if (this.aging !== null && this.aging !== undefined) {
+        const verdict = this.aging.record(id.key, kind);
+        if (verdict.escalated) {
+          this.logger.log(
+            `pending-aging chain=${knownId} address=${inputValue} kind=${kind} ` +
+              `count=${verdict.count} escalated=true — serving invalid`,
+          );
+          const invalid = this.buildInvalidCard({
+            id,
+            supporting,
+            providerErrors: {
+              ...providerErrors,
+              aging: agingEscalationNote(
+                verdict.count,
+                this.aging.escalationWindowMs,
+              ),
+            },
+          });
+          await this.persistInvalid(invalid, cacheKey);
+          return { snapshot: invalid, tailMs };
         }
       }
     }
@@ -1810,6 +2296,12 @@ export class AddressSnapshotService {
       devWallets,
       devPctSupply,
     };
+    // Fresh data is serving: any pending streak for this key ends
+    // (dexter plan todo 21d clear site; the aging-escalated invalid
+    // above deliberately does NOT clear — it re-escalates).
+    if (snapshot.status === 'ready') {
+      this.aging?.clear(id.key, kind);
+    }
     await this.history.save({
       key: snapshot.key,
       chain: snapshot.chain,

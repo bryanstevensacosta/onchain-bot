@@ -9,6 +9,8 @@ import { RateLimiterModule } from 'rate-limiter/rate-limiter.module';
 import { AddressModule } from 'address/address.module';
 import { GatewayModule } from 'gateway/gateway.module';
 import { SNAPSHOT_QUOTE_PROVIDERS } from 'snapshot/domain/snapshot-quote.types';
+import { AddressExistenceService } from 'snapshot/application/address-existence.service';
+import { PendingAgingService } from 'snapshot/application/pending-aging.service';
 import { LaunchpadDetectorService } from 'launchpad/application/launchpad-detector.service';
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
 import { GeckoTerminalService } from 'provider/infrastructure/geckoterminal';
@@ -62,6 +64,26 @@ describe('gateway market-data snapshot compat edge (todo 5)', () => {
       .useValue({
         getPoolView: async () => null,
         getTokenBasics: async () => null,
+      })
+      // Hermetic existence + aging (todo 21b/21d): fail-open existence
+      // stub and a never-escalating aging stub — this edge suite pins
+      // plumbing, not the counters (dedicated specs own those; the
+      // third same-address call here must keep serving the pipeline).
+      .overrideProvider(AddressExistenceService)
+      .useValue({
+        probe: async () => ({
+          verdict: 'unresolved',
+          reason: 'spec stub (fail-open)',
+          ms: 0,
+        }),
+      })
+      .overrideProvider(PendingAgingService)
+      .useValue({
+        record: () => ({ count: 1, escalated: false }),
+        clear: () => {},
+        size: () => 0,
+        escalationThreshold: 99,
+        escalationWindowMs: 600_000,
       })
       .compile();
     app = module.createNestApplication();
@@ -172,6 +194,26 @@ describe('gateway market-data snapshot launchpad plumbing (Lane D)', () => {
       .useValue({
         getPoolView: async () => null,
         getTokenBasics: async () => null,
+      })
+      // Hermetic existence + aging (todo 21b/21d): fail-open existence
+      // stub and a never-escalating aging stub — this edge suite pins
+      // plumbing, not the counters (dedicated specs own those; the
+      // third same-address call here must keep serving the pipeline).
+      .overrideProvider(AddressExistenceService)
+      .useValue({
+        probe: async () => ({
+          verdict: 'unresolved',
+          reason: 'spec stub (fail-open)',
+          ms: 0,
+        }),
+      })
+      .overrideProvider(PendingAgingService)
+      .useValue({
+        record: () => ({ count: 1, escalated: false }),
+        clear: () => {},
+        size: () => 0,
+        escalationThreshold: 99,
+        escalationWindowMs: 600_000,
       })
       .compile();
     app = module.createNestApplication();

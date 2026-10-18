@@ -12,9 +12,12 @@ import type { SnapshotQuote } from './snapshot-quote.types';
  * (token logic is the kind=token path). `status` is `'ready'` when at
  * least one provider contributed a field, `'pending'` only when every
  * provider failed or yielded nothing — then `providerErrors` names each
- * miss explicitly (never a silent shell). Moved verbatim from the former
- * `address/address-snapshot.service.ts` in todo 12; the quote fields
- * land here with the live aggregation.
+ * miss explicitly (never a silent shell) — and `'invalid'` when the
+ * pre-fan-out existence gate proved the address dead (todo 21b) or the
+ * pending-aging escalator converted N consecutive pendings (todo 21d);
+ * an invalid card is all-null by construction. Moved verbatim from the
+ * former `address/address-snapshot.service.ts` in todo 12; the quote
+ * fields land here with the live aggregation.
  */
 export interface AddressSnapshotInput {
   readonly chain: string;
@@ -28,16 +31,17 @@ export interface AddressSnapshot extends SnapshotQuote {
   readonly address: string;
   readonly kind: AddressKind;
   readonly key: string;
-  readonly status: 'pending' | 'ready';
+  readonly status: 'pending' | 'ready' | 'invalid';
   /**
    * Serve-stale marker (dexter plan todo 19b1, SWR floor): `true`
-   * ONLY when this snapshot replays the newest `ready` history row
-   * because the live fan-out failed — the prices may be dead. Fresh
+   * ONLY when this snapshot replays a `ready` history row because the
+   * live fan-out failed (SWR floor) or while a background refresh
+   * runs (SWR-now, todo 21a) — the prices may be dead. Fresh
    * snapshots carry `false` explicitly (spec-asserted at every
    * boundary; never `undefined`). `status` stays in
-   * `{pending,ready}` (no new status value): stale rows answer
-   * `ready` + this bit, so downstream `hasIdentity` resolution is
-   * untouched and honesty rides on the bit alone.
+   * `{pending,ready,invalid}` (no new status value for stale): stale
+   * rows answer `ready` + this bit, so downstream `hasIdentity`
+   * resolution is untouched and honesty rides on the bit alone.
    */
   readonly stale: boolean;
   /**

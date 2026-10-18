@@ -9,6 +9,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Latency package — SWR-now + existence gate + race deadlines +
+  pending aging (dexter plan todo 21):** Rick-style <1s budget in four
+  fail-open pieces on the existing pipeline (19a/19b1/19b2/19b3/41
+  invariants intact). Serve order: cache HIT → SWR-now → existence
+  gate → gated fan-out race → pending aging. **(a) SWR-now:** a
+  `ready` history row aged in [`SNAPSHOT_SWR_MIN_AGE_MS` 30s = the
+  numbers TTL, `staleMaxAgeMs` 24h) serves immediately (`swr-now`
+  audit note, stale trio from the row, `launchpad`/`venue`/
+  `pairCreatedAt` null, `fdvAth` from history only, `sources` copied;
+  never cached; clears aging) and starts a deduped background
+  refresh (`SingleflightService.has` + separate `refresh:<cacheKey>`
+  key): regular serve minus SWR, `allFailed` = TOTAL no-op, no
+  `observeGovernor`, success persists + caches 30s (repeat <100ms),
+  `missing` persists invalid; `backgroundRefreshHandle()` is the
+  handle seam. **(b) Existence gate** (`AddressExistenceService`,
+  NEW; before fan-out — zero quota burn; only `token`/`unknown`
+  kinds): EVM `eth_getCode` over the tiered transport (empty +
+  token → `missing` `no contract bytecode (eth_getCode returned
+empty)`; empty + unknown → zero-nonce check), Solana
+  `SolanaRpcService.probeAccountExistence` (`value: null` →
+  `missing`); `unresolved` (unknown chain/format/gap/800ms
+  `SNAPSHOT_EXISTENCE_DEADLINE_MS`) fails open. `missing` →
+  new `status: 'invalid'` card (`providerErrors.existence`,
+  all-null quote, `assetId: null`, `sources: []`) persisted +
+  cached 30s. **(c) Race deadlines:** `aggregate(...,
+{deadlineMs})` abandons stragglers at `SNAPSHOT_FANOUT_DEADLINE_MS`
+  (default 4000) with `abandoned at fanout deadline (<ms>ms) —
+fail-open` records; resolved values still merge; per-fetcher 8s
+  bound intact. **(d) Pending aging** (`PendingAgingService`, NEW):
+  `SNAPSHOT_PENDING_AGING_N` (3) consecutive pendings within
+  `SNAPSHOT_PENDING_AGING_WINDOW_MS` (600s) per
+  `(chain,address,kind)` escalate to `invalid` (+`aging` note);
+  entry KEPT (re-escalates, count grows); gap/backwards-clock resets
+  to 1; cap 1000; refresh never records; cleared by fresh ready /
+  SWR / existence-missing / stale-floor. Latent DI gap found +
+  fixed: union-typed ctor params without `@Inject` emit `Object`
+  metadata (strictNullChecks) — the service `cache` param was
+  silently `undefined` since inception (service cache inert, also
+  under `nest build`); now `@Inject(CacheService)` (required for the
+  refresh cache-warm; `assets`/`nullMetrics` remain documented-latent,
+  NOT changed). Per-stage spans are log-only (`swrMs`/`existenceMs`/
+  `directMs`/`fanoutMs`/`tailMs`/`totalMs`). Measured live (dev
+  `:4000`): NYMA `0x968B…` cold ready 2.99s, repeat 2.9ms, SWR at
+  33.3s age 3.5ms + refresh, post-refresh service-cache repeat
+  1.9ms, dead address invalid 453ms with the existence reason, no-data
+  contract pending 2.7s then aging-escalated invalid on the 3rd call.
+  Specs: `snapshot-latency.spec.ts`, `address-existence.service.spec.ts`,
+  `snapshot-aggregator-deadline.spec.ts`,
+  `address-snapshot-swr.spec.ts` (5),
+  `address-snapshot-existence.spec.ts` (7),
+  `address-snapshot-aging.spec.ts` (7),
+  `address-snapshot-rick-parity.spec.ts` (2) — 151 suites / 1111
+  tests green (baseline 144/1034), dexter 69/721 green,
+  `tsc --noEmit` clean. Evidence:
+  `.omo/evidence/task-fe-latency.log`.
+
 - **Breaker single failure path — registry relay (dexter plan todo
   19b3):** `ProviderRegistryService.recordFailure(name, reason?)` is now
   the ONE failure writer — it ticks its telemetry counters (gateway

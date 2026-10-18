@@ -218,6 +218,40 @@ export class SolanaRpcService
   }
 
   /**
+   * Account existence probe for the pre-fan-out gate (dexter plan
+   * todo 21b): one `getAccountInfo` walk over the existing tiers.
+   *
+   * Verdict semantics per tier:
+   * - `callRpc` null (transport / JSON-RPC error) -> next tier.
+   * - well-formed result with `value === null` -> `'missing'`
+   *   (definitive: the account does not exist at `confirmed`).
+   * - well-formed result with `value === undefined` (malformed
+   *   envelope) -> next tier.
+   * - value present -> `'exists'`.
+   *
+   * All tiers exhausted -> `'unresolved'` (fail-open: the snapshot
+   * proceeds exactly as if no probe existed). Never throws; the
+   * caller (`AddressExistenceService`) owns the deadline race.
+   */
+  public async probeAccountExistence(
+    address: string,
+  ): Promise<'exists' | 'missing' | 'unresolved'> {
+    const rpcUrls = this.buildRpcUrls('getAccountInfo');
+    for (const tier of rpcUrls) {
+      const result = await this.callRpc<AccountInfoResult>(
+        tier,
+        'getAccountInfo',
+        [address, { encoding: 'base64', commitment: 'confirmed' }],
+      );
+      if (result === null) continue;
+      if (result.value === null) return 'missing';
+      if (result.value === undefined) continue;
+      return 'exists';
+    }
+    return 'unresolved';
+  }
+
+  /**
    * Batch account state via `getMultipleAccounts` (PDA-existence checks).
    * One entry per requested address IN ORDER; a missing account stays
    * an explicit `null` entry (callers map hits back to their candidates

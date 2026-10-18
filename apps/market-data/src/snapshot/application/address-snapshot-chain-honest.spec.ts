@@ -17,6 +17,7 @@ import { BirdeyeService } from 'provider/infrastructure/birdeye';
 import { SnapshotModule } from '../snapshot.module';
 import { AddressSnapshotService } from './address-snapshot.service';
 import { DirectFastPathService } from './direct-fast-path.service';
+import { AddressExistenceService } from './address-existence.service';
 import { LaunchpadDetectorService } from 'launchpad/application/launchpad-detector.service';
 import { SNAPSHOT_QUOTE_PROVIDERS } from '../domain/snapshot-quote.types';
 
@@ -296,6 +297,16 @@ describe('AddressSnapshotService venue (chain-honest, 0xFf81 fixture)', () => {
       })
       .overrideProvider(BirdeyeService)
       .useValue({ getTokenOhlcv: async () => null })
+      // Hermetic existence gate (todo 21b): fail-open stub — no live RPC
+      // tier walk inside this suite.
+      .overrideProvider(AddressExistenceService)
+      .useValue({
+        probe: async () => ({
+          verdict: 'unresolved',
+          reason: 'spec stub (fail-open)',
+          ms: 0,
+        }),
+      })
       .compile();
     return module.get(AddressSnapshotService);
   }

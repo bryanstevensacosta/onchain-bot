@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { SnapshotModule } from '../snapshot.module';
 import { AddressSnapshotService } from './address-snapshot.service';
 import { DirectFastPathService } from './direct-fast-path.service';
+import { AddressExistenceService } from './address-existence.service';
 import { LaunchpadDetectorService } from 'launchpad/application/launchpad-detector.service';
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
 import { GeckoTerminalService } from 'provider/infrastructure/geckoterminal';
@@ -52,6 +53,16 @@ describe('AddressSnapshotService (snapshot per kind)', () => {
       })
       .overrideProvider(BirdeyeService)
       .useValue({ getTokenOhlcv: async () => null })
+      // Hermetic existence gate (todo 21b): fail-open stub — no live RPC
+      // tier walk inside this suite.
+      .overrideProvider(AddressExistenceService)
+      .useValue({
+        probe: async () => ({
+          verdict: 'unresolved',
+          reason: 'spec stub (fail-open)',
+          ms: 0,
+        }),
+      })
       .compile();
     snapshots = module.get(AddressSnapshotService);
   });
