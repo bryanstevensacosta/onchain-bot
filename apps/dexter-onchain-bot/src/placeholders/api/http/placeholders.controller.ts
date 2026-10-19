@@ -122,6 +122,13 @@ const PLACEHOLDER_META: Record<string, Omit<PlaceholderDescriptor, 'key'>> = {
     nullable: true,
     example: 'LaunchLab via Raydium',
   },
+  venueSuffix: {
+    type: 'derived',
+    nullable: true,
+    example: ' @ Flap via Pancakeswap V2',
+    description:
+      'Same resolution as venueLine, composed as a suffix (" @ X"); empty when no venue. Never leaves a bare ` @ ` behind.',
+  },
   fdvAth: { type: 'derived', nullable: true, example: '5.6K' },
   fdvAthAgo: { type: 'derived', nullable: true, example: '9d' },
   alternatives: {
@@ -143,6 +150,13 @@ const PLACEHOLDER_META: Record<string, Omit<PlaceholderDescriptor, 'key'>> = {
     description:
       'Best-pair age (best-liquidity PAIR creation time; proxy — never token deploy age). Empty when unknown.',
   },
+  honeypotLine: {
+    type: 'derived',
+    nullable: true,
+    example: 'SIM: OK ⋅ T: 3/5',
+    description:
+      '🍯 tax/simulation row: value lowers a NEW line (\\n🍯 …); empty when silenced (clean 0/0 or nothing measured).',
+  },
   timeframe: { type: 'string', nullable: true, example: '5m' },
   botStartUrl: {
     type: 'url',
@@ -161,8 +175,8 @@ export interface PlaceholdersView {
 /**
  * Placeholder catalog (`GET /api/dexter/placeholders/:command`).
  *
- * Metadata-only read of the closed registry vocabulary: 42 keys for
- * `ca|x|z|bare`, 43 for `c|cc` (`timeframe` ONLY there). No
+ * Metadata-only read of the closed registry vocabulary: 44 keys for
+ * `ca|x|z|bare`, 45 for `c|cc` (`timeframe` ONLY there). No
  * persistence, no pipeline, no sends. Unknown command → 404.
  *
  * v1 sin auth como /dexter/token — same unauthenticated regime as the

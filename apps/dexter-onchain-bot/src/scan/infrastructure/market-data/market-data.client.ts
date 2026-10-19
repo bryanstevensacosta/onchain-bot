@@ -89,6 +89,57 @@ export function toVenueOrNull(raw: unknown): MarketDataVenue | null {
 }
 
 /**
+ * Honey-tax / simulation reading of the best pair (dexter 🍯 row,
+ * plan todo 71 PASO 1). Mirrors market-data `HoneypotReading`:
+ * `{ buy, sell, sim }` with taxes as PERCENT (0-100) and `sim` the
+ * simulation verdict — `'ok' | 'fail' | null` (`null` = Fase 1,
+ * external-source reading only, no SIM claim). NEVER trusted
+ * blindly — `toHoneypotOrNull` shape-checks at this boundary:
+ * every side must be absent/`null` or a finite number within 0-100,
+ * `sim` must be exactly `'ok'`/`'fail'`/`null`/absent; ANY violation
+ * resolves the whole object to `null` so opaque JSON never reaches
+ * the renderer. Arrays are rejected too: a honeypot reading is a
+ * RECORD — an array (or any other non-record) is a contract
+ * violation, never an all-null reading.
+ */
+export interface MarketDataHoneypot {
+  readonly buy: number | null;
+  readonly sell: number | null;
+  readonly sim: 'ok' | 'fail' | null;
+}
+
+function taxSideOrNull(raw: unknown): number | null | undefined {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw !== 'number' || !Number.isFinite(raw)) return undefined;
+  if (raw < 0 || raw > 100) return undefined;
+  return raw;
+}
+
+export function toHoneypotOrNull(raw: unknown): MarketDataHoneypot | null {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return null;
+  }
+  const candidate = raw as Record<string, unknown>;
+  const buy = taxSideOrNull(candidate.buy);
+  const sell = taxSideOrNull(candidate.sell);
+  if (buy === undefined || sell === undefined) return null;
+  const rawSim = candidate.sim;
+  if (
+    rawSim !== undefined &&
+    rawSim !== null &&
+    rawSim !== 'ok' &&
+    rawSim !== 'fail'
+  ) {
+    return null;
+  }
+  return {
+    buy,
+    sell,
+    sim: rawSim === 'ok' || rawSim === 'fail' ? rawSim : null,
+  };
+}
+
+/**
  * FDV ATH over the token's own snapshot history (dexter fdv-ath,
  * plan todo 16). Two flat fields, each validated at this boundary:
  * `fdvAthUsd` must be a finite number, `fdvAthAt` an ISO-parseable
@@ -192,6 +243,13 @@ export interface MarketDataSnapshot {
   readonly launchpad?: MarketDataLaunchpad | null;
   readonly venue?: MarketDataVenue | null;
   /**
+   * Honey-tax / simulation reading (dexter 🍯 row, plan todo 71):
+   * `{ buy, sell, sim }` (%, 0-100) or `null`/absent (chain without a
+   * source, non-token kind, older answers). Validated by
+   * `toHoneypotOrNull` at this boundary — any violation reads `null`.
+   */
+  readonly honeypot?: MarketDataHoneypot | null;
+  /**
    * Best-pair creation ISO (dexter `{{age}}`, plan todo 63), top-level
    * on the market-data snapshot. Validated by `toPairCreatedAtOrNull`
    * at this boundary; absent/null on cold-start or older answers.
@@ -275,6 +333,7 @@ export class MarketDataClient {
         degraded: toDegradedOrFalse(body.degraded),
         launchpad: toLaunchpadOrNull(body.launchpad),
         venue: toVenueOrNull(body.venue),
+        honeypot: toHoneypotOrNull(body.honeypot),
         pairCreatedAt: toPairCreatedAtOrNull(body.pairCreatedAt),
         identityProvenance: toIdentityProvenanceOrNull(body.identityProvenance),
         fdvAthUsd: toFdvAthUsdOrNull(body.fdvAthUsd),

@@ -294,6 +294,74 @@ describe('TemplateRendererService empty-bracket cleanup (plan todo 69)', () => {
   });
 });
 
+describe('TemplateRendererService code-span + arrow cleanup (plan todo 71)', () => {
+  const clean = TemplateRendererService.cleanupDanglingSeparators;
+
+  it('collapses a bracket whose only content is an empty code span (`[``]`)', () => {
+    expect(clean('Liq: 7.9K [``]')).toBe('Liq: 7.9K');
+    expect(clean('[``]')).toBe('');
+    expect(clean('Liq: 7.9K [``] ')).toBe('Liq: 7.9K');
+    expect(clean('[``] SOL')).toBe('SOL');
+    expect(clean('  [``] SOL')).toBe('SOL');
+    expect(clean('A [``] B')).toBe('A B');
+    expect(clean('L1\n[``]\nL2')).toBe('L1\n\nL2');
+  });
+
+  it('collapses an orphan empty code span (two adjacent backticks)', () => {
+    expect(clean('USD: ``')).toBe('USD:');
+    expect(clean('``')).toBe('');
+    expect(clean('`` ')).toBe('');
+    expect(clean('`` SOL')).toBe('SOL');
+    expect(clean('A `` B')).toBe('A B');
+    expect(clean('L1\n``\nL2')).toBe('L1\n\nL2');
+  });
+
+  it('removes a `⇨` left dangling at the end of a line (with its hspace)', () => {
+    expect(clean('FDV: 5.6K ⇨')).toBe('FDV: 5.6K');
+    expect(clean('FDV: 5.6K ⇨ ')).toBe('FDV: 5.6K');
+    expect(clean('⇨')).toBe('');
+    expect(clean('L1 ⇨\nL2')).toBe('L1\nL2');
+  });
+
+  it('keeps a non-dangling `⇨` (line start / mid-line)', () => {
+    expect(clean('⇨ X')).toBe('⇨ X');
+    expect(clean('A ⇨ B')).toBe('A ⇨ B');
+  });
+
+  it('never touches populated spans or brackets (`[x3]`, `` `x` ``, `[`x`]`)', () => {
+    expect(clean('[x3]')).toBe('[x3]');
+    expect(clean('`x`')).toBe('`x`');
+    expect(clean('A `5.6K` B')).toBe('A `5.6K` B');
+    expect(clean('[`x`]')).toBe('[`x`]');
+  });
+
+  it('never touches links, including a text-less code-span link text', () => {
+    expect(clean('[texto](url)')).toBe('[texto](url)');
+    expect(clean('[](url)')).toBe('[](url)');
+    expect(clean('[``](https://t.me/x)')).toBe('[``](https://t.me/x)');
+  });
+
+  it('render-level: the v14 FDV/ATH line collapses to the surviving pieces', () => {
+    // v14 bytes: `💎 FDV: `{{fdvUsd}}` ⇨ `{{fdvAth}}` [`{{fdvAthAgo}}`]`
+    // with both ATH keys cold → empty code spans + dangling `⇨`.
+    const out = new TemplateRendererService().render(
+      '💎 FDV: `{{fdvUsd}}` ⇨ `{{fdvAth}}` [`{{fdvAthAgo}}`]',
+      TOKEN,
+      'ca',
+    );
+    expect(out.text).toBe('💎 FDV: `95B`');
+  });
+
+  it('render-level: an emptied bracket-code-span on the Liq line collapses too', () => {
+    const out = new TemplateRendererService().render(
+      '💧 Liq: `{{liquidityUsd}}` [`{{liquidityRatio}}`]',
+      { ...TOKEN, fdvUsd: 749, liquidityUsd: 1800 },
+      'ca',
+    );
+    expect(out.text).toBe('💧 Liq: `1\\.8K`');
+  });
+});
+
 describe('Rick-parity number policy (plan todo 13, evidence examples.md)', () => {
   const policyRenderer = (): TemplateRendererService =>
     new TemplateRendererService(stubResolver('🟣'));

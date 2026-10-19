@@ -76,6 +76,18 @@ export const DERIVED_PLACEHOLDERS: readonly string[] = [
   // token deploy age; absent/unparseable renders `""`). Pure renderer
   // computation reusing the shared compact-age formatter.
   'age',
+  // Plan todo 71 (owner decision 2026-10-19): `venueSuffix` — the
+  // venue-line resolution as a SUFFIX (`" @ X"` / `""`), so
+  // `{{chainName}} {{chainName}}{{venueSuffix}}` never leaves the
+  // empty-line hole of a standalone ` @ {{venueLine}}` collapse
+  // (mirror of `venueLine`; `""` = silence).
+  'venueSuffix',
+  // Plan todo 71: `honeypotLine` — Rick-parity 🍯 SIM/T row (suffix
+  // mechanics: value = `"\n🍯 " + core`, `""` = silence; never a raw
+  // snapshot field — pure renderer computation over the validated
+  // `ResolvedToken.honeypot`). One derived key on EVERY command
+  // (coupled variants — NOT two sim/taxes placeholders).
+  'honeypotLine',
 ];
 
 /** Chart timeframe — valid ONLY inside `c`/`cc` bodies. */

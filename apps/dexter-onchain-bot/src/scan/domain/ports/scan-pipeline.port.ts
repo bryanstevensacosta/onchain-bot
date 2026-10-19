@@ -53,6 +53,23 @@ export interface VenueInfo {
 }
 
 /**
+ * Honey-tax / simulation reading of the best pair (dexter 🍯 row,
+ * plan todo 71). Produced by market-data (taxes as PERCENT 0-100,
+ * `sim` the simulation verdict: `'ok'` = round trip measured,
+ * `'fail'` = simulation failed/blocked, `null` = external-source
+ * reading with NO simulation behind it). `null`/absent = no source
+ * for the chain / not a token / older answers — the renderer
+ * silences the whole row. Validated at both boundaries
+ * (`toHoneypotOrNull` in the client AND the pipeline — same
+ * double-validation as `launchpad`/`venue`).
+ */
+export interface HoneypotInfo {
+  readonly buy: number | null;
+  readonly sell: number | null;
+  readonly sim: 'ok' | 'fail' | null;
+}
+
+/**
  * A non-picked chain where the same address also resolved (dexter
  * best-pick, plan todo 17). Carried on every multi-chain `ResolvedToken`
  * so the choice is always disclosed (`{{alternatives}}` renders it).
@@ -90,6 +107,13 @@ export interface ResolvedToken {
   readonly source: 'market-data-http';
   readonly launchpad?: LaunchpadInfo | null;
   readonly venue?: VenueInfo | null;
+  /**
+   * Honey-tax / simulation reading (dexter 🍯 row, plan todo 71):
+   * `{ buy, sell, sim }` (% 0-100) re-validated from the snapshot
+   * (`null` when the snapshot carries none or the shape is
+   * malformed — the renderer silences the row, never a partial).
+   */
+  readonly honeypot?: HoneypotInfo | null;
   /**
    * Best-pair creation ISO (dexter `{{age}}`, plan todo 63): the
    * best-liquidity PAIR creation time from the market-data snapshot.

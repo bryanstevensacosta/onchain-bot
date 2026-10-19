@@ -49,6 +49,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **🍯 honeypot row + `venueSuffix` + code-span cleanup (dexter plan
+  todo 71; owner decisions 2026-10-19):** 2 new derived keys on each
+  command → 22 base + 22 derived (44 for `ca|x|z|bare`, 45 for
+  `c|cc`; catalog counts re-pinned). `honeypotLine` = `"\n🍯 " + core`
+  suffix mechanics (`""` = full silence — no line) over the
+  validated `ResolvedToken.honeypot` (`{buy, sell, sim}`, % 0-100):
+  `sim='fail'` ALWAYS renders a row (`SIM: FAIL` minimum, sides or
+  `?`), `'ok'` prefixes `SIM: OK ⋅`, `null` (Fase 1 external source)
+  renders `T:` only and never claims a simulation; silence only on
+  exact 0/0 or both-absent without fail; display integer or ≤2-dec
+  trim (`<0.001` below), never a bare `0` for a measured >0. Client
+  guard `toHoneypotOrNull` (finite 0-100 + exact sim enum, violation
+  → null) + pipeline re-validation. `venueSuffix` = `" @ X"`/`""`
+  (mirror of `venueLine`) kills the empty-line hole of a standalone
+  ` @ {{venueLine}}`. `cleanupDanglingSeparators` gains 7 rules
+  (`[`]``bracket trio, orphan empty code-span trio, line-end
+dangling`⇨`; anti-link lookarounds) — populated spans, brackets
+and links stay byte-intact. Seeds NOT touched (v14 wiring
+owner-gated — snippet proposed, not applied). Data leg:
+market-data `honeypot`field, GoPlus Fase 1 (its own CHANGELOG).
+Specs:`template-renderer-honeypot.spec.ts`(full matrix) +`template-renderer-venue-suffix.spec.ts`+`market-data-client-honeypot.spec.ts`+`token-scan-honeypot.spec.ts`
+  - cleanup matrix + count pins. Evidence:
+    `.omo/evidence/task-fe-honeypot-research/dexter-lane.log` +
+    `dexter-lane-snippets.md`.
+
 - **Empty-bracket cleanup for omitted derived values (dexter plan todo
   69):** `TemplateRendererService.cleanupDanglingSeparators` now also
   collapses EMPTY bracket pairs left by author-composed bodies

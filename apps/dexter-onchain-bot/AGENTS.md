@@ -94,7 +94,7 @@ src/
 │   │   └── seed/message-template-seed.service.ts # seeds 7 templates/6 commands (ca/x/z/c/cc/bare)
 │   └── api/http/               # message-templates + template-preview + display-maps controllers (management via HTTP API only)
 ├── placeholders/               # renderer + registry ({{key}} only, {% rejected)
-│   ├── domain/placeholder-registry.ts # 22 base + 20 derived keys + per-command whitelist
+│   ├── domain/placeholder-registry.ts # 22 base + 22 derived keys + per-command whitelist
 │   ├── application/template-renderer.service.ts # TemplateRendererService (DISPLAY_RESOLVER-backed)
 │   └── api/http/placeholders.controller.ts # placeholder catalog reference
 └── settings/                   # chat config + bot config
@@ -169,7 +169,7 @@ text with no contract gets the "no veo ningún contrato" reply.
 > Message templates note (todos 1-13, DONE 2026-10-01): all command
 > cards (`ca`/`x`/`z`/`c`/`cc`/bare) render from DB templates in
 > MarkdownV2 with `{{double-brace}}` syntax (`{%` rejected; 22 base +
-> 20 derived keys + `timeframe`), exactly 1 active template per command
+> 22 derived keys + `timeframe`), exactly 1 active template per command
 > (partial unique index + in-memory guard). Keyboards abandoned on
 > `c`/`cc` — chart-link-only text cards (no `reply_markup` until
 > gateway todo 7 covers it; gateway `SendDto` has none). Management
@@ -826,3 +826,47 @@ pending for … — retry shortly`). `MARKET_DATA_TIMEOUT_MS` default
   `market-data-client-pair-created-at.spec.ts`,
   `token-scan-venue.spec.ts` (passthrough) + registry counts.
   Evidence: `.omo/evidence/task-fe-age.log`.
+
+- 🍯 honeypot row + venueSuffix + cleanup extension (plan todo 71,
+  dexter lane; market-data leg 🍯 lives in ITS app): 2 new derived
+  keys on EVERY command → 22 base + 22 derived (44 keys for
+  `ca|x|z|bare`, 45 for `c|cc`). `honeypotLine` = `"\n🍯 " + core`
+  SUFFIX mechanics (precedent: `venueLine` `""`=silencio +
+  bounded suffix — NOT todo-62 packaging), `""` = full silence (no
+  line). Input `ResolvedToken.honeypot?` =
+  `{buy: number|null, sell: number|null, sim: 'ok'|'fail'|null}`
+  (% 0-100) — client `toHoneypotOrNull` bounds-checks (finite 0-100
+  - exact sim enum, violation → null, pattern `toVenueOrNull`) →
+    pipeline re-validates in `toResolvedToken` (double validation).
+    TOTAL matrix over (sim, buy, sell), gated on RAW values (never
+    round-to-0-and-silence): `sim='fail'` → ALWAYS a row (minimum
+    `SIM: FAIL`; sides → `SIM: FAIL ⋅ T: b/s`/`b/?`/`?/s`); `ok` →
+    `SIM: OK ⋅ T: …`, exact 0/0 → silence ("no taxes + working round
+    trip shows nothing"); `null` (Fase 1 external source) → `T: …`,
+    JAMÁS a `SIM:` claim; silence ONLY (a) both sides EXACTLY 0 (any
+    sim except fail) or (b) both absent with `sim !== 'fail'`.
+    Unknown sides → `?`; `T: b/?` is Rick's own form, `T: ?/s` +
+    one-sided `?` under ok/null are OUR extension (pinned in switch
+    comment + spec names). Display: integer if integral (`3`, `0`),
+    else ≤2-dec trim (`3.99`, `3.8`); a measured >0 collapsing at 2
+    dec steps to 3 dec (`0.004`), below that `<0.001` — never `0`
+    for measured >0; no `%`/money formatters (escapeV2 no-op on
+    `🍯 ⋅ : / ?`). `venueSuffix` = `" @ X"`/`""` (escaped once;
+    `venueLine` empty → `""`) — kills the v14 empty-line hole
+    (`@` literals around an empty `{{venueLine}}` leave a bare
+    `\n`). Cleanup extension (owner decision 2026-10-19): 7 new
+    rules at the END of `cleanupDanglingSeparators` after the todo-69
+    `[]` trio — (1) `[`]`` bracket-with-only-empty-code-span
+trailing/leading/mid (same hspace semantics + `(?!\()` anti-link
+guard); (2) orphan empty code span (trailing/leading/mid) with
+lookarounds `(?<!\[)``(?!\])`keeping`[``](url)`byte-intact;
+(3) line-end-only dangling`⇨`(mid-line/line-start`⇨` stays).
+Populated spans/brackets (`[x3]`, `` `x` ``, links) untouched.
+Catalog META ×2 `{type:'derived', nullable:true, example}`;
+count literals 42→44 / 43→45. Seeds NOT touched (row is opt-in
+template text; v14 wiring = owner, snippet delivered in evidence,
+NOT applied). Specs: `template-renderer-honeypot.spec.ts`(full
+matrix) +`template-renderer-venue-suffix.spec.ts`+`market-data-client-honeypot.spec.ts`+`token-scan-honeypot.spec.ts`+ cleanup describe in`template-renderer.service.spec.ts`+ registry/age count pins.
+Evidence:`.omo/evidence/task-fe-honeypot-research/
+    dexter-lane.log`+`dexter-lane-snippets.md` (proposed v14
+    snippets, not applied).

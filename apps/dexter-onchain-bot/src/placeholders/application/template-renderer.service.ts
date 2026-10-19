@@ -1,6 +1,7 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { MessageFormatterAdapter } from '@/scan/infrastructure/formatter/message-formatter';
 import type {
+  HoneypotInfo,
   LaunchpadInfo,
   ResolvedToken,
 } from '@/scan/domain/ports/scan-pipeline.port';
@@ -139,6 +140,74 @@ export function isBotStartPayload(value: string): boolean {
 }
 
 /**
+ * A measured tax side, re-checked at render time: finite number
+ * within 0-100 (the normalized PERCENT contract of the 🍯 leg);
+ * anything else reads as unknown (`?`), never as `0`.
+ */
+function honeypotTaxValue(raw: unknown): number | null {
+  return typeof raw === 'number' &&
+    Number.isFinite(raw) &&
+    raw >= 0 &&
+    raw <= 100
+    ? raw
+    : null;
+}
+
+/**
+ * Tax display for the 🍯 row (plan todo 71; display extension OUR
+ * OWN — pinned in the spec name): integers stay integral (`3`, `5`,
+ * `0`); otherwise trimmed to at most 2 decimals (`3.99`, `3.8`).
+ * A measured non-zero value that would collapse to `0` at 2 decimals
+ * steps up to 3 decimals (`0.004`); anything still collapsing below
+ * that renders `<0.001` — NEVER `0` for a measured > 0. No `%`, no
+ * money formatters (the row carries none).
+ */
+function formatHoneypotTaxText(value: number): string {
+  if (Number.isInteger(value)) return String(value);
+  const at2 = Math.round(value * 100) / 100;
+  if (at2 > 0) return at2.toFixed(2).replace(/\.?0+$/, '');
+  const at3 = Math.round(value * 1000) / 1000;
+  if (at3 > 0) return at3.toFixed(3).replace(/\.?0+$/, '');
+  return '<0.001';
+}
+
+function formatHoneypotTaxSides(
+  buy: number | null,
+  sell: number | null,
+): string {
+  const buyText = buy === null ? '?' : formatHoneypotTaxText(buy);
+  const sellText = sell === null ? '?' : formatHoneypotTaxText(sell);
+  return `T: ${buyText}/${sellText}`;
+}
+
+/**
+ * Core of the 🍯 row (plan todo 71). Total over (sim, buy, sell);
+ * `""` = silence. See the `honeypotLine` case for the pinned matrix
+ * (fail beats 0/0; ok/null silence at exact 0/0; both-absent silence
+ * only without a fail; `?` on unknown sides; one-sided `?` forms are
+ * OUR extension).
+ */
+function resolveHoneypotLineCore(
+  honeypot: HoneypotInfo | null | undefined,
+): string {
+  if (!honeypot) return '';
+  const sim =
+    honeypot.sim === 'ok' || honeypot.sim === 'fail' ? honeypot.sim : null;
+  const buy = honeypotTaxValue(honeypot.buy);
+  const sell = honeypotTaxValue(honeypot.sell);
+  if (sim === 'fail') {
+    // SIEMPRE fila — a failed simulation is always worth saying.
+    return buy === null && sell === null
+      ? 'SIM: FAIL'
+      : `SIM: FAIL ⋅ ${formatHoneypotTaxSides(buy, sell)}`;
+  }
+  if (buy === null && sell === null) return '';
+  if (buy === 0 && sell === 0) return '';
+  const sides = formatHoneypotTaxSides(buy, sell);
+  return sim === 'ok' ? `SIM: OK ⋅ ${sides}` : sides;
+}
+
+/**
  * Stateless MarkdownV2 template renderer with closed placeholder
  * semantics. Static body text is author-owned MarkdownV2 (never
  * touched); every substituted VALUE is `escapeV2`-escaped exactly
@@ -205,6 +274,21 @@ export class TemplateRendererService {
    * and neither does escapeV2 output: escaping turns `[`/`]` into
    * `\[`/`\]`, so a backslash always sits between the raw brackets
    * of an escaped value.
+   *
+   * Todo 71 (owner decision 2026-10-19) extends the same family to
+   * the backtick compositions of the v14 body and its surroundings:
+   * a bracket whose only content is an EMPTY code span (``[``]``
+   * from ``[`{{x}}`]`` with an empty value) collapses exactly like
+   * `[]` — same trailing/leading/mid hspace semantics, same
+   * `(?!\()` anti-link guard on `[``](url)`; an ORPHAN empty code
+   * span (two adjacent backticks from `` `{{x}}` ``, escaped ticks
+   * never match — a backslash sits between them) collapses the same
+   * way, with lookarounds keeping bracket-adjacent pairs untouched
+   * (`[``](url)` survives); and a `⇨` (U+21E8) left dangling at the
+   * end of a line after those collapses is removed with its hspace.
+   * Non-dangling `⇨` (line start or mid-line, e.g. `A ⇨ B`) and
+   * populated spans/brackets (`[x3]`, `` `x` ``, `[texto](url)`)
+   * stay byte-intact.
    */
   public static cleanupDanglingSeparators(text: string): string {
     return (
@@ -220,6 +304,23 @@ export class TemplateRendererService {
         // Mid-line: pair floats between text — consume only the
         // previous hspace (the one before the brackets).
         .replace(/[ \t]*\[[ \t]*\](?!\()/g, '')
+        // Todo 71: bracket containing ONLY an empty code span — the
+        // ``[`{{x}}`]`` composition with an empty value — same
+        // three positions and same anti-link guard as `[]` above.
+        .replace(/[ \t]*\[[ \t]*``[ \t]*\](?!\()[ \t]*(?=\n|$)/g, '')
+        .replace(/(^|\n)[ \t]*\[[ \t]*``[ \t]*\](?!\()[ \t]*/g, '$1')
+        .replace(/[ \t]*\[[ \t]*``[ \t]*\](?!\()/g, '')
+        // Todo 71: orphan empty code span (`` `{{x}}` `` with an
+        // empty value). Lookarounds keep the pair inside brackets
+        // (a blocked `[``](url)` link) byte-intact.
+        .replace(/[ \t]*(?<!\[)``(?!\])[ \t]*(?=\n|$)/g, '')
+        .replace(/(^|\n)[ \t]*(?<!\[)``(?!\])[ \t]*/g, '$1')
+        .replace(/[ \t]*(?<!\[)``(?!\])/g, '')
+        // Todo 71: `⇨` left dangling at the end of a line after the
+        // collapses above (v14 FDV line) — removed with its hspace.
+        // Only the line-END form: a mid-line or line-start `⇨` is
+        // author content and stays.
+        .replace(/[ \t]*⇨[ \t]*(?=\n|$)/g, '')
     );
   }
 
@@ -382,7 +483,8 @@ export class TemplateRendererService {
       }
       case 'venue':
       case 'venueTech':
-      case 'venueLine': {
+      case 'venueLine':
+      case 'venueSuffix': {
         const launchpad = values.launchpad;
         const launchpadForVenue =
           launchpad == null
@@ -395,6 +497,15 @@ export class TemplateRendererService {
                 ),
               };
         const texts = resolveVenueTexts(launchpadForVenue, values.venue);
+        if (key === 'venueSuffix') {
+          // Plan todo 71 (owner decision 2026-10-19): the venue-line
+          // resolution composed as a SUFFIX — `" @ X"` when a venue
+          // resolves, `""` (silence) otherwise. Escaped ONCE on the
+          // composed string. Kills the empty-line hole of bodies that
+          // keep ` @ ` literals around an empty `{{venueLine}}`
+          // (the `@` collapse removes the match but leaves the `\n`).
+          return texts.venueLine === '' ? '' : esc(` @ ${texts.venueLine}`);
+        }
         const text =
           key === 'venue'
             ? texts.venue
@@ -402,6 +513,33 @@ export class TemplateRendererService {
               ? texts.tech
               : texts.venueLine;
         return text === '' ? '' : esc(text);
+      }
+      case 'honeypotLine': {
+        // Plan todo 71 — Rick-parity 🍯 row. SUFFIX mechanics
+        // (precedent: `venueLine` `""`=silencio + bounded suffix —
+        // NOT the todo-62 value-packaging): the value lowers a NEW
+        // line (`"\n🍯 " + core`) at the call site; `""` = silence
+        // and no line appears at all.
+        //
+        // TOTAL matrix over (sim, buy, sell) — gated on the RAW
+        // normalized values, NEVER round-to-0-and-silence:
+        //  - `sim === 'fail'` → ALWAYS a row (minimum `SIM: FAIL`;
+        //    with sides `SIM: FAIL ⋅ T: b/s` / `b/?` / `?/s`). The
+        //    fail verdict beats the 0/0 silence (SIEMPRE rule).
+        //  - `sim === 'ok'` → `SIM: OK ⋅ T: …`; both sides EXACTLY 0
+        //    → silence (doc: "no taxes + a working round trip shows
+        //    nothing").
+        //  - `sim === null` (Fase 1, external source) → `T: …`, NEVER
+        //    a `SIM:` claim (the halves are read separately).
+        //  - Unknown sides render `?`: `T: b/?` is Rick's own form;
+        //    `T: ?/s` (and the one-sided forms under ok/null) are OUR
+        //    OWN extension — the doc only defines `?` under
+        //    `SIM: FAIL`. Pinned in the spec name too.
+        //  - Silence ONLY: (a) both sides EXACTLY 0 (any sim except
+        //    fail), or (b) both sides absent with `sim !== 'fail'`
+        //    (no source / nothing worth saying).
+        const core = resolveHoneypotLineCore(values.honeypot);
+        return core === '' ? '' : esc(`\n🍯 ${core}`);
       }
       case 'alternatives': {
         const rest = values.alternatives;
