@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Staging deploy lane + TypeORM CLI tooling:** new
+  `.github/workflows/deploy-market-data-staging.yml` (push `dev` on
+  `apps/market-data/**`; multi-arch `linux/amd64,linux/arm64` build to
+  `ghcr.io/<repo>-market-data:${{ github.sha }}` + `:staging-latest`;
+  self-provisioning full-tree rsync; operator-owned `.env.staging`
+  protected by `--exclude='.env*'`; DB backup + dry-run
+  `migration:show`/`SELECT 1` + `migration:run` in a `--target builder`
+  one-off; recreate + health `:4001`; pin `:staging-prev-market-data`;
+  dispatch-only rollback lane). New
+  `src/shared/database/data-source.ts` (explicit entities + migrations,
+  relative imports, `migrationsTableName: typeorm_migrations`) plus
+  `typeorm` and `migration:generate|run|revert|show` scripts.
+  `docker-compose.staging.yml` now pins `DATABASE_ENABLED: "true"` and
+  addresses pg/redis by unique container-name hosts (Docker DNS alias
+  collision class); the staging env template matches.
+
 - **Honeypot tail budget — dedicated slow-leg deadline (todo 71
   follow-up):** the honeypot extra is now OUT of the shared 400ms
   extras budget. New env `SNAPSHOT_HONEYPOT_TIMEOUT_MS` (default 1500;

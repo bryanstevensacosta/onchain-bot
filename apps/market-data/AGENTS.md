@@ -322,11 +322,13 @@ snapshots correctly skip it). `CHAINSTACK_CHAINS` (empty = all rows)
 pins which chains may call the Chainstack free tier — free allows ONE
 chain per endpoint, so unlisted rows skip silently instead of burning
 seconds on 401s.
-Staging prep status (todo 8, prep only): `docker-compose.staging.yml` +
-`.env.staging.template` landed DRY-RUN (host `:4001`, DB
-`onchain_bot_market_data_staging`); pending operator decision: staging
-secrets (`MARKET_DATA_API_KEY`, pg password) are filled on the droplet
-and never committed.
+Staging prep status (todo 8): `docker-compose.staging.yml` +
+`.env.staging.template` are live through
+`.github/workflows/deploy-market-data-staging.yml` (push `dev`; host
+`:4001`, DB `onchain_bot_market_data_staging`), and the compose block
+pins `DATABASE_ENABLED: "true"` so TypeORM is enabled on staging.
+Pending operator decision: staging secrets (`MARKET_DATA_API_KEY`, pg
+password) are filled on the droplet and never committed.
 
 ## PORTS
 
@@ -356,6 +358,42 @@ optional, garbage -> explicit `unknown`), `GET /api/v1/tokens/
 the 1x1 placeholder, 200 never 404) + `POST
 /api/v1/chains/:id/logo/refresh` (`admin` scope, explicit re-fetch).
 Every chain entry carries `logoUrl` (`/api/v1/chains/<id>/logo`).
+
+## DEPLOY (staging lane — first live rollout 2026-10-19)
+
+- Workflow: `.github/workflows/deploy-market-data-staging.yml` — push to
+  `dev` touching `apps/market-data/**` (or the workflow file), plus
+  `workflow_dispatch` lanes `full` (default) and
+  `rollback-market-data-staging` (dispatch-only, never on push). Mirrors
+  the proven dexter staging lane: backup → dry-run migrations →
+  `migration:run` → recreate → healthcheck → pin → smoke.
+- Images: GHCR `ghcr.io/<repo>-market-data:${{ github.sha }}` +
+  `:staging-latest`; multi-arch `linux/amd64,linux/arm64` is MANDATORY
+  (Oracle hosts are aarch64). Builder one-off:
+  `ghcr.io/<repo>-market-data-migrate:<sha>` (`--target builder`, the
+  only stage carrying ts-node + the TypeORM CLI).
+- Oracle staging path: `/opt/onchain-bot-staging/apps/market-data/`
+  (compose project `onchain-bot-market-data-staging`, service
+  `market-data`, host `:4001`, network `onchain-bot-staging-net`). The
+  deploy job self-syncs the full tree; `.env.staging` is operator-owned
+  and protected by the rsync `--exclude='.env*'` (a precondition step
+  asserts it exists before any mutation).
+- DB one-off rule: the shared staging network has ~7 postgres containers
+  claiming the Docker alias `postgres` (Docker DNS round-robins; dexter
+  run 39126203303 hit the wrong one). Every one-off uses the UNIQUE
+  container-name host (`onchain-bot-market-data-postgres-staging`) plus
+  an explicit `-e DATABASE_URL` — never `--env-file`.
+- Migrations: `src/shared/database/data-source.ts` (relative imports —
+  the TypeORM CLI cannot resolve `@/`) + `npm run migration:generate` /
+  `migration:run` / `migration:revert` / `migration:show`;
+  `migrationsTableName: typeorm_migrations`. Entity + migration lists
+  are explicit and must stay in sync with `app.module.ts` (no glob —
+  migrations live in `snapshot/` and `asset-registry/`).
+- Rollback: dispatch `rollback-market-data-staging`; it re-raises the
+  GHCR pin `:staging-prev-market-data` (written only after a healthy
+  deploy) via local retag + recreate (NO `docker compose pull`) and
+  reports the measured downtime window. Prod workflow still pending
+  (todo 8).
 
 ## STREAM (P49, todo 11)
 
@@ -414,7 +452,11 @@ coverage target >80% (pure units, no I/O).
    (compat edge + batch-50 + p95 0.96ms PASS; kol-system dev flipped,
    backend default-false, staging/prod pending the 24h SLO in todo 8).
 8. Legacy rename + frontend (todos 6-7, R-4/G-18/C-UX-01).
-9. Deploy workflows (staging/prod) + rollback rehearsal (todo 8).
+9. Deploy workflows: staging lane EXISTS
+   (`.github/workflows/deploy-market-data-staging.yml` — push `dev`,
+   `:sha` + `:staging-latest`, `--target builder` migrations, health
+   `:4001`, rollback lane dispatch-only); prod workflow still pending
+   (todo 8).
 10. dexter-onchain-bot sibling (todo 9, P13).
 
 ## DECISIONS INDEX

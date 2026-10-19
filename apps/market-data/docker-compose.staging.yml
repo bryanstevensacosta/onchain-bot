@@ -3,8 +3,11 @@ name: onchain-bot-market-data-staging
 # Staging environment - market-data (Tramo 3, per-env model)
 #
 # MIRROR of apps/feed-publisher/docker-compose.staging.yml (Tramo 2 staging
-# prep). DRY-RUN ONLY — no market-data deploy workflow exists yet; nothing
-# here has ever been applied to Oracle.
+# prep). DEPLOYED BY `.github/workflows/deploy-market-data-staging.yml` on
+# push to `dev` (compose project `onchain-bot-market-data-staging`, service
+# `market-data`, container `onchain-bot-market-data-staging`, host :4001).
+# `.env.staging` is OPERATOR-OWNED on the host: never in git, and the
+# workflow rsync excludes `.env*` so it is neither synced nor deleted.
 #
 # Project name EXPLÍCITO: sin `name:`, compose usa el basename del
 # directorio (`market-data`), que COLISIONA con el proyecto del dev compose
@@ -85,14 +88,24 @@ services:
       # DB name onchain_bot_market_data_staging per central plan C-DB-01
       # (staging `<base>_<app>_staging`); because market-data reads
       # DATABASE_URL (src/shared/config/database.config.ts).
-      DATABASE_URL: postgres://${POSTGRES_USER:-onchain_bot}:${POSTGRES_PASSWORD:-onchain_bot}@postgres:5432/${POSTGRES_DB:-onchain_bot_market_data_staging}
+      #
+      # UNIQUE-HOST RULE: the shared `onchain-bot-staging-net` has ~7
+      # postgres containers claiming the Docker DNS alias `postgres`, so
+      # Docker round-robins between them (dexter run 39126203303 hit the
+      # wrong server). NEVER address pg/redis by the bare service name —
+      # always use the unique container names below.
+      DATABASE_URL: postgres://${POSTGRES_USER:-onchain_bot}:${POSTGRES_PASSWORD:-onchain_bot}@onchain-bot-market-data-postgres-staging:5432/${POSTGRES_DB:-onchain_bot_market_data_staging}
+      # Compose also pins the TypeORM gate: `isDatabaseEnabled()` reads
+      # exactly the string `true` (quoted on purpose).
+      DATABASE_ENABLED: 'true'
       # Migrations off on staging (never synchronize; persistence wiring
       # lands with later todos).
       DATABASE_SYNCHRONIZE: false
       # Single-string form because market-data reads REDIS_URL
       # (.env.example). Override with MARKET_DATA_REDIS_URL when the
-      # staging redis carries a password.
-      REDIS_URL: ${MARKET_DATA_REDIS_URL:-redis://redis:6379/1}
+      # staging redis carries a password. Unique container-name host
+      # (same Docker DNS alias-collision class as DATABASE_URL above).
+      REDIS_URL: ${MARKET_DATA_REDIS_URL:-redis://onchain-bot-market-data-redis-staging:6379/1}
     ports:
       - '4001:4000'
     depends_on:
