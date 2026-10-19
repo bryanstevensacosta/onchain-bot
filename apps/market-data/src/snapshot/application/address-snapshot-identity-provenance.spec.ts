@@ -7,6 +7,7 @@ import {
   DirectFastPathService,
 } from './direct-fast-path.service';
 import { AddressExistenceService } from './address-existence.service';
+import { GoplusService } from 'provider/infrastructure/goplus';
 import { SnapshotHistoryRepository } from '../infrastructure/snapshot-history.repository';
 import { LaunchpadDetectorService } from 'launchpad/application/launchpad-detector.service';
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
@@ -122,6 +123,13 @@ async function buildService(args: {
         reason: 'spec stub (fail-open)',
         ms: 0,
       }),
+    })
+    // Hermetic honeypot leg (todo 71): eth token snapshots in this
+    // suite would otherwise reach the live GoPlus API. Definitive
+    // absence = zero network, no field, no note.
+    .overrideProvider(GoplusService)
+    .useValue({
+      getTokenSecurity: async () => ({ kind: 'definitive-absence' }),
     })
     .compile();
   return {

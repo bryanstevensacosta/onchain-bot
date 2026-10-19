@@ -17,6 +17,7 @@ import { MobulaService } from 'provider/infrastructure/mobula';
 import { MoralisService } from 'provider/infrastructure/moralis';
 import { RugCheckService } from 'provider/infrastructure/rugcheck';
 import { SolanaRpcService } from 'provider/infrastructure/solana-rpc';
+import { GoplusModule } from 'provider/infrastructure/goplus';
 import { AlchemyService } from 'provider/infrastructure/alchemy/alchemy.service';
 import { MulticallService } from 'provider/infrastructure/alchemy/multicall.service';
 import { OnchainEvmReaderService } from 'provider/infrastructure/onchain/onchain-evm.reader';
@@ -71,6 +72,11 @@ import { PendingAgingService } from './application/pending-aging.service';
     AssetRegistryModule,
     LaunchpadModule,
     RateLimiterModule,
+    // GoPlus honeypot leg (todo 71): keyless service, consumed by the
+    // snapshot tail via `@Optional()` ctor injection on
+    // `AddressSnapshotService` (hand-built specs without it stay
+    // byte-identical).
+    GoplusModule,
     ...(isDatabaseEnabled()
       ? [
           TypeOrmModule.forFeature([

@@ -4,6 +4,7 @@ import { SnapshotModule } from '../snapshot.module';
 import { AddressSnapshotService } from './address-snapshot.service';
 import { DirectFastPathService } from './direct-fast-path.service';
 import { AddressExistenceService } from './address-existence.service';
+import { GoplusService } from 'provider/infrastructure/goplus';
 import { LaunchpadDetectorService } from 'launchpad/application/launchpad-detector.service';
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
 import { GeckoTerminalService } from 'provider/infrastructure/geckoterminal';
@@ -491,6 +492,13 @@ async function buildService(options: {
         reason: 'spec stub (fail-open)',
         ms: 0,
       }),
+    })
+    // Hermetic honeypot leg (todo 71): bsc token snapshots in this
+    // suite (stubChain) would otherwise reach the live GoPlus API.
+    // Definitive absence = zero network, no field, no note.
+    .overrideProvider(GoplusService)
+    .useValue({
+      getTokenSecurity: async () => ({ kind: 'definitive-absence' }),
     })
     .compile();
   const service = module.get(AddressSnapshotService);

@@ -78,6 +78,10 @@ export class MarketDataSnapshotController {
       launchpad: snap.launchpad,
       venue: snap.venue,
       pairCreatedAt: snap.pairCreatedAt,
+      // Honeypot (dexter plan todo 71): explicit key (no spread —
+      // the whitelist is intentional). ABSENT-shaped `null` covers
+      // every "no source" path; the dexter guard treats it as absent.
+      honeypot: snap.honeypot,
       identityProvenance: snap.identityProvenance,
       fdvAthUsd: snap.fdvAth?.fdvUsd ?? null,
       fdvAthAt: snap.fdvAth?.at ?? null,

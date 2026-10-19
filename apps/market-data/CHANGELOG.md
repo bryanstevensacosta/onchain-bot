@@ -9,6 +9,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Honeypot leg — GoPlus Fase 1 (dexter plan todo 71):** address
+  snapshots carry `honeypot: {buy, sell, sim} | null` (% 0-100, fraction
+  strings ×100; `sim` always `null` in Fase 1 — honeypot.is/SIM
+  explicitly deferred). The field is REQUIRED on `AddressSnapshot`
+  (always emitted; `null` = no source/reading; dexter's
+  `toHoneypotOrNull` treats null/absent identically) and the compat
+  snapshot controller whitelist carries the explicit `honeypot` key.
+  Provider (`src/provider/infrastructure/goplus/`): keyless plain
+  `@Injectable` `GoplusService` (no registry descriptor —
+  `ProvidersModule` untouched): `GET /api/v1/token_security/{chainId}`
+  ONE address/request, 2s axios timeout, NEVER throws
+  (transport/HTTP/parse → `{kind:'transient'}`); chain scope
+  ethereum/bsc/base only. Domain (`snapshot-honeypot.ts`, pure):
+  body-is-truth classifier — `code:2022` → definitive absence;
+  `code!==1`/non-record → transient; entry absent → definitive; entry
+  present → reading (`buy_tax`/`sell_tax` fraction ×100 via
+  `Math.round(x*100*1e4)/1e4`; absent / non-numeric / outside 0-100 →
+  that side `null`, never 0, never clamped). TAIL: FOURTH extra
+  (`kind: 'honeypot'` after `dev`, SAME shared 400ms budget;
+  concurrency stays 3 — the 4th queues into a second wave); gate
+  `token && !skipHoneypot && SNAPSHOT_HONEYPOT_ENABLED && goplus &&
+mapped chain` (unmapped chain / non-token kind → no call, no note,
+  no bit); transient ⇒ absent + `degraded` + `tail:honeypot` note
+  (timeout keeps the shared 400ms text); a responding source emits
+  `{buy, sell, sim:null}` even with both sides null ("probed, no data"
+  ≠ "no source"). NEGATIVE MEMO: bounded 500 / TTL 6h, DEFINITIVE
+  absences only (transients retry next request). FAST-PATH:
+  `skipHoneypot=true` → absent + `degraded` + `honeypot:fast-path`
+  (same semantics as `dev:fast-path`); unmapped chain stays silent.
+  TTL policy: additive `'honeypot'` class (30s card-class). Kill-switch
+  `SNAPSHOT_HONEYPOT_ENABLED` (default ENABLED). Witnesses live on dev
+  `:4000` (2026-10-19): SAFEMOONCASH bsc `{buy:4,sell:2,sim:null}`
+  (fractions `0.04`/`0.02`), PEPE ethereum `{buy:0,sell:0,sim:null}`,
+  CAKE bsc `{buy:null,sell:null,sim:null}` (entry present, tax keys
+  absent), NYMA robinhood `null` zero notes (unmapped chain). LATENCY
+  DATUM: direct GoPlus ~389ms at lane time; RE-MEASURED later the same
+  day 428–467ms (upstream variance; `code:5000 "system error"` seen
+  for some tokens) — while the RTT sits over the 400ms budget the leg
+  degrades honestly (`tail:honeypot` timeout/transient note) and the
+  reading lands when the race is won (no design change — budget per
+  plan; a dedicated slow-leg budget is an owner-decision follow-up).
+  Specs: `snapshot-honeypot` + `goplus.service` +
+  `address-snapshot-honeypot` (10 integration) + TTL-policy pins; 5
+  module-boot specs got hermetic `GoplusService` overrides — 154
+  suites / 1156 tests green ×2 (baseline 151/1111), `tsc --noEmit`
+  clean. Evidence:
+  `.omo/evidence/task-fe-honeypot-research/market-data-lane.log`.
+
 - **Latency package — SWR-now + existence gate + race deadlines +
   pending aging (dexter plan todo 21):** Rick-style <1s budget in four
   fail-open pieces on the existing pipeline (19a/19b1/19b2/19b3/41

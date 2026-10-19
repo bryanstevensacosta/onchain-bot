@@ -4,6 +4,7 @@ import { SnapshotModule } from '../snapshot.module';
 import { AddressSnapshotService } from './address-snapshot.service';
 import { DirectFastPathService } from './direct-fast-path.service';
 import { AddressExistenceService } from './address-existence.service';
+import { GoplusService } from 'provider/infrastructure/goplus';
 import { SnapshotHistoryRepository } from '../infrastructure/snapshot-history.repository';
 import { SNAPSHOT_HISTORY_RETENTION_DAYS } from '../infrastructure/snapshot-history.entity';
 import { LaunchpadDetectorService } from 'launchpad/application/launchpad-detector.service';
@@ -276,6 +277,13 @@ describe('AddressSnapshotService fdvAth plumbing (dexter fdv-ath)', () => {
           reason: 'spec stub (fail-open)',
           ms: 0,
         }),
+      })
+      // Hermetic honeypot leg (todo 71): ETH token snapshots here would
+      // otherwise reach the live GoPlus API. Definitive absence = zero
+      // network, no field, no note.
+      .overrideProvider(GoplusService)
+      .useValue({
+        getTokenSecurity: async () => ({ kind: 'definitive-absence' }),
       })
       .compile();
     return {

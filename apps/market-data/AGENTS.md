@@ -1297,7 +1297,10 @@ host=<hostname>, public fallback armed)` or `public-only
   blocked). fdvAth stays SEQUENTIAL (indexed history read, no
   outbound; read-before-save is the todo-16 cold-start rule).
   Pre-resolved legs (fast-path serve) cost zero tasks. Both serve logs
-  carry `tailMs=` + `breakerSkipped=`.
+  carry `tailMs=` + `breakerSkipped=`. UPDATE (todo 71, 2026-10-19): a
+  FOURTH extra — `honeypot` (GoPlus, EVM-mapped chains only; concurrency
+  stays 3, the 4th queues in a second wave) — joined this tier; see the
+  HONEYPOT LEG section.
 - Shared outbound math (pinned in `provider-outbound-limits.ts`):
   worst case ~10 outbound calls per cold snapshot (launchpad ≤4, venue
   ≤2, dev ≤3 solana-only), spread over tiers; each extra abandoned at
@@ -1605,7 +1608,9 @@ Mechanisms (all fail-open, all in `snapshot/`):
   tripwire-verified discovery cache (invalidated by tripwire mismatch /
   migration signal / operator override — never "immutable by mint") /
   holders-dev 30s card-only, NO hours-class without a signal trigger
-  (rug/dev-dump moves in minutes). PENDING IS NEVER CACHED (19a
+  (rug/dev-dump moves in minutes) / honeypot 30s card-class since
+  todo 71 (the 6h negative memo is in-process, not a writer TTL).
+  PENDING IS NEVER CACHED (19a
   absolute — no pending TTL exists on purpose). `snapshot-ttl-policy.
 spec.ts` FAILS on any hardcoded TTL literal in a snapshot writer.
 - Stale trio per class (ONE trio, class-scoped semantics — no new
@@ -1615,7 +1620,8 @@ spec.ts` FAILS on any hardcoded TTL literal in a snapshot writer.
   pending, never a bit with no age). Stale replays are never cached,
   never re-persisted.
 - Tail-degraded (ONE decision, pinned): `AddressSnapshot.degraded`
-  (true on any `tail:*` timeout, `dev:fast-path` skip, or
+  (true on any `tail:*` timeout, `dev:fast-path` skip,
+  `honeypot:fast-path` skip since todo 71, or
   `metadata-identity` timeout) travels edge → dexter → frontend
   `Partial data` badge. Degraded-ready IS cached with the bit set
   (30s — the bit IS the honesty); pending/stale never.
@@ -2391,3 +2397,84 @@ HIT`); SWR serve at age 33.3s (33.3s-old row, 3.5ms,
     Full suite 151/1111 green (baseline 144/1034), dexter 69/721 green,
     `tsc --noEmit` clean. Evidence:
     `.omo/evidence/task-fe-latency.log`.
+
+## HONEYPOT LEG — GOPLUS FASE 1 (dexter plan todo 71, 2026-10-19) — taxes only, `sim` always null
+
+Address snapshots now carry `honeypot: {buy, sell, sim} | null` (% 0-100,
+fraction strings ×100; `sim ∈ {'ok','fail',null}` — ALWAYS `null` in Fase 1;
+honeypot.is/SIM explicitly deferred, do not call). The field is REQUIRED on
+`AddressSnapshot` (always emitted; `null` = no source / no reading — dexter's
+`toHoneypotOrNull` treats null and absent identically) and the snapshot
+controller whitelist carries the explicit `honeypot` key (never a spread).
+Contract verified read-only against dexter
+`market-data.client.ts:118-140` (values must be finite 0-100 or the whole
+object nulls; arrays/objects rejected).
+
+- PROVIDER (`src/provider/infrastructure/goplus/`): plain `@Injectable`
+  `GoplusService` (NOT a `DataProviderPort` adapter — no registry
+  descriptor/config; `ProvidersModule` untouched). Keyless
+  `GET https://api.gopluslabs.io/api/v1/token_security/{chainId}`
+  `?contract_addresses={addr}`, ONE address per request, 2s axios timeout;
+  chain scope ONLY ethereum=1 / bsc=56 / base=8453 (`goplusChainId`;
+  robinhood/solana/… → `null` pre-network). NEVER throws: transport/HTTP/
+  parse gaps resolve `{kind:'transient'}`.
+- DOMAIN (`src/snapshot/domain/snapshot-honeypot.ts`, pure): the BODY is
+  the truth — HTTP 200 + `code:2022` is the documented error envelope
+  (checked in the body, never by status). Classification table
+  (documented in code): body non-record/array → transient; `code === 2022`
+  → definitive absence; `code !== 1`/non-number → transient; `result`
+  non-record or entry `undefined` → definitive; entry present non-record
+  (incl. explicit `null`) → transient; entry record → reading
+  (`buy_tax`/`sell_tax` fraction strings ×100 via
+  `Math.round(x*100*1e4)/1e4`; absent/`""`/non-numeric OR % outside 0-100
+  → THAT side `null`, never 0, never clamped).
+- TAIL: the leg is the FOURTH extra (`kind: 'honeypot'` appended after
+  `dev` in `runExtra` + `tailSlots`) under the SAME shared 400ms extras
+  budget (`withTailBudget`/`runTailCapped`; concurrency stays 3 — the 4th
+  queues into a second wave, accepted). Gate: `kind === 'token' &&
+!skipHoneypot && SNAPSHOT_HONEYPOT_ENABLED && goplus present && mapped
+chain` (CRITICAL: unmapped chain/kind≠token → no call, no note, no bit).
+  Transient failure ⇒ honeypot absent (fail-open) + `degraded` with the
+  `tail:honeypot` note (`HONEYPOT_TRANSIENT_NOTE`; timeout keeps the
+  shared 400ms text — the post-loop transient note never overwrites it).
+  A source that RESPONDS (entry present) emits `{buy, sell, sim:null}`
+  even with both sides null — "probed, no data" differs from "no source".
+- NEGATIVE MEMO (sister class — the ATH memo is ath-scoped, NOT reusable):
+  bounded 500 / TTL 6h, DEFINITIVE absences only (body `code:2022` or
+  `code:1` with the address absent from `result`); transients are NEVER
+  memoized (retry next request). Key `id.key`.
+- FAST-PATH: `buildSnapshot` gains `skipHoneypot` (fast → `true`;
+  fanout/refresh → `false`). Skip on a mapped chain = absent + `degraded`
+  with `honeypot:fast-path` = `'skipped (fast-path budget)'` (same
+  semantics as `dev:fast-path`; `isTailDegraded` includes it). Unmapped
+  chain stays silent.
+- TTL POLICY (`snapshot-ttl-policy.ts`): additive `'honeypot'` class (30s,
+  same as the card; the 6h in-process memo is documented there).
+- KILL-SWITCH: `SNAPSHOT_HONEYPOT_ENABLED` (default ENABLED; explicit
+  false-ish disables → no call, no field, no note).
+- WITNESSES live on dev `:4000` (2026-10-19, pm2 id 6 restart; the
+  SWR-now + background-refresh dance is how the tail leg lands when the
+  first serve is a fast card): SAFEMOONCASH bsc
+  `0xF017…2877` → `{"buy":4,"sell":2,"sim":null}` (fractions `0.04`/
+  `0.02`); PEPE ethereum `0x6982…1933` → `{"buy":0,"sell":0,"sim":null}`;
+  CAKE bsc `0x0E09…cE82` → `{"buy":null,"sell":null,"sim":null}` (entry
+  present, tax keys absent → probed-no-data); NYMA robinhood
+  `0x968B…5583` → `null`, zero notes (unmapped chain — GoPlus never
+  called). LATENCY DATUM: direct GoPlus from this network measured
+  ~389ms at lane time (2026-10-19) and RE-MEASURED 428–467ms later the
+  same day (upstream variance; `code:5000 "system error"` seen for some
+  tokens), so cold serves often lose the 400ms tail race and the
+  reading lands on the refresh/repeat (observed live; no design change —
+  budget per plan). A dedicated slow-leg budget (the
+  `LAUNCHPAD_SLOW_LEG_TIMEOUT_MS` precedent) stays an open owner
+  decision.
+- Specs: `snapshot-honeypot.spec.ts` (domain: chain scope, parser, full
+  classifier matrix, memo, kill-switch) + `goplus.service.spec.ts`
+  (wire-level pins) + `address-snapshot-honeypot.spec.ts` (10 integration
+  tests: witnesses, code:2022 + memo, transient no-memo, chain gate,
+  kind gate, fast-path note, kill-switch, call counts) +
+  `snapshot-ttl-policy.spec.ts` pins (class + degraded tripwire); the 5
+  at-risk module-boot specs got hermetic `GoplusService` overrides.
+  Full suite 154/1156 green ×2 (baseline 151/1111; +3 suites / +45 tests),
+  `tsc --noEmit` clean. Evidence:
+  `.omo/evidence/task-fe-honeypot-research/market-data-lane.log`.

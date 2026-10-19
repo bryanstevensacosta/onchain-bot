@@ -4,6 +4,7 @@ import type { LaunchpadInfo } from 'launchpad/domain/launchpad-info';
 import type { SnapshotVenue } from './snapshot-venue';
 import type { SnapshotFdvAth } from './snapshot-fdv-ath';
 import type { SnapshotQuote } from './snapshot-quote.types';
+import type { HoneypotReading } from './snapshot-honeypot';
 
 /**
  * Snapshot domain types (Tramo 3, todo 12, P50; enriched todo-3 gap).
@@ -109,6 +110,21 @@ export interface AddressSnapshot extends SnapshotQuote {
    * is the same 90d by default). Never throws into the snapshot.
    */
   readonly fdvAth: SnapshotFdvAth | null;
+  /**
+   * EVM honeypot reading (dexter plan todo 71, GoPlus Fase 1 — taxes
+   * only): `{buy, sell, sim}` where `buy`/`sell` are PERCENT 0-100
+   * finite or `null` (unknown — never 0) and `sim` is ALWAYS `null`
+   * in Fase 1 (honeypot.is/SIM deferred). The FIELD is present
+   * whenever a reading was probed (even both-null taxes — "probed,
+   * no data" is distinct from "no source"); ABSENT (`null`) when the
+   * leg did not run: chain out of GoPlus scope (solana/robinhood/…),
+   * kill-switch off, fast-path skip without a "known pool" reason, or
+   * a transient source failure (fail-open, `degraded: true` +
+   * `tail:honeypot` note). Not persisted to history (live per call,
+   * same lifecycle as `venue`). Contract pinned against dexter
+   * `toHoneypotOrNull` (read-only).
+   */
+  readonly honeypot: HoneypotReading | null;
   readonly providers: ReadonlyArray<string>;
   /** Registry-order names that contributed at least one quote field. */
   readonly sources: ReadonlyArray<string>;

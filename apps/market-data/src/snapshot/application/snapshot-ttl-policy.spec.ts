@@ -40,6 +40,15 @@ describe('snapshot TTL policy (plan todo 41b — single source of truth)', () =>
     expect(
       SNAPSHOT_TTL_POLICY['holders-dev'].ttlSeconds as number,
     ).toBeLessThanOrEqual(300);
+    // Honeypot (todo 71): rides the 30s card only; the 6h bound is the
+    // in-process negative memo for definitive absences — NEVER a card
+    // TTL (regression tripwire for the same class of mistake).
+    expect(SNAPSHOT_TTL_POLICY.honeypot.ttlSeconds).toBe(
+      SNAPSHOT_NUMBERS_TTL_SECONDS,
+    );
+    expect(
+      SNAPSHOT_TTL_POLICY.honeypot.ttlSeconds as number,
+    ).toBeLessThanOrEqual(300);
   });
 
   it('fails if a snapshot writer hardcodes a TTL literal (anti-hardcode tripwire)', () => {
@@ -125,6 +134,9 @@ describe('tail-degraded signal (plan todo 41b — ONE decision)', () => {
     ).toBe(true);
     expect(
       isTailDegraded({ 'dev:fast-path': 'skipped (fast-path budget)' }),
+    ).toBe(true);
+    expect(
+      isTailDegraded({ 'honeypot:fast-path': 'skipped (fast-path budget)' }),
     ).toBe(true);
     expect(isTailDegraded({ 'metadata-identity': 'timeout' })).toBe(true);
   });

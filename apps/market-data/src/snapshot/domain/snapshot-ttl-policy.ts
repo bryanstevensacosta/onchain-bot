@@ -44,7 +44,8 @@ export type SnapshotTtlClass =
   | 'numbers'
   | 'identity'
   | 'venue-launchpad'
-  | 'holders-dev';
+  | 'holders-dev'
+  | 'honeypot';
 
 export interface SnapshotTtlRule {
   /** Seconds, or `null` when the class is NOT TTL-cached (bound by history/invalidation/live instead). */
@@ -94,6 +95,14 @@ export const SNAPSHOT_TTL_POLICY: Record<SnapshotTtlClass, SnapshotTtlRule> = {
       'trigger (rug/dev-dump moves in minutes, no trigger exists)',
     ageSource: 'card age (fresh 30s window; staleAgeMs on replays)',
   },
+  honeypot: {
+    ttlSeconds: SNAPSHOT_NUMBERS_TTL_SECONDS,
+    semantics:
+      'rides the 30s snapshot card only; 6h bounded in-process negative ' +
+      'memo for DEFINITIVE absences (source truly has no row) — transient ' +
+      'failures are never memoized and the leg retries next request',
+    ageSource: 'card age (fresh 30s window; staleAgeMs on replays)',
+  },
 };
 
 /**
@@ -125,10 +134,11 @@ export function isStaleTrioValid(
 /**
  * Tail-degraded signal (todo 41b — ONE decision, pinned): a card is
  * `degraded` when any tail extra timed out or was skipped
- * (`tail:*`), the fast path skipped dev holdings (`dev:fast-path`),
- * or the metadata-identity leg timed out (`metadata-identity`).
- * Degraded cards ARE cached with the bit set (30s numbers TTL — the
- * bit IS the honesty, unlike stale replays which must never cache).
+ * (`tail:*`), the fast path skipped dev holdings (`dev:fast-path`) or
+ * honeypot (`honeypot:fast-path`), or the metadata-identity leg
+ * timed out (`metadata-identity`). Degraded cards ARE cached with the
+ * bit set (30s numbers TTL — the bit IS the honesty, unlike stale
+ * replays which must never cache).
  */
 export function isTailDegraded(
   providerErrors: Readonly<Record<string, string>>,
@@ -137,6 +147,7 @@ export function isTailDegraded(
     (key) =>
       key.startsWith('tail:') ||
       key === 'dev:fast-path' ||
+      key === 'honeypot:fast-path' ||
       key === 'metadata-identity',
   );
 }

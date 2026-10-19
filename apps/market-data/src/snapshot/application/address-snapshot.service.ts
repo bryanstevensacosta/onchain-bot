@@ -90,6 +90,7 @@ import {
 } from 'provider/infrastructure/onchain/evm-tolerance';
 import { DiscoveryCacheService } from './discovery-cache.service';
 import { OnchainSolanaReaderService } from 'provider/infrastructure/onchain/onchain-solana.reader';
+import { GoplusService } from 'provider/infrastructure/goplus';
 import { SingleflightService } from './singleflight.service';
 import {
   QuotaGovernorService,
@@ -106,6 +107,14 @@ import {
   SNAPSHOT_SWR_MIN_AGE_MS,
   swrNowNote,
 } from '../domain/snapshot-latency';
+import {
+  goplusChainId,
+  HONEYPOT_TRANSIENT_NOTE,
+  HoneypotNegativeMemo,
+  resolveHoneypotEnabled,
+  type HoneypotProbe,
+  type HoneypotReading,
+} from '../domain/snapshot-honeypot';
 import {
   AddressExistenceService,
   type ExistenceProbeResult,
@@ -314,6 +323,24 @@ export class AddressSnapshotService {
   private readonly athSeedNegativeMemo = new AthSeedNegativeMemo();
 
   /**
+   * Honeypot kill-switch (dexter plan todo 71): read ONCE at
+   * construction (same pattern as `athSeedEnabled`). OFF ⇒ no call AND
+   * no field (silence) — the leg is additive and fail-open, so
+   * ENABLED is the default; only an explicit false-ish token disables.
+   */
+  private readonly honeypotEnabled: boolean = resolveHoneypotEnabled(
+    process.env['SNAPSHOT_HONEYPOT_ENABLED'],
+  );
+  /**
+   * Bounded in-process negative memo (todo 71): DEFINITIVE absences
+   * ONLY (body `code: 2022` chain-unsupported, or `code: 1` with the
+   * address absent from `result`) suppress re-fires for 6h; the
+   * transient classes (network/timeout/5xx/broken envelope/odd codes)
+   * are NEVER remembered and retry next request. Resets on deploy.
+   */
+  private readonly honeypotNegativeMemo = new HoneypotNegativeMemo();
+
+  /**
    * Fan-out race deadline (dexter plan todo 21c): the WHOLE fan-out
    * stops being awaited here — unfinished fetchers are abandoned as
    * fail-open rejected records, so a straggler never blocks the
@@ -436,6 +463,14 @@ export class AddressSnapshotService {
     @Optional()
     @Inject(PendingAgingService)
     private readonly aging: PendingAgingService | null = null,
+    // GoPlus honeypot leg (dexter plan todo 71, Fase 1): keyless
+    // taxes-only adapter consumed by the snapshot tail (the `honeypot`
+    // extra). Null in hand-built specs -> leg absent (silence),
+    // byte-identical to pre-71. Appended LAST so positional hand-built
+    // ctors keep compiling.
+    @Optional()
+    @Inject(GoplusService)
+    private readonly goplus: GoplusService | null = null,
   ) {}
 
   /** In-flight half-open probe key (at most ONE globally — the single cheapest-fetcher probe). */
@@ -477,6 +512,75 @@ export class AddressSnapshotService {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Honeypot leg (dexter plan todo 71, GoPlus Fase 1 — taxes only).
+   *
+   * Runs INSIDE the shared 400ms tail budget as one more extra (the 4th
+   * extra on mapped-chain token scans queues in a second
+   * `runTailCapped` wave — accepted per plan; concurrency stays 3, no
+   * new circuit-breaker).
+   *
+   * Result shape `{reading, transient}` (NEVER null): `runExtra`
+   * catches inner throws SILENTLY (returns null, no note), so the
+   * transient signal must survive the race to the post-loop slot
+   * handling that writes the `tail:honeypot` note.
+   *
+   * - `reading` (source answered, entry present): the wire shape
+   *   `{buy, sell, sim: null}` — emitted even when BOTH tax sides are
+   *   `null` ("probed, no data" — CAKE — is distinct from "no
+   *   source"). `sim` stays `null` ALWAYS in Fase 1 (honeypot.is/SIM
+   *   explicitly deferred — not called, not implemented here).
+   * - DEFINITIVE absence (body `code: 2022` chain-unsupported, or
+   *   `code: 1` with the address absent from `result`): memoized
+   *   (bounded 500, 6h) + no field, no note — the source truly has no
+   *   row; re-asking for 6h would only re-confirm the absence.
+   * - TRANSIENT (network/timeout/5xx/broken envelope/odd codes): NEVER
+   *   memoized — retried next request; the card answers the field
+   *   absent + `degraded: true` via `HONEYPOT_TRANSIENT_NOTE` under
+   *   `tail:honeypot` (fail-open, same semantics as every other tail
+   *   failure).
+   *
+   * The memo is checked BEFORE the call (a definitive absence costs
+   * zero network for 6h); only the classifier's definitive verdicts
+   * reach `remember` — the classification table lives in
+   * `snapshot/domain/snapshot-honeypot.ts`.
+   */
+  private async resolveHoneypot(
+    chainId: number,
+    key: string,
+    address: string,
+  ): Promise<{
+    readonly reading: HoneypotReading | null;
+    readonly transient: boolean;
+  }> {
+    const goplus = this.goplus;
+    if (goplus === null || goplus === undefined) {
+      return { reading: null, transient: false };
+    }
+    const nowMs = Date.now();
+    if (this.honeypotNegativeMemo.has(key, nowMs)) {
+      return { reading: null, transient: false };
+    }
+    let probe: HoneypotProbe;
+    try {
+      probe = await goplus.getTokenSecurity(chainId, address);
+    } catch {
+      // Defensive: the adapter itself NEVER throws (catch-all →
+      // transient) — a hand-mock might.
+      return { reading: null, transient: true };
+    }
+    if (probe.kind === 'reading') {
+      return { reading: probe.reading, transient: false };
+    }
+    if (probe.kind === 'transient') {
+      return { reading: null, transient: true };
+    }
+    // Definitive absence — the ONLY memoized class (chain-unsupported
+    // 2022 / address absent from a success `result`).
+    this.honeypotNegativeMemo.remember(key, nowMs);
+    return { reading: null, transient: false };
   }
 
   /**
@@ -1221,6 +1325,7 @@ export class AddressSnapshotService {
           pairSide: fast.pairSide,
         },
         skipDevHoldings: true,
+        skipHoneypot: true,
         breakerSkipped: prepared.breakerSkipped,
         breakerAdmitted: [],
         governor: prepared.governor,
@@ -1264,6 +1369,7 @@ export class AddressSnapshotService {
         pairSide: null,
       },
       skipDevHoldings: false,
+      skipHoneypot: false,
       breakerSkipped: prepared.breakerSkipped,
       breakerAdmitted: prepared.breakerAdmitted,
       governor: prepared.governor,
@@ -1437,6 +1543,7 @@ export class AddressSnapshotService {
       launchpad: null,
       venue: null,
       pairCreatedAt: null,
+      honeypot: null,
       fdvAth: null,
       providers: args.supporting,
       sources: args.sources ?? [],
@@ -1550,6 +1657,7 @@ export class AddressSnapshotService {
       launchpad: null,
       venue: null,
       pairCreatedAt: null,
+      honeypot: null,
       fdvAth,
       providers: args.supporting,
       sources: [...row.sources],
@@ -1663,6 +1771,7 @@ export class AddressSnapshotService {
         pairSide: null,
       },
       skipDevHoldings: false,
+      skipHoneypot: false,
       breakerSkipped: prepared.breakerSkipped,
       breakerAdmitted: prepared.breakerAdmitted,
       governor: prepared.governor,
@@ -1808,6 +1917,15 @@ export class AddressSnapshotService {
       readonly pairSide: 'base' | 'quote' | null;
     };
     readonly skipDevHoldings: boolean;
+    /**
+     * Fast-path honeypot skip (dexter plan todo 71): `true` ONLY on the
+     * fast-path serve (same rule as `skipDevHoldings` — the extras
+     * budget belongs to the 800ms serve). When the leg was otherwise
+     * runnable (mapped chain + kill-switch on + service present) the
+     * skip is named in `providerErrors['honeypot:fast-path']`; chains
+     * out of GoPlus scope stay silent (no call, no field, no note).
+     */
+    readonly skipHoneypot: boolean;
     readonly breakerSkipped: ReadonlyArray<string>;
     /**
      * Names admitted through the breaker gate for THIS snapshot's
@@ -1844,7 +1962,7 @@ export class AddressSnapshotService {
     // day fetch -> saveSeeded -> re-read), never the parallel tail.
     const tailNotes: Record<string, string> = {};
     const runExtra = async <T>(
-      name: 'launchpad' | 'venue' | 'dev',
+      name: 'launchpad' | 'venue' | 'dev' | 'honeypot',
       work: Promise<T | null>,
       budgetMs: number = SNAPSHOT_TAIL_EXTRA_TIMEOUT_MS,
     ): Promise<T | null> => {
@@ -1852,7 +1970,8 @@ export class AddressSnapshotService {
         const raced = await withTailBudget(work, budgetMs);
         if (raced === TAIL_TIMEOUT) {
           // Launchpad names its OWN budget (todo 35 — out of the
-          // 400ms extras budget); venue/dev keep the shared note.
+          // 400ms extras budget); venue/dev/honeypot keep the shared
+          // note (honeypot: `tail:honeypot`, todo 71).
           tailNotes[`tail:${name}`] =
             name === 'launchpad'
               ? `timeout (detector budget ${budgetMs}ms) — degraded to null, fail-open`
@@ -1865,7 +1984,7 @@ export class AddressSnapshotService {
       }
     };
     const tailTasks: Array<() => Promise<unknown>> = [];
-    const tailSlots: Array<'launchpad' | 'venue' | 'dev'> = [];
+    const tailSlots: Array<'launchpad' | 'venue' | 'dev' | 'honeypot'> = [];
     if (!args.launchpad.resolved) {
       tailSlots.push('launchpad');
       tailTasks.push(() =>
@@ -1901,6 +2020,33 @@ export class AddressSnapshotService {
         }
       });
     }
+    // Honeypot (dexter plan todo 71, GoPlus Fase 1): chain gate FIRST —
+    // only ethereum/bsc/base have a GoPlus id; every other chain
+    // (solana/robinhood/arbitrum/polygon/…) stays SILENT: no call, no
+    // field, no note. Then kind + fast-path + kill-switch + service
+    // gates. Appended AFTER dev (slot order pinned): on a mapped-chain
+    // token scan this is the 4th extra, so `runTailCapped` queues it in
+    // a second wave at the SAME concurrency 3 (accepted per plan — no
+    // new circuit-breaker, no concurrency increase). Chain id computed
+    // ONCE here for the task closure (and reused by the fast-path note
+    // below).
+    const goplusChain = goplusChainId(knownId);
+    const wantHoneypot =
+      kind === 'token' &&
+      !args.skipHoneypot &&
+      this.honeypotEnabled &&
+      this.goplus !== null &&
+      this.goplus !== undefined &&
+      goplusChain !== null;
+    if (wantHoneypot && goplusChain !== null) {
+      tailSlots.push('honeypot');
+      tailTasks.push(() =>
+        runExtra(
+          'honeypot',
+          this.resolveHoneypot(goplusChain, id.key, inputValue),
+        ),
+      );
+    }
     const tailValues = await runTailCapped(
       tailTasks,
       SNAPSHOT_TAIL_CONCURRENCY,
@@ -1916,6 +2062,11 @@ export class AddressSnapshotService {
     let devWallets: AddressSnapshot['devWallets'] = null;
     let devPctSupply: number | null = null;
     const devErrors: Record<string, string> = {};
+    // Honeypot slot (todo 71): absent when the task never ran (chain
+    // gate/kill-switch/fast-path skip) — distinct from a definitive
+    // absence (memoized, also absent by design).
+    let honeypot: HoneypotReading | null = null;
+    let honeypotTransient = false;
     for (let i = 0; i < tailSlots.length; i += 1) {
       const slot = tailSlots[i];
       const value = tailValues[i];
@@ -1932,6 +2083,16 @@ export class AddressSnapshotService {
         pairCreatedAtMs = resolved?.pairCreatedAtMs ?? null;
         pairAddress = resolved?.pairAddress ?? null;
         pairSide = resolved?.pairSide ?? null;
+      } else if (slot === 'honeypot') {
+        // `null` here is either a runExtra timeout (note already set
+        // to the shared tail text) or an inner catch — the transient
+        // flag only survives on a real transient verdict.
+        const probe = value as {
+          readonly reading: HoneypotReading | null;
+          readonly transient: boolean;
+        } | null;
+        honeypot = probe?.reading ?? null;
+        honeypotTransient = probe?.transient === true;
       } else if (value !== null && value !== undefined) {
         const dev = value as {
           readonly devWallets?: AddressSnapshot['devWallets'];
@@ -1944,6 +2105,14 @@ export class AddressSnapshotService {
           devErrors[`dev:${k}`] = v;
         }
       }
+    }
+    // Transient honeypot failure: name it under the SAME `tail:honeypot`
+    // key the timeout uses (`degraded: true` either way), but ONLY when
+    // the timeout note did not already claim that key — the source
+    // failure text is distinct ("retries next request") and never
+    // memoized.
+    if (honeypotTransient && tailNotes['tail:honeypot'] === undefined) {
+      tailNotes['tail:honeypot'] = HONEYPOT_TRANSIENT_NOTE;
     }
     const tailMs = Math.round(performance.now() - tailStartedAt);
     // Best-pair creation → ISO (todo 63): the ONLY ms→ISO step, right
@@ -2155,6 +2324,20 @@ export class AddressSnapshotService {
       // outside the 800ms budget by design — marked, never silent.
       providerErrors['dev:fast-path'] = 'skipped (fast-path budget)';
     }
+    if (
+      args.skipHoneypot &&
+      kind === 'token' &&
+      this.honeypotEnabled &&
+      this.goplus !== null &&
+      this.goplus !== undefined &&
+      goplusChain !== null
+    ) {
+      // Fast card: the honeypot leg shares the extras tier and did not
+      // run — marked with the SAME semantics as `dev:fast-path`
+      // (`degraded: true`). Chains out of GoPlus scope (solana/
+      // robinhood/…) stay silent: the gate above answers false there.
+      providerErrors['honeypot:fast-path'] = 'skipped (fast-path budget)';
+    }
     for (const [k, v] of Object.entries(devErrors)) {
       providerErrors[k] = v;
     }
@@ -2196,6 +2379,7 @@ export class AddressSnapshotService {
             launchpad,
             venue,
             pairCreatedAt,
+            honeypot,
             fdvAth,
             providers: supporting,
             sources: [...staleRow.sources],
@@ -2287,6 +2471,7 @@ export class AddressSnapshotService {
       launchpad,
       venue,
       pairCreatedAt,
+      honeypot,
       fdvAth,
       providers: supporting,
       sources,

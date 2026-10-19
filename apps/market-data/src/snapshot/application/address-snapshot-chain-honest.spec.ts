@@ -18,6 +18,7 @@ import { SnapshotModule } from '../snapshot.module';
 import { AddressSnapshotService } from './address-snapshot.service';
 import { DirectFastPathService } from './direct-fast-path.service';
 import { AddressExistenceService } from './address-existence.service';
+import { GoplusService } from 'provider/infrastructure/goplus';
 import { LaunchpadDetectorService } from 'launchpad/application/launchpad-detector.service';
 import { SNAPSHOT_QUOTE_PROVIDERS } from '../domain/snapshot-quote.types';
 
@@ -306,6 +307,14 @@ describe('AddressSnapshotService venue (chain-honest, 0xFf81 fixture)', () => {
           reason: 'spec stub (fail-open)',
           ms: 0,
         }),
+      })
+      // Hermetic honeypot leg (todo 71): this suite runs base/ethereum/
+      // bsc token snapshots — the REAL GoplusService would fire live
+      // calls and shift degraded/providerErrors pins. Definitive
+      // absence = zero network, no field, no note.
+      .overrideProvider(GoplusService)
+      .useValue({
+        getTokenSecurity: async () => ({ kind: 'definitive-absence' }),
       })
       .compile();
     return module.get(AddressSnapshotService);
