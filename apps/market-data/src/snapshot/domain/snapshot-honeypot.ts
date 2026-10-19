@@ -36,6 +36,12 @@
  * - `resolveHoneypotEnabled`: kill-switch `SNAPSHOT_HONEYPOT_ENABLED`,
  *   default ENABLED; only an explicit false-ish token disables.
  *   Disabled ⇒ no call AND no field (silence).
+ * - `resolveHoneypotTimeoutMs`: the honeypot TAIL budget
+ *   (`SNAPSHOT_HONEYPOT_TIMEOUT_MS`, default 1500 — the
+ *   `LAUNCHPAD_SLOW_LEG_TIMEOUT_MS` precedent). Governs ONLY the
+ *   `tail:honeypot` wait: the live GoPlus RTT (~389-467ms) never fit
+ *   the shared 400ms extras budget, while venue/dev keep that 400ms
+ *   byte-identical.
  *
  * CLASSIFICATION (pinned — the memo contract depends on it):
  *
@@ -94,10 +100,35 @@ export type HoneypotProbe =
 
 /**
  * Per-probe axios ceiling (`GoplusService`): bounds the abandoned
- * work when the shared 400ms tail budget already gave up on the leg.
- * Same pinned number as the ATH-seed request timeout.
+ * work when the honeypot tail budget (`SNAPSHOT_HONEYPOT_TIMEOUT_MS`,
+ * default 1500) already gave up on the leg. Same pinned number as the
+ * ATH-seed request timeout.
  */
 export const SNAPSHOT_HONEYPOT_REQUEST_TIMEOUT_MS = 2_000;
+
+/**
+ * Honeypot-tail budget (the `LAUNCHPAD_SLOW_LEG_TIMEOUT_MS` precedent):
+ * the GoPlus leg is OUT of the shared 400ms extras budget — its live
+ * RTT (~389ms lane-time, RE-MEASURED 428-467ms the same day) lost that
+ * race. Env `SNAPSHOT_HONEYPOT_TIMEOUT_MS`, default 1500; governs ONLY
+ * the `tail:honeypot` wait (venue/dev keep
+ * `SNAPSHOT_TAIL_EXTRA_TIMEOUT_MS` byte-identical). Read once at
+ * construction, like the kill-switch.
+ */
+export const SNAPSHOT_HONEYPOT_TIMEOUT_MS_DEFAULT = 1_500;
+
+/**
+ * Non-finite / non-positive / garbage raw -> the pinned default (same
+ * resolver shape as `resolveDetectorSlowLegTimeoutMs`).
+ */
+export function resolveHoneypotTimeoutMs(raw: string | undefined): number {
+  if (raw === undefined) return SNAPSHOT_HONEYPOT_TIMEOUT_MS_DEFAULT;
+  const ms = Number(raw);
+  if (!Number.isFinite(ms) || ms <= 0) {
+    return SNAPSHOT_HONEYPOT_TIMEOUT_MS_DEFAULT;
+  }
+  return Math.floor(ms);
+}
 
 /**
  * Negative-memo TTL (6h, pinned): a definitive absence suppresses

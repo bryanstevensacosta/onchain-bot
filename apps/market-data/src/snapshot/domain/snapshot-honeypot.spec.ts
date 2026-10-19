@@ -6,9 +6,11 @@ import {
   HoneypotNegativeMemo,
   parseTaxPercent,
   resolveHoneypotEnabled,
+  resolveHoneypotTimeoutMs,
   SNAPSHOT_HONEYPOT_MEMO_MAX,
   SNAPSHOT_HONEYPOT_NEGATIVE_TTL_MS,
   SNAPSHOT_HONEYPOT_REQUEST_TIMEOUT_MS,
+  SNAPSHOT_HONEYPOT_TIMEOUT_MS_DEFAULT,
 } from './snapshot-honeypot';
 
 /**
@@ -298,6 +300,33 @@ describe('resolveHoneypotEnabled (kill-switch, default ON)', () => {
   it('disables only on explicit false-ish tokens', () => {
     for (const raw of ['0', 'false', 'off', 'no', 'disabled', ' FALSE ']) {
       expect(resolveHoneypotEnabled(raw)).toBe(false);
+    }
+  });
+});
+
+describe('resolveHoneypotTimeoutMs (own tail budget, default 1500)', () => {
+  it('defaults to 1500 on unset', () => {
+    expect(SNAPSHOT_HONEYPOT_TIMEOUT_MS_DEFAULT).toBe(1_500);
+    expect(resolveHoneypotTimeoutMs(undefined)).toBe(1_500);
+  });
+
+  it('accepts a positive override (Math.floor)', () => {
+    expect(resolveHoneypotTimeoutMs('2500')).toBe(2_500);
+    expect(resolveHoneypotTimeoutMs('1200.9')).toBe(1_200);
+  });
+
+  it('falls back to the default on garbage / non-positive / non-finite', () => {
+    for (const raw of [
+      '',
+      '   ',
+      'abc',
+      '0',
+      '-5',
+      'NaN',
+      'Infinity',
+      '1e999',
+    ]) {
+      expect(resolveHoneypotTimeoutMs(raw)).toBe(1_500);
     }
   });
 });

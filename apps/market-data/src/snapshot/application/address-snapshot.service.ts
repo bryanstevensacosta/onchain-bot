@@ -112,6 +112,7 @@ import {
   HONEYPOT_TRANSIENT_NOTE,
   HoneypotNegativeMemo,
   resolveHoneypotEnabled,
+  resolveHoneypotTimeoutMs,
   type HoneypotProbe,
   type HoneypotReading,
 } from '../domain/snapshot-honeypot';
@@ -196,7 +197,8 @@ export const METADATA_IDENTITY_BUDGET_MS = 2000;
  * deadline only MATTERS when the detector runs long (slow legs after
  * fast-leg miss): a fast hit returns at its natural speed under EITHER
  * budget, so fast-path timing is unchanged. Venue/dev keep the 400ms
- * `SNAPSHOT_TAIL_EXTRA_TIMEOUT_MS` intact.
+ * `SNAPSHOT_TAIL_EXTRA_TIMEOUT_MS` intact (honeypot rides its own
+ * `honeypotTailMs` since the todo-71 follow-up — default 1500).
  */
 export const SNAPSHOT_TAIL_LAUNCHPAD_TIMEOUT_MS_DEFAULT =
   DETECTOR_SLOW_LEG_TIMEOUT_MS_DEFAULT;
@@ -330,6 +332,17 @@ export class AddressSnapshotService {
    */
   private readonly honeypotEnabled: boolean = resolveHoneypotEnabled(
     process.env['SNAPSHOT_HONEYPOT_ENABLED'],
+  );
+  /**
+   * Honeypot-tail budget (todo 71 follow-up, `LAUNCHPAD_SLOW_LEG_TIMEOUT_MS`
+   * precedent): the GoPlus leg is OUT of the shared 400ms extras budget
+   * — its live RTT (~389-467ms) loses that race. Env
+   * `SNAPSHOT_HONEYPOT_TIMEOUT_MS`, default 1500. Read once at
+   * construction (same pattern as `launchpadTailMs`); venue/dev keep
+   * the shared 400ms byte-identical.
+   */
+  private readonly honeypotTailMs: number = resolveHoneypotTimeoutMs(
+    process.env['SNAPSHOT_HONEYPOT_TIMEOUT_MS'],
   );
   /**
    * Bounded in-process negative memo (todo 71): DEFINITIVE absences
@@ -517,10 +530,13 @@ export class AddressSnapshotService {
   /**
    * Honeypot leg (dexter plan todo 71, GoPlus Fase 1 — taxes only).
    *
-   * Runs INSIDE the shared 400ms tail budget as one more extra (the 4th
-   * extra on mapped-chain token scans queues in a second
-   * `runTailCapped` wave — accepted per plan; concurrency stays 3, no
-   * new circuit-breaker).
+   * Runs in the parallel tail as one more extra with its OWN budget
+   * (`honeypotTailMs`, default 1500 — the 4th extra on mapped-chain
+   * token scans queues in a second `runTailCapped` wave; concurrency
+   * stays 3, no new circuit-breaker). The dedicated deadline exists
+   * because the live GoPlus RTT (~389-467ms) loses the shared 400ms
+   * extras race (todo-71 follow-up; the `LAUNCHPAD_SLOW_LEG_TIMEOUT_MS`
+   * precedent).
    *
    * Result shape `{reading, transient}` (NEVER null): `runExtra`
    * catches inner throws SILENTLY (returns null, no note), so the
@@ -1950,9 +1966,11 @@ export class AddressSnapshotService {
     const { knownId, inputValue, cacheKey, kind, id, supporting, outcome } =
       args;
     const tailStartedAt = performance.now();
-    // Parallel tail (todo 29, deadline split todo 35): venue/dev race
-    // under the shared 400ms budget, degrade-to-null — while launchpad
-    // (the detector) rides its OWN `launchpadTailMs` deadline above.
+    // Parallel tail (todo 29, deadline splits todo 35 + todo-71
+    // follow-up): venue/dev race under the shared 400ms budget,
+    // degrade-to-null — while launchpad (the detector) rides its OWN
+    // `launchpadTailMs` deadline and honeypot its OWN `honeypotTailMs`
+    // (default 1500; the GoPlus RTT loses the 400ms race) above.
     // Max SNAPSHOT_TAIL_CONCURRENCY in flight. Pre-resolved legs
     // (fast-path serve) cost zero tasks. fdvAth stays SEQUENTIAL
     // below: it is an indexed history read (no outbound, microseconds), and the read-before-save order
@@ -1969,13 +1987,15 @@ export class AddressSnapshotService {
       try {
         const raced = await withTailBudget(work, budgetMs);
         if (raced === TAIL_TIMEOUT) {
-          // Launchpad names its OWN budget (todo 35 — out of the
-          // 400ms extras budget); venue/dev/honeypot keep the shared
-          // note (honeypot: `tail:honeypot`, todo 71).
+          // Every named budget prints its REAL value (venue/dev: the
+          // shared 400ms default, byte-identical); launchpad names its
+          // OWN detector budget (todo 35) and honeypot its own
+          // `SNAPSHOT_HONEYPOT_TIMEOUT_MS` (`tail:honeypot`, todo-71
+          // follow-up).
           tailNotes[`tail:${name}`] =
             name === 'launchpad'
               ? `timeout (detector budget ${budgetMs}ms) — degraded to null, fail-open`
-              : `timeout (tail budget ${SNAPSHOT_TAIL_EXTRA_TIMEOUT_MS}ms) — degraded to null, fail-open`;
+              : `timeout (tail budget ${budgetMs}ms) — degraded to null, fail-open`;
           return null;
         }
         return raced;
@@ -2027,7 +2047,9 @@ export class AddressSnapshotService {
     // gates. Appended AFTER dev (slot order pinned): on a mapped-chain
     // token scan this is the 4th extra, so `runTailCapped` queues it in
     // a second wave at the SAME concurrency 3 (accepted per plan — no
-    // new circuit-breaker, no concurrency increase). Chain id computed
+    // new circuit-breaker, no concurrency increase). Its wait rides the
+    // dedicated `honeypotTailMs` (default 1500, out of the shared 400ms
+    // extras budget — todo-71 follow-up). Chain id computed
     // ONCE here for the task closure (and reused by the fast-path note
     // below).
     const goplusChain = goplusChainId(knownId);
@@ -2044,6 +2066,7 @@ export class AddressSnapshotService {
         runExtra(
           'honeypot',
           this.resolveHoneypot(goplusChain, id.key, inputValue),
+          this.honeypotTailMs,
         ),
       );
     }
@@ -2085,7 +2108,7 @@ export class AddressSnapshotService {
         pairSide = resolved?.pairSide ?? null;
       } else if (slot === 'honeypot') {
         // `null` here is either a runExtra timeout (note already set
-        // to the shared tail text) or an inner catch — the transient
+        // to the tail-budget text) or an inner catch — the transient
         // flag only survives on a real transient verdict.
         const probe = value as {
           readonly reading: HoneypotReading | null;
@@ -2332,10 +2355,10 @@ export class AddressSnapshotService {
       this.goplus !== undefined &&
       goplusChain !== null
     ) {
-      // Fast card: the honeypot leg shares the extras tier and did not
-      // run — marked with the SAME semantics as `dev:fast-path`
-      // (`degraded: true`). Chains out of GoPlus scope (solana/
-      // robinhood/…) stay silent: the gate above answers false there.
+      // Fast card: the honeypot tail leg did not run — marked with the
+      // SAME semantics as `dev:fast-path` (`degraded: true`). Chains
+      // out of GoPlus scope (solana/robinhood/…) stay silent: the gate
+      // above answers false there.
       providerErrors['honeypot:fast-path'] = 'skipped (fast-path budget)';
     }
     for (const [k, v] of Object.entries(devErrors)) {

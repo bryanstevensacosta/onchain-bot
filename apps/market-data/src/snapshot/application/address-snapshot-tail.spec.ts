@@ -5,6 +5,7 @@ import {
   SNAPSHOT_TAIL_EXTRA_TIMEOUT_MS,
   SNAPSHOT_TAIL_LAUNCHPAD_TIMEOUT_MS_DEFAULT,
 } from './address-snapshot.service';
+import { SNAPSHOT_HONEYPOT_TIMEOUT_MS_DEFAULT } from '../domain/snapshot-honeypot';
 import { SnapshotAggregatorService } from 'aggregators/application/snapshot-aggregator.service';
 import { SnapshotHistoryRepository } from '../infrastructure/snapshot-history.repository';
 import type { QuoteFetcher } from '../domain/snapshot-quote.types';
@@ -111,13 +112,17 @@ const INPUT = {
  * extra. Caps, timeouts, and degrade behavior are pinned here.
  */
 describe('AddressSnapshotService tail (parallel extras, todo 29)', () => {
-  it('pins the tail budgets (concurrency 3, 400ms per extra, 2s detector)', () => {
+  it('pins the tail budgets (concurrency 3, 400ms per extra, 2s detector, 1.5s honeypot)', () => {
     expect(SNAPSHOT_TAIL_CONCURRENCY).toBe(3);
     expect(SNAPSHOT_TAIL_EXTRA_TIMEOUT_MS).toBe(400);
     // Todo 35: the detector is OUT of the 400ms extras budget — its
     // own deadline defaults to the slow-leg 2s (same env the Pons SSR
     // AbortController is cut by; single source of truth).
     expect(SNAPSHOT_TAIL_LAUNCHPAD_TIMEOUT_MS_DEFAULT).toBe(2_000);
+    // Todo 71 follow-up: honeypot is OUT of the 400ms extras budget
+    // too — its own deadline defaults to 1.5s (the GoPlus RTT
+    // ~389-467ms lost the shared race).
+    expect(SNAPSHOT_HONEYPOT_TIMEOUT_MS_DEFAULT).toBe(1_500);
   });
 
   it('runTailCapped respects the cap and preserves order', async () => {

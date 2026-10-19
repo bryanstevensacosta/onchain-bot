@@ -34,6 +34,8 @@ import {
  * - `code:2022` -> definitive absence (no field, no note, memoized),
  * - transient -> no field + `degraded` + `tail:honeypot` note, NEVER
  *   memoized (retries next request),
+ * - timeout -> `tail budget 1500ms` note (dedicated slow-leg budget,
+ *   out of the shared 400ms race), never memoized,
  * - chain gate (robinhood/solana) -> SILENT: no call, no field, no note,
  * - kind != token -> silent,
  * - fast path -> `honeypot:fast-path` note (degraded), no call,
@@ -69,6 +71,8 @@ interface HarnessOptions {
 
   /** `false` sets the kill-switch env before module construction. */
   readonly enabled?: boolean;
+  /** Sets `SNAPSHOT_HONEYPOT_TIMEOUT_MS` before module construction. */
+  readonly timeoutMs?: number;
   /** Per-call fake answers (default: SAFEMOONCASH body). */
   readonly steps?: ReadonlyArray<ProbeStep>;
   /** `true` makes the direct fast path serve (skipHoneypot branch). */
@@ -119,10 +123,16 @@ async function harness(options: HarnessOptions = {}): Promise<Harness> {
   const steps = options.steps ?? [];
   const calls: Array<{ chainId: number; address: string }> = [];
   const previousKillSwitch = process.env['SNAPSHOT_HONEYPOT_ENABLED'];
+  const previousTimeout = process.env['SNAPSHOT_HONEYPOT_TIMEOUT_MS'];
   if (options.enabled === undefined) {
     delete process.env['SNAPSHOT_HONEYPOT_ENABLED'];
   } else {
     process.env['SNAPSHOT_HONEYPOT_ENABLED'] = options.enabled ? '1' : '0';
+  }
+  if (options.timeoutMs === undefined) {
+    delete process.env['SNAPSHOT_HONEYPOT_TIMEOUT_MS'];
+  } else {
+    process.env['SNAPSHOT_HONEYPOT_TIMEOUT_MS'] = String(options.timeoutMs);
   }
   let module: TestingModule;
   try {
@@ -208,12 +218,17 @@ async function harness(options: HarnessOptions = {}): Promise<Harness> {
       })
       .compile();
   } finally {
-    // The kill-switch field initializer already ran (module construct);
-    // restore the ambient env for the rest of the suite.
+    // The kill-switch/budget field initializers already ran (module
+    // construct); restore the ambient env for the rest of the suite.
     if (previousKillSwitch === undefined) {
       delete process.env['SNAPSHOT_HONEYPOT_ENABLED'];
     } else {
       process.env['SNAPSHOT_HONEYPOT_ENABLED'] = previousKillSwitch;
+    }
+    if (previousTimeout === undefined) {
+      delete process.env['SNAPSHOT_HONEYPOT_TIMEOUT_MS'];
+    } else {
+      process.env['SNAPSHOT_HONEYPOT_TIMEOUT_MS'] = previousTimeout;
     }
   }
   modules.push(module);
@@ -308,7 +323,7 @@ describe('AddressSnapshotService honeypot leg (todo 71 — GoPlus Fase 1)', () =
     expect(h.calls).toHaveLength(2);
   });
 
-  it('timeout: shared tail budget note + degraded, retried next request (never memoized)', async () => {
+  it('timeout: dedicated tail budget note (1500ms) + degraded, retried next request (never memoized)', async () => {
     const h = await harness({
       steps: [{ kind: 'hang' }, { kind: 'body', body: SAFEMOONCASH_BODY }],
     });
@@ -320,7 +335,7 @@ describe('AddressSnapshotService honeypot leg (todo 71 — GoPlus Fase 1)', () =
     expect(first.honeypot).toBeNull();
     expect(first.degraded).toBe(true);
     expect(first.providerErrors['tail:honeypot']).toContain(
-      'timeout (tail budget 400ms)',
+      'timeout (tail budget 1500ms)',
     );
     await h.cache.del(snapshotCacheKey(CHAIN, SAFEMOONCASH, 'token'));
     const second = await h.snapshots.getSnapshot({
@@ -330,6 +345,75 @@ describe('AddressSnapshotService honeypot leg (todo 71 — GoPlus Fase 1)', () =
     });
     expect(second.honeypot).toEqual({ buy: 4, sell: 2, sim: null });
     expect(h.calls).toHaveLength(2);
+  });
+
+  it('fake-timer window: survives 500ms (out of the old 400ms race) and settles past 1500ms', async () => {
+    jest.useFakeTimers();
+    try {
+      const h = await harness({ steps: [{ kind: 'hang' }] });
+      const pending = h.snapshots.getSnapshot({
+        chain: CHAIN,
+        value: SAFEMOONCASH,
+        kindHint: 'token',
+      });
+      let settled = false;
+      void pending.then(
+        () => {
+          settled = true;
+        },
+        () => {
+          settled = true;
+        },
+      );
+      // Flush microtasks so the pipeline reaches the guard timer.
+      await jest.advanceTimersByTimeAsync(0);
+      // The OLD shared 400ms budget would have degraded the leg by now;
+      // the dedicated 1500ms budget is still waiting at the 500ms mark.
+      await jest.advanceTimersByTimeAsync(500);
+      expect(settled).toBe(false);
+      await jest.advanceTimersByTimeAsync(1_100);
+      const snapshot = await pending;
+      expect(settled).toBe(true);
+      expect(snapshot.honeypot).toBeNull();
+      expect(snapshot.degraded).toBe(true);
+      expect(snapshot.providerErrors['tail:honeypot']).toContain(
+        'timeout (tail budget 1500ms)',
+      );
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('env override SNAPSHOT_HONEYPOT_TIMEOUT_MS=700 governs the wait and the note name', async () => {
+    jest.useFakeTimers();
+    try {
+      const h = await harness({ timeoutMs: 700, steps: [{ kind: 'hang' }] });
+      const pending = h.snapshots.getSnapshot({
+        chain: CHAIN,
+        value: SAFEMOONCASH,
+        kindHint: 'token',
+      });
+      let settled = false;
+      void pending.then(
+        () => {
+          settled = true;
+        },
+        () => {
+          settled = true;
+        },
+      );
+      await jest.advanceTimersByTimeAsync(0);
+      await jest.advanceTimersByTimeAsync(500);
+      expect(settled).toBe(false);
+      await jest.advanceTimersByTimeAsync(300);
+      const snapshot = await pending;
+      expect(snapshot.honeypot).toBeNull();
+      expect(snapshot.providerErrors['tail:honeypot']).toContain(
+        'timeout (tail budget 700ms)',
+      );
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('chain gate: robinhood (no GoPlus id) stays SILENT — zero calls, no field, no note', async () => {

@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Honeypot tail budget — dedicated slow-leg deadline (todo 71
+  follow-up):** the honeypot extra is now OUT of the shared 400ms
+  extras budget. New env `SNAPSHOT_HONEYPOT_TIMEOUT_MS` (default 1500;
+  `resolveHoneypotTimeoutMs` + `SNAPSHOT_HONEYPOT_TIMEOUT_MS_DEFAULT`
+  in `snapshot-honeypot.ts`, the `LAUNCHPAD_SLOW_LEG_TIMEOUT_MS`
+  precedent — non-finite/≤0/garbage → default, `Math.floor`) is read
+  once at construction and governs ONLY the `tail:honeypot` wait;
+  venue/dev keep the shared 400ms `SNAPSHOT_TAIL_EXTRA_TIMEOUT_MS`
+  byte-identical. The generic timeout note now prints the REAL budget
+  used (`timeout (tail budget 1500ms) — degraded to null, fail-open`;
+  launchpad keeps its detector-budget note). Motivation: the live
+  GoPlus RTT (~389ms lane-time, RE-MEASURED 428–467ms the same day,
+  todo 71) always lost the 400ms race, so cold serves degraded on
+  `tail:honeypot` and the reading landed only on the refresh/repeat.
+  NOTHING else changes: gate, kill-switch, memo, fast-path skip,
+  concurrency 3 and the transient note are identical. Specs: resolver
+  cases (default/override/garbage) + fake-timer window pins (survives
+  500ms, settles past 1500ms with the real-budget note; env override
+  note pin) + updated timeout pin + tail budget pin — full suite
+  154/1161 green ×2, `tsc --noEmit` clean. Evidence:
+  `.omo/evidence/task-fe-honeypot-research/slow-leg-budget-lane.log`.
+
 - **Honeypot leg — GoPlus Fase 1 (dexter plan todo 71):** address
   snapshots carry `honeypot: {buy, sell, sim} | null` (% 0-100, fraction
   strings ×100; `sim` always `null` in Fase 1 — honeypot.is/SIM

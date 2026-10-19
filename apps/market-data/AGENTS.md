@@ -1299,8 +1299,10 @@ host=<hostname>, public fallback armed)` or `public-only
   Pre-resolved legs (fast-path serve) cost zero tasks. Both serve logs
   carry `tailMs=` + `breakerSkipped=`. UPDATE (todo 71, 2026-10-19): a
   FOURTH extra — `honeypot` (GoPlus, EVM-mapped chains only; concurrency
-  stays 3, the 4th queues in a second wave) — joined this tier; see the
-  HONEYPOT LEG section.
+  stays 3, the 4th queues in a second wave) — joined this tier; it rides
+  its OWN `SNAPSHOT_HONEYPOT_TIMEOUT_MS` deadline (default 1500, out of
+  the shared 400ms — follow-up same day), so its `tail:honeypot`
+  timeout note names the real budget. See the HONEYPOT LEG section.
 - Shared outbound math (pinned in `provider-outbound-limits.ts`):
   worst case ~10 outbound calls per cold snapshot (launchpad ≤4, venue
   ≤2, dev ≤3 solana-only), spread over tiers; each extra abandoned at
@@ -2429,16 +2431,31 @@ object nulls; arrays/objects rejected).
   `Math.round(x*100*1e4)/1e4`; absent/`""`/non-numeric OR % outside 0-100
   → THAT side `null`, never 0, never clamped).
 - TAIL: the leg is the FOURTH extra (`kind: 'honeypot'` appended after
-  `dev` in `runExtra` + `tailSlots`) under the SAME shared 400ms extras
-  budget (`withTailBudget`/`runTailCapped`; concurrency stays 3 — the 4th
-  queues into a second wave, accepted). Gate: `kind === 'token' &&
-!skipHoneypot && SNAPSHOT_HONEYPOT_ENABLED && goplus present && mapped
-chain` (CRITICAL: unmapped chain/kind≠token → no call, no note, no bit).
+  `dev` in `runExtra` + `tailSlots`) under its OWN budget
+  `SNAPSHOT_HONEYPOT_TIMEOUT_MS` (default 1500 — see the SLOW-LEG
+  BUDGET bullet; OUT of the shared 400ms extras budget since the
+  follow-up). `withTailBudget`/`runTailCapped` otherwise unchanged
+  (concurrency stays 3 — the 4th queues into a second wave, accepted).
+  Gate: `kind === 'token' && !skipHoneypot && SNAPSHOT_HONEYPOT_ENABLED
+&& goplus present && mapped chain` (CRITICAL: unmapped chain/kind≠token
+  → no call, no note, no bit).
   Transient failure ⇒ honeypot absent (fail-open) + `degraded` with the
-  `tail:honeypot` note (`HONEYPOT_TRANSIENT_NOTE`; timeout keeps the
-  shared 400ms text — the post-loop transient note never overwrites it).
+  `tail:honeypot` note (`HONEYPOT_TRANSIENT_NOTE`; the timeout note
+  names the REAL budget used — `timeout (tail budget 1500ms) —
+degraded to null, fail-open` — and the post-loop transient note never
+  overwrites it; venue/dev keep the shared 400ms text byte-identical).
   A source that RESPONDS (entry present) emits `{buy, sell, sim:null}`
   even with both sides null — "probed, no data" differs from "no source".
+- SLOW-LEG BUDGET (`SNAPSHOT_HONEYPOT_TIMEOUT_MS`, default 1500 —
+  `resolveHoneypotTimeoutMs` in `snapshot-honeypot.ts`, the
+  `LAUNCHPAD_SLOW_LEG_TIMEOUT_MS` precedent): the honeypot wait is OUT
+  of the shared 400ms extras budget — the live GoPlus RTT
+  (~389ms lane-time / 428–467ms re-measured) lost that race, so cold
+  serves degraded on `tail:honeypot` almost every time. Read once at
+  construction (`honeypotTailMs`, same pattern as `launchpadTailMs`);
+  governs ONLY the honeypot wait. Non-finite/≤0/garbage → default;
+  `Math.floor`. NOTHING else changed: gate, kill-switch, memo,
+  fast-path skip, concurrency 3 and the transient note are identical.
 - NEGATIVE MEMO (sister class — the ATH memo is ath-scoped, NOT reusable):
   bounded 500 / TTL 6h, DEFINITIVE absences only (body `code:2022` or
   `code:1` with the address absent from `result`); transients are NEVER
@@ -2460,21 +2477,23 @@ chain` (CRITICAL: unmapped chain/kind≠token → no call, no note, no bit).
   CAKE bsc `0x0E09…cE82` → `{"buy":null,"sell":null,"sim":null}` (entry
   present, tax keys absent → probed-no-data); NYMA robinhood
   `0x968B…5583` → `null`, zero notes (unmapped chain — GoPlus never
-  called). LATENCY DATUM: direct GoPlus from this network measured
-  ~389ms at lane time (2026-10-19) and RE-MEASURED 428–467ms later the
-  same day (upstream variance; `code:5000 "system error"` seen for some
-  tokens), so cold serves often lose the 400ms tail race and the
-  reading lands on the refresh/repeat (observed live; no design change —
-  budget per plan). A dedicated slow-leg budget (the
-  `LAUNCHPAD_SLOW_LEG_TIMEOUT_MS` precedent) stays an open owner
-  decision.
+  called). LATENCY DATUM — **RESOLVED** by the SLOW-LEG BUDGET bullet
+  above: direct GoPlus from this network measured ~389ms at lane time
+  (2026-10-19) and RE-MEASURED 428–467ms later the same day (upstream
+  variance; `code:5000 "system error"` seen for some tokens), so cold
+  serves lost the 400ms tail race and the reading landed only on the
+  refresh/repeat. The dedicated `SNAPSHOT_HONEYPOT_TIMEOUT_MS` (default 1500) now absorbs the live RTT — under the original shared 400ms race
+  `tail:honeypot` timeouts were the expected outcome, not a fault.
 - Specs: `snapshot-honeypot.spec.ts` (domain: chain scope, parser, full
-  classifier matrix, memo, kill-switch) + `goplus.service.spec.ts`
-  (wire-level pins) + `address-snapshot-honeypot.spec.ts` (10 integration
-  tests: witnesses, code:2022 + memo, transient no-memo, chain gate,
-  kind gate, fast-path note, kill-switch, call counts) +
-  `snapshot-ttl-policy.spec.ts` pins (class + degraded tripwire); the 5
-  at-risk module-boot specs got hermetic `GoplusService` overrides.
-  Full suite 154/1156 green ×2 (baseline 151/1111; +3 suites / +45 tests),
-  `tsc --noEmit` clean. Evidence:
-  `.omo/evidence/task-fe-honeypot-research/market-data-lane.log`.
+  classifier matrix, memo, kill-switch, budget resolver) +
+  `goplus.service.spec.ts` (wire-level pins) +
+  `address-snapshot-honeypot.spec.ts` (12 integration tests: witnesses,
+  code:2022 + memo, transient no-memo, dedicated-budget timeout +
+  fake-timer window + env override, chain gate, kind gate, fast-path
+  note, kill-switch, call counts) + `snapshot-ttl-policy.spec.ts` pins
+  (class + degraded tripwire) + the `address-snapshot-tail.spec.ts`
+  budget pin (concurrency 3 / 400ms extras / 2s detector / 1.5s
+  honeypot); the 5 at-risk module-boot specs got hermetic `GoplusService`
+  overrides. Todo-71 follow-up run: 154/1161 green ×2, `tsc --noEmit`
+  clean. Evidence:
+  `.omo/evidence/task-fe-honeypot-research/slow-leg-budget-lane.log`.
