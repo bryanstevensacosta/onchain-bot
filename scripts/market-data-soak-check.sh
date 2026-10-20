@@ -26,12 +26,13 @@
 #                         Unset -> DB probe skipped silently.
 #   PSQL_USER / PSQL_DB   defaults onchain_bot / onchain_bot_market_data_staging
 #
-# Oracle invocation (run ON the host; the key is read from the
-# operator-owned .env.staging into the environment and NEVER echoed):
+# Oracle invocation (run ON the host; the key is read from the RUNNING
+# container env into the shell and NEVER echoed — .env.staging is
+# operator-owned and not readable by the SSH user):
 #
 #   ssh OracleDroplet
-#   export MARKET_DATA_API_KEY="$(grep -m 1 '^MARKET_DATA_API_KEY=' \
-#     /opt/onchain-bot-staging/apps/market-data/.env.staging | cut -d= -f2-)"
+#   export MARKET_DATA_API_KEY="$(docker exec \
+#     onchain-bot-market-data-staging printenv MARKET_DATA_API_KEY)"
 #   PSQL_CONTAINER=onchain-bot-market-data-postgres-staging \
 #     OUT_FILE="$HOME/market-data-soak.jsonl" \
 #     bash /opt/onchain-bot-staging/scripts/market-data-soak-check.sh

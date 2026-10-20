@@ -18,16 +18,17 @@
 snapshot_history`.
 - **Out of scope:** production, `USE_DATA_SERVICE_API` flips, migrations,
   deploys, provider-key rotation, backfills.
-- **Auth:** `MARKET_DATA_API_KEY` is read from the operator-owned
-  `/opt/onchain-bot-staging/apps/market-data/.env.staging` into the
-  environment and is never printed. `.env.staging` values never leave the
-  host.
+- **Auth:** `MARKET_DATA_API_KEY` is read on the host from the RUNNING
+  container env (`docker exec … printenv`) into the shell and is never
+  printed. `.env.staging` is operator-owned and NOT readable by the SSH
+  user — do not chmod it to run this probe. Values never leave the host.
 
 ## 2. One-time setup
 
 The script is tracked at `scripts/market-data-soak-check.sh` and is
-materialized on the host by the next deploy of the staging tree
-(`/opt/onchain-bot-staging/scripts/`). Until then, copy it once:
+materialized on the host by the staging deploy (verified
+`/opt/onchain-bot-staging/scripts/market-data-soak-check.sh`, run
+`af8611ad`, 2026-10-20). If it is missing, copy it once:
 
 ```bash
 scp scripts/market-data-soak-check.sh OracleDroplet:/tmp/market-data-soak-check.sh
@@ -53,8 +54,8 @@ table takes one row per day):
 ```bash
 ssh OracleDroplet
 
-export MARKET_DATA_API_KEY="$(grep -m 1 '^MARKET_DATA_API_KEY=' \
-  /opt/onchain-bot-staging/apps/market-data/.env.staging | cut -d= -f2-)"
+export MARKET_DATA_API_KEY="$(docker exec \
+  onchain-bot-market-data-staging printenv MARKET_DATA_API_KEY)"
 
 PSQL_CONTAINER=onchain-bot-market-data-postgres-staging \
   OUT_FILE="$HOME/market-data-soak.jsonl" \
