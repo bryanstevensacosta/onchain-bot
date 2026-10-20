@@ -930,6 +930,19 @@ true` + `staleAsOf` (row ISO) + `staleAgeMs`, `status: 'ready'`
 
 ### Fixed
 
+- **`snapshot_history.sources` type drift caught by the staging soak:**
+  `CreateSnapshotHistory1772000000000` created `sources` as plain
+  `text` while the entity maps `text[]`, so the driver returned array
+  literals and `toHistoryRow` spread them into one entry PER CHARACTER
+  — every stale replay served corrupted `sources` (fresh responses
+  were unaffected; found on the first 7-day-soak run, 2026-10-20).
+  `FixSnapshotHistorySourcesArray1775000000000` rewrites the column to
+  `text[]` (drop legacy default → cast with a total `USING` → restore
+  `'{}'::text[]`; validated by rolled-back DDL against the live
+  staging rows) and `normalizeHistorySources` guards a legacy/unmigrated
+  schema without re-corrupting the shape. Registered in both the app
+  and the TypeORM CLI migration lists.
+
 - **Provider API keys wired through app config:** every keyed adapter
   module reads `cs.get('app.<name>')` but `app.config.ts` defined no
   such namespaces (and `AppModule` never loaded the config), so every

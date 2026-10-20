@@ -62,6 +62,63 @@ export class SnapshotHistoryEntity {
   public createdAt!: Date;
 }
 
+/**
+ * Defensive `sources` normalization (staging drift fix, 2026-10-20).
+ *
+ * The live staging column was created as plain `text` by
+ * `CreateSnapshotHistory1772000000000` while this entity maps
+ * `text[]`; the driver then returned Postgres array literals
+ * (`'{"onchain-direct"}'`) as strings and the old `[...sources]`
+ * spread emitted one entry PER CHARACTER on every stale replay.
+ * The column is fixed by `FixSnapshotHistorySourcesArray1775000000000`;
+ * this guard keeps a legacy/unmigrated schema from silently
+ * corrupting the served `sources` array again (honest `[]` on any
+ * value that is neither an array nor a parseable literal).
+ */
+export function normalizeHistorySources(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((entry): entry is string => typeof entry === 'string');
+  }
+  return typeof value === 'string' ? parsePostgresTextArrayLiteral(value) : [];
+}
+
+/**
+ * Parses one Postgres text-array literal (`{a,b}`, `{"a","b"}`,
+ * quoted/escaped entries) — only the shapes this column can hold.
+ * Unparseable input (no surrounding braces) resolves `[]`.
+ */
+function parsePostgresTextArrayLiteral(value: string): string[] {
+  const trimmed = value.trim();
+  if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) {
+    return [];
+  }
+  const inner = trimmed.slice(1, -1);
+  if (inner === '') {
+    return [];
+  }
+  const entries: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  let escaped = false;
+  for (const char of inner) {
+    if (escaped) {
+      current += char;
+      escaped = false;
+    } else if (char === '\\') {
+      escaped = true;
+    } else if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      entries.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  entries.push(current);
+  return entries;
+}
+
 export function toHistoryRow(
   entity: SnapshotHistoryEntity,
 ): SnapshotHistoryRow {
@@ -72,7 +129,7 @@ export function toHistoryRow(
     kind: entity.kind as SnapshotHistoryRow['kind'],
     status: entity.status as SnapshotHistoryRow['status'],
     quote: entity.quote,
-    sources: [...(entity.sources ?? [])],
+    sources: normalizeHistorySources(entity.sources),
     providerErrors: { ...(entity.providerErrors ?? {}) },
     createdAt:
       entity.createdAt instanceof Date

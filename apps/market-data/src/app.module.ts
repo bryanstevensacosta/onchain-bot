@@ -13,6 +13,7 @@ import { SnapshotHistoryEntity } from './snapshot/infrastructure/snapshot-histor
 import { CreateSnapshotHistory1772000000000 } from './snapshot/infrastructure/migrations/1772000000000-CreateSnapshotHistory';
 import { DiscoveryCacheEntity } from './snapshot/infrastructure/discovery-cache.entity';
 import { CreateDiscoveryCache1774000000000 } from './snapshot/infrastructure/migrations/1774000000000-CreateDiscoveryCache';
+import { FixSnapshotHistorySourcesArray1775000000000 } from './snapshot/infrastructure/migrations/1775000000000-FixSnapshotHistorySourcesArray';
 import { AssetRegistryEntity } from './asset-registry/infrastructure/asset-registry.entity';
 import { CreateAssetRegistry1773000000000 } from './asset-registry/infrastructure/migrations/1773000000000-CreateAssetRegistry';
 import { AssetRegistryModule } from './asset-registry/asset-registry.module';
@@ -73,6 +74,7 @@ import { appConfig } from './shared/infrastructure/config/app.config';
                   CreateSnapshotHistory1772000000000,
                   CreateAssetRegistry1773000000000,
                   CreateDiscoveryCache1774000000000,
+                  FixSnapshotHistorySourcesArray1775000000000,
                 ],
               };
             },

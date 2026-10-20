@@ -465,7 +465,13 @@ coverage target >80% (pure units, no I/O).
 1. ~~Persistence entities/migrations (TypeORM wiring, `synchronize:false`
    outside dev)~~ DONE 2026-10-19: `src/shared/database/data-source.ts`
    - `migration:*` scripts; staging runs `migration:run` and records the
-     three migrations in `typeorm_migrations`.
+     three migrations in `typeorm_migrations`. Drift repair added
+     2026-10-20: `1775000000000-FixSnapshotHistorySourcesArray` converts
+     `snapshot_history.sources` from `text` to `text[]` (the original
+     migration declared text while the entity maps an array, so stale
+     replays served per-character `sources`); `normalizeHistorySources`
+     in `toHistoryRow` guards a legacy/unmigrated schema. Found by the
+     first 7-day soak run — the soak is already paying for itself.
 2. `/metrics` exporter + Pino logging.
 3. Redis adapters (cache + rate-limiter windows use `REDIS_URL`).
 4. ~~Address snapshot aggregators + persistence (todo 3)~~ SUPERSEDED
