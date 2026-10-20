@@ -409,9 +409,6 @@ jobs:
           echo "=== Forcefully stopping old containers ==="
           docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml stop backend --time 5 || true
           docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml rm -f backend || true
-          # Legacy label-less container (created outside compose) is invisible to
-          # compose's label-based lookup and would block `up` with a name conflict.
-          docker rm -f onchain-bot-backend-staging 2>/dev/null || true
           echo "=== Old containers removed ==="
           docker ps -a | grep -i "backend\|ingestion" || true
           sleep 2
@@ -543,6 +540,11 @@ jobs:
 
       - name: Deploy backend (GHCR, no build)
         run: |
+          # Legacy label-less container (created outside compose) is invisible to
+          # compose's label-based lookup and would block `up` with a name conflict.
+          # Remove it only after migrations succeed; until here the previous
+          # backend keeps serving.
+          docker rm -f onchain-bot-backend-staging 2>/dev/null || true
           docker compose -f /opt/onchain-bot-staging/apps/backend/docker-compose.staging.yml up -d backend
 
       - name: Wait for backend healthcheck
