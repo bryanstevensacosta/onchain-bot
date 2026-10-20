@@ -16,6 +16,7 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 ### Fixed
 
+- Docker build: `apps/market-data/src/provider` is now copied into the backend build stage. The Tramo 3 consumer rewiring imports the canonical adapters via relative paths, so `nest build` failed with 99 `TS2307` errors in Docker while local/CI `tsc` passed. Verified with `docker build --target build`. (dev)
 - Crypto-news queue accepts crypto-news only: `?type=crypto-news` pin in matching/cron/handler + client-side drop + anti-kol SSE guard. (feat/mega-refactor-tramos)
 
 ### Deprecated

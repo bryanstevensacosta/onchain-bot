@@ -18,6 +18,10 @@ COPY apps/backend ./apps/backend
 # (backend tsconfig maps it to ../ingestion-telegram/src/shared/media/*).
 # Without this, nest build fails with TS2307 in Docker while local/CI tsc passes.
 COPY apps/ingestion-telegram/src/shared/media ./apps/ingestion-telegram/src/shared/media
+# Canonical data-provider adapters (Tramo 3 todo 4) consumed by the backend
+# DataProviderModule + enrichment adapters + chain probers via relative paths.
+# Without this, nest build fails with TS2307 in Docker while local/CI tsc passes.
+COPY apps/market-data/src/provider ./apps/market-data/src/provider
 
 RUN npm run build:backend
 
