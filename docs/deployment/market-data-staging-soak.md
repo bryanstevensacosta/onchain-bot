@@ -114,6 +114,15 @@ required.
 Baseline is intentionally empty: fill each cell from the measured run.
 Do **not** pre-fill or reconstruct values from memory.
 
+**Re-baseline 2026-10-20 (post-fix).** The day-0 probe caught a real
+schema drift: `snapshot_history.sources` was `text` while the entity maps
+`text[]`, so the 01:19Z line served `sources` as single characters. The
+fix (`a5fd38e0`: migration `1775000000000-FixSnapshotHistorySourcesArray`
+plus `normalizeHistorySources`) is live; the validated baseline is the
+01:33Z run — `stale:true`, `sources: [dexscreener, geckoterminal,
+evm-rpc]`, 33 rows, health 3 ms. Start day 1 after that deploy and ignore
+the pre-fix line.
+
 | Day | Date | Health | Latency (ms) | Snapshot status | providerErrors | TypeORM errors | Rows | Notes |
 | --- | ---- | ------ | ------------ | --------------- | -------------- | -------------- | ---- | ----- |
 | 1   | —    | —      | —            | —               | —              | —              | —    | —     |
