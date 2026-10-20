@@ -394,10 +394,14 @@ jobs:
 
       - name: Configure deploy environment
         run: |
+          ENV_FILE=/opt/onchain-bot-staging/apps/backend/.env
+          rm -f "$ENV_FILE"
+          touch "$ENV_FILE"
           if [ -n "${{ secrets.REDIS_PASSWORD }}" ]; then
-            echo "REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}" > /opt/onchain-bot-staging/apps/backend/.env
-          else
-            rm -f /opt/onchain-bot-staging/apps/backend/.env
+            echo "REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}" >> "$ENV_FILE"
+          fi
+          if [ -n "${{ secrets.STAGING_POSTGRES_PASSWORD }}" ]; then
+            echo "POSTGRES_PASSWORD=${{ secrets.STAGING_POSTGRES_PASSWORD }}" >> "$ENV_FILE"
           fi
 
       - name: Stop old containers (if hung)
@@ -485,10 +489,10 @@ jobs:
 
           if docker compose -f docker-compose.staging.yml run --rm --no-deps \
             -e NODE_ENV=staging \
-            -e POSTGRES_HOST=postgres \
+            -e POSTGRES_HOST=onchain-bot-postgres-staging \
             -e POSTGRES_PORT=5432 \
             -e POSTGRES_USER=onchain_bot \
-            -e POSTGRES_PASSWORD=alpha_meta_token_scanner \
+            -e POSTGRES_PASSWORD="${{ secrets.STAGING_POSTGRES_PASSWORD }}" \
             -e POSTGRES_DB=onchain_bot_staging \
             backend npm run migration:show; then
             echo "✅ migration:show OK"
@@ -500,10 +504,10 @@ jobs:
           echo "=== Dry-run: precondition probe (read-only SELECT, no writes) ==="
           if docker compose -f docker-compose.staging.yml run --rm --no-deps \
             -e NODE_ENV=staging \
-            -e POSTGRES_HOST=postgres \
+            -e POSTGRES_HOST=onchain-bot-postgres-staging \
             -e POSTGRES_PORT=5432 \
             -e POSTGRES_USER=onchain_bot \
-            -e POSTGRES_PASSWORD=alpha_meta_token_scanner \
+            -e POSTGRES_PASSWORD="${{ secrets.STAGING_POSTGRES_PASSWORD }}" \
             -e POSTGRES_DB=onchain_bot_staging \
             backend npm run typeorm -- query "SELECT 1 AS dry_run_ok"; then
             echo "✅ precondition probe OK"
@@ -525,10 +529,10 @@ jobs:
           # (ingestion-telegram port 3032 is still occupied from previous deploy)
           docker compose -f docker-compose.staging.yml run --rm --no-deps \
             -e NODE_ENV=staging \
-            -e POSTGRES_HOST=postgres \
+            -e POSTGRES_HOST=onchain-bot-postgres-staging \
             -e POSTGRES_PORT=5432 \
             -e POSTGRES_USER=onchain_bot \
-            -e POSTGRES_PASSWORD=alpha_meta_token_scanner \
+            -e POSTGRES_PASSWORD="${{ secrets.STAGING_POSTGRES_PASSWORD }}" \
             -e POSTGRES_DB=onchain_bot_staging \
             backend npm run migration:run
 
@@ -946,10 +950,10 @@ jobs:
           cd /opt/onchain-bot-staging/apps/backend
           docker compose -f docker-compose.staging.yml run --rm --no-deps \
             -e NODE_ENV=staging \
-            -e POSTGRES_HOST=postgres \
+            -e POSTGRES_HOST=onchain-bot-postgres-staging \
             -e POSTGRES_PORT=5432 \
             -e POSTGRES_USER=onchain_bot \
-            -e POSTGRES_PASSWORD=alpha_meta_token_scanner \
+            -e POSTGRES_PASSWORD="${{ secrets.STAGING_POSTGRES_PASSWORD }}" \
             -e POSTGRES_DB=onchain_bot_staging \
             backend npm run migration:show
           echo "=== rollback pins present ==="

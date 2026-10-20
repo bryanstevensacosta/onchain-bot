@@ -77,15 +77,16 @@ services:
       - .env.staging
     environment:
       NODE_ENV: staging
-      # Database connection
-      POSTGRES_HOST: postgres
+      # Database connection (unique container name; the shared staging network
+      # has many containers aliased `postgres`/`redis`)
+      POSTGRES_HOST: onchain-bot-postgres-staging
       POSTGRES_PORT: 5432
       POSTGRES_USER: ${POSTGRES_USER:-onchain_bot}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-alpha_meta_token_scanner}
       POSTGRES_DB: ${POSTGRES_DB:-onchain_bot_staging}
       DATABASE_ENABLED: true
-      # Redis connection
-      REDIS_HOST: redis
+      # Redis connection (unique container name; shared-network alias collision)
+      REDIS_HOST: onchain-bot-redis-staging
       REDIS_PORT: 6379
       REDIS_ENABLED: true
       # Ingestion mode - compose `environment:` wins over .env.staging
