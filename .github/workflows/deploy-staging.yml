@@ -361,8 +361,8 @@ jobs:
           STAGING_PG="$(docker ps --format '{{.Names}}' | grep -E '^(onchain-bot-postgres-staging|onchain-bot-staging-postgres)$' | head -n 1 || true)"
           if [ -n "$STAGING_PG" ]; then
             mkdir -p /data/backups/staging
-            docker exec "$STAGING_PG" pg_dump -U alpha_meta_token_scanner \
-              alpha_meta_token_scanner_staging > /data/backups/staging/staging-backup-$(date +%Y%m%d-%H%M%S).sql || true
+            docker exec "$STAGING_PG" pg_dump -U onchain_bot \
+              onchain_bot_staging > /data/backups/staging/staging-backup-$(date +%Y%m%d-%H%M%S).sql || true
             # Cleanup backups older than 7 days
             find /data/backups/staging -maxdepth 1 -name 'staging-backup-*.sql' -mtime +7 -delete 2>/dev/null || true
           fi
@@ -487,9 +487,9 @@ jobs:
             -e NODE_ENV=staging \
             -e POSTGRES_HOST=postgres \
             -e POSTGRES_PORT=5432 \
-            -e POSTGRES_USER=alpha_meta_token_scanner \
+            -e POSTGRES_USER=onchain_bot \
             -e POSTGRES_PASSWORD=alpha_meta_token_scanner \
-            -e POSTGRES_DB=alpha_meta_token_scanner_staging \
+            -e POSTGRES_DB=onchain_bot_staging \
             backend npm run migration:show; then
             echo "✅ migration:show OK"
           else
@@ -502,9 +502,9 @@ jobs:
             -e NODE_ENV=staging \
             -e POSTGRES_HOST=postgres \
             -e POSTGRES_PORT=5432 \
-            -e POSTGRES_USER=alpha_meta_token_scanner \
+            -e POSTGRES_USER=onchain_bot \
             -e POSTGRES_PASSWORD=alpha_meta_token_scanner \
-            -e POSTGRES_DB=alpha_meta_token_scanner_staging \
+            -e POSTGRES_DB=onchain_bot_staging \
             backend npm run typeorm -- query "SELECT 1 AS dry_run_ok"; then
             echo "✅ precondition probe OK"
           else
@@ -527,9 +527,9 @@ jobs:
             -e NODE_ENV=staging \
             -e POSTGRES_HOST=postgres \
             -e POSTGRES_PORT=5432 \
-            -e POSTGRES_USER=alpha_meta_token_scanner \
+            -e POSTGRES_USER=onchain_bot \
             -e POSTGRES_PASSWORD=alpha_meta_token_scanner \
-            -e POSTGRES_DB=alpha_meta_token_scanner_staging \
+            -e POSTGRES_DB=onchain_bot_staging \
             backend npm run migration:run
 
           echo "=== Migrations applied successfully ==="
@@ -948,9 +948,9 @@ jobs:
             -e NODE_ENV=staging \
             -e POSTGRES_HOST=postgres \
             -e POSTGRES_PORT=5432 \
-            -e POSTGRES_USER=alpha_meta_token_scanner \
+            -e POSTGRES_USER=onchain_bot \
             -e POSTGRES_PASSWORD=alpha_meta_token_scanner \
-            -e POSTGRES_DB=alpha_meta_token_scanner_staging \
+            -e POSTGRES_DB=onchain_bot_staging \
             backend npm run migration:show
           echo "=== rollback pins present ==="
           docker images | grep -E 'staging-prev-backend' || echo "::warning::staging-prev-backend not local (restored from GHCR on next prune cycle)"

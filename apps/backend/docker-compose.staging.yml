@@ -26,20 +26,20 @@ services:
     image: postgres:16-alpine
     container_name: onchain-bot-postgres-staging
     restart: unless-stopped
-    # LIVE-DATA HOLD (rename-onchain-bot): POSTGRES_* fallbacks stay on the
-    # pre-rename names — deploy-staging.yml does NOT source .env.staging, so
-    # fallbacks are LIVE on the twin. Flip with ALTER DATABASE (runbook).
+    # Rename-onchain-bot: the staging twin already runs the post-rename role
+    # and database (verified 2026-10-20: onchain_bot / onchain_bot_staging).
+    # Prod keeps the pre-rename names until its own runbook phase.
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-alpha_meta_token_scanner}
+      POSTGRES_USER: ${POSTGRES_USER:-onchain_bot}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-alpha_meta_token_scanner}
-      POSTGRES_DB: ${POSTGRES_DB:-alpha_meta_token_scanner_staging}
+      POSTGRES_DB: ${POSTGRES_DB:-onchain_bot_staging}
     volumes:
       - onchain-bot-staging-pg-data:/var/lib/postgresql/data
     healthcheck:
       test:
         [
           'CMD-SHELL',
-          'pg_isready -U ${POSTGRES_USER:-alpha_meta_token_scanner} -d ${POSTGRES_DB:-alpha_meta_token_scanner_staging}',
+          'pg_isready -U ${POSTGRES_USER:-onchain_bot} -d ${POSTGRES_DB:-onchain_bot_staging}',
         ]
       interval: 5s
       timeout: 3s
@@ -80,9 +80,9 @@ services:
       # Database connection
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
-      POSTGRES_USER: ${POSTGRES_USER:-alpha_meta_token_scanner}
+      POSTGRES_USER: ${POSTGRES_USER:-onchain_bot}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-alpha_meta_token_scanner}
-      POSTGRES_DB: ${POSTGRES_DB:-alpha_meta_token_scanner_staging}
+      POSTGRES_DB: ${POSTGRES_DB:-onchain_bot_staging}
       DATABASE_ENABLED: true
       # Redis connection
       REDIS_HOST: redis
