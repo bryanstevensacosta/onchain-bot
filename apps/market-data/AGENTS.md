@@ -10,7 +10,9 @@
 > (P45) + `.omo/evidence/task-T3-02.log`.
 > v0.1.0 (source of truth: `package.json`; Tramo 3, todos 0-2 + 4-5 + 10-12 DONE,
 > P45 address model DONE, P47 provider-home relocation DONE, P50 global
-> hexagonal + snapshot module DONE, P49 streaming DONE, todo-3 aggregators pending).
+> hexagonal + snapshot module DONE, P49 streaming DONE, todo 3 SUPERSEDED by
+> P45 — DO NOT execute; production deploy artefacts exist but the lane is
+> DORMANT behind the Wave 4 owner gate).
 > Decisions cited as Pxx come from `.omo/drafts/mega-refactor-tramos.md`
 > §7.6 (2026-09-24, P30 2026-09-25).
 > Cross-tramo contracts pinned in `.omo/plans/mega-refactor-central.md`
@@ -63,7 +65,7 @@ Design pivots that govern every future todo:
 | 1    | DONE (evidence `.omo/evidence/task-T3-01.log`)                        | App setup + shared kernel (10 suites / 17 tests; boot smoke `:4000`)                                                                                                                                                                                                                                                                                                                                                                     |
 | 2    | DONE (evidence `.omo/evidence/task-T3-02.log`)                        | Modules chain + provider + cache + rate-limiter + gateway shell (P43)                                                                                                                                                                                                                                                                                                                                                                    |
 | P45  | DONE (evidence `.omo/evidence/task-T3-address.log`)                   | Address model absorbs token: `src/address/` + `/api/v1/addresses/*` (token = kind=token path; `/tokens/*` deprecated alias)                                                                                                                                                                                                                                                                                                              |
-| 3    | TODO (model DONE via P45)                                             | Aggregators + persistence for address snapshots + HTTP batch                                                                                                                                                                                                                                                                                                                                                                             |
+| 3    | SUPERSEDED (P45 — do NOT execute)                                     | Aggregators + history persistence + batch HTTP already exist (`src/aggregators/`, `snapshot_history`, `POST /api/v1/addresses/batch`); plan line 94 marks it `[x] … NO ejecutar`                                                                                                                                                                                                                                                         |
 | 4    | DONE (evidence `.omo/evidence/task-T3-04.log`)                        | Physical provider extraction + Dexter-integrated (C-DATA-01, last move): 13 adapters canonical in `src/provider/infrastructure/`, registry 13/13, backend on shims                                                                                                                                                                                                                                                                       |
 | P47  | DONE (evidence `.omo/evidence/task-T3-04.log`)                        | Provider-home relocation: `address/infrastructure/providers/*` → `provider/infrastructure/<name>/` (single-level, P43-aligned)                                                                                                                                                                                                                                                                                                           |
 | 5    | DONE (evidence `.omo/evidence/task-5-mega-refactor-market-data.log`)  | HTTP bridge + SLO + staged flag (G-17): compat `GET /api/market-data/snapshot` + `POST /api/v1/addresses/batch` (50-cap) + warm-burst p95 0.96ms < 500ms PASS; kol-system dev flipped, backend leaf default-false                                                                                                                                                                                                                        |
@@ -202,8 +204,13 @@ public, max-age=86400, immutable`) + `POST
   `binance` slug; unknown chain 200s the placeholder; second read
   keeps mtime, refresh re-fetches).
 
-Todo 3 REMAINS (aggregators + persistence + batch HTTP — model half DONE
-via P45). Todos 8-9 PENDING (not started, no evidence).
+Todo 3 is SUPERSEDED by P45 (plan line 94: `[x] 3. SUPERSEDED por P45 —
+NO ejecutar`). Aggregators (`src/aggregators/`), history persistence
+(`snapshot_history` + migrations) and the batch HTTP edge
+(`POST /api/v1/addresses/batch`) already exist — do not re-implement.
+Todo 8 is IN PROGRESS (staging lane live 2026-10-19; 7-day soak
+runbook/script landed; prod lane artefacts exist but stay dormant).
+Todo 9 PENDING.
 
 Worktree state 2026-09-25: DIRTY (new `apps/market-data/` tree untracked;
 `apps/feed-publisher/` + backend touched by parallel Tramo-2 work —
@@ -322,27 +329,33 @@ snapshots correctly skip it). `CHAINSTACK_CHAINS` (empty = all rows)
 pins which chains may call the Chainstack free tier — free allows ONE
 chain per endpoint, so unlisted rows skip silently instead of burning
 seconds on 401s.
-Staging prep status (todo 8): `docker-compose.staging.yml` +
-`.env.staging.template` are live through
+Staging status (todo 8): live through
 `.github/workflows/deploy-market-data-staging.yml` (push `dev`; host
-`:4001`, DB `onchain_bot_market_data_staging`), and the compose block
-pins `DATABASE_ENABLED: "true"` so TypeORM is enabled on staging.
-Pending operator decision: staging secrets (`MARKET_DATA_API_KEY`, pg
-password) are filled on the droplet and never committed.
+`:4001`, DB `onchain_bot_market_data_staging`), with
+`DATABASE_ENABLED: "true"` pinned in compose.
+Production status: artefacts exist but the lane is DORMANT —
+`docker-compose.prod.yml` + `.github/workflows/deploy-market-data-prod.yml`
+expect the operator-owned
+`/opt/onchain-bot/apps/market-data/.env.production` (host `:4002`, DB
+`onchain_bot_market_data`) and abort before any mutation without it.
+Secrets (`MARKET_DATA_API_KEY`, pg password) are filled on the droplet
+and never committed.
 
 ## PORTS
 
-| Env     | App   | Postgres          | Redis         |
-| ------- | ----- | ----------------- | ------------- |
-| dev     | :4000 | :5432 (single pg) | :6385         |
-| staging | :4001 | :5439             | :6386         |
-| prod    | :4002 | server-shared     | server-shared |
+| Env     | App   | Postgres          | Redis |
+| ------- | ----- | ----------------- | ----- |
+| dev     | :4000 | :5432 (single pg) | :6385 |
+| staging | :4001 | :5439             | :6386 |
+| prod    | :4002 | :5449             | :6396 |
 
 No clashes with backend (:3030), ingestion (:3031), frontend (:5173),
 kol-calls (:3050, DB `onchain_bot_kol_calls`, redis :6382), feed-publisher (:3040, DB
-`onchain_bot_feed_publisher`, redis :6383). Staging host ports :5439/:6386 verified free
-repo-wide (grep zero source/config hits; operator to confirm with lsof
-on Oracle at deploy).
+`onchain_bot_feed_publisher`, redis :6383). Staging host ports :5439/:6386 and prod host
+ports :5449/:6396 verified free repo-wide (grep zero source/config
+hits; operator to confirm with lsof on Oracle before each rollout).
+Prod app host :4002 is the intended prod market-data port (dev :4000,
+staging host :4001).
 
 ## HEALTH
 
@@ -359,7 +372,7 @@ the 1x1 placeholder, 200 never 404) + `POST
 /api/v1/chains/:id/logo/refresh` (`admin` scope, explicit re-fetch).
 Every chain entry carries `logoUrl` (`/api/v1/chains/<id>/logo`).
 
-## DEPLOY (staging lane — first live rollout 2026-10-19)
+## DEPLOY (staging lane live 2026-10-19; prod lane DORMANT)
 
 - Workflow: `.github/workflows/deploy-market-data-staging.yml` — push to
   `dev` touching `apps/market-data/**` (or the workflow file), plus
@@ -392,8 +405,21 @@ Every chain entry carries `logoUrl` (`/api/v1/chains/<id>/logo`).
 - Rollback: dispatch `rollback-market-data-staging`; it re-raises the
   GHCR pin `:staging-prev-market-data` (written only after a healthy
   deploy) via local retag + recreate (NO `docker compose pull`) and
-  reports the measured downtime window. Prod workflow still pending
-  (todo 8).
+  reports the measured downtime window.
+- Production lane (DORMANT, todo 8): `.github/workflows/deploy-market-data-prod.yml`
+  and `docker-compose.prod.yml` (project `onchain-bot-market-data-prod`,
+  app host `:4002`, pg `:5449`, redis `:6396`, network
+  `onchain-bot-net`, network alias `onchain-bot-market-data` for dexter
+  prod + frontend nginx). The `master` push trigger exists for
+  readiness only; the workflow aborts before any mutation unless
+  `/opt/onchain-bot/apps/market-data/.env.production` exists, and the
+  Wave 4 owner gate must be explicitly approved. Never dispatch it
+  without that approval.
+- 7-day soak (todo 8): `scripts/market-data-soak-check.sh` (read-only
+  JSONL probe of health + chains + one snapshot + optional DB count)
+  and `docs/deployment/market-data-staging-soak.md` (daily Oracle
+  routine + baseline table). The soak is the evidence required before
+  any `USE_DATA_SERVICE_API` cutover or cleanup.
 
 ## STREAM (P49, todo 11)
 
@@ -436,11 +462,16 @@ coverage target >80% (pure units, no I/O).
 
 ## GAPS
 
-1. Persistence entities/migrations (TypeORM wiring, `synchronize:false` outside dev).
+1. ~~Persistence entities/migrations (TypeORM wiring, `synchronize:false`
+   outside dev)~~ DONE 2026-10-19: `src/shared/database/data-source.ts`
+   - `migration:*` scripts; staging runs `migration:run` and records the
+     three migrations in `typeorm_migrations`.
 2. `/metrics` exporter + Pino logging.
 3. Redis adapters (cache + rate-limiter windows use `REDIS_URL`).
-4. Address snapshot aggregators + persistence (todo 3 remainder:
-   model + edge DONE via P45; aggregators + batch HTTP pending).
+4. ~~Address snapshot aggregators + persistence (todo 3)~~ SUPERSEDED
+   by P45 — `src/aggregators/`, `snapshot_history` and
+   `POST /api/v1/addresses/batch` all exist; do not execute the plan
+   line.
 5. ~~Physical provider extraction (todo 4, C-DATA-01)~~ DONE
    (`src/provider/infrastructure/`, 13/13 registered; HTTP bridge +
    SLO + staged flag done todo 5, G-17 — full-aggregator cutover stays
@@ -455,8 +486,11 @@ coverage target >80% (pure units, no I/O).
 9. Deploy workflows: staging lane EXISTS
    (`.github/workflows/deploy-market-data-staging.yml` — push `dev`,
    `:sha` + `:staging-latest`, `--target builder` migrations, health
-   `:4001`, rollback lane dispatch-only); prod workflow still pending
-   (todo 8).
+   `:4001`, rollback lane dispatch-only); prod lane EXISTS but is
+   DORMANT (`.github/workflows/deploy-market-data-prod.yml`, aborts on
+   missing `.env.production`, Wave 4 owner gate — todo 8). Soak tooling:
+   `scripts/market-data-soak-check.sh` +
+   `docs/deployment/market-data-staging-soak.md`.
 10. dexter-onchain-bot sibling (todo 9, P13).
 
 ## DECISIONS INDEX
@@ -465,7 +499,7 @@ coverage target >80% (pure units, no I/O).
 | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Variante A v1 (G-16)                   | Single-BC monorepo; spec `libs/*` → `src/*`                                                                                                                                                                                                                                                                                                  | APPLIED (todo 1; mapping table in log)                                                                                                                                                                                    |
 | P30 Tramo-1 lessons                    | x-api-key day one, `dist/main.js`, env templates, living KB                                                                                                                                                                                                                                                                                  | APPLIED (todo 1)                                                                                                                                                                                                          |
-| C-DB-01 own logical DB                 | `onchain_bot_market_data[_staging]`                                                                                                                                                                                                                                                                                                          | PLANNED (TypeORM unwired, GAP-1)                                                                                                                                                                                          |
+| C-DB-01 own logical DB                 | `onchain_bot_market_data[_staging]`                                                                                                                                                                                                                                                                                                          | APPLIED (TypeORM CLI + migrations; staging `onchain_bot_market_data_staging` verified 2026-10-19)                                                                                                                         |
 | C-DATA-01 providers move last          | 13 adapters move in todo 4, never earlier                                                                                                                                                                                                                                                                                                    | APPLIED (todo 4: canonical `src/provider/infrastructure/`, backend shims)                                                                                                                                                 |
 | P46 extraction mechanics               | Copy + shim (byte-identical, local default; HTTP cutover is todo 5)                                                                                                                                                                                                                                                                          | APPLIED (todo 4: zero backend `from 'data-provider` imports)                                                                                                                                                              |
 | P47 provider home                      | Single-level `src/provider/infrastructure/<name>/` (P43-aligned, not under `address/`)                                                                                                                                                                                                                                                       | APPLIED (todo 4 close-out relocation)                                                                                                                                                                                     |

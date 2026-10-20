@@ -1,0 +1,513 @@
+name: Deploy market-data to production
+
+# market-data prod deploy lane (Tramo 3, todo 8 track).
+#
+# DORMANT (2026-10-19): this workflow has NEVER run against Oracle and
+# stays dormant until the master merge gate opens. Wave 4 keeps a HARD
+# owner gate: nothing here executes against prod without the owner's
+# explicit confirmation at that moment (the push trigger exists so the
+# automation is ready, not so it fires unattended).
+# As of the provisioning doctrine (mirror .github/workflows/
+# deploy-dexter-prod.yml), the deploy job self-syncs the full repo tree
+# (mirroring deploy.yml), so the destination
+# /opt/onchain-bot/apps/market-data/ is CREATED by the workflow — it does
+# not exist on Oracle yet. `.env.production` is operator-owned (values
+# never in git, never touched by rsync — the sync excludes `.env*`) and
+# NOT provisioned yet; the precondition step aborts before any mutation
+# until the operator places it.
+# OPERATOR-CONFIRM at first rollout: .env.production values and host
+# ports :4002/:5449/:6396 with lsof (Wave 4 gate).
+# STAGING TWIN (deploy-market-data-staging.yml, GREEN run 39282630223 —
+# first live rollout 2026-10-19) proved the lane anatomy; the two dexter
+# staging defects are mirrored here as fixes: Docker DNS alias `postgres`
+# is ambiguous on shared deploy networks (use the UNIQUE container-name
+# host — run 39126203303 hit the wrong server) and one-off DB creds must
+# be explicit (the operator file proved unreliable; use `-e DATABASE_URL`,
+# NEVER `--env-file`). Wave 4 owner gate revisits credential policy — if
+# real prod creds get pinned via compose interpolation, update the
+# `-e DATABASE_URL` literals below in the SAME change.
+# MULTI-ARCH: the Oracle host is aarch64 — build
+# `linux/amd64,linux/arm64` via setup-qemu (mirror deploy.yml; the
+# amd64-only build died pulling there, dexter run 39127374679, `no
+# matching manifest for linux/arm64/v8`).
+# TAGS: `:sha` (immutable) + `:prod-latest` (floating, prod lane owns it —
+# staging uses `:staging-latest`, never this tag); rollback pin
+# `:prod-prev-market-data`, written ONLY after a healthy deploy.
+#
+# ANTI-DOUBLE-FIRE: this workflow owns market-data paths ONLY
+# (apps/market-data/** + itself). Disjoint from deploy.yml
+# (backend/frontend/scripts/config/package* on master),
+# deploy-ingestion.yml (apps/ingestion-telegram/**) and
+# deploy-dexter-prod.yml (apps/dexter-onchain-bot/**) — verified by grep
+# of their `paths:` blocks. Mixed pushes fire one lane per app = correct,
+# never a duplicate deploy of the same service.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'apps/market-data/**'
+      - '.github/workflows/deploy-market-data-prod.yml'
+      # NOT backend/frontend/ingestion/dexter paths (owned by other workflows)
+  workflow_dispatch:
+    inputs:
+      lane:
+        description: 'Lane: full deploy (default) or dispatch-only manual rollback lane (escape hatch, never auto)'
+        required: false
+        default: 'full'
+        type: choice
+        # Rollback lane mirrors deploy-dexter-prod.yml: re-raise the last
+        # GOOD :prod-prev-market-data pin. Dispatch-only, never on push.
+        options: [full, rollback-market-data-prod]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build-and-push:
+    name: Build and push market-data to GHCR
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Rollback lane owns no build (it re-raises the pinned image).
+    if: github.event_name == 'push' || inputs.lane == 'full'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push market-data (multi-arch amd64+arm64)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/market-data/Dockerfile
+          push: true
+          # Tags: immutable :sha + floating :prod-latest (prod lane owns
+          # it; staging uses :staging-latest, never this tag).
+          tags: ghcr.io/${{ github.repository }}-market-data:${{ github.sha }},ghcr.io/${{ github.repository }}-market-data:prod-latest
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}-market-data:cache
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}-market-data:cache,mode=max
+          # multi-arch: Oracle hosts are aarch64 (dexter run 39127374679
+          # died pulling an amd64-only build there). Mirrors deploy.yml /
+          # deploy-dexter-prod.yml.
+          platforms: linux/amd64,linux/arm64
+
+  deploy:
+    name: Deploy market-data to Oracle production
+    runs-on: [self-hosted, oracle]
+    # Single-flight on the market-data prod target. Own group (never the
+    # backend/dexter/ingestion groups) — market-data services are
+    # disjoint. cancel-in-progress:false — lanes run migrations; killing
+    # one mid-migration corrupts schema state.
+    concurrency:
+      group: market-data-production-target
+      cancel-in-progress: false
+    needs: [build-and-push]
+    # Push legs and lane=full deploy; the rollback lane is owned by the
+    # rollback jobs below, not this one.
+    if: github.event_name == 'push' || inputs.lane == 'full'
+    timeout-minutes: 30
+    environment: production
+    # Auto-rollback contract (mirrors deploy.yml / deploy-dexter-prod.yml):
+    # smoke_entered is true once the post-deploy smoke phase starts. The
+    # auto-rollback job gates on this output so a red deploy BEFORE smoke
+    # (backup, migrations, health) never triggers a rollback — only
+    # post-smoke red does.
+    outputs:
+      smoke_entered: ${{ steps.smoke-marker.outputs.smoke_entered }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # PROVISIONING: the steps below mirror deploy.yml's sync/ownership
+      # pattern so this job provisions its own tree.
+      # /opt/onchain-bot/apps/market-data/ does not exist yet — the rsync
+      # below CREATES it on the first (Wave 4) run. Workflow stays DORMANT
+      # until the master merge gate; nothing was dispatched.
+
+      - name: Fix ownership before sync (chown -R runner:runner)
+        # Mirror of deploy.yml's tolerant pattern (sudo + non-fatal warn).
+        run: |
+          echo "=== Fixing ownership: /opt/onchain-bot → runner:runner ==="
+          sudo chown -R runner:runner /opt/onchain-bot 2>&1 || echo "chown warning (non-fatal)"
+          echo "=== Ownership fixed ==="
+
+      - name: Sync live source tree with master
+        # Mirror of deploy.yml's sync (sudo rsync + post-sync chown). This
+        # is what creates docker-compose.prod.yml + the Dockerfile under
+        # /opt/onchain-bot/apps/market-data/ on the first run.
+        run: |
+          set -euo pipefail
+          echo "=== Starting rsync with sudo ==="
+          # `.env*` exclusion is LOAD-BEARING: it protects the
+          # operator-owned, never-in-git
+          # /opt/onchain-bot/apps/market-data/.env.production
+          # (rsync neither syncs nor deletes it); the precondition step
+          # below asserts it is present before any mutation.
+          sudo rsync -a --delete \
+            --exclude='.git' \
+            --exclude='uploads' \
+            --exclude='.git/**' \
+            --exclude='node_modules' \
+            --exclude='node_modules/**' \
+            --exclude='dist' \
+            --exclude='dist/**' \
+            --exclude='backups' \
+            --exclude='backups/**' \
+            --exclude='logs' \
+            --exclude='logs/**' \
+            --exclude='.env*' \
+            /opt/actions-runner/_work/onchain-bot/onchain-bot/ \
+            /opt/onchain-bot/
+          echo "=== Fixing ownership after rsync ==="
+          sudo chown -R runner:runner /opt/onchain-bot 2>&1 || echo "post-sync chown warning (non-fatal)"
+          echo "=== Post-sync HEAD ==="
+          git -C /opt/onchain-bot rev-parse HEAD 2>/dev/null || echo "no git repo (rsync-synced tree, expected on fresh hosts)"
+
+      - name: 'Precondition: market-data prod env present'
+        # Operator-owned env file (values never in git). Fail loudly BEFORE
+        # the backup/migration/recreate mutations if it is missing on the
+        # host. Not provisioned yet (workflow dormant) — the operator
+        # places .env.production at the Wave 4 rollout.
+        run: |
+          test -s /opt/onchain-bot/apps/market-data/.env.production || { echo "::error::.env.production missing at /opt/onchain-bot/apps/market-data/ (operator step; values never in git) — aborting before any mutation"; exit 1; }
+
+      - name: Backup market-data production database
+        # The prod service serves the logical DB onchain_bot_market_data
+        # (C-DB-01). First deploy: the container may not exist yet — warn
+        # and continue (nothing to back up).
+        run: |
+          set -euo pipefail
+          MARKET_DATA_PG="$(docker ps --format '{{.Names}}' | grep -qx 'onchain-bot-market-data-postgres-prod' && echo 'onchain-bot-market-data-postgres-prod' || true)"
+          if [ -n "$MARKET_DATA_PG" ]; then
+            mkdir -p /data/backups/market-data-prod
+            docker exec "$MARKET_DATA_PG" pg_dump -U onchain_bot \
+              onchain_bot_market_data > /data/backups/market-data-prod/market-data-prod-backup-$(date +%Y%m%d-%H%M%S).sql
+            ls -la /data/backups/market-data-prod/ | tail -5
+            # Cleanup backups older than 7 days
+            find /data/backups/market-data-prod -maxdepth 1 -name 'market-data-prod-backup-*.sql' -mtime +7 -delete 2>/dev/null || true
+            echo "backup OK (size>0 asserted below)"
+            LATEST="$(ls -t /data/backups/market-data-prod/market-data-prod-backup-*.sql | head -1)"
+            test -s "$LATEST" || { echo "::error::backup artifact is empty ($LATEST). Aborting before migrations."; exit 1; }
+          else
+            echo "::warning::market-data prod postgres container absent (first deploy?) — no backup to take, proceeding to migrations."
+          fi
+
+      - name: Ensure market-data production databases running
+        run: |
+          set -euo pipefail
+          cd /opt/onchain-bot/apps/market-data
+          docker compose -f docker-compose.prod.yml up -d postgres redis
+          echo "=== Waiting for postgres+redis healthy (max 60s) ==="
+          for i in $(seq 1 12); do
+            PG=$(docker inspect --format '{{.State.Health.Status}}' onchain-bot-market-data-postgres-prod 2>/dev/null || echo "missing")
+            RD=$(docker inspect --format '{{.State.Health.Status}}' onchain-bot-market-data-redis-prod 2>/dev/null || echo "missing")
+            echo "  attempt $i/12: postgres=$PG redis=$RD"
+            if [ "$PG" = "healthy" ] && [ "$RD" = "healthy" ]; then
+              echo "market-data prod databases healthy"
+              break
+            fi
+            if [ "$i" -eq 12 ]; then
+              echo "::error::market-data prod databases not healthy after 60s (postgres=$PG redis=$RD)"
+              exit 1
+            fi
+            sleep 5
+          done
+
+      - name: Build migration one-off image (--target builder)
+        run: |
+          # The market-data Dockerfile keeps its builder stage
+          # (`AS builder`) with devDependencies installed, so ts-node +
+          # the TypeORM CLI are available there. Migrations run in a
+          # throwaway builder container so the minimal prod image is never
+          # touched.
+          # INVOCATION: cwd == build context root and the `-f` path is
+          # relative to BOTH, so it resolves identically under either
+          # interpretation (relative-to-cwd vs relative-to-context).
+          set -euo pipefail
+          cd /opt/onchain-bot
+          docker build --target builder \
+            -f apps/market-data/Dockerfile \
+            -t ghcr.io/${{ github.repository }}-market-data-migrate:${{ github.sha }} \
+            .
+
+      - name: Dry-run migrations (read-only, fail loudly)
+        run: |
+          set -euo pipefail
+          echo "=== Dry-run: pending migrations (migration:show, read-only, no writes) ==="
+          # DB one-offs: explicit DATABASE_URL, NOT --env-file — host =
+          # UNIQUE container name (`postgres` alias is ambiguous on the
+          # shared `onchain-bot-net`; dexter run 39126203303 hit the wrong
+          # server) and creds = compose-interpolation defaults. Wave 4
+          # gate revisits real prod creds (see header).
+          if docker run --rm --network onchain-bot-net \
+            -e "DATABASE_URL=postgres://onchain_bot:onchain_bot@onchain-bot-market-data-postgres-prod:5432/onchain_bot_market_data" \
+            ghcr.io/${{ github.repository }}-market-data-migrate:${{ github.sha }} \
+            npm run migration:show --workspace=@onchain-bot/market-data; then
+            echo "migration:show OK"
+          else
+            echo "::error::market-data prod migration dry-run FAILED (migration:show). Aborting deploy before any write."
+            exit 1
+          fi
+
+          echo "=== Dry-run: precondition probe (read-only SELECT, no writes) ==="
+          if docker run --rm --network onchain-bot-net \
+            -e "DATABASE_URL=postgres://onchain_bot:onchain_bot@onchain-bot-market-data-postgres-prod:5432/onchain_bot_market_data" \
+            ghcr.io/${{ github.repository }}-market-data-migrate:${{ github.sha }} \
+            npm run typeorm --workspace=@onchain-bot/market-data -- query "SELECT 1 AS dry_run_ok"; then
+            echo "precondition probe OK"
+          else
+            echo "::error::market-data prod precondition probe FAILED (read-only SELECT). Aborting deploy before any write."
+            exit 1
+          fi
+
+          echo "=== Dry-run OK: zero writes performed ==="
+
+      - name: Run migrations (production, builder one-off)
+        run: |
+          set -euo pipefail
+          echo "=== Running market-data TypeORM migrations in production ==="
+          # Same explicit DATABASE_URL as the dry-run step (unique host —
+          # see the comment there).
+          docker run --rm --network onchain-bot-net \
+            -e "DATABASE_URL=postgres://onchain_bot:onchain_bot@onchain-bot-market-data-postgres-prod:5432/onchain_bot_market_data" \
+            ghcr.io/${{ github.repository }}-market-data-migrate:${{ github.sha }} \
+            npm run migration:run --workspace=@onchain-bot/market-data
+          echo "=== Migrations applied successfully ==="
+
+      - name: Pull market-data image and recreate service
+        run: |
+          set -euo pipefail
+          docker pull ghcr.io/${{ github.repository }}-market-data:${{ github.sha }} || docker pull ghcr.io/${{ github.repository }}-market-data:prod-latest
+          docker tag ghcr.io/${{ github.repository }}-market-data:${{ github.sha }} ghcr.io/${{ github.repository }}-market-data:prod-latest 2>/dev/null || true
+          cd /opt/onchain-bot/apps/market-data
+          docker compose -f docker-compose.prod.yml up -d --force-recreate market-data
+          echo "=== market-data service recreated ==="
+
+      - name: Wait for market-data healthcheck (:4002)
+        run: |
+          echo "=== Waiting for market-data prod to become healthy (max 5 min) ==="
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:4002/api/health > /tmp/health-market-data-prod.log 2>&1; then
+              echo "market-data prod is healthy (attempt $i)"
+              cat /tmp/health-market-data-prod.log
+              break
+            fi
+            echo "  Waiting... attempt $i/30"
+            sleep 10
+            if [ "$i" -eq 30 ]; then
+              echo "::error::market-data prod healthcheck failed after 30 attempts (5 minutes total)"
+              echo "=== market-data container logs (last 50 lines) ==="
+              docker logs --tail 50 onchain-bot-market-data-prod 2>&1 || true
+              echo "=== market-data container status ==="
+              docker ps -a -f name=onchain-bot-market-data-prod || true
+              exit 1
+            fi
+          done
+
+      - name: Pin :prod-prev-market-data on GOOD deploy (rollback contract)
+        # Contract: namespaced pin, NEVER bare :prev. Runs only after
+        # health passed = GOOD deploy by definition.
+        run: |
+          set -euo pipefail
+          SHA="${{ github.sha }}"
+          docker tag ghcr.io/${{ github.repository }}-market-data:"$SHA" ghcr.io/${{ github.repository }}-market-data:prod-prev-market-data \
+            || docker tag ghcr.io/${{ github.repository }}-market-data:prod-latest ghcr.io/${{ github.repository }}-market-data:prod-prev-market-data
+          docker push ghcr.io/${{ github.repository }}-market-data:prod-prev-market-data
+          echo "pinned market-data:prod-prev-market-data @ $SHA"
+
+      - name: Mark smoke entered (auto-rollback gate signal)
+        id: smoke-marker
+        run: echo "smoke_entered=true" >> "$GITHUB_OUTPUT"
+
+      - name: Post-deploy smoke checks (read-only)
+        run: |
+          set -euo pipefail
+          echo "=== Post-deploy smoke (market-data prod :4002, read-only probes) ==="
+          curl -sf --max-time 10 http://localhost:4002/api/health | jq '.'
+          # Informational only: /api/v1/chains is edge-guarded, so 401 is
+          # the expected answer when MARKET_DATA_API_KEY is set. Never
+          # fail the job on this probe.
+          STATUS=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 http://localhost:4002/api/v1/chains || true)
+          echo "GET /api/v1/chains -> HTTP ${STATUS:-000} (informational; 401 is acceptable when MARKET_DATA_API_KEY is set)"
+          echo "=== Smoke complete ==="
+
+  # AUTO-ROLLBACK (mirrors deploy.yml / deploy-dexter-prod.yml pattern) —
+  # fires ONLY on post-smoke red: deploy FAILED + smoke phase was entered
+  # (smoke_entered output). A red deploy BEFORE smoke never rolls back.
+  # Dispatching a NEW run would deadlock on the shared
+  # market-data-production-target concurrency group, so the rollback
+  # reuses the lane mechanics inline (same pin/compose/health gates).
+  # DATA DOCTRINE: rollback = code-only; migrations NEVER revert
+  # (roll-forward); data = restore from the pg_dump pre-deploy artifact
+  # by explicit HUMAN decision only (never automatic, never in a loop).
+  auto-rollback-market-data-prod:
+    name: Auto-rollback market-data prod on smoke failure (:prod-prev-market-data)
+    runs-on: [self-hosted, oracle]
+    concurrency:
+      group: market-data-production-target
+      cancel-in-progress: false
+    needs: [deploy]
+    if: failure() && needs.deploy.outputs.smoke_entered == 'true'
+    timeout-minutes: 10
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Record auto-rollback decision
+        run: |
+          {
+            echo "### Auto-rollback market-data prod (smoke rojo → :prod-prev-market-data → :4002)"
+            echo ""
+            echo "| campo | valor |"
+            echo "|---|---|"
+            echo "| trigger | post-deploy smoke FAILED (deploy job red, smoke entered) |"
+            echo "| target | market-data:prod-prev-market-data → :4002 |"
+            echo "| manual escape | dispatch lane=rollback-market-data-prod intacto |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Pull rollback target :prod-prev-market-data (read-only, no retag yet)
+        run: |
+          set -euo pipefail
+          echo "ROLLBACK_T0=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee /tmp/auto-market-data-prod-rollback-t0
+          docker pull ghcr.io/${{ github.repository }}-market-data:prod-prev-market-data || { echo "::error::no market-data:prod-prev-market-data pinned (pins on GOOD deploys only) — auto-rollback inexecutable → ESCALATE (second level, see failure step)"; exit 1; }
+
+      - name: Stop market-data prod (bounded grace, --timeout 30)
+        run: |
+          set -euo pipefail
+          cd /opt/onchain-bot/apps/market-data
+          docker compose -f docker-compose.prod.yml stop --timeout 30 market-data
+          if docker ps --format '{{.Names}}' | grep -qx 'onchain-bot-market-data-prod'; then
+            echo "::error::REFUSE: market-data container still running — investigate instead of starting a second one"
+            exit 1
+          fi
+          echo "OK: market-data stopped — safe to start exactly one"
+
+      - name: Recreate market-data from :prod-prev-market-data (no pull — local retag wins)
+        run: |
+          set -euo pipefail
+          docker tag ghcr.io/${{ github.repository }}-market-data:prod-prev-market-data ghcr.io/${{ github.repository }}-market-data:prod-latest
+          cd /opt/onchain-bot/apps/market-data
+          docker compose -f docker-compose.prod.yml up -d --force-recreate market-data
+
+      - name: Healthcheck gate (:4002) + downtime measured
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            if curl -sf --max-time 8 http://localhost:4002/api/health >/dev/null 2>&1; then
+              echo "market-data healthy after ~$((i * 10))s"
+              break
+            fi
+            [ "$i" -eq 30 ] && { echo "::error::market-data healthcheck failed after auto-rollback — ESCALATE (second level, see failure step)"; exit 1; }
+            sleep 10
+          done
+          echo "ROLLBACK_T1=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee /tmp/auto-market-data-prod-rollback-t1
+          echo "downtime window: $(cat /tmp/auto-market-data-prod-rollback-t0) → $(cat /tmp/auto-market-data-prod-rollback-t1)"
+
+      - name: Second-level escalation (auto-rollback FAILED)
+        if: failure()
+        run: |
+          {
+            echo "### ESCALATION segundo nivel — auto-rollback market-data prod FALLIDO"
+            echo ""
+            echo "1. CONGELAR lanes: no re-disparar rollback (sin re-loops — el pin :prod-prev-market-data ya está vivo o ausente; un segundo ciclo solo suma downtime). Lock manual: avisar al operador ANTES de cualquier dispatch/retry."
+            echo "2. AVISAR operador con ventana de downtime: $(cat /tmp/auto-market-data-prod-rollback-t0 2>/dev/null || echo T0-desconocido) → $(date -u +%Y-%m-%dT%H:%M:%SZ)."
+            echo "3. DUMP pre-deploy: artifact pg_dump citado en el summary del job deploy (backups/market-data-prod-*.sql) — adjuntar filename al incident record."
+            echo "4. INVALIDAR pin envenenado: si :prod-prev-market-data también está rojo, no reintentarlo — forward-fix (nuevo sha) o restore."
+            echo "5. DB restore = decisión HUMANA explícita (jamás automática, jamás segundo rollback en loop): stop → pg_restore/psql del artifact → start → migration:show + counts asserts."
+            echo "6. Presupuesto: rollback <60s; sin verde en 2 ventanas de healthcheck → forward-fix-or-restore."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::ESCALATION segundo nivel: auto-rollback market-data prod fallido — lanes congelados, operador requerido (ver summary)"
+
+  # ROLLBACK LANE — manual dispatch only, never auto (escape hatch when
+  # auto-rollback is inexecutable or the pin needs a human decision).
+  # Discipline: stop → verify-stopped (gate) → start exactly one service
+  # from the pinned tag; `docker compose pull` is FORBIDDEN inside
+  # rollback (it would re-fetch the broken :prod-latest).
+  # No `migration:show` assert here (unlike deploy-dexter-prod.yml): the
+  # market-data prod runtime image omits devDependencies, and
+  # `migration:show` runs through `typeorm-ts-node-commonjs` (needs
+  # ts-node) — a schema assert would require the builder one-off and is
+  # out of scope for a code-only rollback. Migrations never revert
+  # (roll-forward); data restore is a human decision from the pg_dump
+  # artifact.
+  rollback-market-data-prod:
+    name: Rollback market-data prod to :prod-prev-market-data (:4002)
+    runs-on: [self-hosted, oracle]
+    concurrency:
+      group: market-data-production-target
+      cancel-in-progress: false
+    timeout-minutes: 15
+    if: github.event_name == 'workflow_dispatch' && inputs.lane == 'rollback-market-data-prod'
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull rollback target :prod-prev-market-data (read-only, no retag yet)
+        run: |
+          set -euo pipefail
+          echo "ROLLBACK_T0=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee /tmp/market-data-prod-rollback-t0
+          docker pull ghcr.io/${{ github.repository }}-market-data:prod-prev-market-data || { echo "::error::no market-data:prod-prev-market-data pinned (pins on GOOD deploys only) — rollback inexecutable, deploy instead"; exit 1; }
+
+      - name: Stop market-data prod (bounded grace, --timeout 30)
+        run: |
+          set -euo pipefail
+          cd /opt/onchain-bot/apps/market-data
+          docker compose -f docker-compose.prod.yml stop --timeout 30 market-data
+          if docker ps --format '{{.Names}}' | grep -qx 'onchain-bot-market-data-prod'; then
+            echo "::error::REFUSE: market-data container still running — investigate instead of starting a second one"
+            exit 1
+          fi
+          echo "OK: market-data stopped — safe to start exactly one"
+
+      - name: Recreate market-data from :prod-prev-market-data (no pull — local retag wins)
+        run: |
+          set -euo pipefail
+          docker tag ghcr.io/${{ github.repository }}-market-data:prod-prev-market-data ghcr.io/${{ github.repository }}-market-data:prod-latest
+          cd /opt/onchain-bot/apps/market-data
+          docker compose -f docker-compose.prod.yml up -d --force-recreate market-data
+
+      - name: Healthcheck gate (:4002) + downtime measured
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            if curl -sf --max-time 8 http://localhost:4002/api/health >/dev/null 2>&1; then
+              echo "market-data healthy after ~$((i * 10))s"
+              break
+            fi
+            [ "$i" -eq 30 ] && { echo "::error::market-data healthcheck failed after rollback — retry + escalate, never blind re-run"; exit 1; }
+            sleep 10
+          done
+          echo "ROLLBACK_T1=$(date -u +%Y-%m-%dT%H:%M:%SZ)" | tee /tmp/market-data-prod-rollback-t1
+          echo "downtime window: $(cat /tmp/market-data-prod-rollback-t0) → $(cat /tmp/market-data-prod-rollback-t1)"

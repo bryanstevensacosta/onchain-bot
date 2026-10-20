@@ -1,0 +1,172 @@
+name: onchain-bot-market-data-prod
+
+# Production environment - market-data (Tramo 3, per-env model)
+#
+# MIRROR of apps/market-data/docker-compose.staging.yml (canon) with the
+# prod deltas: project/container names, host ports (:4002/:5449/:6396),
+# prod DB name (onchain_bot_market_data), image tag :prod-latest.
+# DEPLOYED BY `.github/workflows/deploy-market-data-prod.yml` on push to
+# `master` (push trigger exists for readiness; DORMANT — never applied to
+# Oracle, Wave 4 HARD owner gate). Compose project
+# `onchain-bot-market-data-prod`, service `market-data`, container
+# `onchain-bot-market-data-prod`, host :4002. `.env.production` is
+# OPERATOR-OWNED on the host: never in git, and the workflow rsync
+# excludes `.env*` so it is neither synced nor deleted (a precondition
+# step asserts it exists before any mutation).
+#
+# Project name EXPLÍCITO: sin `name:`, compose usa el basename del
+# directorio (`market-data`), que COLISIONA con el proyecto del dev
+# compose (mismo basename, mismos services postgres/redis) y cada `up`
+# de un lado recrea/destruye los contenedores del otro. Misma doctrina
+# que backend prod, market-data staging y dexter prod.
+#
+# PORTS (verified free repo-wide 2026-10-19 — grep 5449:/6396:/4002:
+# zero source/config collisions; OPERATOR-CONFIRM the three host ports on
+# Oracle with lsof before the first rollout, Wave 4 gate):
+# - market-data HTTP host :4002 → container :4000. Triplet market-data
+#   4000/4001/4002 (dev/staging host/prod host) per .env.example.
+#   Container port is MARKET_DATA_PORT (default 4000, src/main.ts).
+# - postgres host :5449 → container :5432. Dev market-data uses :5438,
+#   staging uses :5439, dexter prod uses :5448 — :5449 is next free
+#   (pg host neighbors 5435-5448 are all taken repo-wide).
+# - redis host :6396 → container :6379. Dev market-data uses :6385,
+#   staging uses :6386, dexter prod uses :6395 — :6396 is next free
+#   (redis host neighbors 6382-6395 are all taken repo-wide).
+#
+# UNIQUE-CONTAINER-HOST RULE: this stack joins the shared production
+# network `onchain-bot-net` (backend + dexter prod live there too), where
+# several postgres containers claim the Docker DNS alias `postgres`
+# (Docker round-robins; the staging twin hit the wrong server, dexter run
+# 39126203303). NEVER address pg/redis by the bare service name — always
+# the unique container names below (the compose `environment:` block
+# follows the same rule).
+#
+# CREDENTIAL POLICY (same run, same lesson): the `${POSTGRES_*}`
+# interpolation below resolves from the SHELL/compose project env — NOT
+# from `.env.production` (`env_file:` only feeds the container, compose
+# never interpolates it). With no shell overrides it falls back to the
+# compose defaults (`onchain_bot`), which is ALSO what initializes the pg
+# volume on first run. The workflow's one-off `-e DATABASE_URL` literal
+# pins those same defaults; if real prod creds get pinned (shell env /
+# project `.env`), update BOTH in the SAME change (Wave 4 owner gate).
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: onchain-bot-market-data-postgres-prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-onchain_bot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-onchain_bot}
+      POSTGRES_DB: ${POSTGRES_DB:-onchain_bot_market_data}
+    ports:
+      - '5449:5432'
+    volumes:
+      - onchain-bot-market-data-prod-pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-onchain_bot} -d ${POSTGRES_DB:-onchain_bot_market_data}',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: onchain-bot-market-data-redis-prod
+    restart: unless-stopped
+    ports:
+      - '6396:6379'
+    volumes:
+      - onchain-bot-market-data-prod-redis-data:/data
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'sh',
+          '-c',
+          'if [ -n "$REDIS_PASSWORD" ]; then redis-cli -a "$REDIS_PASSWORD" ping | grep -q PONG; else redis-cli ping | grep -q PONG; fi',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    command: redis-server --appendonly yes ${REDIS_PASSWORD:+--requirepass "$REDIS_PASSWORD"}
+
+  market-data:
+    build:
+      context: ../..
+      dockerfile: apps/market-data/Dockerfile
+    image: ghcr.io/bryanstevensacosta/onchain-bot-market-data:prod-latest
+    container_name: onchain-bot-market-data-prod
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      NODE_ENV: production
+      # Container port (src/main.ts reads MARKET_DATA_PORT ?? 4000).
+      # Host mapping 4002:4000 below.
+      MARKET_DATA_PORT: 4000
+      # DB name onchain_bot_market_data per central plan C-DB-01
+      # (prod `<base>_<app>`); market-data reads DATABASE_URL
+      # (src/shared/config/database.config.ts).
+      #
+      # UNIQUE-HOST RULE: `postgres` is ambiguous on `onchain-bot-net`
+      # (several prod containers claim the alias — see header). Never
+      # the bare service name.
+      DATABASE_URL: postgres://${POSTGRES_USER:-onchain_bot}:${POSTGRES_PASSWORD:-onchain_bot}@onchain-bot-market-data-postgres-prod:5432/${POSTGRES_DB:-onchain_bot_market_data}
+      # Compose also pins the TypeORM gate: `isDatabaseEnabled()` reads
+      # exactly the string `true` (quoted on purpose).
+      DATABASE_ENABLED: 'true'
+      # Migrations on prod (never synchronize).
+      DATABASE_SYNCHRONIZE: false
+      # Single-string form because market-data reads REDIS_URL. Override
+      # with MARKET_DATA_REDIS_URL when the prod redis carries a
+      # password. Unique container-name host (same Docker DNS
+      # alias-collision class as DATABASE_URL above); index /1 mirrors
+      # the market-data staging stack fragment.
+      REDIS_URL: ${MARKET_DATA_REDIS_URL:-redis://onchain-bot-market-data-redis-prod:6379/1}
+    ports:
+      - '4002:4000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # NOTE: market-data image has NO wget/curl (Dockerfile installs only
+      # dumb-init) — probe via node like the Dockerfile HEALTHCHECK does.
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://127.0.0.1:4000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      default:
+        # The CONTAINER NAME is onchain-bot-market-data-prod (prod-suffixed,
+        # Wave 4 contract), but two pre-existing consumers address this
+        # service by the UNSUFFIXED name on the shared prod network:
+        # dexter prod `.env.production.template` (MARKET_DATA_URL=
+        # http://onchain-bot-market-data:4000) and the prod frontend
+        # nginx upstream (apps/frontend/nginx.conf:350). The alias keeps
+        # both contracts intact without renaming the container. Free on
+        # `onchain-bot-net` (only the *-staging container exists today).
+        aliases:
+          - onchain-bot-market-data
+
+networks:
+  default:
+    name: onchain-bot-net
+
+volumes:
+  onchain-bot-market-data-prod-pg-data:
+    name: onchain-bot-market-data-prod-pg-data
+  onchain-bot-market-data-prod-redis-data:
+    name: onchain-bot-market-data-prod-redis-data

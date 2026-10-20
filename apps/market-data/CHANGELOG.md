@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Production deploy lane (DORMANT) + staging 7-day soak tooling:**
+  new `.github/workflows/deploy-market-data-prod.yml` (push `master`
+  on `apps/market-data/**` plus `workflow_dispatch` lanes `full` /
+  `rollback-market-data-prod`; multi-arch build; `.env.production`
+  precondition aborts before any mutation; unique container-name hosts
+  for the DB one-offs; health `:4002`; `:prod-prev-market-data` pin
+  only after a healthy deploy; auto-rollback only after smoke starts)
+  and `apps/market-data/docker-compose.prod.yml` (project
+  `onchain-bot-market-data-prod`, app `:4002`, pg `:5449`, redis
+  `:6396`, `onchain-bot-net` plus the `onchain-bot-market-data` alias
+  used by dexter prod and the frontend nginx). The lane is dormant
+  behind the Wave 4 owner gate and nothing was dispatched. New
+  `scripts/market-data-soak-check.sh` (read-only JSONL daily probe) and
+  `docs/deployment/market-data-staging-soak.md` (7-day routine for
+  todo 8). Docs: todo 3 is marked SUPERSEDED by P45 (plan line 94, do
+  not execute) — aggregators, persistence and batch already exist.
+
 - **Staging deploy lane + TypeORM CLI tooling:** new
   `.github/workflows/deploy-market-data-staging.yml` (push `dev` on
   `apps/market-data/**`; multi-arch `linux/amd64,linux/arm64` build to
