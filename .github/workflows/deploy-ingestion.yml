@@ -497,9 +497,15 @@ jobs:
       - name: Smoke staging twin (sources-count explicit-empty-OK + versioned SSE probe)
         run: |
           set -euo pipefail
+          # The ingestion API auth gate is live: read the key from the twin
+          # container and send it on every authenticated probe. An empty key
+          # keeps the pre-auth behavior (fail-open/401 recorded).
+          INGESTION_KEY="$(docker exec onchain-bot-ingestion-telegram-staging printenv INGESTION_API_KEY 2>/dev/null || true)"
           # Sources-count: twin starts EMPTY by design — [] is explicit-empty-OK,
           # N>0 is populated-OK. A non-array/5xx is FAIL (no false-green).
-          SOURCES_BODY="$(curl -sf --max-time 10 http://localhost:3033/api/feed/sources)"
+          SOURCES_BODY="$(curl -sf --max-time 10 \
+            -H "x-api-key: ${INGESTION_KEY}" \
+            http://localhost:3033/api/feed/sources)"
           if echo "$SOURCES_BODY" | jq -e 'type == "array"' >/dev/null; then
             COUNT="$(echo "$SOURCES_BODY" | jq 'length')"
             if [ "$COUNT" -eq 0 ]; then
@@ -516,13 +522,15 @@ jobs:
           # post-T4 world → 200 headers means open stream. Both PASS, each only
           # under its gate condition; anything else FAILs.
           SSE_CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 \
-            -H 'Accept: text/event-stream' http://localhost:3033/api/ingestion/stream || true)"
+            -H 'Accept: text/event-stream' \
+            -H "x-api-key: ${INGESTION_KEY}" \
+            http://localhost:3033/api/ingestion/stream || true)"
           if [ "$SSE_CODE" = "200" ]; then
             echo "PASS: SSE stream headers 200 (post-T4 open stream)"
-          elif [ "$SSE_CODE" = "400" ] || [ "$SSE_CODE" = "401" ]; then
+          elif [ -z "$INGESTION_KEY" ] && { [ "$SSE_CODE" = "400" ] || [ "$SSE_CODE" = "401" ]; }; then
             echo "PASS: SSE gate present ($SSE_CODE without backendId — pre-T4 world, remove after item 4)"
           else
-            echo "::error::SSE probe unexpected http=$SSE_CODE (want 200 post-T4 or 400/401 pre-T4)"
+            echo "::error::SSE probe unexpected http=$SSE_CODE (want 200 with key, or 400/401 without key pre-T4)"
             exit 1
           fi
 
@@ -755,9 +763,12 @@ jobs:
             [ "$i" -eq 12 ] && { echo "::error::twin healthcheck failed after auto-rollback — ESCALATE (second level, see failure step)"; exit 1; }
             sleep 5
           done
+          INGESTION_KEY="$(docker exec onchain-bot-ingestion-telegram-staging printenv INGESTION_API_KEY 2>/dev/null || true)"
           curl -s http://localhost:3033/api/health | jq '.'
           SSE_CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 \
-            -H 'Accept: text/event-stream' http://localhost:3033/api/ingestion/stream || true)"
+            -H 'Accept: text/event-stream' \
+            -H "x-api-key: ${INGESTION_KEY}" \
+            http://localhost:3033/api/ingestion/stream || true)"
           [ "$SSE_CODE" = "200" ] || { echo "::error::twin SSE probe http=$SSE_CODE (want 200 post-T4 open stream)"; exit 1; }
           echo "PASS: twin SSE stream headers 200"
           if docker logs onchain-bot-ingestion-telegram-staging --since 10m 2>/dev/null | grep -qi 'AUTH_KEY_DUPLICATED'; then
@@ -945,9 +956,12 @@ jobs:
             [ "$i" -eq 12 ] && { echo "::error::twin healthcheck failed after rollback — see runbook docs/deployment/ingestion-rollback.md (retry + escalate, never blind re-run)"; exit 1; }
             sleep 5
           done
+          INGESTION_KEY="$(docker exec onchain-bot-ingestion-telegram-staging printenv INGESTION_API_KEY 2>/dev/null || true)"
           curl -s http://localhost:3033/api/health | jq '.'
           SSE_CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 \
-            -H 'Accept: text/event-stream' http://localhost:3033/api/ingestion/stream || true)"
+            -H 'Accept: text/event-stream' \
+            -H "x-api-key: ${INGESTION_KEY}" \
+            http://localhost:3033/api/ingestion/stream || true)"
           [ "$SSE_CODE" = "200" ] || { echo "::error::twin SSE probe http=$SSE_CODE (want 200 post-T4 open stream)"; exit 1; }
           echo "PASS: twin SSE stream headers 200"
           if docker logs onchain-bot-ingestion-telegram-staging --since 10m 2>/dev/null | grep -qi 'AUTH_KEY_DUPLICATED'; then
