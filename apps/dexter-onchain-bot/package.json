@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "DEXTER_PORT=4060 nest start --watch",
     "build": "nest build",
+    "seed:display-maps": "npm run build && node dist/templates/infrastructure/seed/display-map-seed.cli.js",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",

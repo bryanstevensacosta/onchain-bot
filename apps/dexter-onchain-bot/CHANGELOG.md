@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Manual DisplayMap seed + the two rows for `🟣 Solana @ Pump`
+  (dexter plan todo 9, 2026-10-21):** committed catalog
+  `src/templates/infrastructure/seed/data/display-maps.seed.json`
+  with `(chain, solana, 🟣)` and
+  `(launchpadName, pump-fun, Pump)`, plus a separate CLI
+  (`npm run seed:display-maps`, flags `--dry-run` / `--apply` /
+  `--file=<path>` / `--allow-prod`; default **dry-run**). The app
+  runtime never reads
+  the JSON and nothing auto-seeds: the CLI imports it (so `nest build`
+  emits it into `dist/`), validates every row through
+  `DisplayMap.create` (shape, whitelist, normalization) and rejects
+  duplicate pairs BEFORE writing. Existing pairs are skipped; a
+  different display is reported as `drift` and never overwritten; a
+  concurrent insert is counted as `skipped`. Bootstrap side effects
+  are neutralized (`DEXTER_SEED_TEMPLATES=false`,
+  `DEXTER_INGEST_MODE=webhook`), and the CLI refuses
+  `DATABASE_ENABLED=false` and `NODE_ENV=production` without
+  `--allow-prod`. Specs: +2 suites / +22 tests (75 suites / 815
+  tests), including a seed → resolver → renderer integration that
+  renders the exact label.
+
 ### Changed
 
 - **`venueSuffixShort` derived placeholder (dexter plan todo 73,

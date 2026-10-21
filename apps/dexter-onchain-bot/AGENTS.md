@@ -33,7 +33,9 @@ stays inactive with a warn — verified in the boot log).
 npm run dev                  # DEXTER_PORT=4060 nest start --watch
 npm run build                # nest build (emits dist/main.js)
 npm run start:prod           # node dist/main
-npm test                     # jest --forceExit (23 suites / 74 tests)
+npm test                     # jest --forceExit (75 suites / 815 tests)
+npm run seed:display-maps -- [--dry-run|--apply] [--file=<path>] [--allow-prod]
+                             # manual DisplayMap seed (default DRY-RUN, never bootstrap)
 npx tsc --noEmit -p tsconfig.json
 ```
 
@@ -91,7 +93,9 @@ src/
 │   ├── application/            # DisplayResolverService (DISPLAY_RESOLVER) + PreviewTemplateUseCase
 │   ├── infrastructure/
 │   │   ├── persistence/        # TypeORM + in-memory repos (MESSAGE_TEMPLATE_REPOSITORY symbol, DisplayMapRepository token)
-│   │   └── seed/message-template-seed.service.ts # seeds 7 templates/6 commands (ca/x/z/c/cc/bare)
+│   │   └── seed/              # message-template-seed.service.ts (7 templates/6 commands)
+│   │                          # display-map-seed.{service,cli}.ts + data/display-maps.seed.json
+│   │                          # (manual CLI, default dry-run, NOT a bootstrap hook)
 │   └── api/http/               # message-templates + template-preview + display-maps controllers (management via HTTP API only)
 ├── placeholders/               # renderer + registry ({{key}} only, {% rejected)
 │   ├── domain/placeholder-registry.ts # 22 base + 23 derived keys + per-command whitelist
@@ -587,8 +591,21 @@ todo 6 added 10 suites / 35 tests (±0 since); bare-address added
     display falls back to the detector `name` (never blank). Detector
     output, DB rows and `launchpad.id` never change (taste, not data).
     Example row (operator creates via UI/API when wanted, never
-    auto-seeded): `{placeholderKey:'launchpadName',
-matchValue:'pump-fun', display:'Pump'}`.
+    auto-seeded by the app): `{placeholderKey:'launchpadName',
+matchValue:'pump-fun', display:'Pump'}`. Committed catalog +
+    manual CLI (plan todo 9, 2026-10-21):
+    `src/templates/infrastructure/seed/data/display-maps.seed.json`
+    ships `(chain,solana,🟣)` + `(launchpadName,pump-fun,Pump)` — the
+    two rows that render `🟣 Solana @ Pump` with
+    `{{chainDisplay}} {{chainName}}{{venueSuffixShort}}` — and
+    `npm run seed:display-maps` applies them through the repository
+    port (`--apply` writes; default is dry-run; existing pairs are
+    skipped and display differences reported as `drift`, NEVER
+    overwritten). The CLI is a separate entrypoint: it imports the
+    JSON, sets `DEXTER_SEED_TEMPLATES=false` + `DEXTER_INGEST_MODE=webhook`
+    before the context (no template seed, no second Telegram poller),
+    aborts when `DATABASE_ENABLED=false`, and prints the redacted DB
+    target. Nothing in the app runtime reads the seed file.
 
 - Manual mint→launchpad overrides (plan todo 37): curated table
   `dexter_launchpad_overrides` (`mint` unique + `launchpad_id` +

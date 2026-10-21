@@ -94,19 +94,48 @@ already carrying the pipeline; empty keys are **not** a staging outage.
   The ingestion lanes were already keyed (commit `b5c8c521`). The red
   run is superseded, not re-run: replaying it would redeploy an older
   backend SHA over the newer one.
-- **What the ` @ Pump` label still needs (operator data, not code).**
-  `dexter_display_maps` is EMPTY in staging (0 rows, verified 2026-10-21).
+- **The ` @ Pump` label: committed seed + manual CLI (dexter plan todo 9).**
+  `dexter_display_maps` was EMPTY in staging (0 rows, verified 2026-10-21).
   Two rows produce the target `🟣 Solana @ Pump`:
   | placeholderKey | matchValue | display |
   | --- | --- | --- |
   | `chain` | `solana` | `🟣` |
   | `launchpadName` | `pump-fun` | `Pump` |
+  They now ship in
+  `apps/dexter-onchain-bot/src/templates/infrastructure/seed/data/display-maps.seed.json`
+  and are applied by a separate entrypoint (never a bootstrap hook):
+
+  ```bash
+  # host (dev): build first — nest build emits the JSON to dist
+  cd apps/dexter-onchain-bot && npm run seed:display-maps            # DRY-RUN
+  cd apps/dexter-onchain-bot && npm run seed:display-maps -- --apply # writes
+  # staging container (WORKDIR /app, only after the image ships the CLI):
+  docker exec onchain-bot-dexter-staging \
+    node apps/dexter-onchain-bot/dist/templates/infrastructure/seed/display-map-seed.cli.js --dry-run
+  docker exec onchain-bot-dexter-staging \
+    node apps/dexter-onchain-bot/dist/templates/infrastructure/seed/display-map-seed.cli.js --apply
+  ```
+
+  Guards: default is dry-run (`--apply` required to write); the CLI
+  aborts when `DATABASE_ENABLED=false` or `NODE_ENV=production`
+  without `--allow-prod`, and prints the redacted DB target. It sets
+  `DEXTER_SEED_TEMPLATES=false` + `DEXTER_INGEST_MODE=webhook` before
+  creating the context (no template seed, no second Telegram poller).
+  Existing pairs are skipped; a differing display is reported as
+  `drift` and **never overwritten** (the seed does not stomp operator
+  edits). After writing from OUTSIDE the dexter process, RESTART
+  dexter before previewing: `DisplayResolverService` caches
+  `findAll()` in-process (alternative: PATCH one row via the API).
   With zero rows the renderer honestly falls back: `chainDisplay` is
   `""` (why `{{chainDisplay}}` previews empty — by design, it is a
   DisplayMap placeholder, not a code table) and `venueSuffixShort`
   resolves the DETECTOR name, i.e. ` @ Pump.fun`. End-to-end proof
   live on `:4061`: body `Sol{{venueSuffixShort}}` → `Sol @ Pump\.fun`
   with `placeholdersUsed:["venueSuffixShort"]` and no unknown keys.
+  The `launchpadName` row only bites when the token carries
+  `launchpad.id='pump-fun'`; without a launchpad the suffix falls to
+  the DEX display (`PumpSwap` → `Pump\.fun`).
+
 - **Body-authoring rule for the short suffix.** A line that STARTS with
   `{{venueSuffixShort}}` loses its `@` — the todo-4/71 dangling-`@`
   cleanup strips it (verified: `{{chainDisplay}} {{venueSuffixShort}}`

@@ -1,0 +1,12 @@
+[
+  {
+    "placeholderKey": "chain",
+    "matchValue": "solana",
+    "display": "🟣"
+  },
+  {
+    "placeholderKey": "launchpadName",
+    "matchValue": "pump-fun",
+    "display": "Pump"
+  }
+]
