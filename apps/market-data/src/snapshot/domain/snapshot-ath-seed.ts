@@ -105,6 +105,15 @@ export const SNAPSHOT_ATH_SEED_NEGATIVE_TTL_MS = 6 * 60 * 60 * 1000;
 /** Bounded negative-memo capacity (same 500 precedent as the history ring). */
 export const SNAPSHOT_ATH_SEED_MEMO_MAX = 500;
 
+/**
+ * Short-lived 429 backoff (plan todo 72, P1): a THROTTLED seed attempt
+ * is transient, but re-firing it on EVERY snapshot during a Gecko wall
+ * wastes the one free quota unit the card has. 60s is the pinned pause
+ * (one attempt/minute/token) — distinct from the 6h DEFINITIVE memo
+ * above, which is about absence, not pressure.
+ */
+export const SNAPSHOT_ATH_SEED_TRANSIENT_BACKOFF_MS = 60_000;
+
 /** Midnight-collision offset: day row stamped at candle open + 1ms. */
 export const ATH_SEED_TS_OFFSET_MS = 1;
 
@@ -253,5 +262,29 @@ export class AthSeedNegativeMemo {
       if (oldest === undefined) break;
       this.entries.delete(oldest);
     }
+  }
+}
+
+/**
+ * 429 backoff memo (plan todo 72, P1) — the transient sister of
+ * `AthSeedNegativeMemo`. Same bounded/FIFO mechanics, different meaning:
+ * an entry here says "this token's ATH seed was THROTTLED a moment ago,
+ * skip the next attempts for 60s", NOT "the series does not exist".
+ *
+ * Why it is separate (do NOT merge the two):
+ * - the definitive memo is a 6h statement about ABSENCE (404/401/400/
+ *   empty series) — a throttle must never poison it;
+ * - this memo is a 60s statement about PRESSURE — it must expire fast
+ *   so a late-live pool still seeds the same day.
+ * Only `rate-limited` transients are recorded: timeouts and 5xx keep the
+ * pre-72 behavior (fail-open, retry next request) because they carry no
+ * throttle signal.
+ */
+export class AthSeedTransientBackoff extends AthSeedNegativeMemo {
+  public constructor(
+    ttlMs: number = SNAPSHOT_ATH_SEED_TRANSIENT_BACKOFF_MS,
+    maxEntries: number = SNAPSHOT_ATH_SEED_MEMO_MAX,
+  ) {
+    super(ttlMs, maxEntries);
   }
 }

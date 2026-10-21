@@ -12,6 +12,14 @@ export interface GeckoTerminalAttributes {
   readonly market_cap_usd: string | null;
   readonly volume_usd: { readonly h24: string | null } | null;
   readonly price_change_percentage: { readonly h24: string | null } | null;
+  /**
+   * GeckoTerminal launchpad categories (dexter plan todo 72): the token
+   * `/info` payload carries `gt_category_ids` (live 2026-10-21:
+   * `['pump-fun']` for a graduated pump.fun mint). It is a CANDIDATE
+   * origin id only — validated later at the snapshot seam via
+   * `launchpadInfo`, never treated as identity.
+   */
+  readonly gt_category_ids?: ReadonlyArray<string> | null;
 }
 
 export interface GeckoTerminalTokenData {
@@ -38,6 +46,12 @@ export interface GeckoTerminalTokenInfo {
   readonly marketCapUsd: number | null;
   readonly volumeUsdH24: number | null;
   readonly priceChangePercentH24: number | null;
+  /**
+   * Launchpad candidate categories from `/info` (`gt_category_ids`
+   * filtered to non-empty trimmed strings), or null when absent/empty.
+   * NEVER identity: the snapshot seam validates the candidate id.
+   */
+  readonly gtCategoryIds: ReadonlyArray<string> | null;
 }
 
 /**
@@ -52,6 +66,14 @@ export interface GeckoTerminalPoolAttributes {
   readonly quote_token_price_usd: string | null;
   readonly fdv_usd: string | null;
   readonly reserve_in_usd: string | null;
+  /** 24h pool volume (dexter plan todo 72; live shape `{ h24: '0.0' }`). */
+  readonly volume_usd?: { readonly h24?: string | number | null } | null;
+  /** 24h pool price change (dexter plan todo 72; live `{ h24: '0' }`). */
+  readonly price_change_percentage?: {
+    readonly h24?: string | number | null;
+  } | null;
+  /** Pool creation timestamp, ISO-8601 (live: `2026-10-14T12:44:35Z`). */
+  readonly pool_created_at?: string | null;
 }
 
 export interface GeckoTerminalPoolTokenRef {
@@ -109,6 +131,32 @@ export interface GeckoPoolQuote {
    * so the candle series is quoted for OUR token, not its pair.
    */
   readonly side: 'base' | 'quote' | null;
+  /**
+   * Chosen-pool liquidity in USD (dexter plan todo 72): the SAME picked
+   * pool's `attributes.reserve_in_usd`, coerced finite and kept ONLY
+   * when > 0 (`0` is a real upstream value but not a usable liquidity
+   * measurement — the measured pump-curve pool answers `0.0` while the
+   * chosen PumpSwap pool answers `2365.4217`). Else null.
+   */
+  readonly liquidityUsd: number | null;
+  /**
+   * 24h pool volume in USD (dexter plan todo 72): the CHOSEN pool's
+   * `attributes.volume_usd.h24` coerced finite, else null. `0` is a
+   * real reading and stays `0`.
+   */
+  readonly volume24hUsd: number | null;
+  /**
+   * 24h pool price change in percent (dexter plan todo 72): the CHOSEN
+   * pool's `attributes.price_change_percentage.h24` coerced finite,
+   * else null. `0` is a real reading and stays `0`.
+   */
+  readonly priceChange24h: number | null;
+  /**
+   * Pool creation time in ms epoch (dexter plan todo 72): the CHOSEN
+   * pool's `attributes.pool_created_at` parsed via `Date.parse`, only
+   * when finite and > 0, else null.
+   */
+  readonly poolCreatedAtMs: number | null;
 }
 
 /**

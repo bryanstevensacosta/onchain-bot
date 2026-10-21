@@ -121,6 +121,42 @@ describe('GeckoTerminal top-5 (todo 31: multi + simple + search)', () => {
     await expect(service.getTokensMulti('solana', [])).resolves.toBeNull();
   });
 
+  it('getTokenInfo maps gt_category_ids to trimmed gtCategoryIds (todo 72)', async () => {
+    const service = await realService();
+    jest.spyOn(axios, 'get').mockResolvedValue({
+      data: {
+        data: {
+          id: `solana_${SOL}`,
+          type: 'token',
+          attributes: {
+            address: SOL,
+            name: 'Wrapped SOL',
+            symbol: 'SOL',
+            // Non-strings and blanks are dropped, entries are trimmed.
+            gt_category_ids: [' pump-fun ', '', 42],
+          },
+        },
+      },
+    });
+    const info = await service.getTokenInfo('solana', SOL);
+    expect(info?.gtCategoryIds).toEqual(['pump-fun']);
+  });
+
+  it('getTokenInfo without gt_category_ids resolves gtCategoryIds null', async () => {
+    const service = await realService();
+    jest.spyOn(axios, 'get').mockResolvedValue({
+      data: {
+        data: {
+          id: `solana_${SOL}`,
+          type: 'token',
+          attributes: { address: SOL, name: 'Wrapped SOL', symbol: 'SOL' },
+        },
+      },
+    });
+    const info = await service.getTokenInfo('solana', SOL);
+    expect(info?.gtCategoryIds).toBeNull();
+  });
+
   it('getSimpleTokenPrice parses the live token_prices map', async () => {
     const service = await realService();
     jest.spyOn(axios, 'get').mockResolvedValue({
@@ -197,6 +233,8 @@ describe('GeckoTerminal top-5 (todo 31: multi + simple + search)', () => {
           quote_token_price_usd: '1.0',
           fdv_usd: '999999',
           reserve_in_usd: '5000',
+          volume_usd: { h24: '0' },
+          price_change_percentage: { h24: '0' },
         },
         relationships: {
           base_token: { data: { id: `solana_${SOL}` } },
@@ -216,6 +254,10 @@ describe('GeckoTerminal top-5 (todo 31: multi + simple + search)', () => {
     const quote = await geckoFetcher(d).fetch('solana', SOL);
     expect(quote?.priceUsd).toBeCloseTo(109.52, 2);
     expect(quote?.fdvUsd).toBe(999999);
+    // Pool-market fields off the SAME search pick (todo 72); `0` survives.
+    expect(quote?.liquidityUsd).toBe(5000);
+    expect(quote?.volume24hUsd).toBe(0);
+    expect(quote?.priceChange24h).toBe(0);
     expect(quote?.symbol).toBeUndefined();
   });
 

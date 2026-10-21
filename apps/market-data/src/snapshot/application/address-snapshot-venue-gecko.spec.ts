@@ -193,6 +193,10 @@ describe('selectPoolQuote dexId (todo 26)', () => {
       dexId: 'pons-v2-dex',
       poolAddress: POOL,
       side: 'base',
+      liquidityUsd: expect.closeTo(5737.1871, 4),
+      volume24hUsd: null,
+      priceChange24h: null,
+      poolCreatedAtMs: null,
     });
   });
 

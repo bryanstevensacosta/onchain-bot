@@ -431,8 +431,20 @@ export class GeckoTerminalService extends DataProviderPort {
       priceChangePercentH24: attrs.price_change_percentage?.h24
         ? parseFloat(attrs.price_change_percentage.h24)
         : null,
+      gtCategoryIds: toCategoryIds(attrs.gt_category_ids),
     };
   }
+}
+
+function toCategoryIds(value: unknown): ReadonlyArray<string> | null {
+  if (!Array.isArray(value)) return null;
+  const ids: string[] = [];
+  for (const entry of value) {
+    if (typeof entry !== 'string') continue;
+    const trimmed = entry.trim();
+    if (trimmed.length > 0) ids.push(trimmed);
+  }
+  return ids.length > 0 ? ids : null;
 }
 
 function toFiniteNumber(value: unknown): number | null {
@@ -500,5 +512,32 @@ export function selectPoolQuote(
         ? poolAddressRaw.trim()
         : null,
     side: bestSide,
+    // Market fields off the SAME chosen pool (dexter plan todo 72) —
+    // never a second pick, never an extra HTTP call. `toFiniteNumber`
+    // keeps a real `0` for volume/change; liquidity applies the
+    // positive guard (`0` is not a usable measurement).
+    liquidityUsd: toPositiveNumber(best.attributes?.reserve_in_usd),
+    volume24hUsd: toFiniteNumber(best.attributes?.volume_usd?.h24),
+    // BASE-side only: `price_change_percentage.h24` describes the pool's
+    // base token, so a quote-side pick never attributes it to our mint
+    // (same base-only rule as `fdvUsd` above).
+    priceChange24h:
+      bestSide === 'base'
+        ? toFiniteNumber(best.attributes?.price_change_percentage?.h24)
+        : null,
+    poolCreatedAtMs: toFiniteTimeMs(best.attributes?.pool_created_at),
   };
+}
+
+function toPositiveNumber(value: unknown): number | null {
+  const parsed = toFiniteNumber(value);
+  return parsed !== null && parsed > 0 ? parsed : null;
+}
+
+function toFiniteTimeMs(value: unknown): number | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return null;
+  const parsed = Date.parse(trimmed);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }

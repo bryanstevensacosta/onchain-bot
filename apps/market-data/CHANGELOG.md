@@ -9,6 +9,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Gecko-only market parity: pool market fields + launchpad hint +
+  ATH-seed 429 backoff (dexter plan todo 72, 2026-10-21).** Tokens whose
+  GeckoTerminal `/info` is complete (the usual pump.fun case) now serve
+  `liquidityUsd`, `volume24hUsd`, `priceChange24h`, `pairCreatedAt` and
+  `launchpad` instead of four nulls plus a bare venue.
+  `GeckoPoolQuote` gains `liquidityUsd` (from the pool's
+  `reserve_in_usd`, only when `> 0` — a zero reserve is "not measured",
+  never a zero liquidity), `volume24hUsd` and `priceChange24h` (real
+  `0`s preserved, never nullished), and `poolCreatedAtMs`
+  (`pool_created_at` ISO → ms); `priceChange24h` is side-gated to the
+  base side (a pool quoting our mint cannot attribute its own change).
+  `GeckoTerminalTokenInfo.gtCategoryIds` carries `gt_category_ids`
+  (trimmed, blanks dropped) and the fetcher writes the first id into a
+  NEW dedicated `geckoLaunchpadHint` field — one writer, but listed in
+  `SNAPSHOT_QUOTE_FIELDS` so the merge actually carries it (precedent:
+  `dexscreenerFdvUsd`). The derivation seam harvests the pool pick
+  `acquireDerivationCandles` already fetched (zero extra calls): a
+  non-null pool change short-circuits before the hourly OHLC call, and
+  the harvested market fills the quote null-only via the new pure
+  `snapshot/domain/snapshot-venue-market.ts` (a native `0` or another
+  provider's value is never overwritten). `pairCreatedAt` falls back to
+  the Gecko pool creation time (closing the todo-63 "Gecko-only → null"
+  caveat) and `sources` gains `geckoterminal` once when the fill
+  applies. The launchpad hint is a LAST resort applied after the tail
+  loop: detector positive wins, allowlist starts at `pump-fun`, gated to
+  `solana` + `kind=token`, re-validated through `launchpadInfo`, never
+  derived from the `...pump` suffix. ATH seeding now pauses 60s per
+  token after a `429` (`AthSeedTransientBackoff`), checked after the 6h
+  definitive memo and written only for `RetryableProviderError` with
+  `status === 429` — 5xx/timeouts keep retrying fail-open.
+  `resolveVenue`, `needsPool` and the native-wins precedence are
+  untouched. Specs: new `address-snapshot-venue-market.spec.ts` (11),
+  `snapshot-quote.types.spec.ts`, plus extended Gecko/fetcher/venue
+  suites (157 suites / 1198 tests).
+
 - **Production deploy lane (DORMANT) + staging 7-day soak tooling:**
   new `.github/workflows/deploy-market-data-prod.yml` (push `master`
   on `apps/market-data/**` plus `workflow_dispatch` lanes `full` /

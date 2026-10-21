@@ -35,6 +35,17 @@ export interface SnapshotQuote {
    * supply base must be structurally unable to reach a card).
    */
   readonly dexscreenerFdvUsd: number | null;
+  /**
+   * Dedicated GeckoTerminal `/info` writer field (dexter plan todo 72):
+   * the first non-empty `gt_category_ids` entry carried by the token
+   * `/info` payload (e.g. `'pump-fun'`). It is ONLY a candidate origin
+   * id — NEVER identity, and NEVER derived from the address suffix,
+   * name or symbol — validated later at the snapshot seam via
+   * `launchpadInfo`. It is mechanically carried by the generic merge
+   * exactly like `dexscreenerFdvUsd`: only the `geckoterminal` fetcher
+   * writes it, no other leg ever does.
+   */
+  readonly geckoLaunchpadHint: string | null;
   readonly liquidityUsd: number | null;
   readonly volume24hUsd: number | null;
   readonly priceChange24h: number | null;
@@ -85,6 +96,7 @@ export const SNAPSHOT_QUOTE_FIELDS: ReadonlyArray<keyof SnapshotQuote> = [
   'marketCapUsd',
   'fdvUsd',
   'dexscreenerFdvUsd',
+  'geckoLaunchpadHint',
   'liquidityUsd',
   'volume24hUsd',
   'priceChange24h',
@@ -107,6 +119,7 @@ export function emptySnapshotQuote(): SnapshotQuote {
     marketCapUsd: null,
     fdvUsd: null,
     dexscreenerFdvUsd: null,
+    geckoLaunchpadHint: null,
     liquidityUsd: null,
     volume24hUsd: null,
     priceChange24h: null,

@@ -45,6 +45,24 @@ function toNumber(value: unknown): number | null {
   return null;
 }
 
+/**
+ * First non-empty GeckoTerminal `gt_category_ids` entry (dexter plan
+ * todo 72), trimmed and verbatim. It is a CANDIDATE origin id only —
+ * the snapshot seam validates it via `launchpadInfo`; never derived
+ * from the address suffix, name, symbol or venue.
+ */
+function firstGeckoCategory(
+  ids: ReadonlyArray<string> | null | undefined,
+): string | null {
+  if (!Array.isArray(ids)) return null;
+  for (const entry of ids) {
+    if (typeof entry !== 'string') continue;
+    const trimmed = entry.trim();
+    if (trimmed.length > 0) return trimmed;
+  }
+  return null;
+}
+
 function rpcAmountToUi(
   amount: string | null | undefined,
   decimals: number | null | undefined,
@@ -366,6 +384,11 @@ export function buildProviderQuoteFetchers(
         const quote: Partial<SnapshotQuote> = {
           priceUsd: pick.priceUsd,
           fdvUsd: pick.fdvUsd,
+          // Pool-market fields off the SAME pick (dexter plan todo 72):
+          // `0` survives for volume/change; liquidity is positive-guarded.
+          liquidityUsd: pick.liquidityUsd,
+          volume24hUsd: pick.volume24hUsd,
+          priceChange24h: pick.priceChange24h,
         };
         return quote;
       }
@@ -375,10 +398,12 @@ export function buildProviderQuoteFetchers(
       const getPools = deps.geckoterminal.getTokenPools?.bind(
         deps.geckoterminal,
       );
+      let poolPick: ReturnType<typeof selectPoolQuote> = null;
       if (needsPool && typeof getPools === 'function') {
         const pools = await getPools(slug, address);
         const pick = selectPoolQuote(pools, address);
         if (pick !== null) {
+          poolPick = pick;
           priceUsd ??= pick.priceUsd;
           fdvUsd ??= pick.fdvUsd;
         }
@@ -391,13 +416,28 @@ export function buildProviderQuoteFetchers(
         priceUsd,
         marketCapUsd: toNumber(info.marketCapUsd),
         fdvUsd,
-        volume24hUsd: toNumber(info.volumeUsdH24),
-        priceChange24h: toNumber(info.priceChangePercentH24),
+        // Pool-sourced liquidity (SAME picked pool, todo 72): only the
+        // positive-guarded reserve; `0` is not a usable measurement.
+        liquidityUsd: poolPick?.liquidityUsd ?? null,
+        // `/info` wins when it carries the field (first-non-null merge
+        // semantics); the pool pick fills only its gaps on the SAME
+        // picked pool — `??` keeps a real `0` from either leg.
+        volume24hUsd:
+          toNumber(info.volumeUsdH24) ?? poolPick?.volume24hUsd ?? null,
+        priceChange24h:
+          toNumber(info.priceChangePercentH24) ??
+          poolPick?.priceChange24h ??
+          null,
         holders: toNumber(info.holders),
         top10HolderPercent: toNumber(info.top10HolderPercent),
         symbol: info.symbol,
         name: info.name,
         totalSupply: toNumber(info.totalSupply),
+        // Dedicated Gecko `/info` writer (dexter plan todo 72): first
+        // non-empty `gt_category_ids` entry, a CANDIDATE origin id only
+        // (validated at the snapshot seam; never identity, never the
+        // address suffix). `null` when absent.
+        geckoLaunchpadHint: firstGeckoCategory(info.gtCategoryIds),
       };
       return quote;
     },

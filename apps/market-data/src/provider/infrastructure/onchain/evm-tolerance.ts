@@ -127,6 +127,13 @@ export function selectPreferredQuote(
     maxSupply: pickDefined(direct.maxSupply, aggregator.maxSupply),
     devWallets: pickDefined(direct.devWallets, aggregator.devWallets),
     devPctSupply: pickDefined(direct.devPctSupply, aggregator.devPctSupply),
+    // Dedicated Gecko `/info` hint (dexter plan todo 72) rides the same
+    // pick as `dexscreenerFdvUsd`: the direct fast path never sets it,
+    // so the aggregator's value survives untouched.
+    geckoLaunchpadHint: pickDefined(
+      direct.geckoLaunchpadHint,
+      aggregator.geckoLaunchpadHint,
+    ),
     // Provenance rides along untouched (log-only tolerance path, never
     // served — the single seam in buildSnapshot assigns it).
     fdvProvenance: pickDefined(direct.fdvProvenance, aggregator.fdvProvenance),

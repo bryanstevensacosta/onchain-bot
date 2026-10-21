@@ -46,6 +46,12 @@ import {
 import { selectPoolQuote } from 'provider/infrastructure/geckoterminal';
 import { toVenueOrNull, type SnapshotVenue } from '../domain/snapshot-venue';
 import {
+  applyVenueMarketFields,
+  type VenueMarketReading,
+} from '../domain/snapshot-venue-market';
+import { RetryableProviderError } from 'provider/domain/retryable-provider.error';
+import { launchpadInfo } from 'launchpad/domain/launchpad-table';
+import {
   deriveChange24hFromOhlcv,
   OHLC_CHANGE_PAST_TOLERANCE_MS,
   OHLC_CHANGE_WINDOW_MS,
@@ -60,6 +66,7 @@ import {
 } from '../domain/snapshot-ohlcv-backfill';
 import {
   AthSeedNegativeMemo,
+  AthSeedTransientBackoff,
   buildFdvAthSeedRow,
   resolveAthSeedDays,
   resolveAthSeedEnabled,
@@ -174,6 +181,20 @@ export function dexscreenerPoolSide(
   if (quote === wanted) return 'quote';
   return null;
 }
+
+/**
+ * GeckoTerminal launchpad hints the snapshot seam accepts (dexter plan
+ * todo 72). A token `/info` `gt_category_ids` entry is NOT an origin
+ * proof: the array order is not origin-first and its vocabulary overlaps
+ * venues. The seam therefore accepts ONLY ids on this allowlist, ONLY
+ * when the origin detector (tail) resolved nothing, and ONLY for
+ * `solana` + `kind=token`. Grow this set one id at a time and only with
+ * a fresh live probe of that launchpad — never derive an id from a mint
+ * suffix or a venue id.
+ */
+export const GECKO_HINT_LAUNCHPADS: ReadonlySet<string> = new Set([
+  'pump-fun',
+]);
 
 /**
  * Snapshot-tail budgets (dexter plan todo 29 — the tail is the
@@ -323,6 +344,14 @@ export class AddressSnapshotService {
    * remembered and retry next request. Resets on deploy (documented).
    */
   private readonly athSeedNegativeMemo = new AthSeedNegativeMemo();
+  /**
+   * 60s throttle memo (plan todo 72, P1): a 429-flavoured seed attempt
+   * is transient, so it never enters the 6h DEFINITIVE memo above —
+   * but re-firing it on every snapshot during a Gecko wall burns the
+   * card's one free quota unit. Separate map, separate TTL, same
+   * bounded/FIFO mechanics; resets on deploy.
+   */
+  private readonly athSeedTransientBackoff = new AthSeedTransientBackoff();
 
   /**
    * Honeypot kill-switch (dexter plan todo 71): read ONCE at
@@ -801,14 +830,39 @@ export class AddressSnapshotService {
     readonly change: number | null;
     readonly seeded: number;
     readonly source: string | null;
+    /**
+     * Venue market reading harvested by the candle-acquisition leg (plan
+     * todo 72, fork B). Travels even when the derivation itself resolves
+     * null: it is an independent fill for the quote, not a candle
+     * product.
+     */
+    readonly market: VenueMarketReading | null;
   }> {
     if (nativeChange !== null && nativeChange !== undefined) {
-      return { change: null, seeded: 0, source: null };
+      // Native wins: zero calls, zero seeds, zero fill.
+      return { change: null, seeded: 0, source: null, market: null };
     }
     const nowMs = Date.now();
     const acquired = await this.acquireDerivationCandles(chain, address, nowMs);
     if (acquired === null) {
-      return { change: null, seeded: 0, source: null };
+      return { change: null, seeded: 0, source: null, market: null };
+    }
+    if (
+      acquired.market !== null &&
+      acquired.market.priceChange24h !== null
+    ) {
+      // Venue-change path (fork B): the picked pool's h24 percentage is
+      // a real native reading, so it wins the derivation. NO candles
+      // were fetched (`source: null` keeps `geckoterminal-ohlcv` out of
+      // `sources`); the fill's own provenance is `geckoterminal`, added
+      // by the seam. The backfill does not run for this class — native
+      // change means no candle history, exactly like any other native.
+      return {
+        change: acquired.market.priceChange24h,
+        seeded: 0,
+        source: null,
+        market: acquired.market,
+      };
     }
     try {
       const seeded = await this.seedOhlcvBackfill(
@@ -828,15 +882,28 @@ export class AddressSnapshotService {
         nowMs,
       );
       if (outright !== null) {
-        return { change: outright, seeded, source: acquired.source };
+        return {
+          change: outright,
+          seeded,
+          source: acquired.source,
+          market: acquired.market,
+        };
       }
       return {
         change: deriveChange24hFromOhlcv(acquired.candles, nowMs),
         seeded,
         source: acquired.source,
+        market: acquired.market,
       };
     } catch {
-      return { change: null, seeded: 0, source: null };
+      // The fill is independent of the derivation (and was already
+      // fetched) — never drop it on a seeding/anchor error.
+      return {
+        change: null,
+        seeded: 0,
+        source: null,
+        market: acquired.market,
+      };
     }
   }
 
@@ -850,6 +917,13 @@ export class AddressSnapshotService {
    * answers the pre-55 dead-end shape (`{change: null, seeded: 0}`)
    * WITHOUT a history-anchor attempt, exactly like the old no-pick /
    * gecko-threw branches.
+   *
+   * Plan todo 72 (fork B): the SAME picked pool also carries the market
+   * numbers the quote is missing (`liquidityUsd`, `volume24hUsd`,
+   * `priceChange24h`, `poolCreatedAtMs`) — harvested here at zero extra
+   * cost. When the pick answers the 24h change itself, this leg returns
+   * IMMEDIATELY (no OHLC call, no backfill): that percentage is a native
+   * reading and the caller lets it win with `source: null`.
    */
   private async acquireDerivationCandles(
     chain: string,
@@ -858,10 +932,19 @@ export class AddressSnapshotService {
   ): Promise<{
     readonly candles: ReadonlyArray<OhlcvCandle> | null;
     readonly source: string;
+    /**
+     * Market numbers carried by the pool this leg already picked (plan
+     * todo 72, fork B). Harvested from the SAME `selectPoolQuote`
+     * result the OHLC route consumes — zero extra calls, outside the
+     * 400ms tail budget. `null` when no pool was picked or the Gecko
+     * leg died.
+     */
+    readonly market: VenueMarketReading | null;
   } | null> {
     let geckoPicked = false;
     let geckoAnswered = false;
     let candles: ReadonlyArray<OhlcvCandle> | null = null;
+    let market: VenueMarketReading | null = null;
     if (
       this.geckoterminal !== null &&
       this.geckoterminal !== undefined &&
@@ -877,6 +960,24 @@ export class AddressSnapshotService {
           );
           if (typeof searchPools === 'function') {
             pick = selectPoolQuote(await searchPools(address), address);
+          }
+        }
+        if (pick !== null) {
+          market = {
+            liquidityUsd: pick.liquidityUsd,
+            volume24hUsd: pick.volume24hUsd,
+            priceChange24h: pick.priceChange24h,
+            poolCreatedAtMs: pick.poolCreatedAtMs,
+          };
+          // Fork B (plan todo 72): the picked pool answers the 24h change
+          // itself, so that number IS a native reading — the OHLC
+          // derivation and its backfill are unnecessary. Returning here
+          // skips the hour call entirely (zero extra HTTP); the caller
+          // returns the venue change with `source: null`, so no
+          // `geckoterminal-ohlcv` provenance is claimed for a candle
+          // series we never fetched.
+          if (market.priceChange24h !== null) {
+            return { candles: null, source: OHLC_BACKFILL_SOURCE, market };
           }
         }
         if (pick !== null && pick.poolAddress !== null) {
@@ -924,11 +1025,17 @@ export class AddressSnapshotService {
       // answer that came back empty still proceeds (zero seeds; the
       // history-anchor attempt stands); every other dead end skips.
       if (geckoPicked && geckoAnswered) {
-        return { candles, source: OHLC_BACKFILL_SOURCE };
+        return { candles, source: OHLC_BACKFILL_SOURCE, market };
+      }
+      if (market !== null) {
+        // A pool was picked (and carried market numbers) but no candle
+        // source served it. The numbers are still legitimately ours —
+        // hand them up with no candles to seed.
+        return { candles: null, source: OHLC_BACKFILL_SOURCE, market };
       }
       return null;
     }
-    return { candles, source };
+    return { candles, source, market };
   }
 
   /**
@@ -1036,6 +1143,10 @@ export class AddressSnapshotService {
     if (typeof getDay !== 'function') return 0;
     const nowMs = Date.now();
     if (this.athSeedNegativeMemo.has(args.key, nowMs)) return 0;
+    // 60s throttle pause (plan todo 72, P1): checked AFTER the 6h
+    // definitive memo (absence outranks pressure) and before any
+    // network. A pause never claims the token has no series.
+    if (this.athSeedTransientBackoff.has(args.key, nowMs)) return 0;
     try {
       const slug = GECKO_NETWORK_SLUGS[args.chain] ?? args.chain;
       const raced = await withTailBudget(
@@ -1078,8 +1189,15 @@ export class AddressSnapshotService {
           `pool=${pool} fdvUsd=${row.quote.fdvUsd} at=${row.createdAt}`,
       );
       return 1;
-    } catch {
-      // Transient (429/5xx/timeout/network): fail-open, never memoized.
+    } catch (err) {
+      // Transient (429/5xx/timeout/network): fail-open. A 429 is the ONE
+      // class that earns a pause (plan todo 72, P1): it reports upstream
+      // PRESSURE, not absence, so it lands in the 60s transient memo —
+      // NEVER in the 6h definitive one. Timeouts/5xx keep the pre-72
+      // behavior (retry on the next request).
+      if (err instanceof RetryableProviderError && err.status === 429) {
+        this.athSeedTransientBackoff.remember(args.key, Date.now());
+      }
       return 0;
     }
   }
@@ -2129,6 +2247,26 @@ export class AddressSnapshotService {
         }
       }
     }
+    // GeckoTerminal launchpad hint (plan todo 72): LAST resort, applied
+    // AFTER the tail loop so a detector positive always wins. The hint
+    // is a token `/info` category id, never an origin proof — the
+    // allowlist plus the chain/kind gates live HERE (the fetcher passes
+    // the raw id verbatim). No suffix derivation, no venue id, no
+    // override of a detector positive; `launchpadInfo` re-validates the
+    // id, so a stale allowlist entry fails open to null.
+    if (
+      launchpad === null &&
+      knownId === 'solana' &&
+      kind === 'token' &&
+      typeof outcome.quote.geckoLaunchpadHint === 'string' &&
+      GECKO_HINT_LAUNCHPADS.has(outcome.quote.geckoLaunchpadHint)
+    ) {
+      launchpad = launchpadInfo(
+        outcome.quote.geckoLaunchpadHint,
+        knownId,
+        inputValue,
+      );
+    }
     // Transient honeypot failure: name it under the SAME `tail:honeypot`
     // key the timeout uses (`degraded: true` either way), but ONLY when
     // the timeout note did not already claim that key — the source
@@ -2138,9 +2276,6 @@ export class AddressSnapshotService {
       tailNotes['tail:honeypot'] = HONEYPOT_TRANSIENT_NOTE;
     }
     const tailMs = Math.round(performance.now() - tailStartedAt);
-    // Best-pair creation → ISO (todo 63): the ONLY ms→ISO step, right
-    // after the tail settled (fast-path handoff or tail-resolved ms).
-    const pairCreatedAt = toIsoPairCreatedAt(pairCreatedAtMs);
     // OHLC-derived change (dexter plan todo 33): runs AFTER the tail,
     // outside the 400ms tail budget (pool discovery + one OHLC call
     // need seconds on throttled tiers — capping it would degrade the
@@ -2159,11 +2294,28 @@ export class AddressSnapshotService {
       { key: id.key, kind },
     );
     const derivedChange24h = derivedResolution.change;
+    // Best-pair creation → ISO (todo 63 + plan todo 72): the ONE ms→ISO
+    // step, now AFTER the derivation because the venue pick harvested
+    // there can supply the fallback. DexScreener's pair keeps precedence;
+    // the picked pool fills only a null (zero extra calls), and the
+    // Gecko-only class stops reading honest `null`.
+    const pairCreatedAt = toIsoPairCreatedAt(
+      pairCreatedAtMs ?? derivedResolution.market?.poolCreatedAtMs ?? null,
+    );
+    const baseQuote: SnapshotQuote =
+      derivedChange24h === null
+        ? outcome.quote
+        : { ...outcome.quote, priceChange24h: derivedChange24h };
+    // Venue market fill (plan todo 72, fork B): the picked pool's
+    // liquidity/volume/change, written NULL-ONLY (`0` is a real reading
+    // and survives). Independent of the FDV seam below; provenance is
+    // appended to `sources` once when it lands.
+    const venueFill = applyVenueMarketFields(
+      baseQuote,
+      derivedResolution.market,
+    );
     const quote: SnapshotQuote = (() => {
-      const merged: SnapshotQuote =
-        derivedChange24h === null
-          ? outcome.quote
-          : { ...outcome.quote, priceChange24h: derivedChange24h };
+      const merged: SnapshotQuote = venueFill.quote;
       // Single-seam computed FDV (dexter plan todo 38; null-only
       // DexScreener fallback todo 61): provider-reported `fdvUsd` NEVER
       // survives as a computed value — `fdv = price×(total ?? max)`
@@ -2213,10 +2365,20 @@ export class AddressSnapshotService {
       };
     })();
     const derivedSource = derivedResolution.source;
-    const sources =
-      derivedChange24h === null || derivedSource === null
-        ? outcome.sources
-        : [...outcome.sources, derivedSource];
+    const sources = (() => {
+      const next = [...outcome.sources];
+      if (derivedChange24h !== null && derivedSource !== null) {
+        next.push(derivedSource);
+      }
+      // Venue-fill provenance (plan todo 72): the numbers came from the
+      // GeckoTerminal pool, so name it — ONCE (a contributing gecko
+      // fetcher may already have added it) and never as `-ohlcv` (no
+      // candle series was fetched on this path).
+      if (venueFill.applied && !next.includes('geckoterminal')) {
+        next.push('geckoterminal');
+      }
+      return next.length === outcome.sources.length ? outcome.sources : next;
+    })();
     // A derived change rescues an otherwise field-less aggregate: the
     // snapshot carries one honest live field, so stale replay and the
     // pending status both stand down for it.
@@ -2244,8 +2406,8 @@ export class AddressSnapshotService {
         chain: knownId,
         address: inputValue,
         kind,
-        totalSupply: outcome.quote.totalSupply,
-        maxSupply: outcome.quote.maxSupply,
+        totalSupply: quote.totalSupply,
+        maxSupply: quote.maxSupply,
         pairAddress,
         pairSide,
       });
@@ -2269,7 +2431,7 @@ export class AddressSnapshotService {
     const knownFetcherNames = new Set(
       this.providers.listProviders().map((provider) => provider.name),
     );
-    for (const source of outcome.sources) {
+    for (const source of sources) {
       this.providers.recordSuccess(source, 0);
       // Breaker observes TRANSPORT failures only (todo 29): a source
       // that contributed is a success by definition. Unknown names
@@ -2294,7 +2456,7 @@ export class AddressSnapshotService {
     // success side stays direct below (idle-success has no registry
     // counterpart — documented asymmetry).
     for (const name of Object.keys(outcome.errors)) {
-      if (!outcome.sources.includes(name)) {
+      if (!sources.includes(name)) {
         this.providers.recordFailure(name, outcome.errors[name]);
       }
     }
@@ -2310,7 +2472,7 @@ export class AddressSnapshotService {
         if (!knownFetcherNames.has(name)) {
           continue;
         }
-        if (outcome.sources.includes(name) || name in outcome.errors) {
+        if (sources.includes(name) || name in outcome.errors) {
           continue;
         }
         const key = snapshotBreakerKey(name);

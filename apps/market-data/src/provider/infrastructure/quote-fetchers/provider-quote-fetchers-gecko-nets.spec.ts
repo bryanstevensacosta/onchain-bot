@@ -13,6 +13,41 @@ describe('provider-quote fetchers (gecko networks)', () => {
   const STAGEVEIL = '0xcf7f57cd2924d5c34758a3363b0fb237687f3597';
   const POOL =
     '0x9269be45b3b5e1526db43b8b5be282ac97fde1214e8a7e0cf75362dad4eeef60';
+  // Live probe 2026-10-21: pump.fun mint on solana — token `/info`
+  // carries price+fdv but NO volume/change; its PumpSwap pool carries
+  // reserve 2365.4217, volume { h24: '0.0' }, change { h24: '0' },
+  // pool_created_at 2026-10-14T12:44:35Z.
+  const PUMP_MINT = 'SQ1W9zWdVDgaageGKp228hp2boGRzR3T7iRyd4fpump';
+  const PUMP_POOL = 'CSPTGT7oS2Ae8TY2BRjtbBJHNUBprHM8RR3QMUM9nNp2';
+  const PUMP_CREATED_MS = Date.parse('2026-10-14T12:44:35.000Z');
+
+  function pumpPool(overrides: Record<string, unknown> = {}) {
+    return {
+      id: `solana_${PUMP_POOL}`,
+      type: 'pool',
+      attributes: {
+        address: PUMP_POOL,
+        base_token_price_usd: '0.000002325209423',
+        quote_token_price_usd: '1.0',
+        fdv_usd: '2325.21',
+        reserve_in_usd: '2365.4217',
+        volume_usd: { h24: '0.0' },
+        price_change_percentage: { h24: '0' },
+        pool_created_at: '2026-10-14T12:44:35Z',
+        ...overrides,
+      },
+      relationships: {
+        base_token: { data: { id: `solana_${PUMP_MINT}` } },
+        quote_token: {
+          data: { id: 'solana_So11111111111111111111111111111111111111112' },
+        },
+      },
+    };
+  }
+
+  function pumpPools() {
+    return [pumpPool()];
+  }
 
   function stageveilInfo() {
     return {
@@ -29,6 +64,7 @@ describe('provider-quote fetchers (gecko networks)', () => {
       marketCapUsd: null,
       volumeUsdH24: null,
       priceChangePercentH24: null,
+      gtCategoryIds: null,
     };
   }
 
@@ -171,6 +207,7 @@ describe('provider-quote fetchers (gecko networks)', () => {
           ...stageveilInfo(),
           priceUsd: 1.5,
           fdvUsd: 200,
+          gtCategoryIds: ['pump-fun'],
         }),
         getTokenPools: async () => {
           poolsCalled += 1;
@@ -182,6 +219,64 @@ describe('provider-quote fetchers (gecko networks)', () => {
     expect(poolsCalled).toBe(0);
     expect(quote?.fdvUsd).toBe(200);
     expect(quote?.priceUsd).toBe(1.5);
+    // Dedicated `/info` writer (todo 72): first non-empty category.
+    expect(quote?.geckoLaunchpadHint).toBe('pump-fun');
+  });
+
+  it('info with no gt_category_ids carries a null launchpad hint', async () => {
+    const d = deps({
+      geckoterminal: {
+        getTokenInfo: async () => stageveilInfo(),
+        getTokenPools: async () => stageveilPools(),
+      },
+    });
+    const quote = await gecko(d).fetch('robinhood', STAGEVEIL);
+    expect(quote?.geckoLaunchpadHint).toBeNull();
+  });
+
+  it('info-complete path makes ZERO extra calls and carries the hint (todo 72)', async () => {
+    const getTokensMulti = jest.fn(async () => null);
+    const getSimpleTokenPrice = jest.fn(async () => null);
+    const searchPools = jest.fn(async () => null);
+    const getTokenPools = jest.fn(async () => null);
+    const d = deps({
+      geckoterminal: {
+        getTokenInfo: async () => ({
+          ...stageveilInfo(),
+          priceUsd: 1.5,
+          fdvUsd: 200,
+          gtCategoryIds: ['  pump-fun  ', '', 'other'],
+        }),
+        getTokenPools,
+        getTokensMulti,
+        getSimpleTokenPrice,
+        searchPools,
+      },
+    });
+    const quote = await gecko(d).fetch('robinhood', STAGEVEIL);
+    expect(quote?.geckoLaunchpadHint).toBe('pump-fun');
+    expect(getTokenPools).not.toHaveBeenCalled();
+    expect(getTokensMulti).not.toHaveBeenCalled();
+    expect(getSimpleTokenPrice).not.toHaveBeenCalled();
+    expect(searchPools).not.toHaveBeenCalled();
+  });
+
+  it('pools fallback carries volume/change (0 preserved), never marketCap', async () => {
+    const d = deps({
+      geckoterminal: {
+        getTokenInfo: async () => stageveilInfo(),
+        getTokenPools: async () => pumpPools(),
+      },
+    });
+    const quote = await gecko(d).fetch('solana', PUMP_MINT);
+    expect(quote?.priceUsd).toBeCloseTo(0.000002325209423, 12);
+    expect(quote?.fdvUsd).toBeCloseTo(2325.21, 2);
+    // Positive reserve is liquidity; `0.0` volume / `0` change are REAL
+    // readings and survive (never nulled away).
+    expect(quote?.liquidityUsd).toBeCloseTo(2365.4217, 4);
+    expect(quote?.volume24hUsd).toBe(0);
+    expect(quote?.priceChange24h).toBe(0);
+    expect(quote?.marketCapUsd).toBeNull();
   });
 
   it('tolerates a service without getTokenPools (legacy stubs)', async () => {
@@ -229,6 +324,113 @@ describe('provider-quote fetchers (gecko networks)', () => {
       const pick = selectPoolQuote(stageveilPools(), weth);
       expect(pick?.fdvUsd).toBeNull();
       expect(pick?.priceUsd).toBeCloseTo(2692.72, 2);
+    });
+
+    it('maps the live pump pool market fields on the chosen pool (todo 72)', () => {
+      const pick = selectPoolQuote(pumpPools(), PUMP_MINT);
+      expect(pick?.liquidityUsd).toBeCloseTo(2365.4217, 4);
+      expect(pick?.volume24hUsd).toBe(0);
+      expect(pick?.priceChange24h).toBe(0);
+      expect(pick?.poolCreatedAtMs).toBe(PUMP_CREATED_MS);
+      expect(pick?.side).toBe('base');
+    });
+
+    it('quote-side pick NEVER attributes the pool change to our mint', () => {
+      const quoteSidePool = {
+        ...pumpPool(),
+        relationships: {
+          base_token: { data: { id: 'solana_other' } },
+          quote_token: { data: { id: `solana_${PUMP_MINT}` } },
+        },
+      };
+      const pick = selectPoolQuote([quoteSidePool], PUMP_MINT);
+      expect(pick?.side).toBe('quote');
+      // Base side is the OTHER token, so the change belongs to it.
+      expect(pick?.priceChange24h).toBeNull();
+      // Liquidity/fdv rules unchanged: reserve is side-agnostic, fdv is base-only.
+      expect(pick?.liquidityUsd).toBeCloseTo(2365.4217, 4);
+      expect(pick?.fdvUsd).toBeNull();
+    });
+
+    it('zero or missing reserve is not a usable liquidity measurement', () => {
+      const zero = selectPoolQuote(
+        [pumpPool({ reserve_in_usd: '0.0' })],
+        PUMP_MINT,
+      );
+      expect(zero?.liquidityUsd).toBeNull();
+      const missing = selectPoolQuote(
+        [pumpPool({ reserve_in_usd: undefined })],
+        PUMP_MINT,
+      );
+      expect(missing?.liquidityUsd).toBeNull();
+    });
+
+    it('missing/garbage market fields and negative times resolve null', () => {
+      const missing = selectPoolQuote(
+        [
+          pumpPool({
+            volume_usd: undefined,
+            price_change_percentage: undefined,
+            pool_created_at: undefined,
+          }),
+        ],
+        PUMP_MINT,
+      );
+      expect(missing?.volume24hUsd).toBeNull();
+      expect(missing?.priceChange24h).toBeNull();
+      expect(missing?.poolCreatedAtMs).toBeNull();
+
+      const garbage = selectPoolQuote(
+        [
+          pumpPool({
+            volume_usd: { h24: 'garbage' },
+            price_change_percentage: { h24: 'nope' },
+            pool_created_at: 'not-a-date',
+          }),
+        ],
+        PUMP_MINT,
+      );
+      expect(garbage?.volume24hUsd).toBeNull();
+      expect(garbage?.priceChange24h).toBeNull();
+      expect(garbage?.poolCreatedAtMs).toBeNull();
+
+      const negativeTime = selectPoolQuote(
+        [pumpPool({ pool_created_at: '1969-12-31T23:59:59.000Z' })],
+        PUMP_MINT,
+      );
+      expect(negativeTime?.poolCreatedAtMs).toBeNull();
+    });
+
+    it('non-chosen siblings never leak their volume/change', () => {
+      const foreign = {
+        ...pumpPool({
+          address: 'foreign',
+          reserve_in_usd: '999999',
+          volume_usd: { h24: '555' },
+          price_change_percentage: { h24: '55' },
+        }),
+        id: 'solana_foreign',
+        relationships: {
+          base_token: { data: { id: 'solana_other' } },
+          quote_token: {
+            data: { id: 'solana_So11111111111111111111111111111111111111112' },
+          },
+        },
+      };
+      const sibling = {
+        ...pumpPool({
+          address: 'sibling',
+          reserve_in_usd: '1000',
+          volume_usd: { h24: '999' },
+          price_change_percentage: { h24: '99' },
+        }),
+        id: 'solana_sibling',
+      };
+      const pick = selectPoolQuote([foreign, sibling, pumpPool()], PUMP_MINT);
+      expect(pick?.poolAddress).toBe(PUMP_POOL);
+      expect(pick?.volume24hUsd).toBe(0);
+      expect(pick?.priceChange24h).toBe(0);
+      expect(pick?.poolCreatedAtMs).toBe(PUMP_CREATED_MS);
     });
 
     it('foreign address and garbage resolve null, never throw', () => {

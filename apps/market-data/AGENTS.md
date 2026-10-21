@@ -2350,6 +2350,84 @@ real ATH. Attribution: **on-chain data provided by GeckoTerminal**
   (9: params/timeout/404/429 headerless/5xx) + `address-snapshot-fdv-ath.spec.ts`
   (marker pins). Evidence: `.omo/evidence/task-fe-ath-seed.log`.
 
+## GECKO POOL MARKET FIELDS + LAUNCHPAD HINT (todo 72, 2026-10-21) — harvest the pick, zero extra calls
+
+Gecko-only tokens (pump.fun class: `/info` carries price + fdv +
+supply + holders, NO volume/change, DexScreener no pair) used to serve
+`liquidityUsd`/`volume24hUsd`/`priceChange24h`/`pairCreatedAt` as
+`null` and `launchpad` as `null`. Root cause measured live 2026-10-21
+(mint `SQ1W9z…pump`): the data IS in the pool response already being
+paid for — `reserve_in_usd 2365.4217`, `volume_usd.h24 0.0`,
+`price_change_percentage.h24 0`, `pool_created_at
+2026-10-14T12:44:35Z` on the PumpSwap pool — we simply dropped it. No
+new provider, no key: same responses.
+
+- TYPES/MAPPING: `GeckoPoolQuote` gains `liquidityUsd`,
+  `volume24hUsd`, `priceChange24h`, `poolCreatedAtMs`;
+  `GeckoTerminalTokenInfo` gains `gtCategoryIds`. Liquidity comes
+  ONLY from `reserve_in_usd` when `> 0` (zero reserve = not measured,
+  never a zero liquidity); volume/change keep real `0` (never
+  collapsed to null); `priceChange24h` is BASE-SIDE only (a pool
+  quoting our mint cannot attribute its own change — same
+  misattribution class as todo 20); `pool_created_at` ISO → ms.
+- MERGE: `geckoLaunchpadHint` is a DEDICATED field (single writer:
+  the `/info` branch) but it IS listed in `SNAPSHOT_QUOTE_FIELDS`
+  right after `dexscreenerFdvUsd`. "Dedicated" means one writer, NOT
+  outside the merge — `SnapshotAggregatorService` copies only listed
+  fields, so an unlisted field would never reach the merged quote.
+- SEAM (fork B, chosen over touching `resolveVenue`): the pool pick
+  `acquireDerivationCandles` ALREADY fetches is harvested
+  (`market: VenueMarketReading | null`, zero extra calls, outside the
+  400ms tail budget). A non-null pool `priceChange24h` returns BEFORE
+  the hourly OHLC call (saves a call; that class no longer needs
+  hourly backfill — native-wins semantics, `source: null`, provenance
+  only `geckoterminal`, `seeded: 0`). `resolveVenue`, `needsPool` and
+  the DexScreener-first precedence are UNTOUCHED.
+- FILL: `snapshot/domain/snapshot-venue-market.ts` is pure and
+  null-only (`??`): a native `0` survives, another provider's value is
+  never overwritten, and the same object comes back when there is
+  nothing to fill. Applied in `buildSnapshot` AFTER the merge (so the
+  derivation sees the filled change and early-returns), one of
+  `venueFill` / `baseQuote` / `quote` picks it up. `sources` gains
+  `geckoterminal` exactly once (guarded append — the list may already
+  carry it). `marketCapUsd` stays untouched (still null without
+  circulating supply).
+- `pairCreatedAt`: `pairCreatedAtMs ?? derivedResolution.market?.poolCreatedAtMs ?? null`,
+  converted ONCE with `toIsoPairCreatedAt` — closes the todo-63 caveat
+  "Gecko-only → null".
+- LAUNCHPAD HINT: applied AFTER the tail loop as `detector ?? hint`;
+  `GECKO_HINT_LAUNCHPADS` allowlist starts at exactly `pump-fun`, gated
+  to `knownId === 'solana' && kind === 'token'`, and the id is
+  re-validated through `launchpadInfo` (unknown id → null, fails open).
+  `gt_category_ids[0]` is a CATEGORY, not origin proof — the fetcher
+  passes the raw id and the seam owns the gates. The `...pump` suffix
+  is NEVER a source (R1 rule). Fast path (`venue.resolved === true`)
+  runs no fetchers → no hint and no market fields (honest null).
+- ATH-SEED 429: `AthSeedTransientBackoff` (60s, separate map, same
+  500 bound, key `chain:address`) is consulted AFTER the 6h
+  definitive `AthSeedNegativeMemo` and written ONLY for
+  `RetryableProviderError && status === 429`. 5xx/timeout are not
+  memoized (full fail-open). `getPoolOhlcvDay` already maps a
+  headerless 429 to that error — no adapter change.
+- CAVEATS (pinned): pool `volume_usd.h24` is PAIR-level, not
+  token-wide; a filled Gecko change counts as native, so OHLC
+  derivation stops for that class; the served ATH of this mint may
+  still be the todo-68 clamp (2.2K) until a cold seed lands — the real
+  peak is ~40.8K (2026-10-14 high `4.3466e-05` × supply 939,036,613),
+  and history is never rewritten.
+- Specs: `address-snapshot-venue-market.spec.ts` (11: fill +
+  early-return + `pairCreatedAt` + `ohlcv === 0`; zero-reserve guard;
+  a change-less pick still calls the hourly OHLC and lists both
+  provenances; native change never harvests; hint on solana token;
+  detector positive wins; non-allowlisted/robinhood/wallet ignored;
+  429 pauses 60s then resumes; 503 not memoized — the memo is exercised
+  through the private `seedFdvAthHistory` because a full `getSnapshot`
+  would hit SWR-now at 31s and mask the second seed call),
+  `snapshot-quote.types.spec.ts`, `snapshot-venue-market.spec.ts`, plus
+  extended `provider-quote-fetchers-gecko-nets.spec.ts` /
+  `geckoterminal-top5.spec.ts` / `address-snapshot-venue-gecko.spec.ts`.
+  Suite 157/1198 (baseline 154/1167).
+
 ## LATENCY PACKAGE — SWR-NOW + EXISTENCE + RACE DEADLINES + PENDING AGING (dexter plan todo 21, 2026-10-18)
 
 Rick-style <1s budget, four fail-open pieces layered on the existing
