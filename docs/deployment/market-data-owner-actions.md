@@ -136,6 +136,26 @@ already carrying the pipeline; empty keys are **not** a staging outage.
   `launchpad.id='pump-fun'`; without a launchpad the suffix falls to
   the DEX display (`PumpSwap` → `Pump\.fun`).
 
+- **Live application (2026-10-21, commit `b12863a9`, deploy run
+  `39639683346` green).** CLI shipped in the dexter staging image
+  (`/app/apps/dexter-onchain-bot/dist/templates/infrastructure/seed/`).
+  Dry-run in-container: `rows=2` → `created=0 skipped=0 wouldCreate=2
+drift=0`, catalog still `[]`, templates still `7`. `--apply`:
+  `created=2`, catalog =
+  `(chain,solana,🟣)` + `(launchpadName,pump-fun,Pump)`, templates
+  still `7` (the CLI did NOT run the template seed). Second
+  `--apply`: `created=0 skipped=2` (idempotent). Cache refresh
+  without restart: `PATCH /api/dexter/display-maps/:id` with the
+  same display (the controller calls `refresh()`); then
+  `POST /api/dexter/templates/preview` with the live token snapshot
+  rendered `🟣 Solana @ Pump` (`placeholdersUsed` =
+  `chainDisplay, chainName, venueSuffixShort`; `token.launchpad.id =
+pump-fun`), and the first line of the stored `full-dexter-v1` body
+  rendered `🟣 $TEST | Test Token — solana`. Caveat: previewing the
+  WHOLE stored body with a synthetic PARTIAL token 500s at a
+  pre-existing `.toFixed` (a missing numeric snapshot field, not a
+  DisplayMap issue); the live editor echoes complete tokens.
+
 - **Body-authoring rule for the short suffix.** A line that STARTS with
   `{{venueSuffixShort}}` loses its `@` — the todo-4/71 dangling-`@`
   cleanup strips it (verified: `{{chainDisplay}} {{venueSuffixShort}}`
