@@ -94,6 +94,24 @@ already carrying the pipeline; empty keys are **not** a staging outage.
   The ingestion lanes were already keyed (commit `b5c8c521`). The red
   run is superseded, not re-run: replaying it would redeploy an older
   backend SHA over the newer one.
+- **What the ` @ Pump` label still needs (operator data, not code).**
+  `dexter_display_maps` is EMPTY in staging (0 rows, verified 2026-10-21).
+  Two rows produce the target `🟣 Solana @ Pump`:
+  | placeholderKey | matchValue | display |
+  | --- | --- | --- |
+  | `chain` | `solana` | `🟣` |
+  | `launchpadName` | `pump-fun` | `Pump` |
+  With zero rows the renderer honestly falls back: `chainDisplay` is
+  `""` (why `{{chainDisplay}}` previews empty — by design, it is a
+  DisplayMap placeholder, not a code table) and `venueSuffixShort`
+  resolves the DETECTOR name, i.e. ` @ Pump.fun`. End-to-end proof
+  live on `:4061`: body `Sol{{venueSuffixShort}}` → `Sol @ Pump\.fun`
+  with `placeholdersUsed:["venueSuffixShort"]` and no unknown keys.
+- **Body-authoring rule for the short suffix.** A line that STARTS with
+  `{{venueSuffixShort}}` loses its `@` — the todo-4/71 dangling-`@`
+  cleanup strips it (verified: `{{chainDisplay}} {{venueSuffixShort}}`
+  rendered `Pump\.fun` because the emoji value was empty). Always keep
+  a non-empty prefix before the suffix (e.g. the chain text/emoji).
 - **Prod lanes stay unkeyed on purpose** — add the ingestion key to
   the prod smoke/rollback/bake probes BEFORE any prod activation.
 
