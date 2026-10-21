@@ -445,16 +445,28 @@ jobs:
           # run. Liveness backstop — the T2 version-match gate below adds the
           # SHA comparison on chain legs without replacing this.
           echo "=== Ordering gate: staging twin must serve feed sources ==="
+          # The twin API enforces INGESTION_API_KEY (auth gate live in staging
+          # since 2026-10-21), so an unkeyed probe answers 401 and this gate
+          # aborted run 39604553041. The backend container is ALREADY removed at
+          # this point, so read the key from the twin itself (server-side
+          # secret) and send it; an empty key keeps the pre-auth behavior.
+          INGESTION_KEY="$(docker exec onchain-bot-ingestion-telegram-staging printenv INGESTION_API_KEY 2>/dev/null || true)"
+          if [ -z "$INGESTION_KEY" ]; then
+            echo "⚠️ twin INGESTION_API_KEY empty — probing unkeyed (auth disabled)"
+          fi
           for i in $(seq 1 12); do
-            if curl -sf http://localhost:3033/api/feed/sources > /tmp/twin-gate.json 2>&1; then
+            CODE="$(curl -s -o /tmp/twin-gate.json -w '%{http_code}' --max-time 10 \
+              -H "x-api-key: ${INGESTION_KEY}" \
+              http://localhost:3033/api/feed/sources || true)"
+            if [ "$CODE" = "200" ]; then
               echo "✅ Twin healthy on attempt $i (sources endpoint 200)"
               head -c 300 /tmp/twin-gate.json; echo
               break
             fi
-            echo "⏳ Twin not serving (attempt $i/12), retrying in 10s..."
+            echo "⏳ Twin not serving (attempt $i/12, http=${CODE}), retrying in 10s..."
             sleep 10
             if [ "$i" -eq 12 ]; then
-              echo "::error::Staging twin is NOT serving :3033/api/feed/sources after 120s. Aborting staging backend deploy: deploy the twin FIRST (dispatch deploy-ingestion target=staging), then re-run this workflow."
+              echo "::error::Staging twin is NOT serving :3033/api/feed/sources after 120s (last http=${CODE}). Aborting staging backend deploy: deploy the twin FIRST (dispatch deploy-ingestion target=staging), then re-run this workflow. http=401 means the twin INGESTION_API_KEY could not be read or does not match."
               exit 1
             fi
           done
