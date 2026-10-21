@@ -24,6 +24,7 @@
 #   SMOKE_BACKEND_URL=http://localhost:3030 \
 #   SMOKE_FRONTEND_URL=http://localhost:5173 \
 #   SMOKE_INGESTION_URL=http://localhost:3032 \
+#   SMOKE_INGESTION_API_KEY=... \   # required when ingestion auth is enabled
 #   bash scripts/smoke-prod.sh
 #
 set -euo pipefail
@@ -33,6 +34,7 @@ SMOKE_FRONTEND_URL="${SMOKE_FRONTEND_URL:-http://localhost:5173}"
 SMOKE_INGESTION_URL="${SMOKE_INGESTION_URL:-http://localhost:3032}"
 SMOKE_TIMEOUT="${SMOKE_TIMEOUT:-10}"
 SMOKE_SSE_TIMEOUT="${SMOKE_SSE_TIMEOUT:-8}"
+SMOKE_INGESTION_API_KEY="${SMOKE_INGESTION_API_KEY:-}"
 
 FAILURES=0
 
@@ -59,7 +61,9 @@ fi
 rm -f "${FRONT_BODY}"
 
 # 3. ingestion sources
-if curl -sf --max-time "${SMOKE_TIMEOUT}" "${SMOKE_INGESTION_URL}/api/feed/sources" > /dev/null 2>&1; then
+if curl -sf --max-time "${SMOKE_TIMEOUT}" \
+  -H "x-api-key: ${SMOKE_INGESTION_API_KEY}" \
+  "${SMOKE_INGESTION_URL}/api/feed/sources" > /dev/null 2>&1; then
   pass "ingestion sources (${SMOKE_INGESTION_URL}/api/feed/sources)"
 else
   fail "ingestion sources (${SMOKE_INGESTION_URL}/api/feed/sources)"
@@ -81,7 +85,9 @@ fi
 # 5. SSE probe (headers-only success: 200 response headers == alive stream;
 #    the body is intentionally truncated by --max-time, so exit 28 is fine)
 SSE_CODE="$(curl -s -o /dev/null -w "%{http_code}" --max-time "${SMOKE_SSE_TIMEOUT}" \
-  -H 'Accept: text/event-stream' "${SMOKE_INGESTION_URL}/api/ingestion/stream" 2>/dev/null || true)"
+  -H 'Accept: text/event-stream' \
+  -H "x-api-key: ${SMOKE_INGESTION_API_KEY}" \
+  "${SMOKE_INGESTION_URL}/api/ingestion/stream" 2>/dev/null || true)"
 if [ "${SSE_CODE}" = "200" ]; then
   pass "SSE stream headers (${SMOKE_INGESTION_URL}/api/ingestion/stream)"
 else

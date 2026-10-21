@@ -18,6 +18,7 @@ Manual changelog (see root `RELEASE-FLOW.md`). Version history starts from v1.0.
 
 - Docker build: `apps/market-data/src/provider` is now copied into the backend build stage. The Tramo 3 consumer rewiring imports the canonical adapters via relative paths, so `nest build` failed with 99 `TS2307` errors in Docker while local/CI `tsc` passed. Verified with `docker build --target build`. (dev)
 - Staging deploy: `deploy-staging.yml` and `docker-compose.staging.yml` now use the live post-rename role/DB (`onchain_bot` / `onchain_bot_staging`) and the `STAGING_POSTGRES_PASSWORD` secret; the migration dry-run was aborting with `28P01` against the pre-rename names. The legacy label-less backend container is removed by name just before the backend recreate (after migrations) so compose cannot hit a name conflict and the previous backend keeps serving if migrations fail. (dev)
+- Staging smoke: send the ingestion `x-api-key` on the feed/SSE probes (read from the backend's `INGESTION_TELEGRAM_API_KEY`) so the post-deploy smoke no longer fails 401 and triggers a needless rollback. (dev)
 - Crypto-news queue accepts crypto-news only: `?type=crypto-news` pin in matching/cron/handler + client-side drop + anti-kol SSE guard. (feat/mega-refactor-tramos)
 
 ### Deprecated

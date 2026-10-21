@@ -634,7 +634,8 @@ jobs:
         run: |
           set -euo pipefail
           echo "=== Post-deploy smoke (staging ports, read-only probes) ==="
-          bash scripts/smoke-prod.sh
+          SMOKE_INGESTION_API_KEY="$(docker exec onchain-bot-backend-staging printenv INGESTION_TELEGRAM_API_KEY 2>/dev/null || true)" \
+            bash scripts/smoke-prod.sh
           echo "=== Smoke complete ==="
 
       - name: Pin :staging-prev-backend / :staging-prev-frontend on GOOD deploy (rollback contract)
