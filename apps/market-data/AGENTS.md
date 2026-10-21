@@ -2353,7 +2353,9 @@ real ATH. Attribution: **on-chain data provided by GeckoTerminal**
 ## GECKO POOL MARKET FIELDS + LAUNCHPAD HINT (todo 72, 2026-10-21) — harvest the pick, zero extra calls
 
 Gecko-only tokens (pump.fun class: `/info` carries price + fdv +
-supply + holders, NO volume/change, DexScreener no pair) used to serve
+supply + holders and — re-probed 2026-10-21 post-deploy —
+`volume_usd.h24` too; `price_change_percentage` was absent and
+DexScreener has no pair) used to serve
 `liquidityUsd`/`volume24hUsd`/`priceChange24h`/`pairCreatedAt` as
 `null` and `launchpad` as `null`. Root cause measured live 2026-10-21
 (mint `SQ1W9z…pump`): the data IS in the pool response already being
@@ -2410,11 +2412,29 @@ new provider, no key: same responses.
   memoized (full fail-open). `getPoolOhlcvDay` already maps a
   headerless 429 to that error — no adapter change.
 - CAVEATS (pinned): pool `volume_usd.h24` is PAIR-level, not
-  token-wide; a filled Gecko change counts as native, so OHLC
-  derivation stops for that class; the served ATH of this mint may
-  still be the todo-68 clamp (2.2K) until a cold seed lands — the real
-  peak is ~40.8K (2026-10-14 high `4.3466e-05` × supply 939,036,613),
-  and history is never rewritten.
+  token-wide (the `/info` field, when present, wins first — the
+  fetcher already reads it zero-preserving); a filled Gecko change
+  counts as native, so OHLC derivation stops for that class; the
+  served ATH of this mint may still be the todo-68 clamp (2.2K) until
+  a cold seed lands — the real peak is ~40.8K (2026-10-14 high
+  `4.3466e-05` × supply 939,036,613), and history is never rewritten.
+- LIVE POST-DEPLOY (2026-10-21, staging `:4001`, mint `SQ1W9z…pump`,
+  run 39615642303): served `liquidityUsd 2365.4217`,
+  `volume24hUsd 0`, `priceChange24h 0`,
+  `pairCreatedAt 2026-10-14T12:44:35.000Z`,
+  `sources ['solana-rpc','geckoterminal']` — the fill is live. Two
+  honesty notes from that same window: (a) `gt_category_ids` was NOT
+  present on `/info` for this mint (only `launchpad_details`, which is
+  not an id) so the HINT stayed inert and the resolved
+  `launchpad.id = pump-fun` came from the detector (Solana PDA batch),
+  not from the hint — the hint remains a spec-pinned last resort that
+  fires only when GT exposes a category id; (b) that request had the
+  `geckoterminal` fetcher abandoned at the 4s fanout deadline (GT
+  free-tier wall), so `priceUsd`/`fdvUsd`/`holders` came back `null`
+  on that row while the derivation leg still filled the market
+  fields — the deadline is fail-open and pre-existing, but the soak
+  log must track `geckoterminal: abandoned` separately from real
+  misses.
 - Specs: `address-snapshot-venue-market.spec.ts` (11: fill +
   early-return + `pairCreatedAt` + `ohlcv === 0`; zero-reserve guard;
   a change-less pick still calls the hourly OHLC and lists both

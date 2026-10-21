@@ -70,6 +70,33 @@ already carrying the pipeline; empty keys are **not** a staging outage.
 7. **Wave 0 gateway `:4070`** — still open; unrelated to the market-data
    staging lane.
 
+## 3b. Post-deploy verification + staging-lane fixes (2026-10-21)
+
+- **Venue-market fill is LIVE on staging `:4001`** (market-data run
+  `39615642303`, mint `SQ1W9z…pump`): `liquidityUsd 2365.4217`,
+  `volume24hUsd 0`, `priceChange24h 0`,
+  `pairCreatedAt 2026-10-14T12:44:35.000Z`,
+  `sources ['solana-rpc','geckoterminal']`. Honest caveats from the
+  same window: `gt_category_ids` was absent on `/info` (only
+  `launchpad_details`), so `launchpad.id = pump-fun` came from the
+  detector and the Gecko hint stayed inert; and that request lost the
+  `geckoterminal` fetcher to the 4 s fan-out deadline (GT free-tier
+  wall), so `priceUsd`/`fdvUsd`/`holders` were `null` on that row.
+  Watch `geckoterminal: abandoned` as its own soak key — 3
+  consecutive runs escalate per the runbook.
+- **Chained staging deploy failure (run 39604553041, fixed forward).**
+  The staging twin now enforces `INGESTION_API_KEY`; the monolith
+  ordering gate probed `/api/feed/sources` unkeyed, got 401 and
+  aborted after 120 s (the twin was healthy the whole time —
+  unkeyed 401, keyed 200, verified live). `deploy-staging.yml` now
+  reads the key from the twin container and requires http=200
+  (commit `fix(staging): send twin api key on staging ordering gate`).
+  The ingestion lanes were already keyed (commit `b5c8c521`). The red
+  run is superseded, not re-run: replaying it would redeploy an older
+  backend SHA over the newer one.
+- **Prod lanes stay unkeyed on purpose** — add the ingestion key to
+  the prod smoke/rollback/bake probes BEFORE any prod activation.
+
 ## 4. Production lane (do NOT dispatch)
 
 - Artefacts exist: `.github/workflows/deploy-market-data-prod.yml` +
