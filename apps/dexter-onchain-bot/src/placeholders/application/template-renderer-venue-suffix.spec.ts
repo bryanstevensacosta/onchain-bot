@@ -173,3 +173,84 @@ describe('TemplateRendererService venueSuffix (plan todo 71)', () => {
     expect(out.placeholdersUsed).toContain('venueSuffix');
   });
 });
+
+describe('TemplateRendererService venueSuffixShort (plan todo 73)', () => {
+  it('whitelists venueSuffixShort on every command + exposes its catalog META', () => {
+    for (const command of TEMPLATE_COMMANDS) {
+      expect(placeholdersFor(command)).toContain('venueSuffixShort');
+    }
+    const controller = new PlaceholdersController();
+    const entry = controller
+      .list('ca')
+      .placeholders.find((row) => row.key === 'venueSuffixShort');
+    expect(entry?.type).toBe('derived');
+    expect(entry?.nullable).toBe(true);
+    expect(entry?.example).toBe(' @ Pump');
+  });
+
+  it('renders the SHORT origin from the launchpadName override (`Solana @ Pump`)', () => {
+    const renderer = new TemplateRendererService({
+      resolve: (placeholderKey: string, matchValue: string) =>
+        placeholderKey === 'launchpadName' && matchValue === 'pump-fun'
+          ? 'Pump'
+          : '',
+    });
+    const token = baseToken({
+      launchpad: { id: 'pump-fun', name: 'Pump.fun', url: 'https://x' },
+      venue: { dexId: 'pumpswap', labels: [] },
+    });
+    expect(
+      renderer.render('{{chainName}}{{venueSuffixShort}}', token, 'ca').text,
+    ).toBe('Solana @ Pump');
+  });
+
+  it('renders the detector name without an override (escaped exactly like {{venue}})', () => {
+    const token = baseToken({
+      launchpad: { id: 'pump-fun', name: 'Pump.fun', url: 'https://x' },
+      venue: { dexId: 'pumpswap', labels: [] },
+    });
+    expect(render('{{chainName}}{{venueSuffixShort}}', token)).toBe(
+      'Solana @ Pump\\.fun',
+    );
+    expect(render('{{venue}}', token)).toBe('Pump\\.fun');
+  });
+
+  it('falls back to the DEX display when no origin is known (` @ PumpSwap`)', () => {
+    const token = baseToken({
+      launchpad: null,
+      venue: { dexId: 'pumpswap', labels: [] },
+    });
+    expect(render('{{chainName}}{{venueSuffixShort}}', token)).toBe(
+      'Solana @ PumpSwap',
+    );
+  });
+
+  it('renders "" (silence) when neither an origin nor a venue exists', () => {
+    const token = baseToken({ launchpad: null, venue: null });
+    expect(render('{{chainName}}{{venueSuffixShort}}', token)).toBe('Solana');
+    expect(render('{{venueSuffixShort}}', token)).toBe('');
+  });
+
+  it('leaves venueSuffix byte-identical (regression pin)', () => {
+    const originPlusTech = baseToken({
+      launchpad: { id: 'l', name: 'LaunchLab', url: 'https://x' },
+      venue: { dexId: 'raydium', labels: [] },
+    });
+    expect(render('{{chainName}}{{venueSuffix}}', originPlusTech)).toBe(
+      'Solana @ LaunchLab via Raydium',
+    );
+    expect(render('{{chainName}}{{venueSuffixShort}}', originPlusTech)).toBe(
+      'Solana @ LaunchLab',
+    );
+    const techOnly = baseToken({
+      launchpad: null,
+      venue: { dexId: 'pancakeswap', labels: ['v3'] },
+    });
+    expect(render('{{chainName}}{{venueSuffix}}', techOnly)).toBe(
+      'Solana @ Pancakeswap V3',
+    );
+    expect(render('{{chainName}}{{venueSuffixShort}}', techOnly)).toBe(
+      'Solana @ Pancakeswap V3',
+    );
+  });
+});

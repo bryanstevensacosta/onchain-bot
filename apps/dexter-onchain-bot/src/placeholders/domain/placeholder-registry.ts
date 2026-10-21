@@ -82,6 +82,12 @@ export const DERIVED_PLACEHOLDERS: readonly string[] = [
   // empty-line hole of a standalone ` @ {{venueLine}}` collapse
   // (mirror of `venueLine`; `""` = silence).
   'venueSuffix',
+  // Plan todo 73: `venueSuffixShort` — the SHORT venue as a suffix
+  // (`" @ " + texts.venue`: origin name when a launchpad origin is
+  // known, else the DEX display), always escaped once; `""` = silence
+  // (`texts.venue === ''`). `venueSuffix` (venueLine-based) stays
+  // byte-identical — this is the opt-in `Solana @ Pump` variant.
+  'venueSuffixShort',
   // Plan todo 71: `honeypotLine` — Rick-parity 🍯 SIM/T row (suffix
   // mechanics: value = `"\n🍯 " + core`, `""` = silence; never a raw
   // snapshot field — pure renderer computation over the validated

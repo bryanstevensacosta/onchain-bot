@@ -484,7 +484,8 @@ export class TemplateRendererService {
       case 'venue':
       case 'venueTech':
       case 'venueLine':
-      case 'venueSuffix': {
+      case 'venueSuffix':
+      case 'venueSuffixShort': {
         const launchpad = values.launchpad;
         const launchpadForVenue =
           launchpad == null
@@ -497,6 +498,14 @@ export class TemplateRendererService {
                 ),
               };
         const texts = resolveVenueTexts(launchpadForVenue, values.venue);
+        if (key === 'venueSuffixShort') {
+          // Plan todo 73: the SHORT venue (`texts.venue`: origin when a
+          // launchpad origin is known, else the DEX display) composed
+          // as a suffix — `" @ X"` when it resolves, `""` (silence)
+          // otherwise. Escaped ONCE on the composed string. `venueSuffix`
+          // (venueLine-based) is untouched.
+          return texts.venue === '' ? '' : esc(` @ ${texts.venue}`);
+        }
         if (key === 'venueSuffix') {
           // Plan todo 71 (owner decision 2026-10-19): the venue-line
           // resolution composed as a SUFFIX — `" @ X"` when a venue

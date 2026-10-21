@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`venueSuffixShort` derived placeholder (dexter plan todo 73,
+  2026-10-21, display-only):** new opt-in key rendering the SHORT
+  venue as a suffix — `" @ " + texts.venue` (the launchpad ORIGIN
+  name when known, honoring the `launchpadName` DisplayMap override,
+  else the DEX display), escaped once, `""` when no venue.
+  `{{chainName}}{{venueSuffixShort}}` renders `Solana @ Pump` where
+  `{{chainName}}{{venueSuffix}}` renders `Solana @ Pump via
+PumpSwap`; without the override it renders the escaped detector
+  name (`Solana @ pump\.fun`). Purely display: no snapshot field, no
+  pipeline change, no new HTTP; `venueSuffix` stays byte-identical
+  (regression-pinned). Registry now 22 base + 23 derived = 45 keys
+  for `ca|x|z|bare` / 46 for `c|cc`; catalog META
+  `{type:'derived', nullable:true, example:' @ Pump'}`. Specs: +6 in
+  `template-renderer-venue-suffix.spec.ts` plus registry/age count
+  pins (73 suites / 793 tests).
+
 - **Money sub-1000 whole integer + price 8 fixed decimals (dexter plan
   todos 65/66; re-pin 2026-10-18 with SPEED BSC evidence):**
   `formatMoneyText` keeps K/M/B at 1 decimal (todo 64 intact:

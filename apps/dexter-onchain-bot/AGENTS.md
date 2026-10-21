@@ -94,7 +94,7 @@ src/
 │   │   └── seed/message-template-seed.service.ts # seeds 7 templates/6 commands (ca/x/z/c/cc/bare)
 │   └── api/http/               # message-templates + template-preview + display-maps controllers (management via HTTP API only)
 ├── placeholders/               # renderer + registry ({{key}} only, {% rejected)
-│   ├── domain/placeholder-registry.ts # 22 base + 22 derived keys + per-command whitelist
+│   ├── domain/placeholder-registry.ts # 22 base + 23 derived keys + per-command whitelist
 │   ├── application/template-renderer.service.ts # TemplateRendererService (DISPLAY_RESOLVER-backed)
 │   └── api/http/placeholders.controller.ts # placeholder catalog reference
 └── settings/                   # chat config + bot config
@@ -870,3 +870,23 @@ matrix) +`template-renderer-venue-suffix.spec.ts`+`market-data-client-honeypot.s
 Evidence:`.omo/evidence/task-fe-honeypot-research/
     dexter-lane.log`+`dexter-lane-snippets.md` (proposed v14
     snippets, not applied).
+
+- `venueSuffixShort` (plan todo 73, display-only, 2026-10-21): opt-in
+  derived key rendering `" @ " + texts.venue` — the SHORT venue
+  (launchpad ORIGIN name when a launchpad is known, else the DEX
+  display), escaped once on the composed string, `""` when
+  `texts.venue === ''`. Accepts `launchpadForVenue` exactly like
+  `venue`/`venueSuffix`, so the `launchpadName` DisplayMap override
+  applies (`pump-fun` → `Pump`): `{{chainName}}{{venueSuffixShort}}`
+  renders `Solana @ Pump` where `{{chainName}}{{venueSuffix}}`
+  renders `Solana @ Pump via PumpSwap`; WITHOUT the override the
+  detector name renders escaped (`Solana @ pump\.fun`). Purely
+  display: no snapshot field, no pipeline change, no new HTTP, and
+  `venueSuffix` stays byte-identical (regression-pinned). Registry
+  now 22 base + 23 derived = 45 keys for `ca|x|z|bare` / 46 for
+  `c|cc`; catalog META `{type:'derived', nullable:true, example:' @
+Pump'}`. Specs: 6 tests in
+  `template-renderer-venue-suffix.spec.ts` (whitelist+catalog,
+  override, detector fallback, DEX-only fallback, silence,
+  `venueSuffix` pin) + registry/age count pins. Verified
+  `tsc --noEmit` clean, 73 suites / 793 tests green.

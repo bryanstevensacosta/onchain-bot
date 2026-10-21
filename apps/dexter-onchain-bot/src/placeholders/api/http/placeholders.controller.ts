@@ -129,6 +129,7 @@ const PLACEHOLDER_META: Record<string, Omit<PlaceholderDescriptor, 'key'>> = {
     description:
       'Same resolution as venueLine, composed as a suffix (" @ X"); empty when no venue. Never leaves a bare ` @ ` behind.',
   },
+  venueSuffixShort: { type: 'derived', nullable: true, example: ' @ Pump' },
   fdvAth: { type: 'derived', nullable: true, example: '5.6K' },
   fdvAthAgo: { type: 'derived', nullable: true, example: '9d' },
   alternatives: {
@@ -175,8 +176,8 @@ export interface PlaceholdersView {
 /**
  * Placeholder catalog (`GET /api/dexter/placeholders/:command`).
  *
- * Metadata-only read of the closed registry vocabulary: 44 keys for
- * `ca|x|z|bare`, 45 for `c|cc` (`timeframe` ONLY there). No
+ * Metadata-only read of the closed registry vocabulary: 45 keys for
+ * `ca|x|z|bare`, 46 for `c|cc` (`timeframe` ONLY there). No
  * persistence, no pipeline, no sends. Unknown command → 404.
  *
  * v1 sin auth como /dexter/token — same unauthenticated regime as the
