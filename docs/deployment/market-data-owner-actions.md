@@ -12,8 +12,16 @@
 - Target: market-data **staging** `http://localhost:4001` on Oracle.
 - Run one probe per day (the script is read-only):
   `docs/deployment/market-data-staging-soak.md` §3.
-- Record the baseline row (`—` until day 1) and keep the JSONL at
+- Baseline + day 1 are filled in
+  `docs/deployment/market-data-staging-soak.md` §6; keep the JSONL at
   `~/market-data-soak.jsonl`.
+- Day 1 (2026-10-21): health 200 / 2 ms; snapshot `ready`;
+  `providerErrors` 3; rows 39; TypeORM/429 0. Days 2-7 remain.
+- Day-1 `providerErrors` are fast-path metadata/skips, not a staging
+  outage: `onchain-direct` partial card plus `dev:fast-path` /
+  `honeypot:fast-path` budget skips. Snapshot still served `ready`
+  (`degraded=true`, `stale=false`). Track the same keys; 3 consecutive
+  runs with the same key escalates per the runbook.
 - This is the evidence gate for todo 8 (cutover + cleanup). Do not flip
   `USE_DATA_SERVICE_API` before 7 consecutive healthy days.
 
