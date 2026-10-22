@@ -123,15 +123,15 @@ plus `normalizeHistorySources`) is live; the validated baseline is the
 evm-rpc]`, 33 rows, health 3 ms. Start day 1 after that deploy and ignore
 the pre-fix line.
 
-| Day | Date       | Health | Latency (ms) | Snapshot status | providerErrors | TypeORM errors | Rows | Notes                                                                                                                             |
-| --- | ---------- | ------ | ------------ | --------------- | -------------- | -------------- | ---- | --------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | 2026-10-21 | 200    | 2            | ready           | 3              | 0              | 39   | chains=7; providerErrors keys `onchain-direct`/`dev:fast-path`/`honeypot:fast-path`; snapshot_ms=1593; degraded=true; stale=false |
-| 2   | —          | —      | —            | —               | —              | —              | —    | —                                                                                                                                 |
-| 3   | —          | —      | —            | —               | —              | —              | —    | —                                                                                                                                 |
-| 4   | —          | —      | —            | —               | —              | —              | —    | —                                                                                                                                 |
-| 5   | —          | —      | —            | —               | —              | —              | —    | —                                                                                                                                 |
-| 6   | —          | —      | —            | —               | —              | —              | —    | —                                                                                                                                 |
-| 7   | —          | —      | —            | —               | —              | —              | —    | —                                                                                                                                 |
+| Day | Date       | Health | Latency (ms) | Snapshot status | providerErrors | TypeORM errors | Rows | Notes                                                                                                                                                                |
+| --- | ---------- | ------ | ------------ | --------------- | -------------- | -------------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | 2026-10-21 | 200    | 2            | ready           | 3              | 0              | 39   | chains=7; providerErrors keys `onchain-direct`/`dev:fast-path`/`honeypot:fast-path`; snapshot_ms=1593; degraded=true; stale=false                                    |
+| 2   | 2026-10-22 | 200    | 1            | ready           | 1              | 0              | 48   | chains=7; providerErrors key `swr-now`; snapshot_ms=39; degraded=false; stale=true; sources `dexscreener`/`geckoterminal`/`evm-rpc`; 429-log-lines=5 (<20 threshold) |
+| 3   | —          | —      | —            | —               | —              | —              | —    | —                                                                                                                                                                    |
+| 4   | —          | —      | —            | —               | —              | —              | —    | —                                                                                                                                                                    |
+| 5   | —          | —      | —            | —               | —              | —              | —    | —                                                                                                                                                                    |
+| 6   | —          | —      | —            | —               | —              | —              | —    | —                                                                                                                                                                    |
+| 7   | —          | —      | —            | —               | —              | —              | —    | —                                                                                                                                                                    |
 
 ## 7. Thresholds and escalation
 
