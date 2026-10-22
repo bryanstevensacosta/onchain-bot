@@ -133,6 +133,21 @@ the pre-fix line.
 | 6   | —          | —      | —            | —               | —              | —              | —    | —                                                                                                                                                                    |
 | 7   | —          | —      | —            | —               | —              | —              | —    | —                                                                                                                                                                    |
 
+**Validation note (2026-10-22) — how to read a staging snapshot.**
+`status`/`stale` describe the SERVE, not the code version. When the
+newest `ready` row is older than 30 s, the service answers with the
+SWR-now latency path and, by design (`LATENCY PACKAGE` in
+`apps/market-data/AGENTS.md`), that body carries `venue: null`,
+`pairCreatedAt: null` and `launchpad: null` while the background refresh
+runs. Verify live extras only on a NON-stale body (request once, then
+again inside the 30 s cache window). Likewise, a live
+`geckoterminal: retry exhausted (… http 429)` line means the Gecko legs
+were fail-open that pass: price/FDV/change/volume/liquidity come back
+`null` and the card is honest-thin (it is not a regression). Two such
+passes on 2026-10-22 produced `venue: pancakeswap_v2` +
+`pairCreatedAt: 2026-10-14T14:30:02.000Z` on the non-stale body and
+`null` on the Gecko-abandoned one — same build, different upstream.
+
 ## 7. Thresholds and escalation
 
 | Signal                          | Trigger                                                                                                                                                               | Action                                                                                                                                                    |
