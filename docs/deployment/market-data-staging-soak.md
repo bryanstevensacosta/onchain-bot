@@ -148,6 +148,30 @@ passes on 2026-10-22 produced `venue: pancakeswap_v2` +
 `pairCreatedAt: 2026-10-14T14:30:02.000Z` on the non-stale body and
 `null` on the Gecko-abandoned one — same build, different upstream.
 
+**Card-data verification note (2026-10-22, post-deploy).** The dexter
+staging preview of the v16 compact body against KODA
+(`0xd377…49cF`) rendered every target row — header icon, name link,
+`[FDV/change] $SYMBOL`, chain/venue, USD, FDV ⇨ ATH [`age`], Liq +
+`⚠️🔒`, Vol ⋅ Age, and the `🍯 SIM: OK ⋅ T:` line — with
+`truncated=false` and all 15 placeholders used. It was PREVIEW ONLY:
+no template body was written and nothing was activated. Live values
+differ from the Rick reference only in the data itself: native change
+`0%` (Rick `-3%`), volume `2` vs `32`, liquidity `389` vs `396`, and
+ATH `2.5K [8d]` vs `2.6K [7d]` (one day of capture time plus the
+seeded peak-day candle). The same window caught a real defect: the
+todo-68 ATH seed stored the caller's checksummed EVM address while
+`findFdvAth`/`findAnchorAt` query case-SENSITIVE lowercase identities,
+so every seeded ATH row was invisible on the DB path — `seeded`
+stayed `false`, the seed retried on each request, and the card fell
+back to the live max. Fixed the same day (`6ddbe5f3`): writes
+normalize `key`/`chain`/`address`, migration
+`1776000000000-NormalizeSnapshotHistoryAddressCase` repaired the
+pre-fix rows (staging: 33 mixed-case rows → 0 of 69), and KODA then
+served `2483.97 at 2026-10-14T00:00:00.001Z` instead of `751.39`.
+The repair is data-only and can raise ATH on any token whose
+historical seed was previously invisible — expected, never a
+regression to "fix".
+
 ## 7. Thresholds and escalation
 
 | Signal                          | Trigger                                                                                                                                                               | Action                                                                                                                                                    |
