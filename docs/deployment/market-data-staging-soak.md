@@ -184,7 +184,8 @@ calls, no DB access — and appends one JSONL line to
 ```bash
 ssh OracleDroplet 'jq -r "select(.ts > (now - 86400 | todate)) | .ms" \
   /home/ubuntu/market-data-health-24h.jsonl | sort -n | \
-  awk "{a[NR]=\$1} END{print \"p95_ms=\" a[int(NR*0.95)] \" n=\" NR}"'
+  awk "{a[NR]=\$1} END{ i=int(NR*0.95); if (i < NR*0.95) i++; \
+    print \"p95_ms=\" a[i] \" n=\" NR }"'
 ```
 
 The sampler only measures the health edge; snapshot latency stays a
