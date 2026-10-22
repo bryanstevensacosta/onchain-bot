@@ -1,0 +1,26 @@
+# =====================================================================
+# onchain-market-data-health-probe.service — one /api/health GET
+# Plan: soak day-2 gate evidence (24h p95 < 500 ms), owner-approved
+# 2026-10-22.
+#
+# Read-only: loopback HTTP GET against the market-data staging edge
+# (:4001). No provider calls, no DB access. Appends one JSONL line to
+# /home/ubuntu/market-data-health-24h.jsonl:
+#   {"ts":"2026-10-22T14:52:41Z","http":200,"ms":2.6}
+#
+# Install (Oracle staging host):
+#   sudo install -m 755 scripts/market-data-health-probe.sh \
+#     /usr/local/bin/onchain-market-data-health-probe.sh
+#   sudo install -m 644 infra/systemd/onchain-market-data-health-probe.{service,timer} \
+#     /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now onchain-market-data-health-probe.timer
+# =====================================================================
+[Unit]
+Description=Market-data staging /api/health probe (24h SLO gate)
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/onchain-market-data-health-probe.sh
+Nice=10

@@ -172,6 +172,24 @@ The repair is data-only and can raise ATH on any token whose
 historical seed was previously invisible — expected, never a
 regression to "fix".
 
+**Hourly health sampler (installed 2026-10-22).** The daily table alone
+cannot support the 24 h p95 < 500 ms cutover gate, so the staging host
+now runs `onchain-market-data-health-probe.timer` (sources:
+`scripts/market-data-health-probe.sh` +
+`infra/systemd/onchain-market-data-health-probe.{service,timer}`). It
+performs ONE loopback `GET :4001/api/health` per hour — no provider
+calls, no DB access — and appends one JSONL line to
+`/home/ubuntu/market-data-health-24h.jsonl`. Read the window with:
+
+```bash
+ssh OracleDroplet 'jq -r "select(.ts > (now - 86400 | todate)) | .ms" \
+  /home/ubuntu/market-data-health-24h.jsonl | sort -n | \
+  awk "{a[NR]=\$1} END{print \"p95_ms=\" a[int(NR*0.95)] \" n=\" NR}"'
+```
+
+The sampler only measures the health edge; snapshot latency stays a
+daily-soak number (`snapshot_ms` in §6).
+
 ## 7. Thresholds and escalation
 
 | Signal                          | Trigger                                                                                                                                                               | Action                                                                                                                                                    |
