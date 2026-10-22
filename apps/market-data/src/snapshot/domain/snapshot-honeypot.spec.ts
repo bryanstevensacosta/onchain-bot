@@ -7,6 +7,7 @@ import {
   parseTaxPercent,
   resolveHoneypotEnabled,
   resolveHoneypotTimeoutMs,
+  resolveSimVerdictEnabled,
   SNAPSHOT_HONEYPOT_MEMO_MAX,
   SNAPSHOT_HONEYPOT_NEGATIVE_TTL_MS,
   SNAPSHOT_HONEYPOT_REQUEST_TIMEOUT_MS,
@@ -14,27 +15,36 @@ import {
 } from './snapshot-honeypot';
 
 /**
- * GoPlus honeypot domain (dexter plan todo 71, Fase 1 — taxes only).
- * Pure unit pins: chain scope, fraction→percent conversion (NEVER
- * clamp, NEVER coerce), the envelope classification table (the
- * negative-memo contract depends on it), the bounded memo, and the
- * kill-switch. Fixtures are LIVE-verbatim witnesses (2026-10-19):
+ * GoPlus honeypot domain (dexter plan todo 71 + `rick-compact-card`
+ * D1/D3). Pure unit pins: chain scope, fraction→percent conversion
+ * (taxes NEVER clamp, locks DO per D3), the envelope classification
+ * table (the negative-memo contract depends on it), the bounded memo,
+ * the SIM matrix, the LP-lock buckets and both kill-switches. Fixtures
+ * are LIVE-verbatim witnesses (2026-10-19 + KODA 2026-10-22):
  * SAFEMOONCASH bsc `"0.04"`/`"0.02"`, PEPE eth `"0"`/`"0"`, CAKE bsc
- * entry present with both tax keys ABSENT.
+ * entry present with both tax keys ABSENT, KODA BSC
+ * `is_honeypot:"0"`/`sell_tax:"0.0297"` + PinkLock `0.9999…` and a
+ * `Null Address` row at `percent:"0"`.
  */
 
 const SAFEMOONCASH = '0xF017E2773e4ee0590C81D79ccbcF1B2De1D22877';
 const PEPE = '0x6982508145454Ce325dDbE47a25d4ec3d2311933';
 const CAKE = '0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82';
+const KODA = '0xd3775c4D5C517AaCAe0CCF906DCD96713b5749cF';
+const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
+const PINK_LOCK = '0x4079e1d1a1c6c4d3f9d8cb6a7b0b8f9e9f1a1bbe';
 
 const lower = (address: string): string => address.toLowerCase();
 
 /** GoPlus success envelope for ONE address entry. */
-function okBody(entry: unknown): Record<string, unknown> {
+function okBody(
+  entry: unknown,
+  address: string = SAFEMOONCASH,
+): Record<string, unknown> {
   return {
     code: 1,
     message: 'OK',
-    result: { [lower(SAFEMOONCASH)]: entry },
+    result: { [lower(address)]: entry },
   };
 }
 
@@ -123,6 +133,7 @@ describe('classifyTokenSecurity (pinned classification table)', () => {
     expect(probe).toEqual({
       kind: 'reading',
       reading: { buy: 4, sell: 2, sim: null },
+      lpLock: null,
     });
   });
 
@@ -134,6 +145,7 @@ describe('classifyTokenSecurity (pinned classification table)', () => {
     expect(probe).toEqual({
       kind: 'reading',
       reading: { buy: 0, sell: 0, sim: null },
+      lpLock: null,
     });
   });
 
@@ -142,17 +154,69 @@ describe('classifyTokenSecurity (pinned classification table)', () => {
     expect(probe).toEqual({
       kind: 'reading',
       reading: { buy: null, sell: null, sim: null },
+      lpLock: null,
     });
   });
 
-  it('always emits sim: null (Fase 1 — honeypot.is/SIM deferred)', () => {
+  it('sim: is_honeypot present and "0" -> ok (KODA witness), taxes untouched', () => {
     const probe = classifyTokenSecurity(
-      okBody({ buy_tax: '1', sell_tax: '1', is_honeypot: '1' }),
+      okBody({ buy_tax: '0', sell_tax: '0.0297', is_honeypot: '0' }, KODA),
+      KODA,
+    );
+    expect(probe).toEqual({
+      kind: 'reading',
+      reading: { buy: 0, sell: 2.97, sim: 'ok' },
+      lpLock: null,
+    });
+  });
+
+  it('sim: numeric 0 is the same ok verdict', () => {
+    const probe = classifyTokenSecurity(
+      okBody({ is_honeypot: 0, cannot_buy: 0, cannot_sell_all: '0' }),
       SAFEMOONCASH,
     );
     expect(probe.kind).toBe('reading');
-    if (probe.kind === 'reading') {
-      expect(probe.reading.sim).toBeNull();
+    if (probe.kind === 'reading') expect(probe.reading.sim).toBe('ok');
+  });
+
+  it('sim: fail when is_honeypot is 1 (string OR number)', () => {
+    for (const value of ['1', 1]) {
+      const probe = classifyTokenSecurity(
+        okBody({ is_honeypot: value }),
+        SAFEMOONCASH,
+      );
+      expect(probe.kind).toBe('reading');
+      if (probe.kind === 'reading') expect(probe.reading.sim).toBe('fail');
+    }
+  });
+
+  it('sim: cannot_buy / cannot_sell_all alone force fail (is_honeypot absent or 0)', () => {
+    const cases = [
+      { cannot_buy: '1' },
+      { cannot_sell_all: 1 },
+      { is_honeypot: '0', cannot_buy: '1' },
+      { is_honeypot: '0', cannot_sell_all: '1' },
+    ];
+    for (const entry of cases) {
+      const probe = classifyTokenSecurity(okBody(entry), SAFEMOONCASH);
+      expect(probe.kind).toBe('reading');
+      if (probe.kind === 'reading') expect(probe.reading.sim).toBe('fail');
+    }
+  });
+
+  it('sim: is_honeypot ABSENT -> null (other flags only force fail, never ok)', () => {
+    const cases = [
+      {},
+      { cannot_buy: '0', cannot_sell_all: '0' },
+      { is_honeypot: 'true' },
+      { is_honeypot: 2 },
+      { is_honeypot: '' },
+      { is_honeypot: null },
+    ];
+    for (const entry of cases) {
+      const probe = classifyTokenSecurity(okBody(entry), SAFEMOONCASH);
+      expect(probe.kind).toBe('reading');
+      if (probe.kind === 'reading') expect(probe.reading.sim).toBeNull();
     }
   });
 
@@ -164,6 +228,7 @@ describe('classifyTokenSecurity (pinned classification table)', () => {
     expect(probe).toEqual({
       kind: 'reading',
       reading: { buy: 4, sell: 2, sim: null },
+      lpLock: null,
     });
   });
 
@@ -236,7 +301,187 @@ describe('classifyTokenSecurity (pinned classification table)', () => {
     expect(classifyTokenSecurity(body, CAKE)).toEqual({
       kind: 'reading',
       reading: { buy: null, sell: null, sim: null },
+      lpLock: null,
     });
+  });
+
+  it('KODA lp_holders: PinkLock fraction + Null Address zero -> {locked:100,burned:0}', () => {
+    const probe = classifyTokenSecurity(
+      okBody(
+        {
+          is_honeypot: '0',
+          buy_tax: '0',
+          sell_tax: '0.0297',
+          lp_holders: [
+            {
+              address: PINK_LOCK,
+              percent: '0.999999999999999999',
+              is_locked: 1,
+              tag: 'PinkLock02',
+            },
+            { address: NULL_ADDRESS, percent: '0', is_locked: 1 },
+          ],
+        },
+        KODA,
+      ),
+      KODA,
+    );
+    expect(probe).toEqual({
+      kind: 'reading',
+      reading: { buy: 0, sell: 2.97, sim: 'ok' },
+      lpLock: { lockedPercent: 100, burnedPercent: 0 },
+    });
+  });
+
+  it('lp_holders: null-address rows are BURNED regardless of is_locked (case-insensitive)', () => {
+    const probe = classifyTokenSecurity(
+      okBody({
+        lp_holders: [
+          {
+            address: '0X0000000000000000000000000000000000000000',
+            percent: '1',
+          },
+          {
+            address: '0x0000000000000000000000000000000000000000',
+            percent: '0.25',
+          },
+        ],
+      }),
+      SAFEMOONCASH,
+    );
+    expect(probe.kind).toBe('reading');
+    if (probe.kind === 'reading') {
+      expect(probe.lpLock).toEqual({ lockedPercent: 0, burnedPercent: 100 });
+    }
+  });
+
+  it('lp_holders: strict is_locked (1|"1" only) — 0/absent/other stay unlocked', () => {
+    const probe = classifyTokenSecurity(
+      okBody({
+        lp_holders: [
+          { address: PINK_LOCK, percent: '0.2', is_locked: 1 },
+          {
+            address: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+            percent: '0.2',
+            is_locked: '1',
+          },
+          {
+            address: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+            percent: '0.2',
+            is_locked: 0,
+          },
+          {
+            address: '0xcccccccccccccccccccccccccccccccccccccccc',
+            percent: '0.2',
+          },
+          {
+            address: '0xdddddddddddddddddddddddddddddddddddddddd',
+            percent: '0.2',
+            is_locked: 'true',
+          },
+        ],
+      }),
+      SAFEMOONCASH,
+    );
+    expect(probe.kind).toBe('reading');
+    if (probe.kind === 'reading') {
+      expect(probe.lpLock).toEqual({ lockedPercent: 40, burnedPercent: 0 });
+    }
+  });
+
+  it('lp_holders: null when absent / empty (no data — never 0%)', () => {
+    for (const lp_holders of [undefined, null, [], 'x', {}]) {
+      const probe = classifyTokenSecurity(
+        okBody(lp_holders === undefined ? {} : { lp_holders }),
+        SAFEMOONCASH,
+      );
+      expect(probe.kind).toBe('reading');
+      if (probe.kind === 'reading') expect(probe.lpLock).toBeNull();
+    }
+  });
+
+  it('lp_holders: empty with lp_holder_count > 0 is STILL null (API returned no rows)', () => {
+    const probe = classifyTokenSecurity(
+      okBody({ lp_holders: [], lp_holder_count: 3 }),
+      SAFEMOONCASH,
+    );
+    expect(probe.kind).toBe('reading');
+    if (probe.kind === 'reading') expect(probe.lpLock).toBeNull();
+  });
+
+  it('lp_holders: no row carries a parseable percent -> null (rows omitted)', () => {
+    const probe = classifyTokenSecurity(
+      okBody({
+        lp_holders: [
+          { address: PINK_LOCK, percent: 'n/a', is_locked: 1 },
+          { address: PINK_LOCK, percent: null, is_locked: 1 },
+          { address: PINK_LOCK, is_locked: 1 },
+          { address: PINK_LOCK, percent: {}, is_locked: 1 },
+          null,
+          'garbage',
+        ],
+      }),
+      SAFEMOONCASH,
+    );
+    expect(probe.kind).toBe('reading');
+    if (probe.kind === 'reading') expect(probe.lpLock).toBeNull();
+  });
+
+  it('lp_holders: at least one parseable row -> object with BOTH numbers (0 bucket included)', () => {
+    const probe = classifyTokenSecurity(
+      okBody({
+        lp_holders: [
+          { address: PINK_LOCK, percent: '0.5', is_locked: 1 },
+          {
+            address: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+            percent: 'n/a',
+            is_locked: 1,
+          },
+        ],
+      }),
+      SAFEMOONCASH,
+    );
+    expect(probe.kind).toBe('reading');
+    if (probe.kind === 'reading') {
+      expect(probe.lpLock).toEqual({ lockedPercent: 50, burnedPercent: 0 });
+    }
+  });
+
+  it('lp_holders: fraction -> percent is 4dp rounded and clamped 0-100', () => {
+    const probe = classifyTokenSecurity(
+      okBody({
+        lp_holders: [
+          { address: PINK_LOCK, percent: '0.33333333', is_locked: 1 },
+          {
+            address: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+            percent: 0.5,
+            is_locked: 1,
+          },
+          {
+            address: '0xcccccccccccccccccccccccccccccccccccccccc',
+            percent: '1.5',
+            is_locked: 1,
+          },
+          {
+            address: '0xdddddddddddddddddddddddddddddddddddddddd',
+            percent: '-0.5',
+            is_locked: 1,
+          },
+        ],
+      }),
+      SAFEMOONCASH,
+    );
+    expect(probe.kind).toBe('reading');
+    if (probe.kind === 'reading') {
+      // 33.3333 + 50 + 100 (clamped) + 0 (clamped) = 183.3333 -> 100.
+      expect(probe.lpLock).toEqual({ lockedPercent: 100, burnedPercent: 0 });
+    }
+  });
+
+  it('keeps a reading with lpLock null a READING (never memoized by the caller)', () => {
+    const probe = classifyTokenSecurity(okBody({}), SAFEMOONCASH);
+    expect(probe.kind).toBe('reading');
+    if (probe.kind === 'reading') expect(probe.lpLock).toBeNull();
   });
 });
 
@@ -300,6 +545,29 @@ describe('resolveHoneypotEnabled (kill-switch, default ON)', () => {
   it('disables only on explicit false-ish tokens', () => {
     for (const raw of ['0', 'false', 'off', 'no', 'disabled', ' FALSE ']) {
       expect(resolveHoneypotEnabled(raw)).toBe(false);
+    }
+  });
+});
+
+describe('resolveSimVerdictEnabled (D1 kill-switch, default ON)', () => {
+  it('defaults ENABLED on unset/blank/truthy tokens', () => {
+    for (const raw of [
+      undefined,
+      '',
+      '   ',
+      '1',
+      'true',
+      'yes',
+      'on',
+      'TRUE',
+    ]) {
+      expect(resolveSimVerdictEnabled(raw)).toBe(true);
+    }
+  });
+
+  it('disables only on explicit false-ish tokens (0|false|off|no|disabled)', () => {
+    for (const raw of ['0', 'false', 'off', 'no', 'disabled', ' FALSE ']) {
+      expect(resolveSimVerdictEnabled(raw)).toBe(false);
     }
   });
 });

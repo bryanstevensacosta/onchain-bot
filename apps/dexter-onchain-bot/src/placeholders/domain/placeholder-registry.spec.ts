@@ -41,7 +41,8 @@ describe('placeholder-registry (todo 4 closed vocabulary)', () => {
     ]);
   });
 
-  it('holds the twenty-three derived keys (devLine is derived, not base)', () => {
+  it('holds the twenty-nine derived keys (devLine is derived, not base)', () => {
+    expect(DERIVED_PLACEHOLDERS).toHaveLength(29);
     expect([...DERIVED_PLACEHOLDERS]).toEqual([
       'chainDisplay',
       'scanLinks',
@@ -66,18 +67,25 @@ describe('placeholder-registry (todo 4 closed vocabulary)', () => {
       'venueSuffix',
       'venueSuffixShort',
       'honeypotLine',
+      // Rick compact card (2026-10-22): the 6 new derived keys.
+      'headerIcon',
+      'liquidityUsdSide',
+      'liquidityFlags',
+      'honeypotBlock',
+      'ageSuffix',
+      'nameLink',
     ]);
   });
 
-  it('grants every command base + derived (45 keys)', () => {
+  it('grants every command base + derived (51 keys)', () => {
     for (const command of ['ca', 'x', 'z', 'bare'] as const) {
-      expect(PLACEHOLDERS_BY_COMMAND[command]).toHaveLength(45);
+      expect(PLACEHOLDERS_BY_COMMAND[command]).toHaveLength(51);
     }
   });
 
-  it('grants timeframe ONLY to c/cc (46 keys)', () => {
-    expect(PLACEHOLDERS_BY_COMMAND.c).toHaveLength(46);
-    expect(PLACEHOLDERS_BY_COMMAND.cc).toHaveLength(46);
+  it('grants timeframe ONLY to c/cc (52 keys)', () => {
+    expect(PLACEHOLDERS_BY_COMMAND.c).toHaveLength(52);
+    expect(PLACEHOLDERS_BY_COMMAND.cc).toHaveLength(52);
     expect(PLACEHOLDERS_BY_COMMAND.c).toContain(TIMEFRAME_PLACEHOLDER);
     expect(PLACEHOLDERS_BY_COMMAND.cc).toContain(TIMEFRAME_PLACEHOLDER);
     for (const command of ['ca', 'x', 'z', 'bare'] as const) {

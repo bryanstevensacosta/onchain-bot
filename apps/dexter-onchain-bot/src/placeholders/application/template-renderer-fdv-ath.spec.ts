@@ -74,10 +74,10 @@ describe('TemplateRendererService fdv-ath keys (plan todo 16)', () => {
     }
   });
 
-  it('renders exact max + ago math from seeded history (0xCfb3: 5.6K, 1w — 9d gap now hits the w rung)', () => {
+  it('renders exact max + ago math from seeded history (0xCfb3: 5.6K, 9d — weeks rung removed)', () => {
     const token = baseToken({ fdvAthUsd: 5600, fdvAthAt: ATH_AT });
     expect(render('ATH {{fdvAth}} ({{fdvAthAgo}})', token)).toBe(
-      'ATH 5\\.6K (1w)',
+      'ATH 5\\.6K (9d)',
     );
   });
 
@@ -141,16 +141,16 @@ describe('MessageFormatterAdapter.formatCompactAgeText (fdvAthAgo units)', () =>
   const now = Date.parse('2024-10-04T12:00:00.000Z');
 
   it.each([
-    ['9 days (w rung now)', '2024-09-25T12:00:00.000Z', '1w'],
+    ['9 days (d rung, no weeks)', '2024-09-25T12:00:00.000Z', '9d'],
     ['3 days', '2024-10-01T12:00:00.000Z', '3d'],
     ['5 hours', '2024-10-04T07:00:00.000Z', '5h'],
     ['12 minutes', '2024-10-04T11:48:00.000Z', '12m'],
     ['sub-minute', '2024-10-04T11:59:30.000Z', '0m'],
     ['exactly now', '2024-10-04T12:00:00.000Z', '0m'],
     ['6 days (d rung top)', '2024-09-28T12:00:00.000Z', '6d'],
-    ['7 days (w rung entry)', '2024-09-27T12:00:00.000Z', '1w'],
-    ['21 days', '2024-09-13T12:00:00.000Z', '3w'],
-    ['29 days (w rung top)', '2024-09-05T12:00:00.000Z', '4w'],
+    ['7 days (days rung, never 1w)', '2024-09-27T12:00:00.000Z', '7d'],
+    ['21 days', '2024-09-13T12:00:00.000Z', '21d'],
+    ['29 days (d rung top)', '2024-09-05T12:00:00.000Z', '29d'],
     ['30 days (mo rung entry)', '2024-09-04T12:00:00.000Z', '1mo'],
     ['275 days', '2024-01-03T12:00:00.000Z', '9mo'],
     ['335 days', '2023-11-04T12:00:00.000Z', '11mo'],

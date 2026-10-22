@@ -144,3 +144,22 @@ describe('MessageFormatterAdapter statics (Rick-parity number policy)', () => {
     expect(MessageFormatterAdapter.formatNumberText(null)).toBe('N/A');
   });
 });
+
+describe('MessageFormatterAdapter.formatCompactAgeText (public static, no weeks rung)', () => {
+  const now = Date.parse('2024-10-04T12:00:00.000Z');
+
+  it.each([
+    // 7-29d used to render `1w`/`3w`/`4w`; the rick-compact-card plan
+    // removed the weeks rung so the days rung covers 1-29d (floored).
+    ['6 days', '2024-09-28T12:00:00.000Z', '6d'],
+    ['7 days', '2024-09-27T12:00:00.000Z', '7d'],
+    ['13 days', '2024-09-21T12:00:00.000Z', '13d'],
+    ['29 days', '2024-09-05T12:00:00.000Z', '29d'],
+    ['30 days (mo rung entry)', '2024-09-04T12:00:00.000Z', '1mo'],
+    ['365 days (y rung entry)', '2023-10-05T12:00:00.000Z', '1y'],
+  ])('%s ago renders %s', (_label, iso, expected) => {
+    expect(MessageFormatterAdapter.formatCompactAgeText(iso, now)).toBe(
+      expected,
+    );
+  });
+});

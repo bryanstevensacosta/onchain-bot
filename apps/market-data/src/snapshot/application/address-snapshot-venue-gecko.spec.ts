@@ -7,6 +7,7 @@ import { AddressExistenceService } from './address-existence.service';
 import { LaunchpadDetectorService } from 'launchpad/application/launchpad-detector.service';
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
 import { GeckoTerminalService } from 'provider/infrastructure/geckoterminal';
+import { BirdeyeService } from 'provider/infrastructure/birdeye';
 import { selectPoolQuote } from 'provider/infrastructure/geckoterminal';
 import { SNAPSHOT_QUOTE_PROVIDERS } from '../domain/snapshot-quote.types';
 
@@ -24,7 +25,7 @@ const POOL =
   '0x9269be45b3b5e1526db43b8b5be282ac97fde1214e8a7e0cf75362dad4eeef60';
 const WETH = '0x0000000000000000000000000000000000000000';
 
-function stageveilPools(dexId: string | null) {
+function stageveilPools(dexId: string | null, poolCreatedAt?: string) {
   return [
     {
       id: `robinhood_${POOL}`,
@@ -35,6 +36,9 @@ function stageveilPools(dexId: string | null) {
         quote_token_price_usd: '2692.72',
         fdv_usd: '3471.764926',
         reserve_in_usd: '5737.1871',
+        ...(poolCreatedAt === undefined
+          ? {}
+          : { pool_created_at: poolCreatedAt }),
       },
       relationships: {
         base_token: { data: { id: `robinhood_${STAGEVEIL}`, type: 'token' } },
@@ -51,7 +55,15 @@ async function buildService(options: {
   readonly bestPair: unknown;
   readonly pools: unknown;
   readonly poolsCalls?: string[];
+  readonly ohlcvCalls?: string[];
+  readonly birdeyeCalls?: string[];
   readonly dexscreenerThrows?: boolean;
+  /**
+   * Native change contributed by the stub quote fetcher. A non-null
+   * value makes the OHLC derivation leg early-return BEFORE touching
+   * `getTokenPools` — the only way to prove the venue leg's call count.
+   */
+  readonly nativeChange?: number;
 }): Promise<AddressSnapshotService> {
   const module = await Test.createTestingModule({
     imports: [
@@ -60,7 +72,16 @@ async function buildService(options: {
     ],
   })
     .overrideProvider(SNAPSHOT_QUOTE_PROVIDERS)
-    .useValue([{ name: 'stub', supportsChains: [], fetch: async () => null }])
+    .useValue([
+      {
+        name: 'stub',
+        supportsChains: ['robinhood'],
+        fetch: async () =>
+          options.nativeChange === undefined
+            ? null
+            : { priceChange24h: options.nativeChange },
+      },
+    ])
     .overrideProvider(LaunchpadDetectorService)
     .useValue({ detectLaunchpad: async () => null })
     .overrideProvider(DexScreenerService)
@@ -74,11 +95,23 @@ async function buildService(options: {
     })
     .overrideProvider(GeckoTerminalService)
     .useValue({
-      getTokenPools: async (slug: string) => {
+      getTokenPools: jest.fn(async (slug: string) => {
         options.poolsCalls?.push(slug);
         if (options.pools instanceof Error) throw options.pools;
         return options.pools;
-      },
+      }),
+      getPoolOhlcv: jest.fn(async (_slug: string, pool: string) => {
+        options.ohlcvCalls?.push(pool);
+        return null;
+      }),
+      getPoolOhlcvDay: jest.fn(async () => null),
+    })
+    .overrideProvider(BirdeyeService)
+    .useValue({
+      getTokenOhlcv: jest.fn(async (address: string) => {
+        options.birdeyeCalls?.push(address);
+        return null;
+      }),
     })
     .overrideProvider(DirectFastPathService)
     .useValue({ tryResolve: async () => null })
@@ -108,6 +141,63 @@ describe('AddressSnapshotService venue Gecko fallback (todo 26)', () => {
       kindHint: 'token',
     });
     expect(snapshot.venue).toEqual({ dexId: 'pons-v2-dex', labels: [] });
+  });
+
+  it('pairCreatedAt uses the ALREADY-picked pool (one getTokenPools, no OHLC/Birdeye)', async () => {
+    const poolsCalls: string[] = [];
+    const ohlcvCalls: string[] = [];
+    const birdeyeCalls: string[] = [];
+    const service = await buildService({
+      bestPair: null,
+      pools: stageveilPools('pons-v2-dex', '2026-10-14T14:30:02Z'),
+      poolsCalls,
+      ohlcvCalls,
+      birdeyeCalls,
+      // Native change present -> derivation early-returns, so the ONLY
+      // `getTokenPools` possible is the venue leg itself.
+      nativeChange: 0,
+    });
+    const snapshot = await service.getSnapshot({
+      chain: 'robinhood',
+      value: STAGEVEIL,
+      kindHint: 'token',
+    });
+    expect(snapshot.venue).toEqual({ dexId: 'pons-v2-dex', labels: [] });
+    // KODA-class acceptance: GT `pool_created_at` → ISO Age source.
+    expect(snapshot.pairCreatedAt).toBe('2026-10-14T14:30:02.000Z');
+    expect(poolsCalls).toEqual(['robinhood']);
+    expect(ohlcvCalls).toEqual([]);
+    expect(birdeyeCalls).toEqual([]);
+  });
+
+  it('pool without pool_created_at keeps pairCreatedAt null (honest gap)', async () => {
+    const service = await buildService({
+      bestPair: null,
+      pools: stageveilPools('pons-v2-dex'),
+      nativeChange: 0,
+    });
+    const snapshot = await service.getSnapshot({
+      chain: 'robinhood',
+      value: STAGEVEIL,
+      kindHint: 'token',
+    });
+    expect(snapshot.venue).toEqual({ dexId: 'pons-v2-dex', labels: [] });
+    expect(snapshot.pairCreatedAt).toBeNull();
+  });
+
+  it('pool-pick failure keeps pairCreatedAt null without throwing', async () => {
+    const service = await buildService({
+      bestPair: null,
+      pools: new Error('gecko down'),
+      nativeChange: 0,
+    });
+    const snapshot = await service.getSnapshot({
+      chain: 'robinhood',
+      value: STAGEVEIL,
+      kindHint: 'token',
+    });
+    expect(snapshot.venue).toBeNull();
+    expect(snapshot.pairCreatedAt).toBeNull();
   });
 
   it('dexscreener hit wins and the gecko venue leg never fires', async () => {
@@ -209,5 +299,13 @@ describe('selectPoolQuote dexId (todo 26)', () => {
   it('blank dex id resolves null dexId, never a blank venue', () => {
     const pick = selectPoolQuote(stageveilPools('   '), STAGEVEIL);
     expect(pick?.dexId).toBeNull();
+  });
+
+  it('carries pool_created_at as raw ms (rick-compact-card D1)', () => {
+    const pick = selectPoolQuote(
+      stageveilPools('pons-v2-dex', '2026-10-14T14:30:02Z'),
+      STAGEVEIL,
+    );
+    expect(pick?.poolCreatedAtMs).toBe(Date.parse('2026-10-14T14:30:02Z'));
   });
 });

@@ -158,6 +158,48 @@ const PLACEHOLDER_META: Record<string, Omit<PlaceholderDescriptor, 'key'>> = {
     description:
       '🍯 tax/simulation row: value lowers a NEW line (\\n🍯 …); empty when silenced (clean 0/0 or nothing measured).',
   },
+  headerIcon: {
+    type: 'derived',
+    nullable: true,
+    example: '🟡',
+    description:
+      'Launchpad icon-link when a launchpad resolves, else the chain display emoji (empty when neither exists).',
+  },
+  liquidityUsdSide: {
+    type: 'derived',
+    nullable: true,
+    example: '394',
+    description:
+      'Display-only one-side liquidity (liquidityUsd ÷ 2); N/A when unknown. liquidityUsd keeps meaning total.',
+  },
+  liquidityFlags: {
+    type: 'derived',
+    nullable: true,
+    example: ' ⚠️🔒',
+    description:
+      'Liq badges (raw emoji, one leading space when non-empty): ⚠️ low one-side liquidity heuristic + 🔒 locked/burned LP ≥ 50%.',
+  },
+  honeypotBlock: {
+    type: 'derived',
+    nullable: true,
+    example: '\\n\\n🍯 SIM: OK ⋅ T: 3/5',
+    description:
+      'Same 🍯 core as honeypotLine, lowered after a BLANK line; empty when silenced.',
+  },
+  ageSuffix: {
+    type: 'derived',
+    nullable: true,
+    example: ' ⋅ Age: `7d`',
+    description:
+      'Suffix carrying the pair age; empty when the age is unknown, so no dangling separator is left.',
+  },
+  nameLink: {
+    type: 'derived',
+    nullable: true,
+    example: '[**Koda**](https://t.me/DexterBot?start=…)',
+    description:
+      'Bold name link using botStartUrl; falls back to bold name without a URL. Reuses the name default (N/A) and unverified suffix.',
+  },
   timeframe: { type: 'string', nullable: true, example: '5m' },
   botStartUrl: {
     type: 'url',
@@ -176,8 +218,8 @@ export interface PlaceholdersView {
 /**
  * Placeholder catalog (`GET /api/dexter/placeholders/:command`).
  *
- * Metadata-only read of the closed registry vocabulary: 45 keys for
- * `ca|x|z|bare`, 46 for `c|cc` (`timeframe` ONLY there). No
+ * Metadata-only read of the closed registry vocabulary: 51 keys for
+ * `ca|x|z|bare`, 52 for `c|cc` (`timeframe` ONLY there). No
  * persistence, no pipeline, no sends. Unknown command → 404.
  *
  * v1 sin auth como /dexter/token — same unauthenticated regime as the

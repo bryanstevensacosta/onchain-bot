@@ -963,6 +963,36 @@ true` + `staleAsOf` (row ISO) + `staleAgeMs`, `status: 'ready'`
   Premium-gated on this key, so the mocked suite stays the gate.
   (feat/mega-refactor-tramos)
 
+### Changed
+
+- **Honeypot leg: GoPlus `sim` verdict + `lp_holders` LP lock + Gecko
+  `pairCreatedAt` fix (dexter Rick compact card, 2026-10-22).** `sim` is
+  no longer always `null`: it is a THIRD-PARTY GoPlus verdict, not a
+  local simulation — `is_honeypot` present and `"0"|0` → `ok`; ANY of
+  `is_honeypot`/`cannot_buy`/`cannot_sell_all` = `"1"|1` → `fail`;
+  missing `is_honeypot` or a transient envelope → `null` (never an
+  invented `ok`). Kill-switch `SNAPSHOT_SIM_VERDICT_ENABLED` (default
+  ENABLED; explicit false-ish disables) blanks ONLY `sim`, so taxes and
+  the lock survive it. The same GoPlus response now yields
+  `lpLock: {lockedPercent, burnedPercent}` from `lp_holders` (fraction
+  ×100, rounded 4dp, clamped 0-100; `is_locked` strict — `1|"1"` only;
+  the `Null Address` counts as burned regardless; absent/empty rows or
+  no parseable `percent` → `null`, and a genuine `0` never means "no
+  data"). It is merged NULL-ONLY into
+  `lockedLiquidityPercent`/`burnedPercent` (existing provider values are
+  never overwritten; RugCheck stays Solana-only). Caveats documented:
+  `lp_holders` is top-N (false negative possible, never a false
+  positive) and the lock is token-level (a secondary-pool lock can badge
+  the primary card). The `resolveVenue` Gecko leg, which already fetched
+  the pool list, now returns
+  `pairCreatedAtMs: pick.poolCreatedAtMs ?? null` instead of a hardcoded
+  `null` — zero extra calls (no OHLC/Birdeye/candle) and the only path
+  that fixes Gecko-only tokens whose native `priceChange24h` is non-null
+  (the derivation early-returns). Fast-path cards keep skipping
+  honeypot/lock and carry `pairCreatedAt: null`. No response-contract
+  change: `honeypot:{buy,sell,sim}`, `lockedLiquidityPercent`,
+  `burnedPercent` and `pairCreatedAt` already exist on the snapshot.
+
 ### Fixed
 
 - **`snapshot_history.sources` type drift caught by the staging soak:**

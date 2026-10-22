@@ -8,5 +8,10 @@
     "placeholderKey": "launchpadName",
     "matchValue": "pump-fun",
     "display": "Pump"
+  },
+  {
+    "placeholderKey": "chain",
+    "matchValue": "bsc",
+    "display": "🟡"
   }
 ]

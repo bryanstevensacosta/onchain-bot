@@ -1,15 +1,28 @@
 /**
- * EVM honeypot reading (dexter plan todo 71, GoPlus Fase 1 — taxes
- * only). Pure domain: chains, unit parser, envelope classifier, the
- * definitive-absence negative memo, and the kill-switch resolver.
+ * EVM honeypot reading (dexter plan todo 71 + `rick-compact-card` D1/D3
+ * — GoPlus taxes + SIM verdict + LP lock). Pure domain: chains, unit
+ * parsers, envelope classifier, the definitive-absence negative memo,
+ * and the two kill-switch resolvers.
  *
  * WHAT THIS OWNS:
  *
  * - `HoneypotReading` — the dexter wire shape consumed by
  *   `toHoneypotOrNull`: `buy`/`sell` are PERCENT (0-100, finite) or
- *   `null` (unknown — NEVER 0), `sim` is ALWAYS `null` in Fase 1
- *   (no simulation source is wired; honeypot.is/SIM is explicitly
- *   DEFERRED — do not call or implement it here).
+ *   `null` (unknown — NEVER 0); `sim` is `'ok' | 'fail' | null`.
+ *   `sim` is a THIRD-PARTY VERDICT from GoPlus `token_security`
+ *   (`is_honeypot`/`cannot_buy`/`cannot_sell_all`) — NOT a local
+ *   simulation of ours. The `SIM` label is kept for visual parity
+ *   (Rick); provenance is GoPlus, and `null` never claims a round
+ *   trip. honeypot.is is still NOT wired (KODA answers 404 there).
+ * - `LpLockReading` — token-level LP lock/burn percentages from
+ *   GoPlus `lp_holders` (also this same call): `lockedPercent` sums
+ *   `is_locked=1` rows that are NOT the null address, `burnedPercent`
+ *   sums the null-address rows. `percent` arrives as a FRACTION →
+ *   ×100, 4dp, clamped 0-100. Top-N caveat: a lock outside the
+ *   returned window is a false NEGATIVE, never a false positive; the
+ *   reading is token-level (all pools), so a secondary-pool lock can
+ *   light the badge on the primary pool's card (heuristic, documented
+ *   in the plan D3).
  * - `GOPLUS_CHAIN_IDS` + `goplusChainId`: ONLY ethereum=1, bsc=56,
  *   base=8453 (the chains probed live 2026-10-19). Every other chain
  *   (solana, robinhood, arbitrum, polygon, …) resolves `null` and the
@@ -36,6 +49,12 @@
  * - `resolveHoneypotEnabled`: kill-switch `SNAPSHOT_HONEYPOT_ENABLED`,
  *   default ENABLED; only an explicit false-ish token disables.
  *   Disabled ⇒ no call AND no field (silence).
+ * - `resolveSimVerdictEnabled`: kill-switch
+ *   `SNAPSHOT_SIM_VERDICT_ENABLED` (`rick-compact-card` D1), default
+ *   ENABLED; only an explicit false-ish token disables. OFF ⇒ the
+ *   reading's `sim` is nulled at the service seam — taxes AND
+ *   `lpLock` survive (blast-radius switch for active templates that
+ *   already render `{{honeypotLine}}`).
  * - `resolveHoneypotTimeoutMs`: the honeypot TAIL budget
  *   (`SNAPSHOT_HONEYPOT_TIMEOUT_MS`, default 1500 — the
  *   `LAUNCHPAD_SLOW_LEG_TIMEOUT_MS` precedent). Governs ONLY the
@@ -84,7 +103,8 @@ export function goplusChainId(chain: string): number | null {
 /**
  * Wire shape of ONE honeypot reading (dexter `toHoneypotOrNull`
  * contract): `buy`/`sell` PERCENT 0-100 finite (or `null` = unknown),
- * `sim` `'ok' | 'fail' | null`. Fase 1 emits `sim: null` ALWAYS.
+ * `sim` `'ok' | 'fail' | null` (GoPlus verdict; `null` = no definitive
+ * verdict — never invented).
  */
 export interface HoneypotReading {
   readonly buy: number | null;
@@ -92,9 +112,27 @@ export interface HoneypotReading {
   readonly sim: 'ok' | 'fail' | null;
 }
 
+/**
+ * Token-level LP lock/burn reading from GoPlus `lp_holders`
+ * (`rick-compact-card` D3). Both numbers are ALWAYS present: `0` is a
+ * measured bucket-zero, NOT "no data" — the no-data case is
+ * `lpLock: null` (holders absent/empty, or no row carried a parseable
+ * `percent`).
+ */
+export interface LpLockReading {
+  /** 0-100: Σ percent of rows with strict `is_locked=1`, excluding the null address. */
+  readonly lockedPercent: number;
+  /** 0-100: Σ percent of rows whose address is the null (burn) address — regardless of `is_locked`. */
+  readonly burnedPercent: number;
+}
+
 /** Classifier verdict (see the classification table above). */
 export type HoneypotProbe =
-  | { readonly kind: 'reading'; readonly reading: HoneypotReading }
+  | {
+      readonly kind: 'reading';
+      readonly reading: HoneypotReading;
+      readonly lpLock: LpLockReading | null;
+    }
   | { readonly kind: 'definitive-absence' }
   | { readonly kind: 'transient' };
 
@@ -183,6 +221,115 @@ export function parseTaxPercent(value: unknown): number | null {
   return fractionToPercent(parsed);
 }
 
+/**
+ * GoPlus boolean flag -> `0 | 1 | null`. Accepts the live string shape
+ * (`"0"`/`"1"`) and the SDK numeric shape (`0`/`1`); ANYTHING else
+ * (absent, null, blank, `"true"`, `2`, objects) is `null` = no verdict
+ * for that flag — never coerced.
+ */
+function parseFlag01(value: unknown): 0 | 1 | null {
+  if (value === 0 || value === '0') return 0;
+  if (value === 1 || value === '1') return 1;
+  return null;
+}
+
+/**
+ * `sim` verdict matrix (`rick-compact-card` D1):
+ *
+ * - `fail` when ANY of `is_honeypot`/`cannot_buy`/`cannot_sell_all`
+ *   normalizes to 1 — the two `cannot_*` flags can only force fail,
+ *   they are never required.
+ * - `ok` ONLY when `is_honeypot` is PRESENT and 0 (absent → no
+ *   verdict; `cannot_*` presence never upgrades absence to ok).
+ * - `null` otherwise (transient/definitive absence are handled by the
+ *   envelope classifier BEFORE this function — never invented).
+ */
+function resolveSimVerdict(
+  entry: Record<string, unknown>,
+): 'ok' | 'fail' | null {
+  const honeypot = parseFlag01(entry.is_honeypot);
+  const cannotBuy = parseFlag01(entry.cannot_buy);
+  const cannotSellAll = parseFlag01(entry.cannot_sell_all);
+  if (honeypot === 1 || cannotBuy === 1 || cannotSellAll === 1) return 'fail';
+  if (honeypot === 0) return 'ok';
+  return null;
+}
+
+/** The canonical EVM null/burn address (lowercase, case-insensitive match). */
+const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
+
+/**
+ * GoPlus `lp_holders[].percent` fraction -> PERCENT, 4dp, CLAMPED
+ * 0-100 (D3 pins the clamp for the lock buckets; unlike the tax parser,
+ * which rejects out-of-range as non-measured). Non-numeric/absent ->
+ * `null` so the row is omitted.
+ */
+function fractionToClampedPercent(value: unknown): number | null {
+  let fraction: number;
+  if (typeof value === 'number') {
+    fraction = value;
+  } else if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed === '') return null;
+    fraction = Number(trimmed);
+  } else {
+    return null;
+  }
+  if (!Number.isFinite(fraction)) return null;
+  const percent = Math.round(fraction * 100 * 1e4) / 1e4;
+  return Math.min(100, Math.max(0, percent));
+}
+
+/** Strict GoPlus lock flag: only `1|"1"` means locked (D3). */
+function isLockedFlag(value: unknown): boolean {
+  return value === 1 || value === '1';
+}
+
+/** Kill-clamp a summed bucket into 0-100 with 4dp rounding. */
+function clampPercent(value: number): number {
+  return Math.round(Math.min(100, Math.max(0, value)) * 1e4) / 1e4;
+}
+
+/**
+ * GoPlus `lp_holders` -> `LpLockReading | null` (D3, ONE null rule):
+ *
+ * - `lp_holders` absent / not an array / empty -> `null` (no data —
+ *   never a `0%` claim). The same `null` applies when the transfer
+ *   happens with `lp_holder_count > 0`: the API returned no rows, so
+ *   we do not assert zero.
+ * - At least one row carries a parseable `percent` -> an object with
+ *   BOTH numbers (`0` when that bucket contributed nothing).
+ * - Rows with a non-parseable `percent` are omitted entirely.
+ * - Null Address (case-insensitive `0x000…000`) counts as BURNED
+ *   regardless of `is_locked`. Otherwise only strict `is_locked=1|"1"`
+ *   contributes to `lockedPercent`.
+ */
+function classifyLpLock(entry: Record<string, unknown>): LpLockReading | null {
+  const holders = entry.lp_holders;
+  if (!Array.isArray(holders) || holders.length === 0) return null;
+  let sawPercent = false;
+  let locked = 0;
+  let burned = 0;
+  for (const row of holders) {
+    if (!isRecord(row)) continue;
+    const percent = fractionToClampedPercent(row.percent);
+    if (percent === null) continue;
+    sawPercent = true;
+    const address =
+      typeof row.address === 'string' ? row.address.trim().toLowerCase() : '';
+    if (address === NULL_ADDRESS) {
+      burned += percent;
+    } else if (isLockedFlag(row.is_locked)) {
+      locked += percent;
+    }
+  }
+  if (!sawPercent) return null;
+  return {
+    lockedPercent: clampPercent(locked),
+    burnedPercent: clampPercent(burned),
+  };
+}
+
 /** Shared immutable verdicts (no allocation per call). */
 const TRANSIENT: HoneypotProbe = { kind: 'transient' };
 const DEFINITIVE: HoneypotProbe = { kind: 'definitive-absence' };
@@ -220,11 +367,12 @@ export function classifyTokenSecurity(
     reading: {
       buy: parseTaxPercent(entry.buy_tax),
       sell: parseTaxPercent(entry.sell_tax),
-      // Fase 1: taxes only. SIM is explicitly deferred (honeypot.is is
-      // NOT called) — `sim` stays `null` until a simulation source
-      // lands, and `null` never claims a round trip.
-      sim: null,
+      // GoPlus verdict (`rick-compact-card` D1): third-party, not a
+      // local simulation; `null` = no definitive verdict.
+      sim: resolveSimVerdict(entry),
     },
+    // Token-level LP lock/burn (`rick-compact-card` D3), same call.
+    lpLock: classifyLpLock(entry),
   };
 }
 
@@ -276,4 +424,17 @@ export function resolveHoneypotEnabled(raw: string | undefined): boolean {
   const value = raw.trim().toLowerCase();
   if (value === '') return true;
   return !['0', 'false', 'off', 'no', 'disabled'].includes(value);
+}
+
+/**
+ * SIM-verdict kill-switch (`rick-compact-card` D1): default ENABLED;
+ * only an explicit false-ish token disables
+ * (`SNAPSHOT_SIM_VERDICT_ENABLED=0|false|off|no|disabled`). OFF ⇒ the
+ * service nulls ONLY `sim` on a reading — taxes and `lpLock` survive
+ * (the blast-radius switch for templates that already render
+ * `{{honeypotLine}}`). Same resolver shape as the leg switch above
+ * (one semantics, two switches — pinned by its own spec).
+ */
+export function resolveSimVerdictEnabled(raw: string | undefined): boolean {
+  return resolveHoneypotEnabled(raw);
 }

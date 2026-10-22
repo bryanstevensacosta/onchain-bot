@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Rick compact-card placeholders + BSC seed row (2026-10-22):** six
+  new derived keys on every command — `headerIcon` (launchpad icon link
+  when present, else the chain DisplayMap emoji), `liquidityUsdSide`
+  (`liquidityUsd / 2`, display-only — the core liquidity stays total),
+  `liquidityFlags` (`⚠️` when the one-side value is `< $1,000`, `🔒`
+  when `lockedLiquidityPercent + burnedPercent >= 50` with at least one
+  numeric; ONE leading space, adjacent icons, `""` when neither),
+  `honeypotBlock` (`"\n\n🍯 " + <honeypotLine core>`; `honeypotLine`
+  itself stays byte-identical), `ageSuffix` (`" ⋅ Age: "` + a static
+  code span around the rendered age; `""` when age is empty so the
+  label never dangles) and `nameLink`
+  (`[**Name**](botStartUrl)` or `**Name**`; reuses the `{{name}}`
+  helper including the `(unverified)` suffix and the `N/A` default, so
+  no `[Name]()` link). Registry now 22 base + 29 derived = 51 keys for
+  `ca|x|z|bare` / 52 for `c|cc`, with `PLACEHOLDER_META` entries for all
+  six. The committed DisplayMap catalog gains exactly one row —
+  `{placeholderKey:'chain', matchValue:'bsc', display:'🟡'}` (3 rows
+  total) — applied MANUALLY: `npm run seed:display-maps` defaults to
+  dry-run, `--apply` writes, existing pairs skip and drift is never
+  overwritten.
+
 - **Manual DisplayMap seed + the two rows for `🟣 Solana @ Pump`
   (dexter plan todo 9, 2026-10-21):** committed catalog
   `src/templates/infrastructure/seed/data/display-maps.seed.json`
@@ -31,6 +52,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   renders the exact label.
 
 ### Changed
+
+- **Compact age drops the weeks rung + PancakeSwap DEX labels
+  (2026-10-22):** `formatCompactAgeText` no longer emits `1w` for 7-29
+  days — that range falls to the days rung (`7-29d` → `Nd`), while
+  `30d+` keeps `mo` and `365d+` keeps `y` (floors otherwise unchanged).
+  `DEX_DISPLAY` gains `pancakeswap_v2: 'Pancakeswap V2'` and
+  `pancakeswap_v3: 'Pancakeswap V3'` (the existing `pancakeswap` key is
+  untouched), so the GeckoTerminal `dexId` fallback no longer renders
+  the raw `Pancakeswap_v2`.
 
 - **`venueSuffixShort` derived placeholder (dexter plan todo 73,
   2026-10-21, display-only):** new opt-in key rendering the SHORT

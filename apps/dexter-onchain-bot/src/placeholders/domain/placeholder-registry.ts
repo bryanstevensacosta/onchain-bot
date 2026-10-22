@@ -94,6 +94,32 @@ export const DERIVED_PLACEHOLDERS: readonly string[] = [
   // `ResolvedToken.honeypot`). One derived key on EVERY command
   // (coupled variants — NOT two sim/taxes placeholders).
   'honeypotLine',
+  // Rick compact card (plan dexter-rick-compact-card, 2026-10-22):
+  // `headerIcon` — the launchpad icon-link when a launchpad resolves,
+  // else the `chainDisplay` value. Keeps the Solana launchpad icon and
+  // gains the chain emoji on BSC, with no conditional in the body.
+  'headerIcon',
+  // D4: `liquidityUsdSide` — display-only one-side liquidity
+  // (`liquidityUsd / 2`, money-compact, `N/A` on absent/non-finite).
+  // The CORE `liquidityUsd` keeps meaning total — never overridden.
+  'liquidityUsdSide',
+  // D2/D3: `liquidityFlags` — Rick-parity badges for the Liq row:
+  // `⚠️` when the one-side liquidity is below
+  // `LOW_LIQUIDITY_SIDE_USD` (display heuristic, not a claim) and
+  // `🔒` when `lockedLiquidityPercent + burnedPercent >= 50` (at
+  // least one measured). Raw emoji, one leading space when non-empty.
+  'liquidityFlags',
+  // D9: `honeypotBlock` — the SAME 🍯 core as `honeypotLine` but
+  // lowered after a BLANK line (`"\n\n🍯 " + core`); `""` = silence.
+  // `honeypotLine` stays byte-identical (existing templates).
+  'honeypotBlock',
+  // P1-2: `ageSuffix` — ``" ⋅ Age: `7d`"`` when `age` resolves,
+  // `""` otherwise (never leaves a dangling `⋅ Age:` behind).
+  'ageSuffix',
+  // D8/P1-3: `nameLink` — `[**Name**](botStartUrl)` when a deep-link
+  // resolves, `**Name**` otherwise (never `[Name]()`); reuses the
+  // `name` resolution (N/A default + `(unverified)` provenance).
+  'nameLink',
 ];
 
 /** Chart timeframe — valid ONLY inside `c`/`cc` bodies. */

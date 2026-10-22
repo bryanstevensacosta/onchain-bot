@@ -25,12 +25,17 @@ import {
 } from '../domain/snapshot-honeypot';
 
 /**
- * Honeypot snapshot acceptance matrix (dexter plan todo 71, GoPlus
- * Fase 1 — taxes only). All adapters stubbed — ZERO network. Pins the
- * end-to-end contract dexter's `toHoneypotOrNull` consumes:
+ * Honeypot snapshot acceptance matrix (dexter plan todo 71 + D1/D3).
+ * All adapters stubbed — ZERO network. Pins the end-to-end contract
+ * dexter's `toHoneypotOrNull` consumes:
  *
  * - fraction strings -> PERCENT (`{buy:4,sell:2,sim:null}`),
  * - entry present with tax keys absent -> both nulls (probed/no-data),
+ * - SIM verdict (`is_honeypot` present and 0 -> `ok`),
+ * - LP lock/burn propagated to `lockedLiquidityPercent`/`burnedPercent`
+ *   (null-only merge — a real provider value wins),
+ * - `SNAPSHOT_SIM_VERDICT_ENABLED=false` -> `sim:null` only (taxes and
+ *   lock intact),
  * - `code:2022` -> definitive absence (no field, no note, memoized),
  * - transient -> no field + `degraded` + `tail:honeypot` note, NEVER
  *   memoized (retries next request),
@@ -45,6 +50,7 @@ import {
 const CHAIN = 'bsc';
 const SAFEMOONCASH = '0xF017E2773e4ee0590C81D79ccbcF1B2De1D22877';
 const CAKE = '0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82';
+const KODA = '0xd3775c4D5C517AaCAe0CCF906DCD96713b5749cF';
 const NYMA = '0x968Be0c1A394Bf1cE239E3b40909eC0F9d4f5583';
 
 const SAFEMOONCASH_BODY = {
@@ -61,6 +67,33 @@ const CAKE_BODY = {
   result: { [CAKE.toLowerCase()]: {} },
 };
 
+/** Live KODA BSC witness (2026-10-22): SIM ok + PinkLock ~100% + null 0%. */
+const KODA_BODY = {
+  code: 1,
+  message: 'OK',
+  result: {
+    [KODA.toLowerCase()]: {
+      is_honeypot: '0',
+      cannot_buy: '0',
+      cannot_sell_all: '0',
+      buy_tax: '0',
+      sell_tax: '0.0297',
+      lp_holders: [
+        {
+          address: '0x407993575c91ce7643a4d4ccacc9a98c36ee1bbe',
+          percent: '0.999999999999999999',
+          is_locked: 1,
+        },
+        {
+          address: '0x0000000000000000000000000000000000000000',
+          percent: '0',
+          is_locked: 1,
+        },
+      ],
+    },
+  },
+};
+
 type ProbeStep =
   | { readonly kind: 'body'; readonly body: unknown }
   | { readonly kind: 'transient' }
@@ -71,12 +104,17 @@ interface HarnessOptions {
 
   /** `false` sets the kill-switch env before module construction. */
   readonly enabled?: boolean;
+  /** `false` sets `SNAPSHOT_SIM_VERDICT_ENABLED` before module construction. */
+  readonly simVerdict?: boolean;
   /** Sets `SNAPSHOT_HONEYPOT_TIMEOUT_MS` before module construction. */
   readonly timeoutMs?: number;
   /** Per-call fake answers (default: SAFEMOONCASH body). */
   readonly steps?: ReadonlyArray<ProbeStep>;
   /** `true` makes the direct fast path serve (skipHoneypot branch). */
   readonly fast?: boolean;
+  /** Quote fields the stubbed fan-out fetcher contributes (lock merge pins). */
+  readonly lockedLiquidityPercent?: number;
+  readonly burnedPercent?: number;
 }
 
 interface Harness {
@@ -123,11 +161,19 @@ async function harness(options: HarnessOptions = {}): Promise<Harness> {
   const steps = options.steps ?? [];
   const calls: Array<{ chainId: number; address: string }> = [];
   const previousKillSwitch = process.env['SNAPSHOT_HONEYPOT_ENABLED'];
+  const previousSimSwitch = process.env['SNAPSHOT_SIM_VERDICT_ENABLED'];
   const previousTimeout = process.env['SNAPSHOT_HONEYPOT_TIMEOUT_MS'];
   if (options.enabled === undefined) {
     delete process.env['SNAPSHOT_HONEYPOT_ENABLED'];
   } else {
     process.env['SNAPSHOT_HONEYPOT_ENABLED'] = options.enabled ? '1' : '0';
+  }
+  if (options.simVerdict === undefined) {
+    delete process.env['SNAPSHOT_SIM_VERDICT_ENABLED'];
+  } else {
+    process.env['SNAPSHOT_SIM_VERDICT_ENABLED'] = options.simVerdict
+      ? '1'
+      : '0';
   }
   if (options.timeoutMs === undefined) {
     delete process.env['SNAPSHOT_HONEYPOT_TIMEOUT_MS'];
@@ -155,6 +201,8 @@ async function harness(options: HarnessOptions = {}): Promise<Harness> {
             priceChange24h: 0,
             totalSupply: 1_000,
             maxSupply: null,
+            lockedLiquidityPercent: options.lockedLiquidityPercent ?? null,
+            burnedPercent: options.burnedPercent ?? null,
           }),
         },
       ])
@@ -225,6 +273,11 @@ async function harness(options: HarnessOptions = {}): Promise<Harness> {
     } else {
       process.env['SNAPSHOT_HONEYPOT_ENABLED'] = previousKillSwitch;
     }
+    if (previousSimSwitch === undefined) {
+      delete process.env['SNAPSHOT_SIM_VERDICT_ENABLED'];
+    } else {
+      process.env['SNAPSHOT_SIM_VERDICT_ENABLED'] = previousSimSwitch;
+    }
     if (previousTimeout === undefined) {
       delete process.env['SNAPSHOT_HONEYPOT_TIMEOUT_MS'];
     } else {
@@ -273,6 +326,69 @@ describe('AddressSnapshotService honeypot leg (todo 71 — GoPlus Fase 1)', () =
     expect(snapshot.honeypot).toEqual({ buy: null, sell: null, sim: null });
     expect(snapshot.degraded).toBe(false);
     expect(h.calls).toHaveLength(1);
+  });
+
+  it('KODA bsc: SIM ok + taxes 0/2.97 + lock 100/0 propagated from the same call', async () => {
+    const h = await harness({
+      steps: [{ kind: 'body', body: KODA_BODY }],
+    });
+    const snapshot = await h.snapshots.getSnapshot({
+      chain: CHAIN,
+      value: KODA,
+      kindHint: 'token',
+    });
+    // Wire shape stays `{buy,sell,sim}` — the lock rides BESIDE it.
+    expect(snapshot.honeypot).toEqual({ buy: 0, sell: 2.97, sim: 'ok' });
+    expect(snapshot.lockedLiquidityPercent).toBe(100);
+    expect(snapshot.burnedPercent).toBe(0);
+    expect(snapshot.degraded).toBe(false);
+    expect(h.calls).toEqual([{ chainId: 56, address: KODA }]);
+  });
+
+  it('SNAPSHOT_SIM_VERDICT_ENABLED=false: sim null, taxes AND lock intact', async () => {
+    const h = await harness({
+      simVerdict: false,
+      steps: [{ kind: 'body', body: KODA_BODY }],
+    });
+    const snapshot = await h.snapshots.getSnapshot({
+      chain: CHAIN,
+      value: KODA,
+      kindHint: 'token',
+    });
+    expect(snapshot.honeypot).toEqual({ buy: 0, sell: 2.97, sim: null });
+    expect(snapshot.lockedLiquidityPercent).toBe(100);
+    expect(snapshot.burnedPercent).toBe(0);
+    // The kill-switch is telemetry-neutral: the call still happens.
+    expect(h.calls).toHaveLength(1);
+    expect(snapshot.degraded).toBe(false);
+  });
+
+  it('lock merge is null-only: a real provider value is never overwritten', async () => {
+    const h = await harness({
+      lockedLiquidityPercent: 42,
+      burnedPercent: 7,
+      steps: [{ kind: 'body', body: KODA_BODY }],
+    });
+    const snapshot = await h.snapshots.getSnapshot({
+      chain: CHAIN,
+      value: KODA,
+      kindHint: 'token',
+    });
+    expect(snapshot.lockedLiquidityPercent).toBe(42);
+    expect(snapshot.burnedPercent).toBe(7);
+  });
+
+  it('lpLock null (no lp_holders): both columns stay null', async () => {
+    const h = await harness({
+      steps: [{ kind: 'body', body: SAFEMOONCASH_BODY }],
+    });
+    const snapshot = await h.snapshots.getSnapshot({
+      chain: CHAIN,
+      value: SAFEMOONCASH,
+      kindHint: 'token',
+    });
+    expect(snapshot.lockedLiquidityPercent).toBeNull();
+    expect(snapshot.burnedPercent).toBeNull();
   });
 
   it('body code 2022 = definitive absence: no field, no note, memoized', async () => {

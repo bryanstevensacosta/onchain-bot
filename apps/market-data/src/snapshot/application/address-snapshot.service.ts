@@ -120,8 +120,10 @@ import {
   HoneypotNegativeMemo,
   resolveHoneypotEnabled,
   resolveHoneypotTimeoutMs,
+  resolveSimVerdictEnabled,
   type HoneypotProbe,
   type HoneypotReading,
+  type LpLockReading,
 } from '../domain/snapshot-honeypot';
 import {
   AddressExistenceService,
@@ -192,9 +194,7 @@ export function dexscreenerPoolSide(
  * a fresh live probe of that launchpad — never derive an id from a mint
  * suffix or a venue id.
  */
-export const GECKO_HINT_LAUNCHPADS: ReadonlySet<string> = new Set([
-  'pump-fun',
-]);
+export const GECKO_HINT_LAUNCHPADS: ReadonlySet<string> = new Set(['pump-fun']);
 
 /**
  * Snapshot-tail budgets (dexter plan todo 29 — the tail is the
@@ -372,6 +372,16 @@ export class AddressSnapshotService {
    */
   private readonly honeypotTailMs: number = resolveHoneypotTimeoutMs(
     process.env['SNAPSHOT_HONEYPOT_TIMEOUT_MS'],
+  );
+  /**
+   * SIM-verdict kill-switch (`rick-compact-card` D1): read ONCE at
+   * construction (same pattern as `honeypotEnabled`). OFF ⇒ the
+   * reading's `sim` is nulled at the `resolveHoneypot` seam — taxes
+   * AND `lpLock` survive (only the third-party verdict is reversible
+   * without a deploy).
+   */
+  private readonly simVerdictEnabled: boolean = resolveSimVerdictEnabled(
+    process.env['SNAPSHOT_SIM_VERDICT_ENABLED'],
   );
   /**
    * Bounded in-process negative memo (todo 71): DEFINITIVE absences
@@ -557,7 +567,8 @@ export class AddressSnapshotService {
   }
 
   /**
-   * Honeypot leg (dexter plan todo 71, GoPlus Fase 1 — taxes only).
+   * Honeypot leg (dexter plan todo 71 + `rick-compact-card` D1/D3 —
+   * GoPlus taxes + SIM verdict + LP lock).
    *
    * Runs in the parallel tail as one more extra with its OWN budget
    * (`honeypotTailMs`, default 1500 — the 4th extra on mapped-chain
@@ -567,25 +578,29 @@ export class AddressSnapshotService {
    * extras race (todo-71 follow-up; the `LAUNCHPAD_SLOW_LEG_TIMEOUT_MS`
    * precedent).
    *
-   * Result shape `{reading, transient}` (NEVER null): `runExtra`
+   * Result shape `{reading, lpLock, transient}` (NEVER null): `runExtra`
    * catches inner throws SILENTLY (returns null, no note), so the
    * transient signal must survive the race to the post-loop slot
-   * handling that writes the `tail:honeypot` note.
+   * handling that writes the `tail:honeypot` note. Every exit is
+   * explicit:
    *
-   * - `reading` (source answered, entry present): the wire shape
-   *   `{buy, sell, sim: null}` — emitted even when BOTH tax sides are
-   *   `null` ("probed, no data" — CAKE — is distinct from "no
-   *   source"). `sim` stays `null` ALWAYS in Fase 1 (honeypot.is/SIM
-   *   explicitly deferred — not called, not implemented here).
+   * - `goplus` service absent -> all-null, not transient;
+   * - negative-memo hit (definitive absence remembered) -> all-null;
+   * - adapter throws (defensive — the real adapter never does) ->
+   *   `transient: true`;
+   * - `reading` (source answered, entry present): `reading`
+   *   `{buy, sell, sim}` + `lpLock` from the same envelope. The
+   *   SIM kill-switch (`simVerdictEnabled`, read once at construction)
+   *   applies HERE and nulls ONLY `sim` — taxes and `lpLock` survive.
+   *   The reading is emitted even when BOTH tax sides are `null`
+   *   ("probed, no data" — CAKE — is distinct from "no source").
+   * - `transient` verdict -> `transient: true`;
    * - DEFINITIVE absence (body `code: 2022` chain-unsupported, or
    *   `code: 1` with the address absent from `result`): memoized
-   *   (bounded 500, 6h) + no field, no note — the source truly has no
-   *   row; re-asking for 6h would only re-confirm the absence.
-   * - TRANSIENT (network/timeout/5xx/broken envelope/odd codes): NEVER
-   *   memoized — retried next request; the card answers the field
-   *   absent + `degraded: true` via `HONEYPOT_TRANSIENT_NOTE` under
-   *   `tail:honeypot` (fail-open, same semantics as every other tail
-   *   failure).
+   *   (bounded 500, 6h) + no field, no note.
+   *
+   * A reading with `lpLock: null` is still a reading — it is never
+   * memoized (the memo only remembers definitive absences).
    *
    * The memo is checked BEFORE the call (a definitive absence costs
    * zero network for 6h); only the classifier's definitive verdicts
@@ -598,15 +613,16 @@ export class AddressSnapshotService {
     address: string,
   ): Promise<{
     readonly reading: HoneypotReading | null;
+    readonly lpLock: LpLockReading | null;
     readonly transient: boolean;
   }> {
     const goplus = this.goplus;
     if (goplus === null || goplus === undefined) {
-      return { reading: null, transient: false };
+      return { reading: null, lpLock: null, transient: false };
     }
     const nowMs = Date.now();
     if (this.honeypotNegativeMemo.has(key, nowMs)) {
-      return { reading: null, transient: false };
+      return { reading: null, lpLock: null, transient: false };
     }
     let probe: HoneypotProbe;
     try {
@@ -614,18 +630,24 @@ export class AddressSnapshotService {
     } catch {
       // Defensive: the adapter itself NEVER throws (catch-all →
       // transient) — a hand-mock might.
-      return { reading: null, transient: true };
+      return { reading: null, lpLock: null, transient: true };
     }
     if (probe.kind === 'reading') {
-      return { reading: probe.reading, transient: false };
+      return {
+        reading: this.simVerdictEnabled
+          ? probe.reading
+          : { ...probe.reading, sim: null },
+        lpLock: probe.lpLock,
+        transient: false,
+      };
     }
     if (probe.kind === 'transient') {
-      return { reading: null, transient: true };
+      return { reading: null, lpLock: null, transient: true };
     }
     // Definitive absence — the ONLY memoized class (chain-unsupported
     // 2022 / address absent from a success `result`).
     this.honeypotNegativeMemo.remember(key, nowMs);
-    return { reading: null, transient: false };
+    return { reading: null, lpLock: null, transient: false };
   }
 
   /**
@@ -690,14 +712,16 @@ export class AddressSnapshotService {
    * labels — dexter's display table capitalizes unknown ids, so the
    * card stays non-empty without a new table on either side.
    *
-   * Pair creation (dexter plan todo 63): the SAME `best` summary that
-   * names the venue (hit AND miss — the object is in hand on both)
-   * carries the best-pair `pairCreatedAt` raw ms; it rides out beside
-   * the venue and `buildSnapshot` converts it once to ISO. The Gecko
-   * leg carries NO creation time (`pairCreatedAtMs: null` — its
-   * `pool_created_at` would be an extra fetch on a path that only
-   * fires when DexScreener has no pair; documented caveat, dexter
-   * `{{age}}` renders `""` there).
+   * Pair creation (dexter plan todo 63 + `rick-compact-card` D1): the
+   * SAME `best` summary that names the venue (hit AND miss — the
+   * object is in hand on both) carries the best-pair `pairCreatedAt`
+   * raw ms; it rides out beside the venue and `buildSnapshot`
+   * converts it once to ISO. The Gecko fallback leg uses the pool
+   * ALREADY fetched here: `selectPoolQuote` exposes
+   * `poolCreatedAtMs` (GT `pool_created_at`), so the creation time
+   * costs ZERO extra calls — no second `getTokenPools`, no OHLC, no
+   * Birdeye. Caveat: the ms is the PICKED pool's creation time (pair
+   * age, not token deploy age).
    *
    * ATH-seed plumbing (dexter plan todo 68, todo-63 anatomy): the
    * same summary also carries the best-pair address and OUR side
@@ -767,11 +791,12 @@ export class AddressSnapshotService {
           pairSide: null,
         };
       }
-      // Gecko carries no pair-creation read here (todo 63 caveat:
-      // extra fetch avoided on the no-DSC-pair path) → ms stays null.
+      // Gecko pool creation time (`rick-compact-card` D1): the pick
+      // already resolved above, so this is ZERO extra calls. `null`
+      // when GT omits `pool_created_at` (honest Age gap).
       return {
         venue: toVenueOrNull({ dexId: pick.dexId, labels: [] }),
-        pairCreatedAtMs: null,
+        pairCreatedAtMs: pick.poolCreatedAtMs ?? null,
         pairAddress: nonEmptyTrimmed(pick.poolAddress),
         pairSide: pick.side ?? null,
       };
@@ -847,10 +872,7 @@ export class AddressSnapshotService {
     if (acquired === null) {
       return { change: null, seeded: 0, source: null, market: null };
     }
-    if (
-      acquired.market !== null &&
-      acquired.market.priceChange24h !== null
-    ) {
+    if (acquired.market !== null && acquired.market.priceChange24h !== null) {
       // Venue-change path (fork B): the picked pool's h24 percentage is
       // a real native reading, so it wins the derivation. NO candles
       // were fetched (`source: null` keeps `geckoterminal-ohlcv` out of
@@ -2207,6 +2229,10 @@ export class AddressSnapshotService {
     // gate/kill-switch/fast-path skip) — distinct from a definitive
     // absence (memoized, also absent by design).
     let honeypot: HoneypotReading | null = null;
+    // LP lock/burn slot (`rick-compact-card` D3): the reading travels
+    // BESIDE `honeypot` (the dexter wire shape stays `{buy,sell,sim}`)
+    // and is merged null-only into the quote below.
+    let lpLock: LpLockReading | null = null;
     let honeypotTransient = false;
     for (let i = 0; i < tailSlots.length; i += 1) {
       const slot = tailSlots[i];
@@ -2230,9 +2256,11 @@ export class AddressSnapshotService {
         // flag only survives on a real transient verdict.
         const probe = value as {
           readonly reading: HoneypotReading | null;
+          readonly lpLock: LpLockReading | null;
           readonly transient: boolean;
         } | null;
         honeypot = probe?.reading ?? null;
+        lpLock = probe?.lpLock ?? null;
         honeypotTransient = probe?.transient === true;
       } else if (value !== null && value !== undefined) {
         const dev = value as {
@@ -2316,6 +2344,18 @@ export class AddressSnapshotService {
     );
     const quote: SnapshotQuote = (() => {
       const merged: SnapshotQuote = venueFill.quote;
+      // LP lock/burn merge (`rick-compact-card` D3): NULL-ONLY, for the
+      // same reason the chain-honest merge is null-only — RugCheck
+      // (Solana-only) may already carry a real value and the GoPlus
+      // token-level reading must never overwrite measured data. The
+      // quote is readonly, so the merged object is a NEW literal (never
+      // `??=`); `sealed` and the return below consume it.
+      const mergedWithLock: SnapshotQuote = {
+        ...merged,
+        lockedLiquidityPercent:
+          merged.lockedLiquidityPercent ?? lpLock?.lockedPercent ?? null,
+        burnedPercent: merged.burnedPercent ?? lpLock?.burnedPercent ?? null,
+      };
       // Single-seam computed FDV (dexter plan todo 38; null-only
       // DexScreener fallback todo 61): provider-reported `fdvUsd` NEVER
       // survives as a computed value — `fdv = price×(total ?? max)`
@@ -2332,7 +2372,7 @@ export class AddressSnapshotService {
       // `circ` is absent the merged MC is kept (mint supply ~=
       // circulating for most SPL mints, so MC≈FDV for fixed supply —
       // same pattern as `marketCapOf` in direct-fast-path.service.ts).
-      const sealed = applyComputedFdv(merged);
+      const sealed = applyComputedFdv(mergedWithLock);
       if (
         sealed.reportedFdvUsd !== null &&
         (sealed.fdvUsd === null ||
@@ -2358,7 +2398,7 @@ export class AddressSnapshotService {
         );
       }
       return {
-        ...merged,
+        ...mergedWithLock,
         fdvUsd: sealed.fdvUsd,
         marketCapUsd: sealed.marketCapUsd,
         fdvProvenance: sealed.fdvProvenance,

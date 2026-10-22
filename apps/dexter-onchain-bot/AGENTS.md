@@ -907,3 +907,31 @@ Pump'}`. Specs: 6 tests in
   override, detector fallback, DEX-only fallback, silence,
   `venueSuffix` pin) + registry/age count pins. Verified
   `tsc --noEmit` clean, 73 suites / 793 tests green.
+
+- Rick compact-card parity (2026-10-22, market-data + dexter): 6 new
+  derived keys on EVERY command — `headerIcon` (launchpad icon link
+  when present, else the chain DisplayMap emoji; both empty → `""`),
+  `liquidityUsdSide` (`liquidityUsd / 2`, display-only; the core
+  liquidity stays TOTAL — no contract change), `liquidityFlags`
+  (`⚠️` when the one-side liquidity is `< $1,000`, `🔒` when
+  `lockedLiquidityPercent + burnedPercent >= 50` and at least one is
+  numeric; composed with ONE leading space, adjacent icons, no
+  trailing space — ` ⚠️🔒` / ` 🔒` / ` ⚠️` / `""`), `honeypotBlock`
+  (`"\n\n🍯 " + <same core as honeypotLine>`; `honeypotLine` stays
+  byte-identical so existing templates are untouched), `ageSuffix`
+  (`" ⋅ Age: "` + a static code span around the rendered age; `""`
+  when age is empty → never a dangling `Age:` label), and `nameLink` (`[**Name**](botStartUrl)` or
+  `**Name**` without a URL — reuses the `{{name}}` helper so the
+  `(unverified)` suffix and the `N/A` default are identical, and no
+  `[Name]()` is produced). Registry: 22 base + 29 derived = 51 keys
+  for `ca|x|z|bare` / 52 for `c|cc`; `PLACEHOLDER_META` carries all
+  six. `formatCompactAgeText` drops the weeks rung (7-29d now
+  `Nd`; `30d+` stays `mo`, floors otherwise unchanged).
+  `DEX_DISPLAY` gains `pancakeswap_v2`/`pancakeswap_v3`
+  (`Pancakeswap V2`/`Pancakeswap V3`; the plain `pancakeswap` key is
+  untouched). DisplayMap seed: the committed catalog now ships THREE
+  rows — the two labels plus `(chain, bsc, 🟡)` — applied MANUALLY
+  via `npm run seed:display-maps` (default dry-run; `--apply` writes,
+  existing pairs skip, display differences are drift and are never
+  overwritten). The BSC row is committed but NOT applied by the app at
+  boot. No live verification claimed.

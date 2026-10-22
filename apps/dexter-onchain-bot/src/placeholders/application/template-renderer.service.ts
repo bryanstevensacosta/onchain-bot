@@ -17,6 +17,13 @@ export const TEMPLATE_MAX_LENGTH = 4096;
 
 export const TRADE_HINT_TEXT = '🤖 Use /c <address> <timeframe> for chart';
 
+/**
+ * `liquidityFlags` ⚠️ threshold (D2, OUR display heuristic — not a
+ * security claim): one-side liquidity below this many USD. Rick's
+ * exact threshold is undocumented; the owner can retune the constant.
+ */
+export const LOW_LIQUIDITY_SIDE_USD = 1_000;
+
 /** DI token for the todo-5 `DisplayMap` resolver (port owned here). */
 export const DISPLAY_RESOLVER = Symbol('DISPLAY_RESOLVER');
 
@@ -324,6 +331,28 @@ export class TemplateRendererService {
     );
   }
 
+  /**
+   * Launchpad icon-link resolution, shared by `launchpadIconLink` and
+   * the `headerIcon` fallback chain: the `launchpad` DisplayMap emoji
+   * as a link when present, the display-name link as fallback, `""`
+   * when the token has no launchpad. Both branches are composed raw
+   * (they are links, not values) — never escaped twice.
+   */
+  private resolveLaunchpadIconLink(values: TemplateValues): string {
+    const launchpad = values.launchpad;
+    if (!launchpad) return '';
+    const emoji =
+      this.displayResolver?.resolve('launchpad', launchpad.id) ?? '';
+    if (!emoji) {
+      const display = resolveLaunchpadDisplayName(
+        launchpad,
+        this.displayResolver,
+      );
+      return `[${MessageFormatterAdapter.escapeV2Text(display)}](${launchpad.url})`;
+    }
+    return `[${emoji}](${launchpad.url})`;
+  }
+
   private resolveValue(key: string, values: TemplateValues): string {
     const esc = (text: string): string =>
       MessageFormatterAdapter.escapeV2Text(text);
@@ -417,18 +446,7 @@ export class TemplateRendererService {
         return this.displayResolver?.resolve('launchpad', launchpad.id) ?? '';
       }
       case 'launchpadIconLink': {
-        const launchpad = values.launchpad;
-        if (!launchpad) return '';
-        const emoji =
-          this.displayResolver?.resolve('launchpad', launchpad.id) ?? '';
-        if (!emoji) {
-          const display = resolveLaunchpadDisplayName(
-            launchpad,
-            this.displayResolver,
-          );
-          return `[${esc(display)}](${launchpad.url})`;
-        }
-        return `[${emoji}](${launchpad.url})`;
+        return this.resolveLaunchpadIconLink(values);
       }
       case 'dexscreenerUrl': {
         if (!values.address) return '';
@@ -549,6 +567,91 @@ export class TemplateRendererService {
         //    (no source / nothing worth saying).
         const core = resolveHoneypotLineCore(values.honeypot);
         return core === '' ? '' : esc(`\n🍯 ${core}`);
+      }
+      case 'headerIcon': {
+        // D7 (Rick compact card): the launchpad icon-link when a
+        // launchpad resolves (`[💊](url)` on Solana pump), else the
+        // `chainDisplay` value (BSC → 🟡). Both branches are already
+        // composed raw — no extra escaping and no invented icon; when
+        // both are `""` the body keeps its leading space (accepted
+        // caveat, same class as the old header).
+        const iconLink = this.resolveLaunchpadIconLink(values);
+        if (iconLink !== '') return iconLink;
+        return this.resolveValue('chainDisplay', values);
+      }
+      case 'liquidityUsdSide': {
+        // D4 (Rick compact card): display-only ONE-SIDE liquidity —
+        // `liquidityUsd / 2` (exact for a balanced AMM at the
+        // marginal price; approximation pinned in the plan). The core
+        // `liquidityUsd` invariant (total) is untouched. Absent /
+        // non-finite → `N/A`; escaped once like any money value.
+        const liq =
+          typeof values.liquidityUsd === 'number' &&
+          Number.isFinite(values.liquidityUsd)
+            ? values.liquidityUsd
+            : null;
+        if (liq === null) return 'N/A';
+        return esc(MessageFormatterAdapter.formatMoneyText(liq / 2));
+      }
+      case 'liquidityFlags': {
+        // D2/D3 (Rick compact card), RAW emoji (never escaped):
+        //  - `⚠️` when the one-side liquidity is below
+        //    `LOW_LIQUIDITY_SIDE_USD` — OUR display heuristic, not a
+        //    security claim.
+        //  - `🔒` when `lockedLiquidityPercent + burnedPercent >= 50`
+        //    and at least one of them is measured (finite). The lock
+        //    reading is token-level and top-N based: a false negative
+        //    is possible and a secondary-pool lock can trigger it.
+        // Icons are adjacent; ONE leading space only when non-empty
+        // (lock-only ` 🔒` must never glue to the previous token).
+        const liq =
+          typeof values.liquidityUsd === 'number' &&
+          Number.isFinite(values.liquidityUsd)
+            ? values.liquidityUsd
+            : null;
+        const side = liq === null ? null : liq / 2;
+        const low = side !== null && side < LOW_LIQUIDITY_SIDE_USD;
+        const locked =
+          typeof values.lockedLiquidityPercent === 'number' &&
+          Number.isFinite(values.lockedLiquidityPercent)
+            ? values.lockedLiquidityPercent
+            : null;
+        const burned =
+          typeof values.burnedPercent === 'number' &&
+          Number.isFinite(values.burnedPercent)
+            ? values.burnedPercent
+            : null;
+        const hasLock = locked !== null || burned !== null;
+        const lock = hasLock && (locked ?? 0) + (burned ?? 0) >= 50;
+        const flags = `${low ? '⚠️' : ''}${lock ? '🔒' : ''}`;
+        return flags === '' ? '' : ` ${flags}`;
+      }
+      case 'honeypotBlock': {
+        // D9 (Rick compact card): SAME 🍯 core as `honeypotLine`,
+        // lowered after a BLANK line (`"\n\n🍯 " + core`). `""` =
+        // silence so a card without a row keeps its bytes; `honeypotLine`
+        // stays byte-identical for existing templates.
+        const core = resolveHoneypotLineCore(values.honeypot);
+        return core === '' ? '' : esc(`\n\n🍯 ${core}`);
+      }
+      case 'ageSuffix': {
+        // P1-2 (Rick compact card): `" ⋅ Age: `7d`"` when the shared
+        // age resolves, `""` otherwise (never a dangling `⋅ Age:`).
+        // Static backticks — `age` is already escaped, so escaping the
+        // composed string would escape the backticks themselves.
+        const age = this.resolveValue('age', values);
+        if (age === '') return '';
+        return ` ⋅ Age: \`${age}\``;
+      }
+      case 'nameLink': {
+        // D8/P1-3 (Rick compact card): `[**Name**](botStartUrl)` when
+        // the deep-link resolves, plain `**Name**` otherwise (never
+        // `[Name]()`). Reuses the `name` resolution exactly (`N/A`
+        // default, escaped once, metadata `(unverified)` suffix
+        // included) — never a raw `esc(name)` nor a different default.
+        const nameText = this.resolveValue('name', values);
+        const url = this.resolveValue('botStartUrl', values);
+        return url === '' ? `**${nameText}**` : `[**${nameText}**](${url})`;
       }
       case 'alternatives': {
         const rest = values.alternatives;

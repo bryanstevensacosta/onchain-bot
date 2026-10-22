@@ -27,6 +27,11 @@ export const CHAIN_NAMES: Readonly<Record<string, string>> = {
 
 export const DEX_DISPLAY: Readonly<Record<string, string>> = {
   pancakeswap: 'Pancakeswap',
+  // GeckoTerminal `dexId` spellings for the PancakeSwap versions
+  // (DexScreener sends `pancakeswap` + a `v2`/`v3` label instead).
+  // `pancakeswap` above stays untouched.
+  pancakeswap_v2: 'Pancakeswap V2',
+  pancakeswap_v3: 'Pancakeswap V3',
   raydium: 'Raydium',
   orca: 'Orca',
   meteora: 'Meteora',

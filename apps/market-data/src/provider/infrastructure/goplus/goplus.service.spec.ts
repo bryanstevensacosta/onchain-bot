@@ -2,21 +2,61 @@ import axios from 'axios';
 import { GoplusService } from './goplus.service';
 
 /**
- * GoPlus `token_security` adapter (dexter plan todo 71, Fase 1).
+ * GoPlus `token_security` adapter (dexter plan todo 71 + D1/D3).
  * Wire-level pins only — the parsing/classification table lives in
  * `snapshot/domain/snapshot-honeypot.spec.ts`; this spec proves the
- * adapter sends the ONE-address request, maps live envelopes, and
- * resolves `transient` (never throws) on every transport gap.
+ * adapter sends the ONE-address request, maps live envelopes (taxes +
+ * SIM + LP lock), and resolves `transient` (never throws) on every
+ * transport gap.
  */
 
 const SAFEMOONCASH = '0xF017E2773e4ee0590C81D79ccbcF1B2De1D22877';
 const SAFEMOONCASH_LOWER = SAFEMOONCASH.toLowerCase();
+const KODA = '0xd3775c4D5C517AaCAe0CCF906DCD96713b5749cF';
+const CAKE = '0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82';
 
 const SAFEMOONCASH_BODY = {
   code: 1,
   message: 'OK',
   result: {
     [SAFEMOONCASH_LOWER]: { buy_tax: '0.04', sell_tax: '0.02' },
+  },
+};
+
+/** Live KODA BSC witness (2026-10-22), trimmed to the mapped fields. */
+const KODA_BODY = {
+  code: 1,
+  message: 'OK',
+  result: {
+    [KODA.toLowerCase()]: {
+      is_honeypot: '0',
+      cannot_buy: '0',
+      cannot_sell_all: '0',
+      buy_tax: '0',
+      sell_tax: '0.0297',
+      lp_holder_count: 2,
+      lp_holders: [
+        {
+          address: '0x4079e1d1a1c6c4d3f9d8cb6a7b0b8f9e9f1a1bbe',
+          percent: '0.999999999999999999',
+          is_locked: 1,
+        },
+        {
+          address: '0x0000000000000000000000000000000000000000',
+          percent: '0',
+          is_locked: 1,
+        },
+      ],
+    },
+  },
+};
+
+/** Live CAKE bsc witness: entry present, tax keys + lp_holders absent. */
+const CAKE_BODY = {
+  code: 1,
+  message: 'OK',
+  result: {
+    [CAKE.toLowerCase()]: { is_honeypot: '0' },
   },
 };
 
@@ -40,6 +80,27 @@ describe('GoplusService.getTokenSecurity (todo 71 Fase 1)', () => {
     expect(probe).toEqual({
       kind: 'reading',
       reading: { buy: 4, sell: 2, sim: null },
+      lpLock: null,
+    });
+  });
+
+  it('KODA body: sim ok + lpLock {100, 0} from the same call', async () => {
+    jest.spyOn(axios, 'get').mockResolvedValue({ data: KODA_BODY });
+    const probe = await service.getTokenSecurity(56, KODA);
+    expect(probe).toEqual({
+      kind: 'reading',
+      reading: { buy: 0, sell: 2.97, sim: 'ok' },
+      lpLock: { lockedPercent: 100, burnedPercent: 0 },
+    });
+  });
+
+  it('body without lp_holders: lpLock null, sim ok when is_honeypot is present', async () => {
+    jest.spyOn(axios, 'get').mockResolvedValue({ data: CAKE_BODY });
+    const probe = await service.getTokenSecurity(56, CAKE);
+    expect(probe).toEqual({
+      kind: 'reading',
+      reading: { buy: null, sell: null, sim: 'ok' },
+      lpLock: null,
     });
   });
 

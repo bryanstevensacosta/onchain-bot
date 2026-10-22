@@ -209,18 +209,20 @@ export class MessageFormatterAdapter {
   }
 
   /**
-   * Compact age for `fdvAthAgo` (dexter fdv-ath, plan todo 16;
-   * extended to w/mo/y by plan todo 17):
-   * `9d`/`3d`/`5h`/`12m` from an ISO timestamp vs `nowMs`, floored.
-   * Thresholds (documented, floored at every unit): <7d → `Xd`,
-   * <30d → `Xw` (7d weeks), <365d → `Xmo` (30d months), else `Xy`
-   * (365d years). Sub-minute → `0m`. Future timestamps clamp to now
-   * (`0m`, never negative). Null or unparseable input → `""`
-   * (cold-start honesty — the caller, not the formatter, owns the
-   * empty-vs-N/A decision, and no seed ships an age formatter to
-   * reuse: grep finds only a comment mention, so this is the single
-   * home). The d/h/m rungs are byte-identical to the todo-16
-   * behavior (existing specs pin them unchanged).
+   * Compact age for `fdvAthAgo` / `age` (dexter fdv-ath, plan todo 16;
+   * extended to mo/y by plan todo 17; weeks rung REMOVED by the
+   * dexter-rick-compact-card plan, 2026-10-22):
+   * `9d`/`5d`/`5h`/`12m` from an ISO timestamp vs `nowMs`, floored.
+   * Thresholds (documented, floored at every unit): <30d → `Xd`,
+   * <365d → `Xmo` (30d months), else `Xy` (365d years). The old
+   * `Xw` rung is gone: 7-29d now renders `Nd` for Rick parity.
+   * Sub-minute → `0m`. Future timestamps clamp to now (`0m`, never
+   * negative). Null or unparseable input → `""` (cold-start honesty
+   * — the caller, not the formatter, owns the empty-vs-N/A decision,
+   * and no seed ships an age formatter to reuse: grep finds only a
+   * comment mention, so this is the single home). The d/h/m rungs are
+   * byte-identical to the todo-16 behavior (existing specs pin them
+   * unchanged).
    */
   public static formatCompactAgeText(
     iso: string | null | undefined,
@@ -234,7 +236,6 @@ export class MessageFormatterAdapter {
     const days = Math.floor(minutes / (24 * 60));
     if (days >= 365) return `${Math.floor(days / 365)}y`;
     if (days >= 30) return `${Math.floor(days / 30)}mo`;
-    if (days >= 7) return `${Math.floor(days / 7)}w`;
     if (minutes >= 24 * 60) return `${days}d`;
     if (minutes >= 60) return `${Math.floor(minutes / 60)}h`;
     return `${minutes}m`;

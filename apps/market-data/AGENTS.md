@@ -2580,11 +2580,16 @@ HIT`); SWR serve at age 33.3s (33.3s-old row, 3.5ms,
     `tsc --noEmit` clean. Evidence:
     `.omo/evidence/task-fe-latency.log`.
 
-## HONEYPOT LEG — GOPLUS FASE 1 (dexter plan todo 71, 2026-10-19) — taxes only, `sim` always null
+## HONEYPOT LEG — GOPLUS (dexter plan todo 71, 2026-10-19; sim verdict + lp_lock 2026-10-22) — taxes + third-party verdict + LP lock
 
 Address snapshots now carry `honeypot: {buy, sell, sim} | null` (% 0-100,
-fraction strings ×100; `sim ∈ {'ok','fail',null}` — ALWAYS `null` in Fase 1;
-honeypot.is/SIM explicitly deferred, do not call). The field is REQUIRED on
+fraction strings ×100; `sim ∈ {'ok','fail',null}`). `sim` is NO LONGER
+always null: it is a THIRD-PARTY GoPlus verdict, not a local simulation
+(the `SIM` label is kept for visual parity only — provenance is written
+here and in the CHANGELOG). The old Fase-1 rule (`sim` always null)
+survives only as the kill-switch behavior. honeypot.is stays OUT (KODA
+answers `404 pair not found` there; do not call). The field is REQUIRED
+on
 `AddressSnapshot` (always emitted; `null` = no source / no reading — dexter's
 `toHoneypotOrNull` treats null and absent identically) and the snapshot
 controller whitelist carries the explicit `honeypot` key (never a spread).
@@ -2609,7 +2614,47 @@ object nulls; arrays/objects rejected).
   (incl. explicit `null`) → transient; entry record → reading
   (`buy_tax`/`sell_tax` fraction strings ×100 via
   `Math.round(x*100*1e4)/1e4`; absent/`""`/non-numeric OR % outside 0-100
-  → THAT side `null`, never 0, never clamped).
+  → THAT side `null`, never 0, never clamped; the SAME entry feeds `sim`
+  and `lpLock`, see below).
+- SIM VERDICT (`sim`, third-party GoPlus — never a local simulation):
+  `is_honeypot` present and `"0"|0` → `ok`; ANY of `is_honeypot`,
+  `cannot_buy`, `cannot_sell_all` equal to `"1"|1` → `fail` (the two
+  `cannot_*` flags may only force fail, they are not required); missing
+  `is_honeypot` OR a transient envelope → `null` (never invent `ok`).
+  Kill-switch `SNAPSHOT_SIM_VERDICT_ENABLED` (default ENABLED; explicit
+  false-ish disables) is read ONCE at service construction and blanks
+  ONLY `sim` — taxes and `lpLock` survive it, so the verdict's blast
+  radius (templates that render `{{honeypotLine}}` show `SIM: OK`; as of
+  2026-10-22 ZERO active templates in dev/staging use it — only the
+  inactive dev `RickBurpBot` v15) can be reverted without a redeploy.
+- LP LOCK (`lpLock: {lockedPercent, burnedPercent} | null`, GoPlus
+  `lp_holders` from the SAME response — zero extra calls): `percent` is
+  a FRACTION (0-1) → ×100, rounded 4dp, clamped 0-100; `is_locked` strict
+  (`1|"1"` = locked; `0|"0"`/absent/anything else = NOT locked); the
+  `Null Address` (`0x000…000`) holder counts as BURNED regardless of
+  `is_locked`. Null rule: `lp_holders` absent/empty → `null`; rows
+  parsed but NONE carries a parseable `percent` → `null`; otherwise both
+  numbers are emitted (`0` for a bucket that contributed nothing — `0`
+  never means "no data"). The probe propagates `lpLock` beside
+  `{reading, transient}` and `buildSnapshot` merges it NULL-ONLY into
+  `lockedLiquidityPercent`/`burnedPercent` (a real provider value is
+  never overwritten). CAVEAT (heuristic, not a security claim): `lp_holders`
+  is top-N (a lock outside it is a false NEGATIVE, never a false positive)
+  and the lock is TOKEN-level, so a lock in a secondary pool can badge the
+  primary-pool card — the dexter `🔒` threshold (≥50% locked+burned) reduces
+  but does not eliminate that false positive.
+- PAIR AGE (Gecko `pairCreatedAt` fix, zero extra calls): `resolveVenue`
+  already fetched the pool list (`getTokenPools` + `selectPoolQuote`) but
+  hardcoded `pairCreatedAtMs: null`; it now returns
+  `pick.poolCreatedAtMs ?? null` (GT `pool_created_at`). This is the ONLY
+  path that fixes Gecko-only KODA-class tokens whose native
+  `priceChange24h` is non-null (`0`), because the derivation early-returns
+  with `market: null` and never reaches its own `poolCreatedAtMs` fill.
+  No OHLC/Birdeye/candle call is added; `resolveDerivedChange24h` /
+  `acquireDerivationCandles` are untouched. Fast-path cards
+  (`venue.resolved === true`) run no fetchers: they skip honeypot/lock
+  (absent + `honeypot:fast-path` degraded note) AND carry
+  `pairCreatedAt: null` — the target is the slow compact path.
 - TAIL: the leg is the FOURTH extra (`kind: 'honeypot'` appended after
   `dev` in `runExtra` + `tailSlots`) under its OWN budget
   `SNAPSHOT_HONEYPOT_TIMEOUT_MS` (default 1500 — see the SLOW-LEG
@@ -2624,8 +2669,9 @@ object nulls; arrays/objects rejected).
   names the REAL budget used — `timeout (tail budget 1500ms) —
 degraded to null, fail-open` — and the post-loop transient note never
   overwrites it; venue/dev keep the shared 400ms text byte-identical).
-  A source that RESPONDS (entry present) emits `{buy, sell, sim:null}`
-  even with both sides null — "probed, no data" differs from "no source".
+  A source that RESPONDS (entry present) emits `{buy, sell, sim}` (sim
+  from the SIM VERDICT rules) even with both tax sides null — "probed, no
+  data" differs from "no source".
 - SLOW-LEG BUDGET (`SNAPSHOT_HONEYPOT_TIMEOUT_MS`, default 1500 —
   `resolveHoneypotTimeoutMs` in `snapshot-honeypot.ts`, the
   `LAUNCHPAD_SLOW_LEG_TIMEOUT_MS` precedent): the honeypot wait is OUT
@@ -2648,7 +2694,9 @@ degraded to null, fail-open` — and the post-loop transient note never
 - TTL POLICY (`snapshot-ttl-policy.ts`): additive `'honeypot'` class (30s,
   same as the card; the 6h in-process memo is documented there).
 - KILL-SWITCH: `SNAPSHOT_HONEYPOT_ENABLED` (default ENABLED; explicit
-  false-ish disables → no call, no field, no note).
+  false-ish disables → no call, no field, no note). Independent of
+  `SNAPSHOT_SIM_VERDICT_ENABLED` (that one keeps the call and only blanks
+  `sim`).
 - WITNESSES live on dev `:4000` (2026-10-19, pm2 id 6 restart; the
   SWR-now + background-refresh dance is how the tail leg lands when the
   first serve is a fast card): SAFEMOONCASH bsc

@@ -14,7 +14,7 @@ import {
 } from './display-map-seed.service';
 
 describe('parseDisplayMapSeed', () => {
-  it('parses the shipped catalog into exactly the two label rows', () => {
+  it('parses the shipped catalog into exactly the three label rows', () => {
     expect(parseDisplayMapSeed(seedRows)).toEqual([
       { placeholderKey: 'chain', matchValue: 'solana', display: '🟣' },
       {
@@ -22,6 +22,7 @@ describe('parseDisplayMapSeed', () => {
         matchValue: 'pump-fun',
         display: 'Pump',
       },
+      { placeholderKey: 'chain', matchValue: 'bsc', display: '🟡' },
     ]);
   });
 
@@ -83,23 +84,23 @@ describe('seedDisplayMaps', () => {
     expect(report).toEqual({
       created: 0,
       skipped: 0,
-      wouldCreate: 2,
+      wouldCreate: 3,
       drift: [],
     });
     expect(await repo.findAll()).toHaveLength(0);
   });
 
-  it('creates both rows on apply', async () => {
+  it('creates all three rows on apply', async () => {
     const rows = parseDisplayMapSeed(seedRows);
     const report = await seedDisplayMaps(repo, rows, { dryRun: false });
 
     expect(report).toEqual({
-      created: 2,
+      created: 3,
       skipped: 0,
       wouldCreate: 0,
       drift: [],
     });
-    expect(await repo.findAll()).toHaveLength(2);
+    expect(await repo.findAll()).toHaveLength(3);
   });
 
   it('is idempotent: the second run creates nothing', async () => {
@@ -109,11 +110,11 @@ describe('seedDisplayMaps', () => {
 
     expect(second).toEqual({
       created: 0,
-      skipped: 2,
+      skipped: 3,
       wouldCreate: 0,
       drift: [],
     });
-    expect(await repo.findAll()).toHaveLength(2);
+    expect(await repo.findAll()).toHaveLength(3);
   });
 
   it('reports drift and never overwrites an operator row', async () => {
