@@ -2319,6 +2319,20 @@ real ATH. Attribution: **on-chain data provided by GeckoTerminal**
   `{ath, seeded}`; the seed runs only when `seeded === false` (NOT
   `ath === null` — the hour backfill masks that forever). Anti-masking
   is per `(chain, address)`.
+- CASE NORMALIZATION (staging finding 2026-10-22, fixed same day):
+  `snapshot_history` identity columns store the `AddressIdVo`
+  lowercase form and the DB read predicates (`findFdvAth`,
+  `findAnchorAt`) build a case-SENSITIVE `where` from lowercased
+  values. `saveSeeded` used to persist the caller's `inputValue`
+  verbatim (checksummed EVM), so a seeded ATH was INVISIBLE on the DB
+  path: the card served the live max, `seeded` stayed `false`, and the
+  seed retried forever (Gecko quota pressure). Live KODA: seed row
+  `2483.97` at `2026-10-14T00:00:00.001Z` vs served `751.39`.
+  `save`/`saveSeeded` now normalize `key`/`chain`/`address`;
+  migration `1776000000000-NormalizeSnapshotHistoryAddressCase`
+  repairs pre-fix rows; the repository spec fakes a case-sensitive
+  `where` (the in-memory path lowercases BOTH sides — why the original
+  suite could not see it).
 - PLUMBING (todo-63 anatomy, ZERO extra calls): `pairAddress` +
   `pairSide` ride the fast path's discovery summary / the venue tail's
   DSC best summary (DSC `pairAddress` IS the GT pool id; side from

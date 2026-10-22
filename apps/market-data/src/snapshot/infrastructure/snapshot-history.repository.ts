@@ -22,6 +22,19 @@ export interface SnapshotHistoryRow {
 const MAX_MEMORY_ROWS = 500;
 
 /**
+ * Canonical form for the three identity columns (`key`, `chain`,
+ * `address`).
+ *
+ * `AddressIdVo` already lowercases live callers, but `saveSeeded`
+ * receives raw caller input (the todo-68 ATH seed passes the
+ * checksummed `inputValue`) — see the write-method docstrings below
+ * for why the stored form is load-bearing.
+ */
+function normalizeIdentityValue(value: string): string {
+  return (value ?? '').trim().toLowerCase();
+}
+
+/**
  * SnapshotHistoryRepository (Tramo 3, todo-3 aggregation gap, P44;
  * persistent todo 14, GAP-1).
  *
@@ -41,12 +54,31 @@ export class SnapshotHistoryRepository {
     private readonly store?: Repository<SnapshotHistoryEntity>,
   ) {}
 
+  /**
+   * Appends one history row stamped with `now`.
+   *
+   * NORMALIZATION (staging bug 2026-10-22): `key`, `chain` and
+   * `address` are stored in their canonical `trim().toLowerCase()`
+   * form. The DB-path reads (`findFdvAth`, `findAnchorAt`) build a
+   * case-SENSITIVE `where: { chain, address }` predicate from the
+   * lowercased wanted values, so a mixed-case write is invisible to
+   * them; the in-memory path lowercases BOTH sides, which is exactly
+   * why unit specs missed it. `save` already receives normalized
+   * values from `AddressIdVo` callers — this is a defensive guard,
+   * zero behavior change.
+   */
   public async save(
     row: Omit<SnapshotHistoryRow, 'createdAt'>,
   ): Promise<SnapshotHistoryRow> {
     const createdAt = new Date().toISOString();
+    const normalized: Omit<SnapshotHistoryRow, 'createdAt'> = {
+      ...row,
+      key: normalizeIdentityValue(row.key),
+      chain: normalizeIdentityValue(row.chain),
+      address: normalizeIdentityValue(row.address),
+    };
     if (this.store === undefined || this.store === null) {
-      const full: SnapshotHistoryRow = { ...row, createdAt };
+      const full: SnapshotHistoryRow = { ...normalized, createdAt };
       this.rows.push(full);
       while (this.rows.length > MAX_MEMORY_ROWS) {
         this.rows.shift();
@@ -55,8 +87,8 @@ export class SnapshotHistoryRepository {
     }
     const persisted = await this.store.save(
       this.store.create({
-        ...row,
-        sources: [...row.sources],
+        ...normalized,
+        sources: [...normalized.sources],
         createdAt: new Date(createdAt),
       }),
     );
@@ -100,6 +132,18 @@ export class SnapshotHistoryRepository {
    * the store. In-memory mirrors the constraint (same
    * `(key, createdAt)` skip) so specs pin the semantics without a
    * live DB.
+   *
+   * NORMALIZATION (staging bug 2026-10-22): `key`, `chain` and
+   * `address` are stored in their canonical `trim().toLowerCase()`
+   * form. The DB-path reads (`findFdvAth`, `findAnchorAt`) build a
+   * case-SENSITIVE `where: { chain, address }` predicate from the
+   * lowercased wanted values, so a mixed-case write (the todo-68 ATH
+   * seed passes the checksummed `inputValue`, e.g.
+   * `0xd3775c4D…749cF`) lands an invisible row: the seed marker
+   * never resolves, `seeded` stays `false` and the one-shot seed
+   * retries forever. The in-memory path lowercases BOTH sides, which
+   * is exactly why unit specs missed it. Normalizing on write is the
+   * single fix; the read SQL is untouched.
    */
   public async saveSeeded(
     row: Omit<SnapshotHistoryRow, 'createdAt' | 'kind'> & {
@@ -115,6 +159,9 @@ export class SnapshotHistoryRepository {
     }
     const normalized: Omit<SnapshotHistoryRow, 'createdAt'> = {
       ...row,
+      key: normalizeIdentityValue(row.key),
+      chain: normalizeIdentityValue(row.chain),
+      address: normalizeIdentityValue(row.address),
       kind: row.kind as SnapshotHistoryRow['kind'],
     };
     if (this.store === undefined || this.store === null) {

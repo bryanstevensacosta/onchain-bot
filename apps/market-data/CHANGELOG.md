@@ -995,6 +995,21 @@ true` + `staleAsOf` (row ISO) + `staleAgeMs`, `status: 'ready'`
 
 ### Fixed
 
+- **ATH seed invisible on the DB history path (case normalization):**
+  `SnapshotHistoryRepository.saveSeeded` persisted `key`/`chain`/`address`
+  verbatim, while the todo-68 ATH seed passes the checksummed EVM
+  `inputValue`; `findFdvAth`/`findAnchorAt` build a case-SENSITIVE
+  `where` from the lowercased address, so seeded rows never matched —
+  the card served the live max (`751.39`), `seeded` stayed `false`, and
+  the one-shot Gecko seed retried on every request. Live witness (KODA
+  `0xd377…49cF`, staging 2026-10-22): seed row `2483.97` at
+  `2026-10-14T00:00:00.001Z` vs served `751.39`. `save`/`saveSeeded`
+  now normalize the three identity columns,
+  `NormalizeSnapshotHistoryAddressCase1776000000000` repairs pre-fix
+  rows, and the repository spec fakes a case-sensitive `where` (the
+  in-memory ring lowercased both sides, which is why the suite missed
+  it).
+
 - **`snapshot_history.sources` type drift caught by the staging soak:**
   `CreateSnapshotHistory1772000000000` created `sources` as plain
   `text` while the entity maps `text[]`, so the driver returned array

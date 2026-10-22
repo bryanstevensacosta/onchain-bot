@@ -9,6 +9,7 @@ import { CreateSnapshotHistory1772000000000 } from '../../snapshot/infrastructur
 import { CreateAssetRegistry1773000000000 } from '../../asset-registry/infrastructure/migrations/1773000000000-CreateAssetRegistry';
 import { CreateDiscoveryCache1774000000000 } from '../../snapshot/infrastructure/migrations/1774000000000-CreateDiscoveryCache';
 import { FixSnapshotHistorySourcesArray1775000000000 } from '../../snapshot/infrastructure/migrations/1775000000000-FixSnapshotHistorySourcesArray';
+import { NormalizeSnapshotHistoryAddressCase1776000000000 } from '../../snapshot/infrastructure/migrations/1776000000000-NormalizeSnapshotHistoryAddressCase';
 
 // Load env the same way the app does: `.env.dev` wins over `.env`.
 // (Second dotenv.config() call never overrides already-set keys.)
@@ -44,6 +45,7 @@ export default new DataSource({
     CreateAssetRegistry1773000000000,
     CreateDiscoveryCache1774000000000,
     FixSnapshotHistorySourcesArray1775000000000,
+    NormalizeSnapshotHistoryAddressCase1776000000000,
   ],
   migrationsTableName: 'typeorm_migrations',
 });

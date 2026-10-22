@@ -260,3 +260,195 @@ describe('SnapshotHistoryRepository.findLatestReady (serve-stale floor)', () => 
     ).resolves.toBeNull();
   });
 });
+
+/**
+ * Staging bug 2026-10-22: `saveSeeded` persisted `chain`/`address`
+ * verbatim, and `AddressSnapshotService.seedFdvAthHistory` passes the
+ * CHECKSUMMED EVM address. The DB-path reads (`findFdvAth`,
+ * `findAnchorAt`) lowercase the wanted value and apply a
+ * case-SENSITIVE `where: { chain, address }`, so seeded rows were
+ * invisible (`seeded` stayed false, the one-shot seed retried
+ * forever). The in-memory path lowercases BOTH sides, which is why
+ * the pre-existing fakes never caught it.
+ *
+ * The store double below APPLIES the `where` predicate with exact
+ * case-sensitive equality — Postgres semantics — so these specs fail
+ * if the write path ever stops normalizing.
+ */
+const EVM_CHECKSUMMED = '0xd3775c4D5C517AaCAe0CCF906DCD96713b5749cF';
+const EVM_LOWER = '0xd3775c4d5c517aacae0ccf906dcd96713b5749cf';
+const SEED_KEY = `bsc:${EVM_LOWER}`;
+const SEED_CREATED_AT = '2026-10-14T00:00:00.001Z';
+
+interface FakeHistoryEntity {
+  key: string;
+  chain: string;
+  address: string;
+  kind: string;
+  status: string;
+  quote: ReturnType<typeof emptySnapshotQuote>;
+  sources: string[];
+  providerErrors: Record<string, string>;
+  createdAt: Date;
+}
+
+interface FakeFindArgs {
+  readonly where?: Record<string, unknown>;
+  readonly order?: Record<string, 'ASC' | 'DESC'>;
+  readonly take?: number;
+}
+
+function caseSensitiveStore() {
+  const rows: FakeHistoryEntity[] = [];
+  const created: FakeHistoryEntity[] = [];
+  const store = {
+    create: (input: Record<string, unknown>) => {
+      const entity = { ...input } as unknown as FakeHistoryEntity;
+      created.push(entity);
+      return entity;
+    },
+    save: async (entity: FakeHistoryEntity) => {
+      rows.push(entity);
+      return entity;
+    },
+    find: async (args: FakeFindArgs = {}) => {
+      const where = args.where ?? {};
+      const matched = rows.filter((row) =>
+        Object.entries(where).every(
+          ([field, wanted]) =>
+            (row as unknown as Record<string, unknown>)[field] === wanted,
+        ),
+      );
+      const [orderField, direction] = Object.entries(args.order ?? {})[0] ?? [];
+      if (orderField !== undefined) {
+        matched.sort((left, right) => {
+          const leftMs = (left as unknown as Record<string, Date>)[
+            orderField
+          ].getTime();
+          const rightMs = (right as unknown as Record<string, Date>)[
+            orderField
+          ].getTime();
+          return direction === 'DESC' ? rightMs - leftMs : leftMs - rightMs;
+        });
+      }
+      return typeof args.take === 'number'
+        ? matched.slice(0, args.take)
+        : matched;
+    },
+    count: async () => rows.length,
+    createQueryBuilder: () => ({
+      delete: () => ({
+        where: () => ({
+          execute: async () => ({ affected: rows.length }),
+        }),
+      }),
+    }),
+  };
+  return { rows, created, store };
+}
+
+function seedInput(overrides: { readonly key?: string } = {}) {
+  return {
+    key: overrides.key ?? SEED_KEY,
+    chain: 'bsc',
+    address: EVM_CHECKSUMMED,
+    kind: 'token',
+    status: 'ready' as const,
+    quote: { ...emptySnapshotQuote(), fdvUsd: 2483.9704 },
+    sources: ['geckoterminal-ath-seed'],
+    providerErrors: {},
+    createdAt: SEED_CREATED_AT,
+  };
+}
+
+describe('SnapshotHistoryRepository identity-case normalization (staging 2026-10-22)', () => {
+  it('writes lowercase chain/address/key to the store', async () => {
+    const fake = caseSensitiveStore();
+    const history = new SnapshotHistoryRepository(
+      fake.store as unknown as never,
+    );
+    await history.saveSeeded(seedInput({ key: `bsc:${EVM_CHECKSUMMED}` }));
+    expect(fake.created).toHaveLength(1);
+    expect(fake.created[0]).toMatchObject({
+      key: SEED_KEY,
+      chain: 'bsc',
+      address: EVM_LOWER,
+    });
+  });
+
+  it('resolves the seeded ATH for a checksummed address on the DB path', async () => {
+    const fake = caseSensitiveStore();
+    const history = new SnapshotHistoryRepository(
+      fake.store as unknown as never,
+    );
+    await history.saveSeeded(seedInput());
+    const lookup = await history.findFdvAth('bsc', EVM_CHECKSUMMED);
+    expect(lookup.seeded).toBe(true);
+    expect(lookup.ath).toEqual({ fdvUsd: 2483.9704, at: SEED_CREATED_AT });
+  });
+
+  it('finds the seeded row as the 24h anchor on the DB path', async () => {
+    const fake = caseSensitiveStore();
+    const history = new SnapshotHistoryRepository(
+      fake.store as unknown as never,
+    );
+    await history.saveSeeded(seedInput());
+    const target = Date.parse('2026-10-14T12:00:00.000Z');
+    const anchor = await history.findAnchorAt(
+      'bsc',
+      EVM_CHECKSUMMED,
+      target,
+      24 * HOUR_MS,
+    );
+    expect(anchor?.address).toBe(EVM_LOWER);
+    expect(anchor?.createdAt).toBe(SEED_CREATED_AT);
+    expect(anchor?.status).toBe('ready');
+  });
+
+  it('resolves the seeded ATH for a checksummed address in memory (parity)', async () => {
+    const history = new SnapshotHistoryRepository();
+    await history.saveSeeded(seedInput());
+    const lookup = await history.findFdvAth('bsc', EVM_CHECKSUMMED);
+    expect(lookup.seeded).toBe(true);
+    expect(lookup.ath).toEqual({ fdvUsd: 2483.9704, at: SEED_CREATED_AT });
+  });
+
+  it('finds the seeded row as the 24h anchor in memory (parity)', async () => {
+    const history = new SnapshotHistoryRepository();
+    await history.saveSeeded(seedInput());
+    const target = Date.parse('2026-10-14T12:00:00.000Z');
+    const anchor = await history.findAnchorAt(
+      'bsc',
+      EVM_CHECKSUMMED,
+      target,
+      24 * HOUR_MS,
+    );
+    expect(anchor?.address).toBe(EVM_LOWER);
+    expect(anchor?.createdAt).toBe(SEED_CREATED_AT);
+  });
+
+  it('normalizes defensively on save too (live callers already lowercase)', async () => {
+    const fake = caseSensitiveStore();
+    const history = new SnapshotHistoryRepository(
+      fake.store as unknown as never,
+    );
+    await history.save({
+      key: `bsc:${EVM_CHECKSUMMED}`,
+      chain: ' BSC ',
+      address: EVM_CHECKSUMMED,
+      kind: 'token',
+      status: 'ready',
+      quote: { ...emptySnapshotQuote(), fdvUsd: 2483.9704 },
+      sources: ['geckoterminal-ath-seed'],
+      providerErrors: {},
+    });
+    expect(fake.created[0]).toMatchObject({
+      key: SEED_KEY,
+      chain: 'bsc',
+      address: EVM_LOWER,
+    });
+    const lookup = await history.findFdvAth('bsc', EVM_CHECKSUMMED);
+    expect(lookup.seeded).toBe(true);
+    expect(lookup.ath?.fdvUsd).toBe(2483.9704);
+  });
+});
