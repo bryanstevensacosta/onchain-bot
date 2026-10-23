@@ -5,6 +5,7 @@ import {
   FLAP_CACHE_TTL_DAYS_DEFAULT,
   LaunchpadDetectorService,
   flapCacheKey,
+  flapFactoryMismatchCacheKey,
   resolveFlapCacheTtlSeconds,
 } from './launchpad-detector.service';
 
@@ -31,23 +32,23 @@ function stubRpc() {
 
 /**
  * EVM harness for the factory path: Phase-1 brand APIs all miss
- * (404, fast), Blockscout answers the creation tx, the receipt
- * answers `to`. `receiptTo` may be a string or null (to:null leg).
+ * (404, fast), the Alchemy creation-hash leg answers the tx hash
+ * (fix 5 — Blockscout is dead: HTTP 404 on BSC), the receipt answers
+ * `to`. `receiptTo` may be a string or null (to:null leg).
  */
+function stubAlchemy(tx: string | null = TX) {
+  return { getAssetTransfers: jest.fn().mockResolvedValue(tx) };
+}
+
 function detectorWithFactoryFor(
-  token: string,
+  _token: string,
   receiptTo: string | null,
   cache: CacheService | null = null,
   seen: string[] = [],
+  alchemy: ReturnType<typeof stubAlchemy> = stubAlchemy(),
 ): LaunchpadDetectorService {
   mockedAxios.get.mockImplementation(async (url: string) => {
     seen.push(`GET ${String(url)}`);
-    if (String(url).includes('blockscout')) {
-      return {
-        status: 200,
-        data: { result: [{ contractAddress: token, txHash: TX }] },
-      };
-    }
     return { status: 404, data: null };
   });
   mockedAxios.post.mockImplementation(async (url: string, body?: unknown) => {
@@ -56,7 +57,13 @@ function detectorWithFactoryFor(
     expect(params[0]).toBe(TX);
     return { status: 200, data: { result: { to: receiptTo } } };
   });
-  return new LaunchpadDetectorService(stubRpc() as never, cache);
+  return new LaunchpadDetectorService(
+    stubRpc() as never,
+    cache,
+    null,
+    null,
+    alchemy as never,
+  );
 }
 
 function realCache(): CacheService {
@@ -178,10 +185,14 @@ describe('LaunchpadDetectorService flap leg (dexter plan todo 44, Phase B)', () 
   it('factory past the shared deadline aborts to null (never hangs)', async () => {
     process.env['LAUNCHPAD_SLOW_LEG_TIMEOUT_MS'] = '80';
     let seenSignal: unknown = null;
-    mockedAxios.get.mockImplementation(
-      async (url: string, config?: unknown) => {
-        if (String(url).includes('blockscout')) {
-          const signal = (config as { signal?: AbortSignal })?.signal ?? null;
+    const alchemy = {
+      getAssetTransfers: jest.fn(
+        async (
+          _chain: string,
+          _token: string,
+          options?: { signal?: AbortSignal },
+        ) => {
+          const signal = options?.signal ?? null;
           seenSignal = signal;
           await new Promise<void>((resolve, reject) => {
             const timer = setTimeout(() => resolve(), 500);
@@ -194,13 +205,19 @@ describe('LaunchpadDetectorService flap leg (dexter plan todo 44, Phase B)', () 
               { once: true },
             );
           });
-          return { status: 200, data: { result: [] } };
-        }
-        return { status: 404, data: null };
-      },
-    );
+          return TX;
+        },
+      ),
+    };
+    mockedAxios.get.mockResolvedValue({ status: 404, data: null });
     mockedAxios.post.mockResolvedValue({ data: {} });
-    const detector = new LaunchpadDetectorService(stubRpc() as never);
+    const detector = detectorWithFactoryFor(
+      FLAP_BNB,
+      BNB_PORTAL,
+      null,
+      [],
+      alchemy,
+    );
     const started = Date.now();
     await expect(detector.detectLaunchpad('bsc', FLAP_BNB)).resolves.toBeNull();
     expect(Date.now() - started).toBeLessThan(400);
@@ -208,19 +225,22 @@ describe('LaunchpadDetectorService flap leg (dexter plan todo 44, Phase B)', () 
     expect((seenSignal as AbortSignal).aborted).toBe(true);
   });
 
-  it('second scan of a cached flap mint skips Blockscout + receipt (spy)', async () => {
+  it('second scan of a cached flap mint skips Alchemy + receipt (spy)', async () => {
     const cache = realCache();
     const seen: string[] = [];
+    const alchemy = stubAlchemy();
     const detector = detectorWithFactoryFor(
       FLAP_ROBINHOOD,
       ROBINHOOD_PORTAL,
       cache,
       seen,
+      alchemy,
     );
     await expect(
       detector.detectLaunchpad('robinhood', FLAP_ROBINHOOD),
     ).resolves.toMatchObject({ id: 'flap' });
-    expect(seen.filter((s) => s.includes('blockscout'))).toHaveLength(1);
+    expect(alchemy.getAssetTransfers).toHaveBeenCalledTimes(1);
+    expect(seen.filter((s) => s.startsWith('POST'))).toHaveLength(1);
     expect(
       await cache.get<boolean>(flapCacheKey('robinhood', FLAP_ROBINHOOD)),
     ).toBe(true);
@@ -230,17 +250,20 @@ describe('LaunchpadDetectorService flap leg (dexter plan todo 44, Phase B)', () 
       id: 'flap',
       url: `https://flap.sh/robinhood/${FLAP_ROBINHOOD}`,
     });
-    expect(seen.filter((s) => s.includes('blockscout'))).toHaveLength(1);
+    expect(alchemy.getAssetTransfers).toHaveBeenCalledTimes(1);
+    expect(seen.filter((s) => s.startsWith('POST'))).toHaveLength(1);
   });
 
-  it('nulls are never cached (no-match re-fetches the receipt every scan)', async () => {
+  it('null never enters the 14d positive cache (explicit mismatch uses the short negative cache)', async () => {
     const cache = realCache();
     const seen: string[] = [];
+    const alchemy = stubAlchemy();
     const detector = detectorWithFactoryFor(
       FLAP_ROBINHOOD,
       '0x0000000000000000000000000000000000000000',
       cache,
       seen,
+      alchemy,
     );
     await expect(
       detector.detectLaunchpad('robinhood', FLAP_ROBINHOOD),
@@ -248,10 +271,16 @@ describe('LaunchpadDetectorService flap leg (dexter plan todo 44, Phase B)', () 
     await expect(
       detector.detectLaunchpad('robinhood', FLAP_ROBINHOOD),
     ).resolves.toBeNull();
-    expect(seen.filter((s) => s.includes('blockscout'))).toHaveLength(2);
+    // Explicit mismatch: the second scan skips the Alchemy leg.
+    expect(alchemy.getAssetTransfers).toHaveBeenCalledTimes(1);
     expect(
       await cache.get<boolean>(flapCacheKey('robinhood', FLAP_ROBINHOOD)),
     ).toBe(null);
+    expect(
+      await cache.get<boolean>(
+        flapFactoryMismatchCacheKey('robinhood', FLAP_ROBINHOOD),
+      ),
+    ).toBe(true);
   });
 
   it('absent cache behaves byte-identical to pre-cache (receipt direct)', async () => {

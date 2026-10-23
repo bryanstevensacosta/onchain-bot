@@ -100,20 +100,35 @@ interface DscHarnessOptions {
   readonly dscFails?: boolean;
   readonly cache?: CacheService | null;
   readonly seen?: string[];
+  /** Fix 5: creation-hash leg stub; `null` = Alchemy/hash unavailable. */
+  readonly alchemy?: unknown;
+}
+
+/** Fix 5: Alchemy creation-hash stub (Blockscout is gone). */
+function stubAlchemy(tx: string | null = TX) {
+  return { getAssetTransfers: jest.fn().mockResolvedValue(tx) };
 }
 
 /**
- * EVM harness: Phase-1 brand APIs all miss (404), Blockscout answers
- * the creation tx, the receipt answers `to`, and the DSC pair-list
- * endpoint answers `{ pairs }`. The REAL `DexScreenerService` is
- * injected (axios mocked) so URL + envelope + signal wiring are all
- * exercised, not just the detector's check.
+ * EVM harness: Phase-1 brand APIs all miss (404), the Alchemy
+ * creation-hash leg answers the tx hash (fix 5), the receipt answers
+ * `to`, and the DSC pair-list endpoint answers `{ pairs }`. The REAL
+ * `DexScreenerService` is injected (axios mocked) so URL + envelope +
+ * signal wiring are all exercised, not just the detector's check.
  */
 function detectorWithDsc(
   token: string,
   opts: DscHarnessOptions = {},
-): { detector: LaunchpadDetectorService; seen: string[] } {
+): {
+  detector: LaunchpadDetectorService;
+  seen: string[];
+  alchemy: ReturnType<typeof stubAlchemy>;
+} {
   const seen = opts.seen ?? [];
+  const alchemy =
+    opts.alchemy === undefined
+      ? stubAlchemy()
+      : (opts.alchemy as ReturnType<typeof stubAlchemy>);
   mockedAxios.get.mockImplementation(async (url: string) => {
     seen.push(`GET ${String(url)}`);
     if (String(url).includes('api.dexscreener.com')) {
@@ -121,12 +136,6 @@ function detectorWithDsc(
       return {
         status: 200,
         data: { pairs: opts.pairs === undefined ? null : opts.pairs },
-      };
-    }
-    if (String(url).includes('blockscout')) {
-      return {
-        status: 200,
-        data: { result: [{ contractAddress: token, txHash: TX }] },
       };
     }
     return { status: 404, data: null };
@@ -140,8 +149,9 @@ function detectorWithDsc(
     opts.cache ?? null,
     null,
     new DexScreenerService({}),
+    alchemy as never,
   );
-  return { detector, seen };
+  return { detector, seen, alchemy };
 }
 
 const FLAP_URL = (chain: string, address: string): string =>
@@ -314,16 +324,18 @@ describe('LaunchpadDetectorService flapsh-pair corroboration (dexter plan todo 6
       return { status: 404, data: null };
     });
     mockedAxios.post.mockResolvedValue({ status: 200, data: {} });
+    const alchemy = stubAlchemy();
     const detector = new LaunchpadDetectorService(
       stubRpc() as never,
       null,
       null,
       new DexScreenerService({}),
+      alchemy as never,
     );
     const res = await detector.detectLaunchpad('bsc', token);
     expect(res?.id).toBe('mintclub');
     expect(seen.some((s) => s.includes('api.dexscreener.com'))).toBe(false);
-    expect(seen.some((s) => s.includes('blockscout'))).toBe(false);
+    expect(alchemy.getAssetTransfers).not.toHaveBeenCalled();
   });
 
   it('precedence: a factory-positive (receipt `to` == four-meme factory) beats flapsh presence', async () => {
@@ -352,7 +364,7 @@ describe('LaunchpadDetectorService flapsh-pair corroboration (dexter plan todo 6
   it('flapsh-corroborated flap is positive-cached: second scan skips receipt + DSC', async () => {
     const cache = realCache();
     const seen: string[] = [];
-    const { detector } = detectorWithDsc(WENCAT, {
+    const { detector, alchemy } = detectorWithDsc(WENCAT, {
       cache,
       seen,
       pairs: [pcsPair(), pair({ dexId: 'flapsh' })],
@@ -361,14 +373,14 @@ describe('LaunchpadDetectorService flapsh-pair corroboration (dexter plan todo 6
       detector.detectLaunchpad('bsc', WENCAT),
     ).resolves.toMatchObject({ id: 'flap' });
     expect(await cache.get<boolean>(flapCacheKey('bsc', WENCAT))).toBe(true);
-    expect(seen.filter((s) => s.includes('blockscout'))).toHaveLength(1);
+    expect(alchemy.getAssetTransfers).toHaveBeenCalledTimes(1);
     expect(seen.filter((s) => s.includes('api.dexscreener.com'))).toHaveLength(
       1,
     );
     await expect(
       detector.detectLaunchpad('bsc', WENCAT),
     ).resolves.toMatchObject({ id: 'flap', url: FLAP_URL('bsc', WENCAT) });
-    expect(seen.filter((s) => s.includes('blockscout'))).toHaveLength(1);
+    expect(alchemy.getAssetTransfers).toHaveBeenCalledTimes(1);
     expect(seen.filter((s) => s.includes('api.dexscreener.com'))).toHaveLength(
       1,
     );
@@ -388,19 +400,19 @@ describe('LaunchpadDetectorService flapsh-pair corroboration (dexter plan todo 6
     const seen: string[] = [];
     mockedAxios.get.mockImplementation(async (url: string) => {
       seen.push(`GET ${String(url)}`);
-      if (String(url).includes('blockscout')) {
-        return {
-          status: 200,
-          data: { result: [{ contractAddress: WENCAT, txHash: TX }] },
-        };
-      }
       return { status: 404, data: null };
     });
     mockedAxios.post.mockResolvedValue({
       status: 200,
       data: { result: { to: null } },
     });
-    const detector = new LaunchpadDetectorService(stubRpc() as never);
+    const detector = new LaunchpadDetectorService(
+      stubRpc() as never,
+      null,
+      null,
+      null,
+      stubAlchemy() as never,
+    );
     await expect(detector.detectLaunchpad('bsc', WENCAT)).resolves.toBeNull();
     expect(seen.some((s) => s.includes('api.dexscreener.com'))).toBe(false);
   });
@@ -430,9 +442,6 @@ describe('LaunchpadDetectorService flapsh-pair corroboration (dexter plan todo 6
           });
           return { status: 200, data: { pairs: [pair({ dexId: 'flapsh' })] } };
         }
-        if (String(url).includes('blockscout')) {
-          return { status: 200, data: { result: [] } };
-        }
         return { status: 404, data: null };
       },
     );
@@ -445,6 +454,7 @@ describe('LaunchpadDetectorService flapsh-pair corroboration (dexter plan todo 6
       null,
       null,
       new DexScreenerService({}),
+      stubAlchemy(null) as never,
     );
     const started = Date.now();
     await expect(detector.detectLaunchpad('bsc', WENCAT)).resolves.toBeNull();

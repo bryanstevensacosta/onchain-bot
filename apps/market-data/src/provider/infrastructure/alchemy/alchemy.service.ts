@@ -181,11 +181,19 @@ export class AlchemyService extends DataProviderPort implements ChainRpc {
       method,
       params,
     };
+    // Alchemy Enhanced methods (`alchemy_*`, e.g. fix-5
+    // `getAssetTransfers`) exist on the Alchemy endpoint ONLY: dRPC,
+    // Chainstack and every public RPC answer `-32601 method not found`
+    // (measured in the fix-5 spec logs). Walking those tiers would burn
+    // one request per tier for a guaranteed miss, so the Alchemy-only
+    // method space stays on its own tier; standard `eth_*` reads keep
+    // the untouched keyed → public fallback chain.
+    const alchemyOnly = method.startsWith('alchemy_');
     const chainstackAllowed = isChainstackChainAllowed(
       chain,
       this.chainstackChains,
     );
-    if (this.chainstackApiKey && !chainstackAllowed) {
+    if (!alchemyOnly && this.chainstackApiKey && !chainstackAllowed) {
       this.logger.debug(
         `Chainstack tier skipped for chain ${chain} (not in CHAINSTACK_CHAINS allowlist)`,
       );
@@ -195,17 +203,21 @@ export class AlchemyService extends DataProviderPort implements ChainRpc {
         name: 'alchemy',
         url: this.apiKey ? chainRpcUrl(chain, this.apiKey) : null,
       },
-      {
-        name: 'drpc',
-        url: this.drpcApiKey ? drpcRpcUrl(chain, this.drpcApiKey) : null,
-      },
-      {
-        name: 'chainstack',
-        url:
-          this.chainstackApiKey && chainstackAllowed
-            ? chainstackEvmRpcUrl(chain, this.chainstackApiKey)
-            : null,
-      },
+      ...(alchemyOnly
+        ? []
+        : [
+            {
+              name: 'drpc',
+              url: this.drpcApiKey ? drpcRpcUrl(chain, this.drpcApiKey) : null,
+            },
+            {
+              name: 'chainstack',
+              url:
+                this.chainstackApiKey && chainstackAllowed
+                  ? chainstackEvmRpcUrl(chain, this.chainstackApiKey)
+                  : null,
+            },
+          ]),
     ];
     for (const tier of tiers) {
       if (tier.url === null) continue;
@@ -242,6 +254,14 @@ export class AlchemyService extends DataProviderPort implements ChainRpc {
           `Alchemy ${chain} ${method} [${tier.name}] failed: ${(err as Error).message}`,
         );
       }
+    }
+    if (alchemyOnly) {
+      // No public/dRPC/Chainstack fallback for the Enhanced namespace:
+      // an honest null is cheaper than N guaranteed `-32601` requests.
+      if (!isChainSupported(chain)) {
+        this.logger.debug(`Alchemy ${method}: unsupported chain ${chain}`);
+      }
+      return null;
     }
     const rotated = await this.publicRotationCall<T>(chain, method, body);
     if (rotated !== null) return rotated;
@@ -341,6 +361,58 @@ export class AlchemyService extends DataProviderPort implements ChainRpc {
 
   public isChainSupported(chain: string): boolean {
     return isChainSupported(chain);
+  }
+
+  /**
+   * Creation-hash leg (fix 5): the FIRST ERC-20 transfer touching
+   * `token`, ascending from genesis — i.e. the mint/creation transfer.
+   *
+   * Alchemy Enhanced API (`alchemy_getAssetTransfers`) is the ONLY
+   * keyless-door replacement for the retired Blockscout
+   * `getcontractcreation` call (bnb/bsc Blockscout answer HTTP 404).
+   * Enhanced methods are keyed-only: absent `ALCHEMY_API_KEY` resolves
+   * `null` with ZERO HTTP (the dRPC/Chainstack/public fallback tiers do
+   * not implement `alchemy_getAssetTransfers`, so there is nothing to
+   * gain by walking them keyless). Unknown chains resolve `null` with
+   * zero network as well.
+   *
+   * Returns the first hash ONLY when it is a well-formed 32-byte tx
+   * hash (`0x` + 64 hex); malformed payloads resolve `null` — never a
+   * bad hash. Transport/RPC errors and throws collapse to `null`
+   * (fail-open, never throws), matching every other Alchemy method.
+   *
+   * @see https://docs.alchemy.com/reference/alchemy-getassettransfers
+   */
+  public async getAssetTransfers(
+    chain: string,
+    token: string,
+    options?: { readonly signal?: AbortSignal },
+  ): Promise<string | null> {
+    if (!this.apiKey) return null;
+    if (!isChainSupported(chain)) return null;
+    const result = await this.rpcCallForChain<{
+      readonly transfers?: ReadonlyArray<{ readonly hash?: unknown }> | null;
+    }>(
+      chain,
+      'alchemy_getAssetTransfers',
+      [
+        {
+          fromBlock: '0x0',
+          toBlock: 'latest',
+          contractAddresses: [token],
+          category: ['erc20'],
+          order: 'asc',
+          maxCount: '0x1',
+          excludeZeroValue: false,
+        },
+      ],
+      options,
+    );
+    const transfers = result?.transfers;
+    if (!Array.isArray(transfers) || transfers.length === 0) return null;
+    const hash = transfers[0]?.hash;
+    if (typeof hash !== 'string') return null;
+    return /^0x[0-9a-fA-F]{64}$/.test(hash) ? hash : null;
   }
 
   // ─────────────────────────────────────────────

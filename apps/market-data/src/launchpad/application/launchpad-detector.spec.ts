@@ -191,6 +191,7 @@ describe('LaunchpadDetectorService (ordered strategies, null-safe)', () => {
 
   it('clanker factory receipt-to resolves clanker on base', async () => {
     const token = '0x1111111111111111111111111111111111111111';
+    const txHash = `0x${'ab'.repeat(32)}`;
     const solanaRpc = {
       getMultipleAccounts: jest.fn(),
       getAccountInfo: jest.fn(),
@@ -198,7 +199,7 @@ describe('LaunchpadDetectorService (ordered strategies, null-safe)', () => {
     mockedAxios.post.mockImplementation(async (url: string, body?: unknown) => {
       if (String(url).includes('heaven')) return { data: {} };
       const params = (body as { params?: unknown[] })?.params ?? [];
-      expect(params[0]).toBe('0xdeadbeef');
+      expect(params[0]).toBe(txHash);
       return {
         status: 200,
         data: {
@@ -206,18 +207,16 @@ describe('LaunchpadDetectorService (ordered strategies, null-safe)', () => {
         },
       };
     });
-    mockedAxios.get.mockImplementation(async (url: string) => {
-      if (String(url).includes('blockscout')) {
-        return {
-          status: 200,
-          data: {
-            result: [{ contractAddress: token, txHash: '0xdeadbeef' }],
-          },
-        };
-      }
-      return { status: 404, data: null };
-    });
-    const detector = new LaunchpadDetectorService(solanaRpc as never);
+    mockedAxios.get.mockResolvedValue({ status: 404, data: null });
+    const detector = new LaunchpadDetectorService(
+      solanaRpc as never,
+      null,
+      null,
+      null,
+      {
+        getAssetTransfers: jest.fn().mockResolvedValue(txHash),
+      } as never,
+    );
     const res = await detector.detectLaunchpad('base', token);
     expect(res).toEqual({
       id: 'clanker',
@@ -228,6 +227,7 @@ describe('LaunchpadDetectorService (ordered strategies, null-safe)', () => {
 
   it('EVM unknown factory resolves null (official team launches)', async () => {
     const token = '0x9251B3B071C0f64d4F38AdAaf0f5b3D058a87842d';
+    const txHash = `0x${'cd'.repeat(32)}`;
     const solanaRpc = {
       getMultipleAccounts: jest.fn(),
       getAccountInfo: jest.fn(),
@@ -239,16 +239,16 @@ describe('LaunchpadDetectorService (ordered strategies, null-safe)', () => {
         data: { result: { to: '0x0000000000000000000000000000000000000000' } },
       };
     });
-    mockedAxios.get.mockImplementation(async (url: string) => {
-      if (String(url).includes('blockscout')) {
-        return {
-          status: 200,
-          data: { result: [{ contractAddress: token, txHash: '0xabc' }] },
-        };
-      }
-      return { status: 404, data: null };
-    });
-    const detector = new LaunchpadDetectorService(solanaRpc as never);
+    mockedAxios.get.mockResolvedValue({ status: 404, data: null });
+    const detector = new LaunchpadDetectorService(
+      solanaRpc as never,
+      null,
+      null,
+      null,
+      {
+        getAssetTransfers: jest.fn().mockResolvedValue(txHash),
+      } as never,
+    );
     await expect(detector.detectLaunchpad('bsc', token)).resolves.toBeNull();
   });
 
@@ -273,33 +273,25 @@ describe('LaunchpadDetectorService (ordered strategies, null-safe)', () => {
         },
       };
     });
-    mockedAxios.get.mockImplementation(async (url: string) => {
-      if (String(url).includes('blockscout')) {
-        return {
-          status: 200,
-          data: {
-            message: 'OK',
-            result: [
-              {
-                blockNumber: '94069323',
-                contractAddress: pyrd.toLowerCase(),
-                contractCreator: '0xac3ed7b1b178f89f36eaeaa9ae7fe6e485df5e71',
-                contractFactory: '',
-                txHash:
-                  '0x07332d7fab7a3491025656b375ef1206134c6e1834ccf225da1dd1b7752f0585',
-              },
-            ],
-          },
-        };
-      }
-      return { status: 404, data: null };
-    });
-    const detector = new LaunchpadDetectorService(solanaRpc as never);
+    mockedAxios.get.mockResolvedValue({ status: 404, data: null });
+    const detector = new LaunchpadDetectorService(
+      solanaRpc as never,
+      null,
+      null,
+      null,
+      {
+        getAssetTransfers: jest
+          .fn()
+          .mockResolvedValue(
+            '0x07332d7fab7a3491025656b375ef1206134c6e1834ccf225da1dd1b7752f0585',
+          ),
+      } as never,
+    );
     await expect(detector.detectLaunchpad('polygon', pyrd)).resolves.toBeNull();
     expect(solanaRpc.getMultipleAccounts).not.toHaveBeenCalled();
   });
 
-  it('pinksale resolves null when Blockscout knows nothing (negative leg)', async () => {
+  it('pinksale resolves null when Alchemy knows no creation hash (negative leg)', async () => {
     const pyrd = '0x1c15DEB2469da726AE3dAd11B5B0051F121949a1';
     const solanaRpc = {
       getMultipleAccounts: jest.fn(),
@@ -310,7 +302,15 @@ describe('LaunchpadDetectorService (ordered strategies, null-safe)', () => {
       status: 200,
       data: { message: 'OK', result: [] },
     });
-    const detector = new LaunchpadDetectorService(solanaRpc as never);
+    const detector = new LaunchpadDetectorService(
+      solanaRpc as never,
+      null,
+      null,
+      null,
+      {
+        getAssetTransfers: jest.fn().mockResolvedValue(null),
+      } as never,
+    );
     await expect(detector.detectLaunchpad('polygon', pyrd)).resolves.toBeNull();
   });
 
@@ -372,7 +372,7 @@ describe('LaunchpadDetectorService (ordered strategies, null-safe)', () => {
         name: 'Pons',
         url: `https://ponsfamily.com/launchpad/${STAGEVEIL}`,
       });
-      expect(seen.some((url) => url.includes('blockscout'))).toBe(false);
+      expect(mockedAxios.post).not.toHaveBeenCalled();
     });
 
     it('nyma live shape (title + index robots) resolves pons', async () => {

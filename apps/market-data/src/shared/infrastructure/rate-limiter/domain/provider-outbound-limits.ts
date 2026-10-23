@@ -22,8 +22,9 @@ export const PROVIDER_OUTBOUND_DEFAULT_PER_MIN = 60;
  *
  * Worst case per COLD snapshot (cache HITs never reach the tail):
  * - launchpad: Solana = 1x `getMultipleAccounts` (PDA candidates
- *   batched); EVM = cheap view/API legs + 1 blockscout lookup + 1
- *   receipt fetch = <= 4 calls.
+ *   batched); EVM = cheap view/API legs + 1 Alchemy
+ *   `getAssetTransfers` creation lookup + 1 receipt fetch = <= 4
+ *   calls.
  * - venue: 1x DexScreener HTTP + 1x GeckoTerminal HTTP only when
  *   DexScreener misses = <= 2 calls.
  * - dev holdings: 2x Birdeye (parallel) + 1x Helius first-tx = <= 3

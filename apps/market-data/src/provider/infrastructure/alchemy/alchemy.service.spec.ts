@@ -118,4 +118,141 @@ describe('AlchemyService multi-chain transport (Lane T)', () => {
     });
     await expect(service().getCode('base', '0xabc')).resolves.toBeNull();
   });
+
+  describe('getAssetTransfers — creation-hash leg (fix 5)', () => {
+    const TOKEN = '0xcEb8F67378C10107783683d8170BAfC962db7777';
+    const TX = `0x${'ab'.repeat(32)}`;
+    let savedChainstack: string | undefined;
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+      delete process.env.DRPC_API_KEY;
+      savedChainstack = process.env.CHAINSTACK_API_KEY;
+      delete process.env.CHAINSTACK_API_KEY;
+    });
+
+    afterEach(() => {
+      if (savedChainstack === undefined) delete process.env.CHAINSTACK_API_KEY;
+      else process.env.CHAINSTACK_API_KEY = savedChainstack;
+    });
+
+    it('pins the exact alchemy_getAssetTransfers params and returns the first hash', async () => {
+      mockedAxios.post.mockResolvedValueOnce(
+        rpcResult({ transfers: [{ hash: TX, category: 'erc20' }] }),
+      );
+      const res = await service().getAssetTransfers('bsc', TOKEN);
+      expect(res).toBe(TX);
+      expect(mockedAxios.post.mock.calls[0][0]).toBe(
+        'https://bnb-mainnet.g.alchemy.com/v2/test-key',
+      );
+      expect(mockedAxios.post.mock.calls[0][1]).toMatchObject({
+        method: 'alchemy_getAssetTransfers',
+        params: [
+          {
+            fromBlock: '0x0',
+            toBlock: 'latest',
+            contractAddresses: [TOKEN],
+            category: ['erc20'],
+            order: 'asc',
+            maxCount: '0x1',
+            excludeZeroValue: false,
+          },
+        ],
+      });
+    });
+
+    it('forwards the AbortSignal to the transport', async () => {
+      mockedAxios.post.mockResolvedValueOnce(
+        rpcResult({ transfers: [{ hash: TX }] }),
+      );
+      const controller = new AbortController();
+      await service().getAssetTransfers('bsc', TOKEN, {
+        signal: controller.signal,
+      });
+      const config = mockedAxios.post.mock.calls[0][2] as {
+        signal?: AbortSignal;
+      };
+      expect(config.signal).toBe(controller.signal);
+    });
+
+    it('returns null for empty / absent transfers', async () => {
+      mockedAxios.post
+        .mockResolvedValueOnce(rpcResult({ transfers: [] }))
+        .mockResolvedValueOnce(rpcResult({}))
+        .mockResolvedValueOnce(rpcResult(null));
+      const svc = service();
+      await expect(svc.getAssetTransfers('bsc', TOKEN)).resolves.toBeNull();
+      await expect(svc.getAssetTransfers('bsc', TOKEN)).resolves.toBeNull();
+      await expect(svc.getAssetTransfers('bsc', TOKEN)).resolves.toBeNull();
+    });
+
+    it('rejects malformed / non-64-hex hashes (never returns a bad hash)', async () => {
+      mockedAxios.post
+        .mockResolvedValueOnce(rpcResult({ transfers: [{ hash: '0xabc' }] }))
+        .mockResolvedValueOnce(
+          rpcResult({ transfers: [{ hash: `0x${'zz'.repeat(32)}` }] }),
+        )
+        .mockResolvedValueOnce(rpcResult({ transfers: [{ hash: 42 }] }));
+      const svc = service();
+      await expect(svc.getAssetTransfers('bsc', TOKEN)).resolves.toBeNull();
+      await expect(svc.getAssetTransfers('bsc', TOKEN)).resolves.toBeNull();
+      await expect(svc.getAssetTransfers('bsc', TOKEN)).resolves.toBeNull();
+    });
+
+    it('collapses a JSON-RPC error envelope to null', async () => {
+      mockedAxios.post.mockResolvedValue({
+        data: {
+          jsonrpc: '2.0',
+          id: 'alc-1',
+          error: { code: -32601, message: 'method not found' },
+        },
+      });
+      await expect(
+        service().getAssetTransfers('bsc', TOKEN),
+      ).resolves.toBeNull();
+    });
+
+    it('collapses every throwing tier to null (never throws)', async () => {
+      mockedAxios.post.mockRejectedValue(new Error('429 rate limited'));
+      await expect(
+        service().getAssetTransfers('bsc', TOKEN),
+      ).resolves.toBeNull();
+    });
+
+    it('Enhanced alchemy_* methods never walk the dRPC/Chainstack/public tiers', async () => {
+      // An Alchemy-namespaced method only exists on the Alchemy tier:
+      // every other tier answers -32601, so walking them would burn one
+      // request per tier for a guaranteed miss (observed in the fix-5
+      // spec logs before this guard).
+      process.env.DRPC_API_KEY = 'drpc-key';
+      process.env.CHAINSTACK_API_KEY = 'cs-key';
+      mockedAxios.post.mockResolvedValue({
+        data: {
+          jsonrpc: '2.0',
+          id: 'alc-1',
+          error: { code: -32601, message: 'method not found' },
+        },
+      });
+      await expect(
+        service().getAssetTransfers('bsc', TOKEN),
+      ).resolves.toBeNull();
+      expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+      expect(mockedAxios.post.mock.calls[0][0]).toBe(
+        'https://bnb-mainnet.g.alchemy.com/v2/test-key',
+      );
+    });
+
+    it('absent ALCHEMY_API_KEY resolves null with ZERO HTTP (Enhanced API is keyed-only)', async () => {
+      const keyless = new AlchemyService({ apiKey: '' });
+      await expect(keyless.getAssetTransfers('bsc', TOKEN)).resolves.toBeNull();
+      expect(mockedAxios.post).not.toHaveBeenCalled();
+    });
+
+    it('unsupported chain resolves null with zero HTTP', async () => {
+      await expect(
+        service().getAssetTransfers('solana', TOKEN),
+      ).resolves.toBeNull();
+      expect(mockedAxios.post).not.toHaveBeenCalled();
+    });
+  });
 });

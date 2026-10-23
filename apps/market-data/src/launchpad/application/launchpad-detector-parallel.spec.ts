@@ -39,9 +39,9 @@ interface LegDelays {
 
 /**
  * EVM harness with per-leg delays: every GET answers by host (bankr /
- * mintclub / pons / blockscout), every POST answers `{}`. Delays model
- * the live shapes (bankr 404 ~1.6s, Pons SSR ~1.3s) at a smaller scale
- * so the suite stays fast while still separating max from sum.
+ * mintclub / pons), every POST answers `{}`. Delays model the live
+ * shapes (bankr 404 ~1.6s, Pons SSR ~1.3s) at a smaller scale so the
+ * suite stays fast while still separating max from sum.
  */
 function detectorWithDelays(
   token: string,
@@ -65,9 +65,6 @@ function detectorWithDelays(
     if (target.includes('ponsfamily.com')) {
       if (ponsMs > 0) await sleep(ponsMs);
       return { status: 200, data: ponsBody };
-    }
-    if (target.includes('blockscout')) {
-      return { status: 200, data: { message: 'OK', result: [] } };
     }
     if (mintclubMs > 0) await sleep(mintclubMs);
     return { status: 404, data: null };
@@ -105,7 +102,7 @@ describe('LaunchpadDetectorService parallel slow legs', () => {
     expect(seen.some((url) => url.includes('api.bankr.bot'))).toBe(true);
     expect(seen.some((url) => url.includes('ponsfamily.com'))).toBe(true);
     // Pons hit short-circuits before the factory fallback (zero extra).
-    expect(seen.some((url) => url.includes('blockscout'))).toBe(false);
+    expect(mockedAxios.post).not.toHaveBeenCalled();
   });
 
   it('precedence-preserved: slower higher-priority leg beats faster lower-priority', async () => {
@@ -146,7 +143,6 @@ describe('LaunchpadDetectorService parallel slow legs', () => {
     // (Phase 2 skipped on a hit) — byte-identical fetch shape to the
     // sequential path, so no extra latency vs today.
     expect(seen.some((url) => url.includes('ponsfamily.com'))).toBe(false);
-    expect(seen.some((url) => url.includes('blockscout'))).toBe(false);
     expect(mockedAxios.post).not.toHaveBeenCalled();
     expect(Date.now() - started).toBeLessThan(500);
   });

@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import axios from 'axios';
 import { CacheService } from 'cache/application/cache.service';
+import { AlchemyService } from 'provider/infrastructure/alchemy/alchemy.service';
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
 import { resolveDexScreenerSlug } from 'provider/infrastructure/dexscreener/dexscreener.service';
 import { HeliusService } from 'provider/infrastructure/helius/helius.service';
@@ -127,6 +128,47 @@ export function resolveFlapCacheTtlSeconds(raw: string | undefined): number {
 
 export const flapCacheKey = (chain: string, address: string): string =>
   `flap:launchpad:${(chain ?? '').trim().toLowerCase()}:${(address ?? '').trim().toLowerCase()}`;
+
+/**
+ * Flap factory-mismatch negative-cache TTL (fix 5): a FRESH factory
+ * receipt that explicitly names a non-Flap factory is negative
+ * evidence for a WHOLE 15-minute window — unlike the transient
+ * Alchemy gaps (missing key / 429 / empty / throw), which are NEVER
+ * negative-cached. Kept SEPARATE from the 14-day positive
+ * `flap:launchpad:` rows (different namespace + TTL): the positive
+ * cache means "this token launched on Flap" (immutable), the negative
+ * one means "this receipt was checked and was not Flap" (bounded
+ * freshness, so a mis-read cannot pin a token forever).
+ *
+ * Env `FLAP_FACTORY_MISMATCH_TTL_MS`, default 900_000 ms (15 min).
+ */
+export const FLAP_FACTORY_MISMATCH_TTL_MS_DEFAULT = 15 * 60 * 1000;
+
+export function resolveFlapFactoryMismatchTtlMs(
+  raw: string | undefined,
+): number {
+  if (raw === undefined) return FLAP_FACTORY_MISMATCH_TTL_MS_DEFAULT;
+  const ms = Number(raw);
+  if (!Number.isFinite(ms) || ms <= 0) {
+    return FLAP_FACTORY_MISMATCH_TTL_MS_DEFAULT;
+  }
+  return Math.floor(ms);
+}
+
+/**
+ * Negative-cache key (chain + mint, lowercased — EVM checksum casing
+ * must not fork the row). Deliberately a DIFFERENT namespace than the
+ * 14-day positive `flap:launchpad:` key so the two TTLs never
+ * collide.
+ */
+export const flapFactoryMismatchCacheKey = (
+  chain: string,
+  address: string,
+): string =>
+  `flap:factory-mismatch:${(chain ?? '').trim().toLowerCase()}:${(address ?? '').trim().toLowerCase()}`;
+
+/** Flap page fallback budget (fix 5): keyless SSR page read, ~2.5s. */
+export const FLAP_PAGE_TIMEOUT_MS_DEFAULT = 2_500;
 
 /**
  * Helius-origin leg budget (dexter plan todo 36, graduated-old
@@ -280,6 +322,22 @@ const RECEIPT_MATCH_ORDER = EVM_LAUNCHPAD_ORDER.filter(
   (id) => !(id in EVM_RECEIPT_EXCLUDED),
 );
 
+/**
+ * Phase-2 factory verdict (fix 5). `unavailable` means the evidence
+ * needed for a verdict was missing (no DI, no creation hash, no
+ * receipt/`to`) — TRANSIENT, never negative-cached and eligible for
+ * the keyless page fallback. `mismatch` means the receipt WAS read and
+ * explicitly named a non-Flap factory — negative-cached for
+ * `FLAP_FACTORY_MISMATCH_TTL_MS_DEFAULT` and blockING the page for
+ * that scan (the page is weaker evidence and never overturns it).
+ */
+type FactoryVerdict =
+  | { readonly kind: 'match'; readonly id: string }
+  | { readonly kind: 'mismatch' }
+  | { readonly kind: 'unavailable' };
+
+const FACTORY_UNAVAILABLE: FactoryVerdict = { kind: 'unavailable' };
+
 function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | null = null;
   const guard = new Promise<never>((_, reject) => {
@@ -316,8 +374,13 @@ function containsBytes(haystack: Uint8Array, needle: Uint8Array): boolean {
  * SSR via `Promise.allSettled` under ONE shared ~2s deadline, each
  * with its own AbortController cut at the same instant — total ~=
  * max, not sum), picked by POSITION not finish order, then the ONE
- * Blockscout creation lookup + ONE receipt fetch ONLY on API
- * all-miss (a Pons hit never consults the factory receipt).
+ * Alchemy `getAssetTransfers` creation lookup + ONE receipt fetch
+ * ONLY on API all-miss (a Pons hit never consults the factory
+ * receipt). The receipt `to` factory match is the mandatory
+ * factory gate (fix 5; the retired Blockscout leg is gone); a BSC
+ * token with no available hash/receipt may additionally corroborate
+ * via the keyless `flap.sh/bnb/<token>` page, and an explicit
+ * non-Flap receipt is negative-cached for ~15 min.
  * Solana all-miss falls through to ONE archival Helius history leg
  * (earliest-in-window full-tx → program-id actor table; EVM never
  * touches Helius — Solana Enhanced-API only). Every external call
@@ -356,6 +419,10 @@ export class LaunchpadDetectorService implements LaunchpadDetectorPort {
     process.env['FLAP_CACHE_TTL_DAYS'],
   );
 
+  private readonly flapMismatchTtlMs: number = resolveFlapFactoryMismatchTtlMs(
+    process.env['FLAP_FACTORY_MISMATCH_TTL_MS'],
+  );
+
   private readonly heliusOriginMs: number = resolveHeliusOriginTimeoutMs(
     process.env['LAUNCHPAD_HELIUS_ORIGIN_TIMEOUT_MS'],
   );
@@ -370,6 +437,9 @@ export class LaunchpadDetectorService implements LaunchpadDetectorPort {
     @Optional()
     @Inject(DexScreenerService)
     private readonly dexscreener: DexScreenerService | null = null,
+    @Optional()
+    @Inject(AlchemyService)
+    private readonly alchemy: AlchemyService | null = null,
   ) {}
 
   public async detectLaunchpad(
@@ -607,29 +677,29 @@ export class LaunchpadDetectorService implements LaunchpadDetectorPort {
       mintclubLeg.done();
       ponsLeg.done();
     }
-    // Phase 2 — generic-infra fallback (ONE Blockscout creation + ONE
-    // receipt vs the factory table) ONLY on API all-miss. Deferred —
-    // never concurrent with Phase 1 — so the pinned shapes hold: a
-    // bankr/Pons hit short-circuits with ZERO extra fetches, and the
-    // same shared deadline still bounds it (remaining budget only).
-    // Flap rides this SAME Phase-2 machinery (dexter plan todo 44):
-    // the Portal is a CREATE2 deployer, so receipt `to` == Portal —
-    // the exact shape `detectFactoryTo` already matches. NO new
-    // fetcher, NO Phase-1 leg (the SSR path was rejected with proof
-    // in Phase A: flap.sh serves a JS shell, shell-generic titles on
-    // launched AND dead pages). Positional precedence: Phase-1
-    // (bankr > mintclub > pons) beats factory by construction, and
-    // within the factory table `RECEIPT_MATCH_ORDER` position wins —
-    // no overlap in practice (distinct chains/factories). The flap
-    // positive cache is checked FIRST inside Phase 2 (a cached flap
-    // hit skips the Blockscout + receipt fetches entirely) and
-    // written ONLY on a fresh flap resolution — nulls never cached.
-    // GRADUATED-STATE note: the factory path is state-independent
-    // (the creation receipt `to` never changes when a token
-    // graduates/bonds) — one fixture suffices, no per-state legs.
-    // NOTE (todo 36): NO Helius leg on EVM — the history seam is the
-    // Solana Enhanced Transactions API, so EVM all-miss stays null
-    // with zero Helius calls (Solana-only by construction).
+    // Phase 2 — generic-infra fallback (fix 5: ONE Alchemy creation
+    // lookup + ONE receipt vs the factory table) ONLY on API all-miss.
+    // Deferred — never concurrent with Phase 1 — so the pinned shapes
+    // hold: a bankr/Pons hit short-circuits with ZERO extra fetches,
+    // and the same shared deadline still bounds it (remaining budget
+    // only).
+    //
+    // The retired Blockscout `getcontractcreation` leg (bnb/bsc
+    // answered HTTP 404) is replaced by Alchemy `getAssetTransfers`
+    // (first ERC-20 transfer ascending = creation tx). The receipt
+    // `to` factory match REMAINS the mandatory gate: a token is Flap
+    // only when its creation receipt targets the Flap Portal (CREATE2
+    // deployer shape). Receipt `to` absent or the hash unavailable is
+    // TRANSIENT (`unavailable`) and never negative-cached.
+    //
+    // NEGATIVE CACHE (fix 5): an explicit non-Flap factory receipt is
+    // negative-cached for ~15 min (`flap:factory-mismatch:` key,
+    // separate from the 14-day positive row). A negative HIT skips
+    // the Alchemy lookup for that scan but MUST NOT suppress the
+    // keyless paths (flapsh + page), so the token can still be
+    // corroborated. A FRESH mismatch never reaches the page (weaker
+    // evidence cannot overturn the explicit receipt), while a
+    // transient/unavailable verdict does.
     //
     // FLAPSH CORROBORATION (todo 60, research 57 — bsc-gated): ONE
     // keyless DSC pair-list read (`/latest/dex/tokens/<mint>`, the
@@ -641,6 +711,15 @@ export class LaunchpadDetectorService implements LaunchpadDetectorPort {
     // caveat e); its ABSENCE stays an honest null and is NEVER
     // negative evidence (caveat a). Positive corroborations ride the
     // flap positive cache below; nulls are never cached (19a).
+    //
+    // KEYLESS PAGE FALLBACK (fix 5, BSC only): `flap.sh/bnb/<token>`
+    // is read ONLY when the Alchemy-hash/receipt path is unavailable
+    // (missing key, 429, empty, throw, or a missing receipt). The page
+    // never supplies a tx hash and never overrides an explicit
+    // `receiptTo` mismatch. Positive = HTTP 200 + a `| FLAP` title +
+    // the RSC `"createdAt":<unix>` marker; everything else (generic
+    // `Flap — The Programmable Token Launchpad` shell, title-only,
+    // timeout, throw) is negative. ~2.5s own budget.
     const factoryLeg = armLeg();
     const flapshLeg = FLAPSH_CORROBORATION_CHAINS.has(chain) ? armLeg() : null;
     try {
@@ -648,23 +727,44 @@ export class LaunchpadDetectorService implements LaunchpadDetectorPort {
         this.logger.debug(`flap-cache hit (chain=${chain}) — receipt skipped`);
         return launchpadInfo('flap', chain, address);
       }
+      const mismatchCached = await this.getCachedFlapMismatch(chain, address);
+      if (mismatchCached) {
+        this.logger.debug(
+          `flap factory-mismatch cache hit (chain=${chain}) — Alchemy skipped`,
+        );
+      }
       const settled = await Promise.allSettled([
-        this.detectFactoryTo(chain, address, factoryLeg.signal),
+        mismatchCached
+          ? Promise.resolve(FACTORY_UNAVAILABLE)
+          : this.resolveFactoryVerdict(chain, address, factoryLeg.signal),
         flapshLeg !== null
           ? this.detectFlapshPair(chain, address, flapshLeg.signal)
           : Promise.resolve(false),
       ] as const);
-      const factory =
-        settled[0].status === 'fulfilled' ? settled[0].value : null;
-      if (factory !== null) {
-        if (factory === 'flap') {
+      const verdict: FactoryVerdict =
+        settled[0].status === 'fulfilled'
+          ? settled[0].value
+          : FACTORY_UNAVAILABLE;
+      if (verdict.kind === 'match') {
+        if (verdict.id === 'flap') {
           await this.putCachedFlap(chain, address);
         }
-        return launchpadInfo(factory, chain, address);
+        return launchpadInfo(verdict.id, chain, address);
       }
       if (settled[1].status === 'fulfilled' && settled[1].value === true) {
         this.logger.debug(
           `flapsh-pair corroborated (chain=${chain}) — factory miss upgraded`,
+        );
+        await this.putCachedFlap(chain, address);
+        return launchpadInfo('flap', chain, address);
+      }
+      if (verdict.kind === 'mismatch') {
+        await this.putCachedFlapMismatch(chain, address);
+        return null;
+      }
+      if (await this.detectFlapPage(chain, address)) {
+        this.logger.debug(
+          `flap page corroborated (chain=${chain}) — factory unavailable`,
         );
         await this.putCachedFlap(chain, address);
         return launchpadInfo('flap', chain, address);
@@ -910,6 +1010,48 @@ export class LaunchpadDetectorService implements LaunchpadDetectorPort {
     }
   }
 
+  // Flap factory-mismatch negative cache (fix 5): same shared
+  // CacheService primitive, SEPARATE namespace + ~15 min TTL. Only an
+  // explicit non-Flap receipt writes it; transient Alchemy gaps never
+  // do. A read hit skips the Alchemy lookup but never the keyless
+  // flapsh/page paths. Fail-open on absent cache or read/write errors.
+  private async getCachedFlapMismatch(
+    chain: string,
+    address: string,
+  ): Promise<boolean> {
+    if (this.ponsCache === null || this.ponsCache === undefined) {
+      return false;
+    }
+    try {
+      return (
+        (await this.ponsCache.get<boolean>(
+          flapFactoryMismatchCacheKey(chain, address),
+        )) === true
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  private async putCachedFlapMismatch(
+    chain: string,
+    address: string,
+  ): Promise<void> {
+    if (this.ponsCache === null || this.ponsCache === undefined) return;
+    // CacheService TTL is seconds; the contract above is ms-based —
+    // round UP so a sub-second override never becomes a zero-TTL row.
+    const ttlSeconds = Math.max(1, Math.ceil(this.flapMismatchTtlMs / 1000));
+    try {
+      await this.ponsCache.set(
+        flapFactoryMismatchCacheKey(chain, address),
+        true,
+        ttlSeconds,
+      );
+    } catch {
+      // Cache write failure → answer still returns (fail-open).
+    }
+  }
+
   /**
    * Helius history origin leg (todo 36, Solana LAST resort): for
    * mints with no live curve (graduated-old, account closed) the
@@ -965,68 +1107,118 @@ export class LaunchpadDetectorService implements LaunchpadDetectorPort {
     }
   }
 
-  private async detectFactoryTo(
+  /**
+   * Phase-2 factory verdict (fix 5): Alchemy creation hash → receipt
+   * `to` (the mandatory factory gate).
+   *
+   * - `unavailable` — no transport/no Alchemy DI/no creation hash/no
+   *   receipt `to`. TRANSIENT: never negative-cached; the keyless page
+   *   fallback may still corroborate on BSC.
+   * - `match` — receipt `to` equals a factory in `RECEIPT_MATCH_ORDER`
+   *   (positional precedence preserved).
+   * - `mismatch` — the receipt WAS read and names another factory
+   *   (explicit negative evidence; ~15 min negative cache).
+   *
+   * `receiptTo` keeps its own contract/validation untouched: a
+   * `to: null` receipt is treated as `unavailable`, NOT as a mismatch
+   * (pinksale-style contract-creation receipts must stay eligible for
+   * future keyless legs).
+   */
+  private async resolveFactoryVerdict(
     chain: string,
     address: string,
     signal?: AbortSignal,
-  ): Promise<string | null> {
+  ): Promise<FactoryVerdict> {
     const transport = EVM_CHAIN_TRANSPORTS[chain] ?? null;
-    if (transport === null || transport.blockscoutUrl === null) return null;
-    const txHash = await this.creationTxHash(
-      transport.blockscoutUrl,
-      address,
-      signal,
-    );
-    if (txHash === null) return null;
+    if (transport === null) return FACTORY_UNAVAILABLE;
+    const txHash = await this.creationTxHash(chain, address, signal);
+    if (txHash === null) return FACTORY_UNAVAILABLE;
     const to = await this.receiptTo(transport.rpcUrl, txHash, signal);
-    if (to === null) return null;
+    if (to === null) return FACTORY_UNAVAILABLE;
     for (const id of RECEIPT_MATCH_ORDER) {
       const set = EVM_FACTORY_SETS[id] ?? null;
       if (set === null) continue;
       if (!set.chains.includes(chain)) continue;
       if (set.factories.some((factory) => factory.toLowerCase() === to)) {
-        return id;
+        return { kind: 'match', id };
       }
     }
-    return null;
+    return { kind: 'mismatch' };
   }
 
+  /**
+   * Creation-tx hash via Alchemy `getAssetTransfers` (fix 5): the
+   * first ERC-20 transfer touching the token, ascending from genesis.
+   * The retired Blockscout `getcontractcreation` call is gone —
+   * bnb/bsc Blockscout answer HTTP 404 and Etherscan free excludes
+   * BSC (research 49). Absent DI / absent key / 429 / empty / thrown
+   * errors resolve `null` (transient, never negative-cached): the
+   * detector never throws outward.
+   */
   private async creationTxHash(
-    blockscoutUrl: string,
+    chain: string,
     address: string,
     signal?: AbortSignal,
   ): Promise<string | null> {
+    const alchemy = this.alchemy;
+    if (alchemy === null || alchemy === undefined) return null;
     try {
-      const { status, data } = await axios.get(blockscoutUrl + '/api', {
-        params: {
-          module: 'contract',
-          action: 'getcontractcreation',
-          contractaddresses: address,
-        },
-        timeout: HTTP_TIMEOUT_MS,
-        validateStatus: () => true,
+      const hash = await alchemy.getAssetTransfers(chain, address, {
         signal,
       });
-      if (status !== 200 || data === null || typeof data !== 'object') {
-        return null;
-      }
-      const result = (data as { result?: unknown }).result;
-      if (!Array.isArray(result) || result.length === 0) return null;
-      const entry = result[0] as {
-        contractAddress?: unknown;
-        txHash?: unknown;
-      };
-      if (
-        typeof entry.contractAddress !== 'string' ||
-        entry.contractAddress.toLowerCase() !== address.toLowerCase() ||
-        typeof entry.txHash !== 'string' ||
-        entry.txHash === ''
-      ) {
-        return null;
-      }
-      return entry.txHash;
+      if (typeof hash !== 'string') return null;
+      return /^0x[0-9a-fA-F]{64}$/.test(hash) ? hash : null;
     } catch {
       return null;
+    }
+  }
+
+  /**
+   * Keyless Flap page fallback (fix 5, BSC ONLY): `flap.sh/bnb/<token>`.
+   *
+   * Phase A proved a bare 200 is NOT proof (the page is a JS shell on
+   * launched AND dead addresses), so a positive requires BOTH:
+   *  1. a token-specific `<title>… | FLAP</title>` (the generic
+   *     `Flap — The Programmable Token Launchpad` shell is negative),
+   *  2. the RSC payload carrying `"createdAt":<unix>` (escaped or
+   *     plain).
+   * Everything else — generic title, title-only, non-200, non-string
+   * body, transport error, own ~2.5s abort — is negative. The page
+   * NEVER supplies a tx hash and NEVER overrides an explicit
+   * `receiptTo` mismatch (the caller only reaches it on an
+   * `unavailable` verdict). Same `LaunchpadInfo` shape/id/name/url as
+   * the factory path (built by `launchpadInfo`).
+   */
+  private async detectFlapPage(
+    chain: string,
+    address: string,
+  ): Promise<boolean> {
+    if (chain !== 'bsc') return false;
+    const controller = new AbortController();
+    const timer = setTimeout(
+      () => controller.abort(),
+      FLAP_PAGE_TIMEOUT_MS_DEFAULT,
+    );
+    try {
+      const { status, data } = await axios.get(
+        `https://flap.sh/bnb/${address}`,
+        {
+          timeout: HTTP_TIMEOUT_MS,
+          validateStatus: () => true,
+          signal: controller.signal,
+        },
+      );
+      if (status !== 200 || typeof data !== 'string') return false;
+      const title = /<title>([^<]*)<\/title>/i.exec(data)?.[1]?.trim() ?? '';
+      if (!/\|\s*FLAP\s*$/i.test(title)) return false;
+      // RSC flight payloads carry the key escaped (`\"createdAt\":…`)
+      // inside the `self.__next_f.push` string; accept the escaped and
+      // plain forms, never a title-only coincidence.
+      return /\\?"createdAt\\?"\s*:\s*\d+/.test(data);
+    } catch {
+      return false;
+    } finally {
+      clearTimeout(timer);
     }
   }
 

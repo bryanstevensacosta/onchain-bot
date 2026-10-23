@@ -269,13 +269,16 @@ export interface ChainRpc {
  *
  * launchpad-detector `receiptTo` EXCLUDED with reason (grep-proof):
  * that path posts `eth_getTransactionReceipt` to the keyless
- * `EVM_CHAIN_TRANSPORTS[chain].rpcUrl` (launchpad-table) gated by a
- * Blockscout creation lookup (≤1 receipt call per cold EVM detect).
+ * `EVM_CHAIN_TRANSPORTS[chain].rpcUrl` (launchpad-table) after the
+ * fix-5 Alchemy `getAssetTransfers` creation-hash leg (≤1 receipt
+ * call per cold EVM detect; the retired Blockscout lookup is gone).
  * It is NOT routed through tiered `rpcCallForChain` because (a) the
- * detector owns no ChainRpc dep and gaining one risks a module cycle
- * (`LaunchpadModule` imports only `SolanaRpcModule`), (b) receipt-by-
+ * receipt leg needs no ChainRpc dep (the Alchemy dependency serves
+ * only the Enhanced `getAssetTransfers` call, so `LaunchpadModule`
+ * wires `AlchemyModule` and nothing else), (b) receipt-by-
  * txHash has different rate semantics than chain-state reads, (c) the
- * task's MUST-NOT list freezes detector logic. Exclusion is
+ * factory gate is deliberately pinned to the keyless public
+ * transport. Exclusion is
  * deliberate: `grep receiptTo launchpad-detector` stays keyless;
  * free-B tiers serve the EVM fast-path/readers instead.
  */

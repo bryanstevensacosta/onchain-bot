@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AlchemyModule } from 'provider/infrastructure/alchemy/alchemy.module';
 import { DexScreenerModule } from 'provider/infrastructure/dexscreener';
 import { HeliusModule } from 'provider/infrastructure/helius/helius.module';
 import { SolanaRpcModule } from 'provider/infrastructure/solana-rpc/solana-rpc.module';
@@ -20,10 +21,14 @@ import { LAUNCHPAD_DETECTOR } from './domain/launchpad-detector.port';
  * `DexScreenerModule` is imported for the todo-60 BSC flapsh-pair
  * corroboration leg only (ONE keyless pair-list read; `@Optional()`
  * in the detector, same byte-identical-no-DI property).
- * No cycle: `HeliusModule`/`DexScreenerModule` depend on config alone.
+ * `AlchemyModule` is imported for the fix-5 creation-hash leg
+ * (`getAssetTransfers` — the retired Blockscout replacement;
+ * `@Optional()` in the detector, same property).
+ * No cycle: `HeliusModule`/`DexScreenerModule`/`AlchemyModule` depend
+ * on config alone.
  */
 @Module({
-  imports: [SolanaRpcModule, HeliusModule, DexScreenerModule],
+  imports: [SolanaRpcModule, HeliusModule, DexScreenerModule, AlchemyModule],
   providers: [
     LaunchpadDetectorService,
     { provide: LAUNCHPAD_DETECTOR, useExisting: LaunchpadDetectorService },

@@ -226,8 +226,8 @@ export const EVM_RECEIPT_EXCLUDED: Record<string, string> = {
 // NOTE (dexter plan todo 44, Phase B): `flap` is DELIBERATELY absent
 // above — it MUST participate in receipt-`to` matching (Portal-CREATE2
 // `to` == Portal). `RECEIPT_MATCH_ORDER` derives from
-// `EVM_LAUNCHPAD_ORDER` minus this map, so flap rides Phase-2
-// `detectFactoryTo` with zero extra wiring.
+// `EVM_LAUNCHPAD_ORDER` minus this map, so flap rides the Phase-2
+// `resolveFactoryVerdict` receipt match with zero extra wiring.
 
 export const EVM_LAUNCHPAD_ROWS: Record<string, LaunchpadRow> = {
   bankr: {
@@ -377,12 +377,13 @@ export const EVM_FACTORY_SETS: Record<string, EvmFactorySet> = {
   // CREATE2 deployer entrypoint (user launch tx targets Portal →
   // receipt `to` == Portal), the same shape the existing factory-set
   // leg already matches — NO new fetcher needed. Compared
-  // case-insensitively by `detectFactoryTo`, so checksum casing is
-  // preserved as documented. CHAIN SCOPING: bnb (alias bsc, chainId
+  // case-insensitively by the Phase-2 factory receipt match
+  // (`resolveFactoryVerdict`), so checksum casing is preserved as
+  // documented. CHAIN SCOPING: bnb (alias bsc, chainId
   // 56) + robinhood (4663) fire. DOCUMENTED-DEFERRED (NOT silent):
   // xlayer (`0xb30D…`) + monad (`0x30e8…`) Portals are cited on the
   // same docs page BUT have no `EVM_CHAIN_TRANSPORTS` row (no
-  // keyless RPC/blockscout in codebase) — adding transports is
+  // keyless RPC transport in codebase) — adding transports is
   // separate intake scope. morph is EXCLUDED: NO Portal row on the
   // canonical page (only indirect signals), and factory-matching
   // without a documented Portal would be invention.
@@ -398,57 +399,51 @@ export const EVM_FACTORY_SETS: Record<string, EvmFactorySet> = {
 export interface EvmChainTransport {
   readonly chainId: number;
   readonly rpcUrl: string;
-  readonly blockscoutUrl: string | null;
 }
 
 /**
- * Keyless EVM transports (public RPC + Blockscout `getcontractcreation`,
- * R1 §2 general note). Adapter review first (task MUST DO): Alchemy
- * exposes receipts/logs but is keyed + eth-mainnet-only; Moralis has
- * no receipt/trace leg; FluxRPC is Solana-only — hence this keyless
- * leg, zero new API keys. BSC/Arbitrum/Polygon/Optimism/Avalanche
- * Blockscout hosts are best-effort (null-safe: unknown → null).
+ * Keyless EVM transports (public RPC for the receipt leg). The
+ * retired Blockscout `getcontractcreation` lookup was removed in
+ * fix 5 — bnb/bsc Blockscout answer HTTP 404 — and the creation-tx
+ * hash now comes from Alchemy `getAssetTransfers`
+ * (`AlchemyService.getAssetTransfers`, keyed). These rows remain
+ * because `receiptTo` posts the receipt read to `rpcUrl` keylessly
+ * (see `launchpad-detector.service.ts`). Adapter review stands:
+ * Moralis has no receipt/trace leg and FluxRPC is Solana-only, so no
+ * keyed receipt replacement is available without a new dependency.
  */
 export const EVM_CHAIN_TRANSPORTS: Record<string, EvmChainTransport> = {
   ethereum: {
     chainId: 1,
     rpcUrl: 'https://eth.llamarpc.com',
-    blockscoutUrl: 'https://eth.blockscout.com',
   },
   base: {
     chainId: 8453,
     rpcUrl: 'https://mainnet.base.org',
-    blockscoutUrl: 'https://base.blockscout.com',
   },
   bsc: {
     chainId: 56,
     rpcUrl: 'https://bsc-dataseed.binance.org',
-    blockscoutUrl: 'https://bnb.blockscout.com',
   },
   arbitrum: {
     chainId: 42161,
     rpcUrl: 'https://arb1.arbitrum.io/rpc',
-    blockscoutUrl: 'https://arbitrum.blockscout.com',
   },
   polygon: {
     chainId: 137,
     rpcUrl: 'https://polygon-rpc.com',
-    blockscoutUrl: 'https://polygon.blockscout.com',
   },
   robinhood: {
     chainId: 4663,
     rpcUrl: 'https://rpc.mainnet.chain.robinhood.com',
-    blockscoutUrl: 'https://robinhoodchain.blockscout.com',
   },
   optimism: {
     chainId: 10,
     rpcUrl: 'https://mainnet.optimism.io',
-    blockscoutUrl: 'https://optimism.blockscout.com',
   },
   avalanche: {
     chainId: 43114,
     rpcUrl: 'https://api.avax.network/ext/bc/C/rpc',
-    blockscoutUrl: 'https://avalanche.blockscout.com',
   },
 };
 

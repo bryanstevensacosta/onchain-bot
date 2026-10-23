@@ -137,6 +137,7 @@ describe('LaunchpadDetectorService Helius origin leg (todo 36, LAST resort)', ()
 
   it('EVM factory hit never touches Helius (Solana-only leg)', async () => {
     const token = '0x1111111111111111111111111111111111111111';
+    const txHash = `0x${'ab'.repeat(32)}`;
     const solanaRpc = {
       getMultipleAccounts: jest.fn(),
       getAccountInfo: jest.fn(),
@@ -150,22 +151,16 @@ describe('LaunchpadDetectorService Helius origin leg (todo 36, LAST resort)', ()
         },
       };
     });
-    mockedAxios.get.mockImplementation(async (url: string) => {
-      if (String(url).includes('blockscout')) {
-        return {
-          status: 200,
-          data: {
-            result: [{ contractAddress: token, txHash: '0xdeadbeef' }],
-          },
-        };
-      }
-      return { status: 404, data: null };
-    });
+    mockedAxios.get.mockResolvedValue({ status: 404, data: null });
     const helius = heliusStub([], null);
     const detector = new LaunchpadDetectorService(
       solanaRpc as never,
       null,
       helius as never,
+      null,
+      {
+        getAssetTransfers: jest.fn().mockResolvedValue(txHash),
+      } as never,
     );
     const res = await detector.detectLaunchpad('base', token);
     expect(res?.id).toBe('clanker');

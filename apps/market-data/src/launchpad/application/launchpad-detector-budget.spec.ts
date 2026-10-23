@@ -39,8 +39,8 @@ function stubRpc() {
 
 /**
  * EVM harness: every GET 404s except the Pons registry (configurable
- * body/delay); every POST answers `{}` (Blockscout-shaped misses fall
- * through to null via shape checks). Mirrors the todo-34 helper —
+ * body/delay); every POST answers `{}` (empty receipt-shaped misses
+ * fall through to null via shape checks). Mirrors the todo-34 helper —
  * bankr/mintclub miss fast so the Pons leg is always reached.
  */
 function detectorWithPons(
