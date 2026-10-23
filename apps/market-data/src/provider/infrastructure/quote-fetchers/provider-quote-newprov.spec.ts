@@ -160,3 +160,45 @@ describe('new-provider legs (todo 32: defillama + etherscan last)', () => {
     expect(getTokenHolderCount).toHaveBeenCalledTimes(1);
   });
 });
+
+/**
+ * Birdeye liquidity side semantics (audit follow-up): token-overview
+ * `liquidity` is ONE-SIDE (empirical: BSC PCS v2 pool
+ * `0x7c5e1f873f02b042995d0c6ebee94120a740e348` answered ~$2,043.56
+ * while on-chain both sides = $4,076.53, Gecko `reserve_in_usd` =
+ * $4,088.69 and DSC `liquidity.usd` = $4,064.73), while the core
+ * `liquidityUsd` invariant is TOTAL. The adapter boundary doubles it.
+ */
+describe('birdeye liquidity: one-side overview → TOTAL quote field', () => {
+  const BSC_TOKEN = '0x7c5e1f873f02b042995d0c6ebee94120a740e348';
+
+  function birdeyeFetcher(overview: unknown) {
+    return buildProviderQuoteFetchers(
+      stubDeps({ birdeye: { getTokenOverview: async () => overview } }),
+    ).find((fetcher) => fetcher.name === 'birdeye');
+  }
+
+  it('doubles the one-side overview liquidity to the total invariant', async () => {
+    const quote = await birdeyeFetcher({ liquidity: 2043.56 })?.fetch(
+      'bsc',
+      BSC_TOKEN,
+    );
+    expect(quote?.liquidityUsd).toBeCloseTo(4087.12, 6);
+  });
+
+  it('keeps null liquidity null (no invented measurement)', async () => {
+    const quote = await birdeyeFetcher({ liquidity: null })?.fetch(
+      'bsc',
+      BSC_TOKEN,
+    );
+    expect(quote?.liquidityUsd).toBeNull();
+  });
+
+  it('keeps a real 0 at 0 (zero is a reading, never nullished)', async () => {
+    const quote = await birdeyeFetcher({ liquidity: 0 })?.fetch(
+      'bsc',
+      BSC_TOKEN,
+    );
+    expect(quote?.liquidityUsd).toBe(0);
+  });
+});

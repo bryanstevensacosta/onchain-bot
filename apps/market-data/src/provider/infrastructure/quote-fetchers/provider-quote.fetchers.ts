@@ -46,6 +46,34 @@ function toNumber(value: unknown): number | null {
 }
 
 /**
+ * Birdeye token-overview `liquidity` is ONE-SIDE, while the core
+ * `liquidityUsd` invariant is TOTAL (both sides): the direct fast paths
+ * compute `stableUsd * 2` / `nativeAmount * nativeUsd * 2`, and Gecko
+ * `reserve_in_usd` + DexScreener `liquidity.usd` are both total.
+ *
+ * Empirical cross-check (live, BSC PCS v2 pool
+ * `0x7c5e1f873f02b042995d0c6ebee94120a740e348`): on-chain both sides =
+ * $4,076.53, Gecko `reserve_in_usd` = $4,088.69, DexScreener
+ * `liquidity.usd` = $4,064.73 — but Birdeye token-overview answered
+ * $2,043.56 (≈ one side). Birdeye's public docs are silent on the
+ * semantics, so this conclusion is EMPIRICAL (~90–95% one-side for that
+ * pool). Convert at the adapter boundary: without it the merge flips
+ * the card to half the real TVL (Birdeye 2K vs Gecko 4K).
+ *
+ * `null` stays `null` (never invent a measurement) and a real `0`
+ * stays `0` (zero is a reading); no rounding — display rounding is the
+ * renderer's business, and the display `liquidityUsdSide` (total/2) key
+ * keeps its meaning untouched.
+ *
+ * RESIDUAL CAVEAT: token-overview may aggregate liquidity across the
+ * token's pools, so this ×2 is a per-token TOTAL, not a per-pool TVL.
+ * Re-audit the side semantics before wiring a per-pair endpoint here.
+ */
+function birdeyeOneSideToTotalUsd(value: number | null): number | null {
+  return value === null ? null : value * 2;
+}
+
+/**
  * First non-empty GeckoTerminal `gt_category_ids` entry (dexter plan
  * todo 72), trimmed and verbatim. It is a CANDIDATE origin id only —
  * the snapshot seam validates it via `launchpadInfo`; never derived
@@ -497,7 +525,7 @@ export function buildProviderQuoteFetchers(
       const quote: Partial<SnapshotQuote> = {
         priceUsd: toNumber(overview.price),
         marketCapUsd: toNumber(overview.mc),
-        liquidityUsd: toNumber(overview.liquidity),
+        liquidityUsd: birdeyeOneSideToTotalUsd(toNumber(overview.liquidity)),
         volume24hUsd: toNumber(overview.volume24h),
         priceChange24h: toNumber(overview.priceChange24h),
         holders: toNumber(overview.holder),
