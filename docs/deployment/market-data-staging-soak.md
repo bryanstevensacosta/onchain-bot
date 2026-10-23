@@ -127,7 +127,7 @@ the pre-fix line.
 | --- | ---------- | ------ | ------------ | --------------- | -------------- | -------------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | 2026-10-21 | 200    | 2            | ready           | 3              | 0              | 39   | chains=7; providerErrors keys `onchain-direct`/`dev:fast-path`/`honeypot:fast-path`; snapshot_ms=1593; degraded=true; stale=false                                    |
 | 2   | 2026-10-22 | 200    | 1            | ready           | 1              | 0              | 48   | chains=7; providerErrors key `swr-now`; snapshot_ms=39; degraded=false; stale=true; sources `dexscreener`/`geckoterminal`/`evm-rpc`; 429-log-lines=5 (<20 threshold) |
-| 3   | —          | —      | —            | —               | —              | —              | —    | —                                                                                                                                                                    |
+| 3   | 2026-10-23 | 200    | 3            | ready           | 4              | 0              | 80   | chains=7; snapshot_ms=1257; degraded=true; stale=false; 429-log-lines=2; deploy 39942801522 (fix 5) green; health p95 9.9 ms n=22 (20.1 h window, incomplete)        |
 | 4   | —          | —      | —            | —               | —              | —              | —    | —                                                                                                                                                                    |
 | 5   | —          | —      | —            | —               | —              | —              | —    | —                                                                                                                                                                    |
 | 6   | —          | —      | —            | —               | —              | —              | —    | —                                                                                                                                                                    |
@@ -190,6 +190,26 @@ ssh OracleDroplet 'jq -r "select(.ts > (now - 86400 | todate)) | .ms" \
 
 The sampler only measures the health edge; snapshot latency stays a
 daily-soak number (`snapshot_ms` in §6).
+
+**Day 3 — fix 5 (Flap BSC launchpad) + deploy `39942801522`.** Staging
+redeployed green at ~11:03Z (image `staging-latest`, container healthy,
+health `{"status":"ok"}`). The Rick-reference token `0xcEb8…7777` (BSC)
+now serves `launchpad: {id: flap, name: Flap, url: https://flap.sh/bnb/…}`
+on a non-stale body, with `venue: pancakeswap v2` and
+`pairCreatedAt: 2026-10-14T18:08:53.000Z` intact. First resolve rode the
+keyless page fallback (Alchemy `alchemy_getAssetTransfers` was canceled at
+the 2s detector deadline on the free tier; log `flap page corroborated`);
+the 14d positive cache then made the next resolves instant
+(`flap-cache hit`, `tailMs=400`). Residual, data-only: the todo-68 ATH
+seed row for this token is absent on staging (`snapshot_history` shows
+only live rows), so `fdvAth` is the live clamp (≈2.1K, ~1 min) instead of
+the 60.5K peak seeded in dev; Gecko day calls remain under 429 pressure
+(2 matching log lines in 24 h). Not a template defect — the v16 body was
+not changed. v16 stays written to the INACTIVE `RickBurpBot` row
+(sha256 `6bc4f1b1…c51354`, `version=17`, `isActive=false`); no activation.
+Health sampler read at `2026-10-23T11:00Z`: **p95 9.9 ms, n=22** over
+`2026-10-22T14:52Z → 2026-10-23T11:00Z` (20.1 h, still short of the full
+24 h window; re-read after ~14:52Z).
 
 ## 7. Thresholds and escalation
 
