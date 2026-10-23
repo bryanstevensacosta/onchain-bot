@@ -54,6 +54,12 @@ function stageveilPools(dexId: string | null, poolCreatedAt?: string) {
 async function buildService(options: {
   readonly bestPair: unknown;
   readonly pools: unknown;
+  /**
+   * Per-call `getTokenPools` answers (call index): `'throw'` rejects
+   * (Gecko 429/outage), `'hang'` never settles (venue tail timeout);
+   * a missing index falls back to `options.pools`.
+   */
+  readonly poolsPerCall?: ReadonlyArray<unknown>;
   readonly poolsCalls?: string[];
   readonly ohlcvCalls?: string[];
   readonly birdeyeCalls?: string[];
@@ -65,6 +71,7 @@ async function buildService(options: {
    */
   readonly nativeChange?: number;
 }): Promise<AddressSnapshotService> {
+  let poolsCallIndex = 0;
   const module = await Test.createTestingModule({
     imports: [
       ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }),
@@ -97,8 +104,12 @@ async function buildService(options: {
     .useValue({
       getTokenPools: jest.fn(async (slug: string) => {
         options.poolsCalls?.push(slug);
+        const step = options.poolsPerCall?.[poolsCallIndex];
+        poolsCallIndex += 1;
+        if (step === 'hang') return new Promise(() => {});
+        if (step === 'throw') throw new Error('geckoterminal 429');
         if (options.pools instanceof Error) throw options.pools;
-        return options.pools;
+        return step === undefined ? options.pools : step;
       }),
       getPoolOhlcv: jest.fn(async (_slug: string, pool: string) => {
         options.ohlcvCalls?.push(pool);
@@ -272,6 +283,91 @@ describe('AddressSnapshotService venue Gecko fallback (todo 26)', () => {
       kindHint: 'token',
     });
     expect(snapshot.launchpad).toBeNull();
+  });
+});
+
+describe('venue fallback from the derivation pool (zero extra Gecko calls)', () => {
+  /**
+   * The OHLC-derivation leg ALREADY picks a pool (`selectPoolQuote`) and
+   * pays for it; when the venue tail dies (Gecko 429/timeout) that pick
+   * still names the venue. Precedence: a real tail venue always wins.
+   */
+  it('fills venue from the picked pool when the venue tail answers 429', async () => {
+    const poolsCalls: string[] = [];
+    const service = await buildService({
+      bestPair: null,
+      pools: null,
+      // Call 1 = venue tail (429), call 2 = derivation pick.
+      poolsPerCall: [
+        'throw',
+        stageveilPools('pancakeswap_v2', '2026-10-14T14:30:02Z'),
+      ],
+      poolsCalls,
+    });
+    const snapshot = await service.getSnapshot({
+      chain: 'robinhood',
+      value: STAGEVEIL,
+      kindHint: 'token',
+    });
+    expect(snapshot.venue).toEqual({
+      dexId: 'pancakeswap_v2',
+      labels: [],
+    });
+    // Pair creation still comes from the derivation pool.
+    expect(snapshot.pairCreatedAt).toBe('2026-10-14T14:30:02.000Z');
+    // The fallback adds ZERO calls: one per existing leg, nothing more.
+    expect(poolsCalls).toEqual(['robinhood', 'robinhood']);
+  });
+
+  it('rewrites the tail timeout note when the fallback fills the venue', async () => {
+    const service = await buildService({
+      bestPair: null,
+      pools: null,
+      // Call 1 = venue tail hangs (budget timeout), call 2 = derivation.
+      poolsPerCall: ['hang', stageveilPools('pancakeswap_v2')],
+    });
+    const snapshot = await service.getSnapshot({
+      chain: 'robinhood',
+      value: STAGEVEIL,
+      kindHint: 'token',
+    });
+    expect(snapshot.venue).toEqual({
+      dexId: 'pancakeswap_v2',
+      labels: [],
+    });
+    // Honesty: the note must not claim the field stayed null.
+    expect(snapshot.providerErrors['tail:venue']).toContain(
+      'venue filled from derivation pool',
+    );
+    expect(snapshot.providerErrors['tail:venue']).not.toContain(
+      'degraded to null',
+    );
+  });
+
+  it('never overwrites a real tail venue with the derivation pick', async () => {
+    const service = await buildService({
+      bestPair: { dexId: 'uniswap', labels: ['v4'] },
+      pools: stageveilPools('pancakeswap_v2'),
+    });
+    const snapshot = await service.getSnapshot({
+      chain: 'robinhood',
+      value: STAGEVEIL,
+      kindHint: 'token',
+    });
+    expect(snapshot.venue).toEqual({ dexId: 'uniswap', labels: ['v4'] });
+  });
+
+  it('keeps venue null when neither leg names a dex', async () => {
+    const service = await buildService({
+      bestPair: null,
+      pools: stageveilPools(null),
+    });
+    const snapshot = await service.getSnapshot({
+      chain: 'robinhood',
+      value: STAGEVEIL,
+      kindHint: 'token',
+    });
+    expect(snapshot.venue).toBeNull();
   });
 });
 

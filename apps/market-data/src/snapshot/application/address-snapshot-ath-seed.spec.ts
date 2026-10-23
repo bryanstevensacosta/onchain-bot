@@ -307,6 +307,56 @@ describe('buildFdvAthSeedRow (pure seed builder, todo 68)', () => {
     );
     expect(row?.quote.fdvUsd).toBe(5 * SUPPLY);
   });
+
+  /**
+   * Day candles bucket at 00:00Z; a pool created at 18:08:53Z on its
+   * launch day would otherwise stamp the ATH BEFORE the pool existed
+   * (9d age instead of 8d). The ATH can never predate the pool.
+   */
+  describe('pool-creation clamp', () => {
+    const nowMs = Date.parse('2026-10-20T12:00:00Z');
+    const poolCreatedAtMs = Date.parse('2026-10-14T18:08:53Z');
+    const candleTs = (iso: string): number =>
+      Math.floor(Date.parse(iso) / 1000);
+
+    it('clamps a launch-day bucket to pool creation (+1ms offset)', () => {
+      const row = buildFdvAthSeedRow(
+        [candle(candleTs('2026-10-14T00:00:00Z'), 6)],
+        { ...ctx, poolCreatedAtMs },
+        nowMs,
+      );
+      expect(row?.createdAt).toBe('2026-10-14T18:08:53.001Z');
+    });
+
+    it('keeps the candle stamp when the ATH candle is after pool creation', () => {
+      const row = buildFdvAthSeedRow(
+        [candle(candleTs('2026-10-15T00:00:00Z'), 6)],
+        { ...ctx, poolCreatedAtMs },
+        nowMs,
+      );
+      expect(row?.createdAt).toBe('2026-10-15T00:00:00.001Z');
+    });
+
+    it('keeps the candle stamp when pool creation is unknown (null)', () => {
+      const row = buildFdvAthSeedRow(
+        [candle(candleTs('2026-10-14T00:00:00Z'), 6)],
+        { ...ctx, poolCreatedAtMs: null },
+        nowMs,
+      );
+      expect(row?.createdAt).toBe('2026-10-14T00:00:00.001Z');
+    });
+
+    it('ignores a future/invalid pool creation (never stamps the future)', () => {
+      for (const future of [nowMs + 1, nowMs + DAY_SEC * 1000, Number.NaN]) {
+        const row = buildFdvAthSeedRow(
+          [candle(candleTs('2026-10-14T00:00:00Z'), 6)],
+          { ...ctx, poolCreatedAtMs: future },
+          nowMs,
+        );
+        expect(row?.createdAt).toBe('2026-10-14T00:00:00.001Z');
+      }
+    });
+  });
 });
 
 describe('ATH-seed resolvers + negative memo (pinned numbers)', () => {
@@ -368,6 +418,27 @@ describe('AddressSnapshotService one-shot ATH seed (todo 68 acceptance)', () => 
     const lookup = await h.history.findFdvAth(CHAIN, TOKEN);
     expect(lookup.seeded).toBe(true);
     expect(lookup.ath).toEqual({ fdvUsd: 6 * SUPPLY, at: seedIso(peak) });
+  });
+
+  it('clamps the seed stamp to the pair creation time (launch-day bucket)', async () => {
+    // Day candles bucket at 00:00Z: a pool created at 18:08:53Z on its
+    // launch day must not get an ATH row dated before the pool existed.
+    // The merged `pairCreatedAtMs` (DSC handoff here) is the anchor.
+    const dayStartMs =
+      Math.floor(Date.now() / (DAY_SEC * 1000)) * DAY_SEC * 1000 -
+      DAY_SEC * 1000;
+    const poolCreatedAtMs = dayStartMs + (18 * 3600 + 8 * 60 + 53) * 1000;
+    const h = await harness({
+      steps: [[candle(dayStartMs / 1000, 6)]],
+      summaryForAddress: (address) =>
+        summaryFor(address, POOL, { pairCreatedAt: poolCreatedAtMs }),
+    });
+    const snapshot = await h.snapshots.getSnapshot(input);
+    const expected = new Date(poolCreatedAtMs + 1).toISOString();
+    expect(snapshot.fdvAth).toEqual({ fdvUsd: 6 * SUPPLY, at: expected });
+    expect(snapshot.pairCreatedAt).toBe(
+      new Date(poolCreatedAtMs).toISOString(),
+    );
   });
 
   it('is one-shot per token: the second request pays ZERO day calls', async () => {

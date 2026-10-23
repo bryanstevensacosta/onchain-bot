@@ -162,6 +162,15 @@ export interface AthSeedContext {
   readonly maxSupply: number | null;
   /** Eligible window (days) - the caller passes the resolved kill-switch value. */
   readonly windowDays: number;
+  /**
+   * Merged pair creation (ms epoch; `null`/absent = unknown). Day
+   * candles bucket at 00:00Z, so a pool created at 18:08:53Z on its
+   * launch day would otherwise get an ATH row dated BEFORE the pool
+   * existed (9d shown where the real age is 8d). The builder clamps
+   * the stamp to this value when it is sane and inside the window -
+   * the ATH can never predate the pool.
+   */
+  readonly poolCreatedAtMs?: number | null;
 }
 
 /**
@@ -209,6 +218,20 @@ export function buildFdvAthSeedRow(
   if (bestTs === null || bestHigh === null) return null;
   const fdvUsd = computedFdvOf(bestHigh, ctx.totalSupply, ctx.maxSupply);
   if (fdvUsd === null) return null;
+  // Pool-creation clamp: the peak candle's bucket may predate the pool
+  // (launch-day 00:00Z bucket vs an 18:08:53Z creation), which would
+  // make the ATH look older than the token. A sane in-window creation
+  // time is the anchor; a future/invalid one is IGNORED (never move
+  // the ATH into the future). `bestTs * 1000` stays the base.
+  const candleMs = bestTs * 1000;
+  const poolCreatedAtMs = ctx.poolCreatedAtMs;
+  const anchorMs =
+    typeof poolCreatedAtMs === 'number' &&
+    Number.isFinite(poolCreatedAtMs) &&
+    poolCreatedAtMs <= nowMs &&
+    poolCreatedAtMs > candleMs
+      ? poolCreatedAtMs
+      : candleMs;
   return {
     key: ctx.key,
     chain: ctx.chain,
@@ -223,9 +246,10 @@ export function buildFdvAthSeedRow(
     },
     sources: [ATH_SEED_SOURCE],
     providerErrors: {},
-    // Open + 1ms: keeps the ATH age at the candle that set the peak
-    // while staying distinct from an exact-midnight hourly row.
-    createdAt: new Date(bestTs * 1000 + ATH_SEED_TS_OFFSET_MS).toISOString(),
+    // Open + 1ms (clamped to pool creation when the bucket predates it):
+    // keeps the ATH age at the candle that set the peak while staying
+    // distinct from an exact-midnight hourly row.
+    createdAt: new Date(anchorMs + ATH_SEED_TS_OFFSET_MS).toISOString(),
   };
 }
 

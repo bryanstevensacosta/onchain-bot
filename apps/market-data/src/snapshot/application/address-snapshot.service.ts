@@ -986,6 +986,7 @@ export class AddressSnapshotService {
         }
         if (pick !== null) {
           market = {
+            dexId: pick.dexId,
             liquidityUsd: pick.liquidityUsd,
             volume24hUsd: pick.volume24hUsd,
             priceChange24h: pick.priceChange24h,
@@ -1147,6 +1148,12 @@ export class AddressSnapshotService {
     readonly maxSupply: number | null;
     readonly pairAddress: string | null;
     readonly pairSide: 'base' | 'quote' | null;
+    /**
+     * Merged pair creation (ms epoch, todo 63 + plan todo 72): the
+     * builder clamps the seed stamp to it so a launch-day ATH never
+     * predates the pool. `null` keeps the candle-open stamp.
+     */
+    readonly pairCreatedAtMs: number | null;
   }): Promise<number> {
     if (!this.athSeedEnabled) return 0;
     if (args.kind !== 'token') return 0;
@@ -1197,6 +1204,7 @@ export class AddressSnapshotService {
           totalSupply: args.totalSupply,
           maxSupply: args.maxSupply,
           windowDays: this.athSeedDays,
+          poolCreatedAtMs: args.pairCreatedAtMs,
         },
         nowMs,
       );
@@ -2326,10 +2334,35 @@ export class AddressSnapshotService {
     // step, now AFTER the derivation because the venue pick harvested
     // there can supply the fallback. DexScreener's pair keeps precedence;
     // the picked pool fills only a null (zero extra calls), and the
-    // Gecko-only class stops reading honest `null`.
-    const pairCreatedAt = toIsoPairCreatedAt(
-      pairCreatedAtMs ?? derivedResolution.market?.poolCreatedAtMs ?? null,
-    );
+    // Gecko-only class stops reading honest `null`. The merged ms also
+    // anchors the ATH seed (below), so an ATH can never predate the pool.
+    const mergedPairCreatedAtMs =
+      pairCreatedAtMs ?? derivedResolution.market?.poolCreatedAtMs ?? null;
+    const pairCreatedAt = toIsoPairCreatedAt(mergedPairCreatedAtMs);
+    // Venue fallback from the derivation pick (zero extra calls): the
+    // OHLC-derivation leg already called `getTokenPools` +
+    // `selectPoolQuote`, so its pick names the SAME pool the second
+    // Gecko read in `resolveVenue` would have named. Only fills a null:
+    // a real tail venue (DexScreener or Gecko) ALWAYS wins. `sources`
+    // is untouched (venue is a live extra, not a persisted quote field;
+    // the derivation already claims `geckoterminal` when it filled
+    // quote fields).
+    if (venue === null && derivedResolution.market?.dexId) {
+      venue = toVenueOrNull({
+        dexId: derivedResolution.market.dexId,
+        labels: [],
+      });
+      // Honesty of `providerErrors`: the tail timed out, but the field
+      // did NOT stay null — say what actually happened. A silent tail
+      // failure has no note and needs none.
+      const venueNote = tailNotes['tail:venue'];
+      if (venueNote !== undefined && venueNote.includes('degraded to null')) {
+        tailNotes['tail:venue'] = venueNote.replace(
+          'degraded to null',
+          'venue filled from derivation pool',
+        );
+      }
+    }
     const baseQuote: SnapshotQuote =
       derivedChange24h === null
         ? outcome.quote
@@ -2450,6 +2483,7 @@ export class AddressSnapshotService {
         maxSupply: quote.maxSupply,
         pairAddress,
         pairSide,
+        pairCreatedAtMs: mergedPairCreatedAtMs,
       });
       if (seededRows > 0) {
         fdvAth = (await this.history.findFdvAth(knownId, inputValue)).ath;

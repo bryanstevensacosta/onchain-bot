@@ -33,6 +33,14 @@ export interface VenueMarketReading {
   readonly volume24hUsd: number | null;
   readonly priceChange24h: number | null;
   /**
+   * Pool dex id harvested from the SAME `selectPoolQuote` pick the
+   * derivation leg already paid for (zero extra calls). Consumed
+   * null-only by the snapshot seam's `venue` fallback: when the venue
+   * tail dies (429/timeout) this pick still names the pool's DEX, so
+   * the card keeps an honest venue instead of `null`.
+   */
+  readonly dexId: string | null;
+  /**
    * Pool creation time (ms epoch) from the SAME pool that supplied the
    * numbers above. Consumed null-only by the snapshot seam's
    * `pairCreatedAt` (the DexScreener pair keeps precedence).

@@ -10,6 +10,7 @@ import {
 } from './snapshot-venue-market';
 
 const MARKET: VenueMarketReading = {
+  dexId: 'pumpswap',
   liquidityUsd: 2365.4217,
   volume24hUsd: 0,
   priceChange24h: 0,
@@ -80,6 +81,7 @@ describe('applyVenueMarketFields', () => {
     const base = emptySnapshotQuote();
 
     const { quote, applied } = applyVenueMarketFields(base, {
+      dexId: null,
       liquidityUsd: null,
       volume24hUsd: null,
       priceChange24h: null,
@@ -103,6 +105,7 @@ describe('applyVenueMarketFields', () => {
     const base = emptySnapshotQuote();
 
     const { quote, applied } = applyVenueMarketFields(base, {
+      dexId: 'pumpswap',
       liquidityUsd: null,
       volume24hUsd: null,
       priceChange24h: null,
