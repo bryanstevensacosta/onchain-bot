@@ -990,6 +990,10 @@ export class AddressSnapshotService {
             liquidityUsd: pick.liquidityUsd,
             volume24hUsd: pick.volume24hUsd,
             priceChange24h: pick.priceChange24h,
+            volume1hUsd: pick.volume1hUsd,
+            priceChange1h: pick.priceChange1h,
+            txns1hBuys: pick.txns1hBuys,
+            txns1hSells: pick.txns1hSells,
             poolCreatedAtMs: pick.poolCreatedAtMs,
           };
           // Fork B (plan todo 72): the picked pool answers the 24h change

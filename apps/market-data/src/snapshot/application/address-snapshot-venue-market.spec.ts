@@ -66,7 +66,13 @@ interface HarnessOptions {
 function poolFixture(attrs: {
   readonly reserve?: string;
   readonly volume?: string | null;
+  readonly volume1h?: string | null;
   readonly change?: string | null;
+  readonly change1h?: string | null;
+  readonly txns1h?: {
+    readonly buys?: string | number | null;
+    readonly sells?: string | number | null;
+  };
   readonly createdAt?: string | null;
   readonly dex?: string;
 }): unknown {
@@ -81,9 +87,22 @@ function poolFixture(attrs: {
         fdv_usd: '2183.4567813695317',
         reserve_in_usd: attrs.reserve ?? '2365.4217',
         volume_usd:
-          attrs.volume === null ? undefined : { h24: attrs.volume ?? '0' },
+          attrs.volume === null
+            ? undefined
+            : {
+                h24: attrs.volume ?? '0',
+                ...(attrs.volume1h !== undefined ? { h1: attrs.volume1h } : {}),
+              },
         price_change_percentage:
-          attrs.change === null ? undefined : { h24: attrs.change ?? '0' },
+          attrs.change === null
+            ? undefined
+            : {
+                h24: attrs.change ?? '0',
+                ...(attrs.change1h !== undefined ? { h1: attrs.change1h } : {}),
+              },
+        ...(attrs.txns1h !== undefined
+          ? { transactions: { h1: attrs.txns1h } }
+          : {}),
         pool_created_at:
           attrs.createdAt === null
             ? undefined
@@ -254,6 +273,44 @@ describe('venue market fill (plan todo 72, fork B)', () => {
     expect(snapshot.sources).toContain('geckoterminal-ohlcv');
     // Every source is listed ONCE even when the fill and the hour leg
     // both claim geckoterminal.
+    expect(
+      snapshot.sources.filter((source) => source === 'geckoterminal'),
+    ).toHaveLength(1);
+  });
+
+  it('serves the 1h bucket harvested from the SAME pool pick, one geckoterminal source, zero extra calls', async () => {
+    const calls: Calls = { pools: 0, ohlcv: 0, day: 0 };
+    const { service } = await buildService({
+      quote: {
+        priceUsd: LIVE_PRICE,
+        priceChange24h: null,
+        totalSupply: SUPPLY,
+      },
+      pools: poolFixture({
+        volume1h: '12.5',
+        change1h: '3.25',
+        txns1h: { buys: 7, sells: 3 },
+      }),
+      calls,
+    });
+
+    const snapshot = await service.getSnapshot({
+      chain: 'robinhood',
+      value: STAGEVEIL,
+      kindHint: 'token',
+    });
+
+    expect(snapshot.status).toBe('ready');
+    expect(snapshot.volume1hUsd).toBe(12.5);
+    expect(snapshot.priceChange1h).toBe(3.25);
+    expect(snapshot.txns1hBuys).toBe(7);
+    expect(snapshot.txns1hSells).toBe(3);
+    // The 1h bucket rode the pool response the derivation already paid
+    // for: no hourly call, no day-seed call, and the pool fetches stay
+    // exactly the derivation + venue-leg pair (one each, unchanged).
+    expect(calls.ohlcv).toBe(0);
+    expect(calls.day).toBe(0);
+    expect(calls.pools).toBe(2);
     expect(
       snapshot.sources.filter((source) => source === 'geckoterminal'),
     ).toHaveLength(1);

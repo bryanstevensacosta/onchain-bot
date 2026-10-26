@@ -2408,6 +2408,19 @@ new provider, no key: same responses.
   `geckoterminal` exactly once (guarded append — the list may already
   carry it). `marketCapUsd` stays untouched (still null without
   circulating supply).
+- 1H HARVEST (2026-10-26, same pick, zero extra calls): the derivation
+  pool pick also carries the 1-hour bucket, so Gecko-only tokens render
+  dexter's `1H` row. `GeckoPoolQuote` gains `volume1hUsd` /
+  `priceChange1h` / `txns1hBuys` / `txns1hSells`; `selectPoolQuote`
+  reads `volume_usd.h1` + `price_change_percentage.h1` (BASE-SIDE only,
+  same rule as h24) and `transactions.h1` as a WHOLE PAIR (absent or
+  either side non-finite → BOTH null, never `{0,0}`); a real `0`
+  survives and absent/non-finite is `null`. `VenueMarketReading` +
+  `applyVenueMarketFields` carry and fill them null-only (a native value
+  is never overwritten, the txns pair is never half-filled or mixed
+  across sources), `applied` now covers the seven quote fields, and
+  `sources` still names `geckoterminal` exactly once. No new HTTP: the
+  bucket rides the same pool response the OHLC leg already paid for.
 - `pairCreatedAt`: `pairCreatedAtMs ?? derivedResolution.market?.poolCreatedAtMs ?? null`,
   converted ONCE with `toIsoPairCreatedAt` — closes the todo-63 caveat
   "Gecko-only → null".
@@ -2449,18 +2462,23 @@ new provider, no key: same responses.
   fields — the deadline is fail-open and pre-existing, but the soak
   log must track `geckoterminal: abandoned` separately from real
   misses.
-- Specs: `address-snapshot-venue-market.spec.ts` (11: fill +
-  early-return + `pairCreatedAt` + `ohlcv === 0`; zero-reserve guard;
-  a change-less pick still calls the hourly OHLC and lists both
-  provenances; native change never harvests; hint on solana token;
-  detector positive wins; non-allowlisted/robinhood/wallet ignored;
-  429 pauses 60s then resumes; 503 not memoized — the memo is exercised
-  through the private `seedFdvAthHistory` because a full `getSnapshot`
-  would hit SWR-now at 31s and mask the second seed call),
-  `snapshot-quote.types.spec.ts`, `snapshot-venue-market.spec.ts`, plus
-  extended `provider-quote-fetchers-gecko-nets.spec.ts` /
-  `geckoterminal-top5.spec.ts` / `address-snapshot-venue-gecko.spec.ts`.
-  Suite 157/1198 (baseline 154/1167).
+- Specs: `address-snapshot-venue-market.spec.ts` (12: fill +
+  early-return + `pairCreatedAt` + `ohlcv === 0`; 1h bucket served from
+  the same pick, one `geckoterminal` source, zero extra calls;
+  zero-reserve guard; a change-less pick still calls the hourly OHLC and
+  lists both provenances; native change never harvests; hint on solana
+  token; detector positive wins; non-allowlisted/robinhood/wallet
+  ignored; 429 pauses 60s then resumes; 503 not memoized — the memo is
+  exercised through the private `seedFdvAthHistory` because a full
+  `getSnapshot` would hit SWR-now at 31s and mask the second seed
+  call), `geckoterminal-pool-1h.spec.ts` (8: real `0`, absent →
+  null, non-finite → null, base/quote side, partial txns → BOTH null,
+  `transactions` absent → both null), `snapshot-quote.types.spec.ts`,
+  `snapshot-venue-market.spec.ts`, plus extended
+  `provider-quote-fetchers-gecko-nets.spec.ts` / `geckoterminal-top5.spec.ts` /
+  `address-snapshot-venue-gecko.spec.ts`.
+  Suite 161/1307 (1h harvest: +1 suite / +12 tests over the 160/1295
+  lane baseline; todo-72 baseline 157/1198).
 
 ## LATENCY PACKAGE — SWR-NOW + EXISTENCE + RACE DEADLINES + PENDING AGING (dexter plan todo 21, 2026-10-18)
 

@@ -525,8 +525,41 @@ export function selectPoolQuote(
       bestSide === 'base'
         ? toFiniteNumber(best.attributes?.price_change_percentage?.h24)
         : null,
+    // 1-hour bucket (dexter `1H` row) off the SAME chosen pool — never a
+    // second pick, never an extra HTTP call. Volume is pair-level, so it
+    // maps on either side; the change stays BASE-side only (same rule as
+    // `priceChange24h`); txns follow the whole-pair rule below.
+    volume1hUsd: toFiniteNumber(best.attributes?.volume_usd?.h1),
+    priceChange1h:
+      bestSide === 'base'
+        ? toFiniteNumber(best.attributes?.price_change_percentage?.h1)
+        : null,
+    ...readPairTxns1h(best.attributes?.transactions?.h1),
     poolCreatedAtMs: toFiniteTimeMs(best.attributes?.pool_created_at),
   };
+}
+
+/**
+ * Whole-pair 1h transaction counts (dexter `1H` row): a missing
+ * `transactions.h1`, a non-record shape, or ANY non-finite side nulls
+ * BOTH numbers — absence never becomes `{buys: 0, sells: 0}`.
+ */
+function readPairTxns1h(h1: unknown): {
+  readonly txns1hBuys: number | null;
+  readonly txns1hSells: number | null;
+} {
+  if (h1 === null || typeof h1 !== 'object' || Array.isArray(h1)) {
+    return { txns1hBuys: null, txns1hSells: null };
+  }
+  const record = h1 as {
+    readonly buys?: string | number | null;
+    readonly sells?: string | number | null;
+  };
+  const buys = toFiniteNumber(record.buys);
+  const sells = toFiniteNumber(record.sells);
+  return buys !== null && sells !== null
+    ? { txns1hBuys: buys, txns1hSells: sells }
+    : { txns1hBuys: null, txns1hSells: null };
 }
 
 function toPositiveNumber(value: unknown): number | null {

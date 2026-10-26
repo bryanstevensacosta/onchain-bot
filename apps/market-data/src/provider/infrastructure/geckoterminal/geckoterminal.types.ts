@@ -66,11 +66,33 @@ export interface GeckoTerminalPoolAttributes {
   readonly quote_token_price_usd: string | null;
   readonly fdv_usd: string | null;
   readonly reserve_in_usd: string | null;
-  /** 24h pool volume (dexter plan todo 72; live shape `{ h24: '0.0' }`). */
-  readonly volume_usd?: { readonly h24?: string | number | null } | null;
-  /** 24h pool price change (dexter plan todo 72; live `{ h24: '0' }`). */
+  /**
+   * Pool volume buckets (dexter plan todo 72; live shape
+   * `{ h24: '0.0' }`, `h1` when the pool reports the 1-hour bucket).
+   */
+  readonly volume_usd?: {
+    readonly h24?: string | number | null;
+    readonly h1?: string | number | null;
+  } | null;
+  /**
+   * Pool price-change buckets (dexter plan todo 72; live
+   * `{ h24: '0' }`, `h1` for the dexter `1H` row). The percentage
+   * describes the pool's BASE token.
+   */
   readonly price_change_percentage?: {
     readonly h24?: string | number | null;
+    readonly h1?: string | number | null;
+  } | null;
+  /**
+   * Pool transaction buckets (dexter `1H` row). Only `h1` is read; the
+   * WHOLE-PAIR rule lives at the mapping seam (a partial/non-finite
+   * pair resolves both sides null).
+   */
+  readonly transactions?: {
+    readonly h1?: {
+      readonly buys?: string | number | null;
+      readonly sells?: string | number | null;
+    } | null;
   } | null;
   /** Pool creation timestamp, ISO-8601 (live: `2026-10-14T12:44:35Z`). */
   readonly pool_created_at?: string | null;
@@ -151,6 +173,30 @@ export interface GeckoPoolQuote {
    * else null. `0` is a real reading and stays `0`.
    */
   readonly priceChange24h: number | null;
+  /**
+   * 1-hour pool volume in USD (dexter `1H` row): the CHOSEN pool's
+   * `attributes.volume_usd.h1` coerced finite, else null. PAIR-LEVEL —
+   * never summed with other buckets — and a real `0` stays `0`
+   * (absent/non-finite resolves null, never `0`).
+   */
+  readonly volume1hUsd: number | null;
+  /**
+   * 1-hour pool price change in percent (dexter `1H` row): the CHOSEN
+   * pool's `attributes.price_change_percentage.h1` coerced finite,
+   * else null. BASE-SIDE only — a pool quoting our mint cannot
+   * attribute its own change to it (same rule as `priceChange24h`).
+   * A real `0` stays `0`.
+   */
+  readonly priceChange1h: number | null;
+  /**
+   * 1-hour transaction counts (dexter `1H` row), WHOLE-PAIR rule: both
+   * sides come from the CHOSEN pool's `attributes.transactions.h1`; if
+   * that object is absent, is not a record, or either side ignores a
+   * finite number, BOTH resolve null — never a `{buys:0,sells:0}`
+   * default.
+   */
+  readonly txns1hBuys: number | null;
+  readonly txns1hSells: number | null;
   /**
    * Pool creation time in ms epoch (dexter plan todo 72): the CHOSEN
    * pool's `attributes.pool_created_at` parsed via `Date.parse`, only

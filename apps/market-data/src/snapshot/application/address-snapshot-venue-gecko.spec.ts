@@ -382,6 +382,10 @@ describe('selectPoolQuote dexId (todo 26)', () => {
       liquidityUsd: expect.closeTo(5737.1871, 4),
       volume24hUsd: null,
       priceChange24h: null,
+      volume1hUsd: null,
+      priceChange1h: null,
+      txns1hBuys: null,
+      txns1hSells: null,
       poolCreatedAtMs: null,
     });
   });

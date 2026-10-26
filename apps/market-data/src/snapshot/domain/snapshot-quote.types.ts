@@ -50,17 +50,27 @@ export interface SnapshotQuote {
   readonly volume24hUsd: number | null;
   /**
    * Pair-level 1-hour market bucket (dexter `1H` row) — DexScreener
-   * `pair.volume.h1`, NOT summed with other buckets. Written ONLY by
-   * the `dexscreener` fetcher; absent/non-finite resolves `null`
-   * (never `0`), a real `0` survives.
+   * `pair.volume.h1`, NOT summed with other buckets. Written by the
+   * `dexscreener` fetcher and filled NULL-ONLY from the GeckoTerminal
+   * pool pick (`applyVenueMarketFields`) when that leg is the only
+   * source; absent/non-finite resolves `null` (never `0`), a real `0`
+   * survives.
    */
   readonly volume1hUsd: number | null;
-  /** Pair-level 1-hour price change in percent (`pair.priceChange.h1`). */
+  /**
+   * Pair-level 1-hour price change in percent (`pair.priceChange.h1`),
+   * written by the `dexscreener` fetcher and filled NULL-ONLY from the
+   * GeckoTerminal pool pick (`applyVenueMarketFields`; that leg is
+   * BASE-SIDE only, so a pool quoting our mint carries `null`).
+   */
   readonly priceChange1h: number | null;
   /**
    * Pair-level 1-hour transaction counts (`pair.txns.h1`), flattened
-   * for the merged quote. Both are `null` when `txns.h1` is absent or
-   * either side is not a finite number — absence never becomes `0`.
+   * for the merged quote. Written by the `dexscreener` fetcher and
+   * filled NULL-ONLY from the GeckoTerminal pool pick
+   * (`applyVenueMarketFields`). A WHOLE-PAIR rule: both are `null` when
+   * `txns.h1` is absent or either side is not a finite number —
+   * absence never becomes `0`.
    */
   readonly txns1hBuys: number | null;
   readonly txns1hSells: number | null;

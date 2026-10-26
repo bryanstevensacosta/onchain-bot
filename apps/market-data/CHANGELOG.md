@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **GeckoTerminal pool 1-hour bucket (2026-10-26):** Gecko-only tokens
+  (`/info` complete, no DexScreener pair) now render dexter's `1H` row.
+  `selectPoolQuote` harvests `volume_usd.h1`, `price_change_percentage.h1`
+  (BASE-SIDE only, same rule as the 24h bucket) and `transactions.h1`
+  (WHOLE-PAIR — absent or either side non-finite nulls BOTH, never a
+  `{0,0}` default) from the SAME pool pick the OHLC-derivation leg
+  already fetches, so the harvest pays ZERO extra HTTP calls.
+  `GeckoPoolQuote` gains `volume1hUsd` / `priceChange1h` / `txns1hBuys` /
+  `txns1hSells` (real `0` survives; absent/non-finite is `null`);
+  `VenueMarketReading` + `applyVenueMarketFields` carry and fill them
+  null-only (a native value is never overwritten, the txns pair is never
+  half-filled or mixed across sources), `applied` now covers the seven
+  quote fields, and `sources` still names `geckoterminal` exactly once.
+  The frozen `SnapshotQuote` wire contract is unchanged. Specs:
+  `geckoterminal-pool-1h.spec.ts` (8) + extended venue-market
+  unit/integration pins; suite 161/1307 green, `tsc` clean.
+
 - **DexScreener 1-hour bucket on the snapshot quote (2026-10-26):** four
   new nullable fields — `volume1hUsd`, `priceChange1h`, `txns1hBuys`,
   `txns1hSells` — carried pair-level (never summed with other buckets;
