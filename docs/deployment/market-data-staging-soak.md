@@ -138,13 +138,15 @@ run did not execute on either day: `~/market-data-soak.jsonl` has no
 line between `2026-10-23T11:06:02Z` and `2026-10-26T10:43:52Z`. The
 hourly health sampler kept running through the whole gap (93 lines on
 host, 24/24 hours present in the 24 h window read on 2026-10-26), so
-liveness evidence exists — but §10 exit criterion #1 asks for one
-recorded run per consecutive day, and reconstructing the missing lines
-is forbidden (measured values only). Consequence: as written, the
-streak restarts at day 6 and the earliest honest close is
-**2026-11-01**. Owner decision pending: either accept the sampler as
-continuity proof for a reworded criterion, or run the daily script
-through 2026-11-01 before the cutover review.
+liveness evidence exists — but a literal reading of §10 exit criterion
+#1 asked for one recorded run per consecutive day, and reconstructing
+the missing lines is forbidden (measured values only). **Resolved by
+owner decision 2026-10-26:** the hourly health sampler is accepted as
+continuity proof, and criterion #1 below was reworded to say so. The
+streak therefore continues (days 1-7 = 2026-10-21 → 2026-10-27, with
+days 4-5 covered by sampler liveness only), the cutover review stays on
+**2026-10-28**, and the missing daily lines stay marked `NO RUN` — they
+are never back-filled.
 
 **Validation note (2026-10-22) — how to read a staging snapshot.**
 `status`/`stale` describe the SERVE, not the code version. When the
@@ -293,8 +295,13 @@ Keep the host JSONL in place until the todo-8 decision is recorded.
 
 The soak closes only when **all** of the following hold:
 
-1. **7 consecutive days** with at least one recorded run per day (one JSON
-   line per day minimum in `soak.jsonl`; no gaps in the §6 table).
+1. **7 consecutive days** of liveness evidence in the window. Each day needs
+   at least one recorded run (one JSONL line per day minimum in `soak.jsonl`),
+   **or** continuous coverage by the hourly health sampler (§6) when the daily
+   script did not execute. Owner decision 2026-10-26: the sampler is accepted
+   as continuity proof — a sampler-covered day keeps the streak alive, stays
+   marked `NO RUN` in the §6 table, and is never reconstructed. No gaps in the
+   §6 table beyond that documented pattern.
 2. **No unexplained errors** in the window: no health failure, no TypeORM
    reconnect/query errors, no provider 429 storm, and no non-`ready`
    snapshot beyond documented transients. Every incident has a written
