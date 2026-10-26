@@ -207,6 +207,13 @@ const PLACEHOLDER_META: Record<string, Omit<PlaceholderDescriptor, 'key'>> = {
     description:
       'Rick-style 1-hour row: 📈/📉 direction, 1h volume, 1h change, buys (🅑) and sells (Ⓢ). Empty unless all four 1h values are known.',
   },
+  holderTopRow: {
+    type: 'derived',
+    nullable: true,
+    example: '\\n\\n👥 TH: 4.3⋅3.3⋅2.8⋅2.3⋅1.8 [20%]',
+    description:
+      'Holders top-5 row lowered after a BLANK line: per-holder % at 1 decimal (trailing zero kept) joined by ⋅, then the top-10 total in brackets. Empty on any gap/malformed input (never N/A, never a partial row).',
+  },
   timeframe: { type: 'string', nullable: true, example: '5m' },
   botStartUrl: {
     type: 'url',
@@ -225,8 +232,8 @@ export interface PlaceholdersView {
 /**
  * Placeholder catalog (`GET /api/dexter/placeholders/:command`).
  *
- * Metadata-only read of the closed registry vocabulary: 52 keys for
- * `ca|x|z|bare`, 53 for `c|cc` (`timeframe` ONLY there). No
+ * Metadata-only read of the closed registry vocabulary: 53 keys for
+ * `ca|x|z|bare`, 54 for `c|cc` (`timeframe` ONLY there). No
  * persistence, no pipeline, no sends. Unknown command → 404.
  *
  * v1 sin auth como /dexter/token — same unauthenticated regime as the

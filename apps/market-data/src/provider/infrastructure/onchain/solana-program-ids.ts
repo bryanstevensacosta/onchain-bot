@@ -72,6 +72,15 @@ export const SPL_TOKEN_PROGRAM = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
 /** SPL Token-2022. Observed on live mints (extensions live past 82B). */
 export const TOKEN_2022_PROGRAM = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnAAvKmd1qT6M';
 
+/**
+ * System Program id (the canonical all-zero pubkey). Two uses in the
+ * holder-concentration calculator (`rick-compact-card` §10.6): a token
+ * account whose OWNER is this address is ONE observed burn pattern
+ * (excluded), and a wallet account must be owned by this program to
+ * count as user-held (pools/curves/PDAs/vaults are excluded).
+ */
+export const SYSTEM_PROGRAM_ID = '11111111111111111111111111111111';
+
 /** Wrapped SOL mint (quote leg of most Solana pools). */
 export const WSOL_MINT = 'So11111111111111111111111111111111111111112';
 

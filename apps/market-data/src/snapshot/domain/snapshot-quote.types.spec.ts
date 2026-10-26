@@ -29,6 +29,16 @@ describe('SnapshotQuote 1h bucket (dexter 1H row)', () => {
   });
 });
 
+describe('SnapshotQuote holderConcentration (rick-compact-card §10)', () => {
+  it('emptySnapshotQuote carries holderConcentration: null', () => {
+    expect(emptySnapshotQuote().holderConcentration).toBeNull();
+  });
+
+  it('SNAPSHOT_QUOTE_FIELDS includes it (the aggregator merge whitelist)', () => {
+    expect([...SNAPSHOT_QUOTE_FIELDS]).toContain('holderConcentration');
+  });
+});
+
 describe('SnapshotQuote geckoLaunchpadHint (todo 72)', () => {
   it('emptySnapshotQuote carries geckoLaunchpadHint: null', () => {
     expect(emptySnapshotQuote().geckoLaunchpadHint).toBeNull();

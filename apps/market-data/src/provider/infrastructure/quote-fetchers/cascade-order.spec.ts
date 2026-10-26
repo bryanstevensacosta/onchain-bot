@@ -57,6 +57,7 @@ describe('ccxt-first cascade order (P48-bis)', () => {
       'dexscreener',
       'geckoterminal',
       'solana-rpc',
+      'solana-holders',
       'rugcheck',
       'defillama',
       'evm-rpc',

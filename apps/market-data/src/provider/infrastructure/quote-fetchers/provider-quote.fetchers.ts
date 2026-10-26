@@ -32,6 +32,11 @@ import type {
   QuoteFetcher,
   SnapshotQuote,
 } from 'snapshot/domain/snapshot-quote.types';
+import {
+  resolveHolderConcentrationEnabled,
+  resolveHolderConcentrationTimeoutMs,
+} from 'snapshot/domain/snapshot-holder-concentration';
+import { computeHolderConcentration } from './holder-concentration';
 import type { DexScreenerPairSummary } from 'provider/infrastructure/dexscreener/dexscreener.types';
 
 function toNumber(value: unknown): number | null {
@@ -43,6 +48,25 @@ function toNumber(value: unknown): number | null {
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
+}
+
+/**
+ * Race `work` against a budget. On expiry resolves `null` — the
+ * abandoned work keeps running and dies on its own internal timeouts
+ * (same shape as `withTailBudget`); the timer is always cleared so no
+ * handle leaks into the process (lane TH, §10.4).
+ */
+function withBudget<T>(
+  work: Promise<T | null>,
+  timeoutMs: number,
+): Promise<T | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const expiry = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), timeoutMs);
+  });
+  return Promise.race([work, expiry]).finally(() => {
+    if (timer !== undefined) clearTimeout(timer);
+  });
 }
 
 /**
@@ -207,6 +231,7 @@ export const QUOTE_FETCHER_COST_TIER: Readonly<
   dexscreener: 'free',
   geckoterminal: 'free',
   'solana-rpc': 'free',
+  'solana-holders': 'free',
   rugcheck: 'free',
   defillama: 'free',
   'evm-rpc': 'free',
@@ -739,6 +764,56 @@ export function buildProviderQuoteFetchers(
   };
 
   /**
+   * Holder concentration (`rick-compact-card` §10, lane TH) — its OWN
+   * fetcher, NOT inside `solana-rpc` (C5): `callRpc` walks tiers in
+   * series with a 10s timeout per tier and the fan-out abandons the
+   * WHOLE fetcher at 4000ms, so folding this into `solana-rpc` would
+   * jeopardize `totalSupply`/`top10HolderPercent` that are served
+   * today. Running in parallel isolates both legs.
+   *
+   * Solana-only (no keyless EVM per-wallet source exists), tier `free`.
+   * Cost: 4 RPC calls (supply + largest + 2 batches) = ONE outbound
+   * bucket token — the gate charges per fetcher invocation, not per
+   * inner call. Own budget (`SNAPSHOT_HOLDER_CONCENTRATION_TIMEOUT_MS`,
+   * default 1500) and kill-switch
+   * (`SNAPSHOT_HOLDER_CONCENTRATION_ENABLED`, default ON); every path
+   * is fail-open `null`. Emits ONLY `holderConcentration`.
+   *
+   * The `getMultipleAccounts` guard keeps older hand-mocks (no such
+   * method) byte-identical: the leg skips with zero RPC.
+   */
+  const holderConcentrationEnabled = resolveHolderConcentrationEnabled(
+    process.env.SNAPSHOT_HOLDER_CONCENTRATION_ENABLED,
+  );
+  const holderConcentrationTimeoutMs = resolveHolderConcentrationTimeoutMs(
+    process.env.SNAPSHOT_HOLDER_CONCENTRATION_TIMEOUT_MS,
+  );
+  const solanaHolders: QuoteFetcher = {
+    name: 'solana-holders',
+    supportsChains: ['solana'],
+    fetch: async (_chain: string, address: string) => {
+      try {
+        if (!holderConcentrationEnabled) return null;
+        if (typeof deps.solanaRpc?.getMultipleAccounts !== 'function') {
+          return null;
+        }
+        const holderConcentration = await withBudget(
+          computeHolderConcentration(deps.solanaRpc, address),
+          holderConcentrationTimeoutMs,
+        );
+        if (holderConcentration === null) return null;
+        const quote: Partial<SnapshotQuote> = { holderConcentration };
+        return quote;
+      } catch {
+        // `applyOutboundRateLimit` can throw when the bucket is empty and
+        // the adapter seams can throw unexpectedly — this leg never
+        // propagates (fail-open `null`, other fields unaffected).
+        return null;
+      }
+    },
+  };
+
+  /**
    * DeFiLlama keyless price leg (dexter plan todo 32, LAST free leg —
    * fallback-after-incumbents: the merge is first-non-null in order,
    * so this only fills price gaps the five free legs above leave).
@@ -871,6 +946,7 @@ export function buildProviderQuoteFetchers(
     dexscreener,
     geckoterminal,
     solanaRpc,
+    solanaHolders,
     rugcheck,
     defillama,
     evmRpc,

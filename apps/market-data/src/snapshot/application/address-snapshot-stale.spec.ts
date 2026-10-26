@@ -182,6 +182,45 @@ describe('AddressSnapshotService (serve-stale floor, no background refresh)', ()
     expect(snapshot.stale).toBe(false);
   });
 
+  it('replays holderConcentration from the ready row untouched (jsonb passthrough)', async () => {
+    const cache: CacheStub = {
+      get: jest.fn(async () => null),
+      set: jest.fn(async () => undefined),
+    };
+    const history = new SnapshotHistoryRepository();
+    const concentration = {
+      topPercents: [4.3, 3.3, 2.8, 2.3, 1.8],
+      top10Percent: 20,
+    };
+    await history.save({
+      key: KEY,
+      chain: 'solana',
+      address: ADDRESS.toLowerCase(),
+      kind: 'token',
+      status: 'ready',
+      quote: {
+        ...emptySnapshotQuote(),
+        symbol: 'WIF',
+        name: 'dogwifhat',
+        priceUsd: 1.5,
+        holderConcentration: concentration,
+      },
+      sources: ['dexscreener'],
+      providerErrors: {},
+    });
+    const { service } = buildService(
+      [failFetcher('dexscreener'), failFetcher('geckoterminal')],
+      cache,
+      history,
+    );
+    const snapshot = await service.getSnapshot(INPUT);
+    expect(snapshot.stale).toBe(true);
+    // Replay serves the row's object verbatim (no recalculation) —
+    // same honesty treatment as every other number on the card.
+    expect(snapshot.holderConcentration).toEqual(concentration);
+    expect(cache.set).not.toHaveBeenCalled();
+  });
+
   it('never replays a ready row stored under a different key', async () => {
     const cache: CacheStub = {
       get: jest.fn(async () => null),

@@ -89,6 +89,11 @@ export class MarketDataSnapshotController {
       // the whitelist is intentional). ABSENT-shaped `null` covers
       // every "no source" path; the dexter guard treats it as absent.
       honeypot: snap.honeypot,
+      // Holder concentration (`rick-compact-card` §10, lane TH):
+      // explicit key, single-address compat edge ONLY (the reduced
+      // batch surface never carries it). `null` = no reading /
+      // no source — the dexter guard treats it as absent.
+      holderConcentration: snap.holderConcentration ?? null,
       identityProvenance: snap.identityProvenance,
       fdvAthUsd: snap.fdvAth?.fdvUsd ?? null,
       fdvAthAt: snap.fdvAth?.at ?? null,

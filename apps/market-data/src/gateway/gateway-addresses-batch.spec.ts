@@ -97,6 +97,9 @@ describe('gateway addresses batch edge (todo 5)', () => {
     expect(res.status).toBe(200);
     expect(res.body.snapshots).toHaveLength(50);
     expect(res.body.snapshots[0].status).toBe('pending');
+    // Reduced surface (plan §10 C3): the batch keeps its legacy flat
+    // shape — `holderConcentration` rides the compat edge ONLY.
+    expect(res.body.snapshots[0]).not.toHaveProperty('holderConcentration');
   });
 
   it('POST batch of 51 -> 400 (cap enforced)', async () => {

@@ -3,6 +3,7 @@ import {
   MarketDataClient,
   toFdvAthAtOrNull,
   toFdvAthUsdOrNull,
+  toHolderConcentrationOrNull,
   toHoneypotOrNull,
   toIdentityProvenanceOrNull,
   toLaunchpadOrNull,
@@ -334,6 +335,7 @@ export class TokenScanPipeline implements ScanPipeline {
       readonly launchpad?: unknown;
       readonly venue?: unknown;
       readonly honeypot?: unknown;
+      readonly holderConcentration?: unknown;
       readonly pairCreatedAt?: unknown;
       readonly identityProvenance?: unknown;
       readonly fdvAthUsd?: unknown;
@@ -379,6 +381,9 @@ export class TokenScanPipeline implements ScanPipeline {
       ),
       venue: toVenueOrNull(snapshot.venue),
       honeypot: toHoneypotOrNull(snapshot.honeypot),
+      holderConcentration: toHolderConcentrationOrNull(
+        snapshot.holderConcentration,
+      ),
       pairCreatedAt: toPairCreatedAtOrNull(snapshot.pairCreatedAt),
       identityProvenance:
         toIdentityProvenanceOrNull(snapshot.identityProvenance) ?? 'market',

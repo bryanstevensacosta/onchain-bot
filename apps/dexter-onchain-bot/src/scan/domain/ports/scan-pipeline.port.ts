@@ -70,6 +70,21 @@ export interface HoneypotInfo {
 }
 
 /**
+ * Holders concentration for the Rick-parity `👥 TH:` row (plan
+ * dexter-rick-compact-card §10.5-§10.7). Solana-only. `topPercents`
+ * is the merge-by-wallet top list, NON-INCREASING (ties valid), 0..5
+ * entries (`[]` = valid object, silent row), each 0-100 (% of total
+ * supply). Produced by market-data; re-validated at both dexter
+ * boundaries (`toHolderConcentrationOrNull` in the client AND the
+ * pipeline — same double-validation as `launchpad`/`venue`). `null`
+ * = no source / malformed (full silence, never `N/A`).
+ */
+export interface HolderConcentrationInfo {
+  readonly topPercents: ReadonlyArray<number>;
+  readonly top10Percent: number;
+}
+
+/**
  * A non-picked chain where the same address also resolved (dexter
  * best-pick, plan todo 17). Carried on every multi-chain `ResolvedToken`
  * so the choice is always disclosed (`{{alternatives}}` renders it).
@@ -127,6 +142,17 @@ export interface ResolvedToken {
    * malformed — the renderer silences the row, never a partial).
    */
   readonly honeypot?: HoneypotInfo | null;
+  /**
+   * Holders concentration (dexter `{{holderTopRow}}`, plan
+   * dexter-rick-compact-card §10.5-§10.7): `{ topPercents,
+   * top10Percent }` re-validated from the snapshot (`null` when the
+   * snapshot carries none or the shape is malformed — the renderer
+   * silences the row, never a partial). `topPercents: []` is a valid
+   * object that renders silence. Optional only so older
+   * `ResolvedToken` literals keep compiling — the pipeline ALWAYS
+   * sets it (explicit `null` when absent).
+   */
+  readonly holderConcentration?: HolderConcentrationInfo | null;
   /**
    * Best-pair creation ISO (dexter `{{age}}`, plan todo 63): the
    * best-liquidity PAIR creation time from the market-data snapshot.

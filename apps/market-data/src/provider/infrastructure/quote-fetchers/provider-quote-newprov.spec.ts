@@ -51,6 +51,7 @@ describe('new-provider legs (todo 32: defillama + etherscan last)', () => {
       'dexscreener',
       'geckoterminal',
       'solana-rpc',
+      'solana-holders',
       'rugcheck',
       'defillama',
       'evm-rpc',

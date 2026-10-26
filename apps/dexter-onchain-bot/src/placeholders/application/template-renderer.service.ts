@@ -1,6 +1,7 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { MessageFormatterAdapter } from '@/scan/infrastructure/formatter/message-formatter';
 import type {
+  HolderConcentrationInfo,
   HoneypotInfo,
   LaunchpadInfo,
   ResolvedToken,
@@ -23,6 +24,19 @@ export const TRADE_HINT_TEXT = '🤖 Use /c <address> <timeframe> for chart';
  * exact threshold is undocumented; the owner can retune the constant.
  */
 export const LOW_LIQUIDITY_SIDE_USD = 1_000;
+
+/**
+ * Coherence ε for `holderTopRow` (plan dexter-rick-compact-card
+ * §10.5-§10.7), in PERCENTAGE POINTS. It is the SAME literal pinned
+ * in market-data's spec — dexter cannot import from market-data (no
+ * shared package), so the two apps keep the constant in sync by
+ * contract. The invariant is exact when both sides accumulate over
+ * the SAME filtered array in the SAME order; ε absorbs dexter's
+ * re-accumulation and display rounding, never serialization (JSON
+ * preserves the exact double). Do NOT reuse `COMPUTED_FDV_EPSILON_*`
+ * (FDV-scoped, different contract).
+ */
+const HOLDER_SUM_EPSILON = 1e-9;
 
 /** DI token for the todo-5 `DisplayMap` resolver (port owned here). */
 export const DISPLAY_RESOLVER = Symbol('DISPLAY_RESOLVER');
@@ -234,6 +248,48 @@ function nonNegativeCountOrNull(raw: unknown): number | null {
   return typeof raw === 'number' && Number.isFinite(raw) && raw >= 0
     ? raw
     : null;
+}
+
+/**
+ * Shape guard for `holderTopRow` (plan dexter-rick-compact-card
+ * §10.5-§10.7): a coherent `{ topPercents, top10Percent }` object or
+ * `null` (silence). Local on purpose — the renderer must not trust
+ * `TemplateValues` (always `Partial<ResolvedToken>`), whatever the
+ * producer sent. Rules mirror the market-data client guard EXCEPT
+ * the ordering rule: §10.7 pins the non-increasing check at the
+ * CLIENT boundary, so the renderer renders whatever coherent list it
+ * receives (the pipeline re-validation already returns `null` for an
+ * unordered list). `topPercents` an array of 0..5 finite entries in
+ * [0,100], `top10Percent` finite within `[-ε, 100+ε]`, and
+ * `sum(topPercents) <= top10Percent + ε`. `topPercents: []` is a
+ * valid object that renders silence.
+ */
+function holderConcentrationOrNull(
+  raw: unknown,
+): HolderConcentrationInfo | null {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return null;
+  }
+  const candidate = raw as {
+    readonly topPercents?: unknown;
+    readonly top10Percent?: unknown;
+  };
+  const percents = candidate.topPercents;
+  const top10 = candidate.top10Percent;
+  if (!Array.isArray(percents) || percents.length > 5) return null;
+  const clean: number[] = [];
+  for (const entry of percents) {
+    if (typeof entry !== 'number' || !Number.isFinite(entry)) return null;
+    if (entry < 0 || entry > 100) return null;
+    clean.push(entry);
+  }
+  if (typeof top10 !== 'number' || !Number.isFinite(top10)) return null;
+  if (top10 < -HOLDER_SUM_EPSILON || top10 > 100 + HOLDER_SUM_EPSILON) {
+    return null;
+  }
+  const sum = clean.reduce((total, entry) => total + entry, 0);
+  if (sum > top10 + HOLDER_SUM_EPSILON) return null;
+  return { topPercents: clean, top10Percent: top10 };
 }
 
 /**
@@ -689,6 +745,46 @@ export class TemplateRendererService {
             `${MessageFormatterAdapter.formatNumberText(buys)} Ⓢ ` +
             `${MessageFormatterAdapter.formatNumberText(sells)}`,
         );
+      }
+      case 'holderTopRow': {
+        // Rick-parity `👥 TH:` row (plan dexter-rick-compact-card
+        // §10.5-§10.7; captured layout §10.1b): the per-holder top
+        // percentages at 1 decimal (trailing zero KEPT: `2.0`) joined
+        // by `⋅`, then ONE space and the integer top-10 bracket:
+        // `👥 TH: 4.3⋅3.3⋅2.8⋅2.3⋅1.8 [20%]`.
+        //
+        // Mechanics mirror `honeypotBlock`: the value lowers a BLANK
+        // line (`"\n\n👥 TH: " + payload`), so a silent value leaves
+        // no label, no newline and no separator behind (`""`).
+        //
+        // Bracket in DISPLAYED TENTHS: `Σ round(p*10)` avoids the
+        // binary carry (`0.1+0.1+0.1+16.1+3.6` accumulates to
+        // `20.000000000000004` — raw `ceil` would print 21 while the
+        // row shows 20.0). The `max` keeps the bracket from ever
+        // sitting below the printed sum.
+        //
+        // SILENCE (`""`) on ANY gap: absent/null/malformed, empty
+        // `topPercents`, >5 entries, any non-finite/out-of-range
+        // value, `sum > top10 + ε`. NEVER `N/A`, never a half row.
+        // Escaped EXACTLY ONCE at the end.
+        const concentration = holderConcentrationOrNull(
+          values.holderConcentration,
+        );
+        if (concentration === null || concentration.topPercents.length === 0) {
+          return '';
+        }
+        const displayedTenths = concentration.topPercents.reduce(
+          (tenths, percent) => tenths + Math.round(percent * 10),
+          0,
+        );
+        const bracket = Math.max(
+          Math.round(concentration.top10Percent),
+          Math.ceil(displayedTenths / 10),
+        );
+        const payload = concentration.topPercents
+          .map((percent) => percent.toFixed(1))
+          .join('⋅');
+        return esc(`\n\n👥 TH: ${payload} [${bracket}%]`);
       }
       case 'ageSuffix': {
         // P1-2 (Rick compact card): `" ⋅ Age: `7d`"` when the shared

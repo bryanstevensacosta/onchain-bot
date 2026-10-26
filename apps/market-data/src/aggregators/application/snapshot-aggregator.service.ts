@@ -3,6 +3,7 @@ import {
   SNAPSHOT_PROVIDER_TIMEOUT_MS,
   SNAPSHOT_QUOTE_FIELDS,
   emptySnapshotQuote,
+  type HolderConcentration,
   type QuoteFetcher,
   type SnapshotQuote,
 } from 'snapshot/domain/snapshot-quote.types';
@@ -100,8 +101,9 @@ export class SnapshotAggregatorService {
       readonly name: string;
       readonly quote: Partial<SnapshotQuote> | null;
     };
-    const records: Array<PromiseSettledResult<TaskValue> | null> =
-      eligible.map(() => null);
+    const records: Array<PromiseSettledResult<TaskValue> | null> = eligible.map(
+      () => null,
+    );
     const tasks = eligible.map((fetcher, index) =>
       (async () => {
         try {
@@ -136,16 +138,15 @@ export class SnapshotAggregatorService {
         clearTimeout(timer);
       }
     }
-    const settled: ReadonlyArray<PromiseSettledResult<TaskValue>> =
-      records.map(
-        (record) =>
-          record ?? {
-            status: 'rejected',
-            reason: new Error(
-              `abandoned at fanout deadline (${deadlineMs}ms) — fail-open`,
-            ),
-          },
-      );
+    const settled: ReadonlyArray<PromiseSettledResult<TaskValue>> = records.map(
+      (record) =>
+        record ?? {
+          status: 'rejected',
+          reason: new Error(
+            `abandoned at fanout deadline (${deadlineMs}ms) — fail-open`,
+          ),
+        },
+    );
     return this.mergeOutcome(eligible, settled);
   }
 
@@ -185,6 +186,7 @@ export class SnapshotAggregatorService {
       -readonly [K in keyof SnapshotQuote]:
         | number
         | string
+        | HolderConcentration
         | ReadonlyArray<unknown>
         | null;
     };

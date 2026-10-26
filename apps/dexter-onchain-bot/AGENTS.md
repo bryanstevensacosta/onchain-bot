@@ -98,7 +98,7 @@ src/
 │   │                          # (manual CLI, default dry-run, NOT a bootstrap hook)
 │   └── api/http/               # message-templates + template-preview + display-maps controllers (management via HTTP API only)
 ├── placeholders/               # renderer + registry ({{key}} only, {% rejected)
-│   ├── domain/placeholder-registry.ts # 22 base + 30 derived keys + per-command whitelist
+│   ├── domain/placeholder-registry.ts # 22 base + 31 derived keys + per-command whitelist
 │   ├── application/template-renderer.service.ts # TemplateRendererService (DISPLAY_RESOLVER-backed)
 │   └── api/http/placeholders.controller.ts # placeholder catalog reference
 └── settings/                   # chat config + bot config
@@ -964,3 +964,46 @@ sells === null → ''`. Client boundary `toFiniteNumberOrNull` /
   `template-renderer-market-1h-row.spec.ts`,
   `market-data-client-market-1h.spec.ts`,
   `token-scan-market-1h.spec.ts` + registry/rick-card count pins.
+
+- Holders top-5 row `👥 TH:` (2026-10-26, plan
+  `.omo/plans/dexter-rick-compact-card.md` §10.5-§10.9 — code only,
+  NO body edit, NO activation): ONE composed derived key
+  `holderTopRow` on EVERY command, fed by the frozen wire contract
+  `holderConcentration: { topPercents: number[]; top10Percent: number }
+| null` (owned by market-data; Solana-only, so KODA/BSC renders
+  silence on purpose). Registry: 22 base + 31 derived = 53 keys for
+  `ca|x|z|bare` / 54 for `c|cc`; catalog META example carries the
+  literal `\n\n` prefix (same encoding as `honeypotBlock`).
+  **Value = `""` (silence) or `"\n\n👥 TH: " + payload`** — a BLANK
+  line before the row (captured Rick layout: after the 1H row, §10.1b),
+  same mechanics as `honeypotBlock`; silence leaves no label, no
+  newline, no separator. **Payload**: per-holder percentages at 1
+  decimal with the trailing zero KEPT (`2.0`, `4.3`) joined by `⋅`,
+  ONE space, then `[M%]`: `4.3⋅3.3⋅2.8⋅2.3⋅1.8 [20%]`. **Bracket in
+  displayed TENTHS**: `displayedTenths = Σ Math.round(p*10)`,
+  `bracket = Math.max(Math.round(top10Percent), Math.ceil(displayedTenths
+/ 10))` — the binary carry (`0.1+0.1+0.1+16.1+3.6` accumulates to
+  `20.000000000000004`/`…007`) never prints 21, and the bracket is
+  never below the printed sum. **Silence on ANY gap**: absent/null/
+  malformed, empty `topPercents`, >5 entries, any non-finite or
+  out-of-[0,100] value, or `sum(topPercents) > top10Percent + ε` —
+  NEVER `N/A`, never a half row, never padding for <5 holders. The
+  non-increasing ORDER rule (`p[i] >= p[i+1]`, ties valid) is
+  enforced at the CLIENT boundary (§10.7), not by the renderer.
+  `ε = 1e-9` percentage points,
+  one constant per app (`HOLDER_SUM_EPSILON`), the same literal
+  pinned in market-data's spec (no shared package). Boundary guards:
+  `toHolderConcentrationOrNull` in the client (rejects arrays,
+  non-array `topPercents`, >5, non-finite/out-of-range, non-increasing,
+  `top10Percent` outside `[-ε, 100+ε]`, incoherent sum) → the
+  pipeline re-validates in `toResolvedToken` (double validation,
+  same as `honeypot`/`venue`; the field MUST stay declared in the
+  inline structural type or it is silently dropped). Escaped EXACTLY
+  ONCE: Telegram displays `4.3`/`[20%]` from `4\.3`/`\[20%\]`;
+  `⋅`/`%` stay raw. The legacy `{{top10HolderPercent}}` is a
+  DIFFERENT metric (per-account, pool-inclusive) and is untouched.
+  Specs: `template-renderer-holder-top-row.spec.ts`,
+  `market-data-client-holder-concentration.spec.ts`,
+  `token-scan-holder-concentration.spec.ts` + controller META
+  completeness (`placeholders.controller.spec.ts`) + registry/age/
+  rick-card count pins.

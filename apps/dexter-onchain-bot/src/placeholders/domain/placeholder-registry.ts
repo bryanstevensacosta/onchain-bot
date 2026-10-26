@@ -130,6 +130,16 @@ export const DERIVED_PLACEHOLDERS: readonly string[] = [
   // `txns1hSells`; `""` (silence) when ANY is missing/non-finite —
   // never a half-empty row, never `N/A`.
   'market1hRow',
+  // TH holders top-5 row (plan dexter-rick-compact-card §10.7):
+  // `holderTopRow` — ONE composed derived key so the card carries the
+  // whole holder block or nothing. Value lowers a BLANK line
+  // (`"\n\n👥 TH: " + payload`): per-holder percentages at 1 decimal
+  // (trailing zero kept) joined by `⋅`, then an integer top-10
+  // bracket. `""` = silence on ANY gap (absent/malformed, empty or
+  // >5 entries, non-finite/out-of-range values, `sum > top10 + ε`) —
+  // never `N/A`, never a half row. The non-increasing ORDER rule is
+  // the CLIENT boundary's job (§10.7).
+  'holderTopRow',
 ];
 
 /** Chart timeframe — valid ONLY inside `c`/`cc` bodies. */

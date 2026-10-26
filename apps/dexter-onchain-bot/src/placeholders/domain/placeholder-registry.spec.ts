@@ -41,8 +41,8 @@ describe('placeholder-registry (todo 4 closed vocabulary)', () => {
     ]);
   });
 
-  it('holds the thirty derived keys (devLine is derived, not base)', () => {
-    expect(DERIVED_PLACEHOLDERS).toHaveLength(30);
+  it('holds the thirty-one derived keys (devLine is derived, not base)', () => {
+    expect(DERIVED_PLACEHOLDERS).toHaveLength(31);
     expect([...DERIVED_PLACEHOLDERS]).toEqual([
       'chainDisplay',
       'scanLinks',
@@ -76,18 +76,20 @@ describe('placeholder-registry (todo 4 closed vocabulary)', () => {
       'nameLink',
       // Rick 1-hour row (2026-10-26): one composed derived key.
       'market1hRow',
+      // TH holders top-5 row (plan dexter-rick-compact-card §10.7).
+      'holderTopRow',
     ]);
   });
 
-  it('grants every command base + derived (52 keys)', () => {
+  it('grants every command base + derived (53 keys)', () => {
     for (const command of ['ca', 'x', 'z', 'bare'] as const) {
-      expect(PLACEHOLDERS_BY_COMMAND[command]).toHaveLength(52);
+      expect(PLACEHOLDERS_BY_COMMAND[command]).toHaveLength(53);
     }
   });
 
-  it('grants timeframe ONLY to c/cc (53 keys)', () => {
-    expect(PLACEHOLDERS_BY_COMMAND.c).toHaveLength(53);
-    expect(PLACEHOLDERS_BY_COMMAND.cc).toHaveLength(53);
+  it('grants timeframe ONLY to c/cc (54 keys)', () => {
+    expect(PLACEHOLDERS_BY_COMMAND.c).toHaveLength(54);
+    expect(PLACEHOLDERS_BY_COMMAND.cc).toHaveLength(54);
     expect(PLACEHOLDERS_BY_COMMAND.c).toContain(TIMEFRAME_PLACEHOLDER);
     expect(PLACEHOLDERS_BY_COMMAND.cc).toContain(TIMEFRAME_PLACEHOLDER);
     for (const command of ['ca', 'x', 'z', 'bare'] as const) {
@@ -161,6 +163,12 @@ describe('placeholder-registry (todo 4 closed vocabulary)', () => {
   it('whitelists the composed market1hRow on every command', () => {
     for (const command of TEMPLATE_COMMANDS) {
       expect(isKnownPlaceholder(command, 'market1hRow')).toBe(true);
+    }
+  });
+
+  it('whitelists the composed holderTopRow on every command', () => {
+    for (const command of TEMPLATE_COMMANDS) {
+      expect(isKnownPlaceholder(command, 'holderTopRow')).toBe(true);
     }
   });
 

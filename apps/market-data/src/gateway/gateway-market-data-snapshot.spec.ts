@@ -22,6 +22,22 @@ const nullFetcher = {
   fetch: async () => null,
 };
 
+/**
+ * Lane TH fixture: the dedicated fetcher emits the object and nothing
+ * else (single writer, §10.5). Proves the compat whitelist carries the
+ * value, not just a null shape.
+ */
+const holderFetcher = {
+  name: 'solana-holders',
+  supportsChains: ['solana'],
+  fetch: async () => ({
+    holderConcentration: {
+      topPercents: [4.3, 3.3, 2.8, 2.3, 1.8],
+      top10Percent: 20,
+    },
+  }),
+};
+
 const SOL = 'So11111111111111111111111111111111111111112';
 
 /**
@@ -126,9 +142,11 @@ describe('gateway market-data snapshot compat edge (todo 5)', () => {
       'totalSupply',
       'circulatingSupply',
       'maxSupply',
+      'holderConcentration',
     ]) {
       expect(res.body).toHaveProperty(field);
     }
+    expect(res.body).toHaveProperty('holderConcentration', null);
     expect(res.body.chain).toBe('solana');
     expect(res.body.address).toBe(SOL.toLowerCase());
     expect(res.body.status).toBe('pending');
@@ -174,7 +192,7 @@ describe('gateway market-data snapshot launchpad plumbing (Lane D)', () => {
       ],
     })
       .overrideProvider(SNAPSHOT_QUOTE_PROVIDERS)
-      .useValue([nullFetcher])
+      .useValue([nullFetcher, holderFetcher])
       .overrideProvider(LaunchpadDetectorService)
       .useValue({
         detectLaunchpad: async () => ({
@@ -261,5 +279,16 @@ describe('gateway market-data snapshot launchpad plumbing (Lane D)', () => {
     );
     expect(res.status).toBe(200);
     expect(res.body.pairCreatedAt).toBe('2026-10-13T12:01:14.000Z');
+  });
+
+  it('exposes snapshot.holderConcentration from the holders fetcher (dexter contract)', async () => {
+    const res = await request(app.getHttpServer()).get(
+      `/api/market-data/snapshot?chain=solana&address=${SOL}`,
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.holderConcentration).toEqual({
+      topPercents: [4.3, 3.3, 2.8, 2.3, 1.8],
+      top10Percent: 20,
+    });
   });
 });

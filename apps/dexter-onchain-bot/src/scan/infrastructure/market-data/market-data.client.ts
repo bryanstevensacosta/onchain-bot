@@ -140,6 +140,60 @@ export function toHoneypotOrNull(raw: unknown): MarketDataHoneypot | null {
 }
 
 /**
+ * Holders concentration for the Rick-parity `👥 TH:` row (plan
+ * dexter-rick-compact-card §10.5-§10.7). Solana-only: `topPercents`
+ * is the merge-by-wallet top list, NON-INCREASING (ties valid),
+ * 0..5 entries (`[]` = the object exists but the row must stay
+ * silent — not malformed), each 0-100 (% of total supply).
+ * `top10Percent` sums the top-10 of the SAME filtered list in the
+ * SAME order under the SAME denominator, so
+ * `sum(topPercents) <= top10Percent` holds by construction; the ε
+ * absorbs dexter's re-accumulation, never a serialization gap.
+ *
+ * NEVER trusted blindly — `toHolderConcentrationOrNull` shape-checks
+ * at this boundary (any violation resolves the WHOLE object to
+ * `null`) so opaque JSON never reaches the renderer.
+ */
+export interface MarketDataHolderConcentration {
+  readonly topPercents: ReadonlyArray<number>;
+  readonly top10Percent: number;
+}
+
+/**
+ * Coherence epsilon for the TH guard, in PERCENTAGE POINTS. The same
+ * literal is pinned in market-data's spec: the two apps share no
+ * package (dexter never imports market-data source), so the contract
+ * keeps them in sync — do NOT reuse the FDV-scoped epsilon family.
+ */
+const HOLDER_SUM_EPSILON = 1e-9;
+
+export function toHolderConcentrationOrNull(
+  raw: unknown,
+): MarketDataHolderConcentration | null {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return null;
+  }
+  const candidate = raw as Record<string, unknown>;
+  const percents = candidate.topPercents;
+  const top10 = candidate.top10Percent;
+  if (!Array.isArray(percents) || percents.length > 5) return null;
+  const clean: number[] = [];
+  for (const entry of percents) {
+    if (typeof entry !== 'number' || !Number.isFinite(entry)) return null;
+    if (entry < 0 || entry > 100) return null;
+    if (clean.length > 0 && clean[clean.length - 1] < entry) return null;
+    clean.push(entry);
+  }
+  if (typeof top10 !== 'number' || !Number.isFinite(top10)) return null;
+  if (top10 < -HOLDER_SUM_EPSILON || top10 > 100 + HOLDER_SUM_EPSILON) {
+    return null;
+  }
+  const sum = clean.reduce((total, entry) => total + entry, 0);
+  if (sum > top10 + HOLDER_SUM_EPSILON) return null;
+  return { topPercents: clean, top10Percent: top10 };
+}
+
+/**
  * FDV ATH over the token's own snapshot history (dexter fdv-ath,
  * plan todo 16). Two flat fields, each validated at this boundary:
  * `fdvAthUsd` must be a finite number, `fdvAthAt` an ISO-parseable
@@ -283,6 +337,14 @@ export interface MarketDataSnapshot {
    */
   readonly honeypot?: MarketDataHoneypot | null;
   /**
+   * Holders concentration (dexter `{{holderTopRow}}`, plan
+   * dexter-rick-compact-card §10.5-§10.7): `{ topPercents,
+   * top10Percent }` or `null`/absent (non-Solana, no source, fast
+   * path, malformed). Shape-checked by `toHolderConcentrationOrNull`
+   * at this boundary — any violation reads `null` (full silence).
+   */
+  readonly holderConcentration?: MarketDataHolderConcentration | null;
+  /**
    * Best-pair creation ISO (dexter `{{age}}`, plan todo 63), top-level
    * on the market-data snapshot. Validated by `toPairCreatedAtOrNull`
    * at this boundary; absent/null on cold-start or older answers.
@@ -371,6 +433,9 @@ export class MarketDataClient {
         launchpad: toLaunchpadOrNull(body.launchpad),
         venue: toVenueOrNull(body.venue),
         honeypot: toHoneypotOrNull(body.honeypot),
+        holderConcentration: toHolderConcentrationOrNull(
+          body.holderConcentration,
+        ),
         pairCreatedAt: toPairCreatedAtOrNull(body.pairCreatedAt),
         identityProvenance: toIdentityProvenanceOrNull(body.identityProvenance),
         fdvAthUsd: toFdvAthUsdOrNull(body.fdvAthUsd),

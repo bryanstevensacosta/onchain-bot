@@ -1929,6 +1929,100 @@ Solana-only; DeFiLlama/DexScreener-derived).
   `evm-pools.codec.spec.ts`; order pins updated in
   `cascade-order.spec.ts` / `provider-quote-newprov.spec.ts`.
 
+## HOLDER CONCENTRATION (TH, rick-compact-card §10 — 2026-10-26)
+
+`AddressSnapshot.holderConcentration: { topPercents: number[]; top10Percent:
+number } | null` (REQUIRED key on `SnapshotQuote`/`AddressSnapshot`, always
+emitted; `null` = no reading / no source / kill-switch — dexter treats null
+and absent identically). Wired on the compat edge
+`GET /api/market-data/snapshot` ONLY (explicit whitelist key); the reduced
+batch surface never carries it.
+
+- CONTRACT + POLICY: `snapshot/domain/snapshot-holder-concentration.ts`
+  (pure, frozen): `TOP_N = 5` percents rendered, `TOP10_N = 10` bracket
+  sum, `HOLDER_CONCENTRATION_PERCENT_EPSILON = 1e-9` pp coherence guard.
+  Denominator = TOTAL on-chain supply (`getTokenSupply`; circulating is
+  aggregator-reported and often absent). Merge per WALLET in BigInt
+  (`getTokenLargestAccounts` answers ATAs with no owner → decode through
+  the EXISTING `decodeTokenAccount`, sum `amount` by decoded `owner`;
+  `Number` conversion only at percent time). EXCLUSION ORDER, applied to
+  the merged list BEFORE sorting/cutting (cutting first would break
+  `sum(top5) ≤ top10`): (i) uninitialized ATA (mint AND owner zero —
+  without this it masquerades as the burn address), (ii) owner ==
+  `11111111111111111111111111111111` (System Program burn pattern), (iii)
+  wallet account `null` on-chain (incinerator; ownership never invented),
+  (iv) program-owned wallet (owner != System Program: pools/curves/PDAs/
+  vaults — a Squads multisig falls too, accepted false NEGATIVE). Zero
+  merged amount is dropped (never a `0.0` row); no brand/CEX allowlist
+  (no keyless source = invention). Sort descending, `topPercents` =
+  first `min(5,n)`, `top10Percent` = sum of the first `min(10,n)` of the
+  SAME array. Guards: supply `0n`/null → null; non-finite → null (before
+  emit); top-10 outside `[-ε, 100+ε]` → null; inside → clamp `[0,100]`
+  (individual values too — the dexter client validates each 0-100). Zero
+  eligible wallets → `null` (silence; `[]` is also legal, `null` is
+  simpler bed).
+- LOWER-BOUND CAVEAT (honest, do not "fix"): `getTokenLargestAccounts`
+  returns ≤20 accounts, so the post-merge top-10 is a LOWER BOUND of the
+  real wallet top-10 — never an overstatement. DIFFERENT metric from the
+  legacy `top10HolderPercent` (per ACCOUNT, pool-inclusive, no
+  exclusions): templates must never mix both.
+- CALCULATOR: `provider/infrastructure/quote-fetchers/holder-concentration.ts`
+  (`computeHolderConcentration(rpc, mint)` + pure `buildHolderConcentration`
+  for the guard/clamp/min tests). Exactly TWO `getMultipleAccounts`
+  batches on the happy path — ONE for the ATAs, ONE for the merged
+  wallets (called even when the map is already empty: the exclusion data
+  is the answer). Chunking (≤100/batch, one parallel round) stays the RPC
+  service's job; this calculator never chunks. Partial decode (null /
+  short / foreign-mint account) is SKIPPED, never fatal. Token-program
+  id is deliberately NOT gated (Token-2022 decodes through the same
+  `>= 165`-byte decoder) — do not "fix" `TOKEN_2022_PROGRAM` here.
+- FETCHER: `solana-holders` in `provider-quote.fetchers.ts`, placed
+  immediately AFTER `solana-rpc` in `buildProviderQuoteFetchers` (order
+  = execution) and `'free'` in `QUOTE_FETCHER_COST_TIER`. Its OWN leg,
+  NOT folded into `solana-rpc` (C5): `callRpc` walks tiers serially
+  (10s each) and the fan-out abandons the whole fetcher at the 4000ms
+  deadline, so folding it in would jeopardize the
+  `totalSupply`/`top10HolderPercent` served today; running in parallel
+  isolates both. Solana-only (`supportsChains: ['solana']`; no keyless
+  EVM per-wallet source exists). Emits ONLY `holderConcentration`.
+  COST: 4 RPC calls (supply + largest + 2 batches) but ONE outbound
+  bucket token — the gate charges per fetcher invocation, not per inner
+  call. Deliberately NOT in `DEFAULT_PROVIDERS` (no breaker entry; 60/min
+  default bucket, same precedent as `onchain-direct`/`evm-rpc`).
+- FAIL-OPEN: every path resolves `null` — kill-switch, missing
+  `getMultipleAccounts` (older hand-mock stubs), budget expiry, RPC
+  throw/rate-limit (including the outbound gate's shape), zero supply,
+  no largest accounts, all wallets excluded, decode all-null. Never
+  throws, never blocks the card, zero notes.
+- ENV: `SNAPSHOT_HOLDER_CONCENTRATION_ENABLED` (default ENABLED; only
+  explicit false-ish `0|false|off|no|disabled` disables ⇒ zero RPC, no
+  field; delegates to `resolveHoneypotEnabled` — ONE vocabulary) and
+  `SNAPSHOT_HOLDER_CONCENTRATION_TIMEOUT_MS` (default
+  `1_500` = `SNAPSHOT_HOLDER_CONCENTRATION_TIMEOUT_MS_DEFAULT`;
+  non-finite/≤0/garbage → default, `Math.floor`). Both read at
+  `buildProviderQuoteFetchers` construction (no ConfigService there);
+  the 4000ms fan-out deadline remains the backstop.
+- STALE/SWR: nothing extra — `holderConcentration` rides `...row.quote`
+  on both serve paths, so replays preserve the object verbatim; it is
+  NEVER cached separately and no seed/history writer touches it.
+- Specs: `holder-concentration.spec.ts` (calculator: merge, zero drop,
+  the four exclusions in order, exclusions-before-cut, non-increasing,
+  n=1..9 no NaN, `sum(top5) ≤ top10`, supply 0/null, non-finite, clamp
+  100+ulp, exactly 2 batches, ≤20 window, partial decode),
+  `snapshot-holder-concentration.spec.ts` (policy numbers + resolvers),
+  `provider-quote-holder-concentration.spec.ts` (placement after
+  `solana-rpc`, tier `free`, solana-only, happy path 4 calls / only
+  `holderConcentration`, largest-null → 1 call, kill-switch zero RPC,
+  timeout → null, rate-limit throw → null, missing method zero RPC,
+  program-owned exclusion), plus order pins in `cascade-order.spec.ts` /
+  `provider-quote-newprov.spec.ts` / `zero-cost-cascade.spec.ts`,
+  `snapshot-quote.types.spec.ts`, the gateway edge/batch pair and the
+  stale replay.
+- ENV INVENTORY / `.env.example` are OUTSIDE this lane's write scope
+  (`src/**` + this file): the two vars above are documented here and
+  default correctly when unset — add them to `.env.example` on the next
+  env-touching todo.
+
 ## SECURITY (P46, todo 10)
 
 Scoped API keys (`src/auth/`): `read` (GET chains/providers/addresses/

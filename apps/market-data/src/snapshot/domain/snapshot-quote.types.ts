@@ -21,6 +21,26 @@ export interface DevWalletQuote {
   readonly probable?: boolean;
 }
 
+/**
+ * Solana-only holder concentration (`rick-compact-card` §10, lane TH).
+ *
+ * `topPercents` is NON-INCREASING (ties are valid), `0..5` entries:
+ * `[]` = silence, `1..5` = render (an object with `[]` is legal, not
+ * malformed). `top10Percent` sums the top-10 of the SAME merged/filtered
+ * array in the SAME order under the SAME denominator, so
+ * `sum(topPercents) <= top10Percent` is exact by construction. Both
+ * sides are percentages 0..100 (finite); the consumer applies the
+ * display rounding (1dp) and its own ε coherence guard.
+ *
+ * DISTINCT from the legacy `top10HolderPercent`: that one is per token
+ * ACCOUNT (pool vaults included, no exclusions) — a template must never
+ * mix both "top 10" metrics on one card.
+ */
+export interface HolderConcentration {
+  readonly topPercents: ReadonlyArray<number>;
+  readonly top10Percent: number;
+}
+
 export interface SnapshotQuote {
   readonly priceUsd: number | null;
   readonly marketCapUsd: number | null;
@@ -77,6 +97,16 @@ export interface SnapshotQuote {
   readonly priceChange24h: number | null;
   readonly holders: number | null;
   readonly top10HolderPercent: number | null;
+  /**
+   * Solana holder concentration (`rick-compact-card` §10, lane TH).
+   * Written ONLY by the dedicated `solana-holders` fetcher; `null` /
+   * absent = silence on every other chain and on every fail-open path
+   * (kill-switch, budget timeout, all wallets excluded). Optional so
+   * hand-built quote literals stay valid; `emptySnapshotQuote()` sets
+   * it explicitly to `null` (the fast path therefore serves silence
+   * without touching `degraded` — F8).
+   */
+  readonly holderConcentration?: HolderConcentration | null;
   readonly symbol: string | null;
   readonly name: string | null;
   readonly lockedLiquidityPercent: number | null;
@@ -132,6 +162,7 @@ export const SNAPSHOT_QUOTE_FIELDS: ReadonlyArray<keyof SnapshotQuote> = [
   'priceChange24h',
   'holders',
   'top10HolderPercent',
+  'holderConcentration',
   'symbol',
   'name',
   'lockedLiquidityPercent',
@@ -159,6 +190,7 @@ export function emptySnapshotQuote(): SnapshotQuote {
     priceChange24h: null,
     holders: null,
     top10HolderPercent: null,
+    holderConcentration: null,
     symbol: null,
     name: null,
     lockedLiquidityPercent: null,

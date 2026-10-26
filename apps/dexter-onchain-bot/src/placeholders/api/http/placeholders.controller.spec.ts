@@ -1,4 +1,5 @@
 import { NotFoundException } from '@nestjs/common';
+import { TEMPLATE_COMMANDS } from '@/placeholders/domain/placeholder-registry';
 import { PlaceholdersController } from './placeholders.controller';
 
 const statusOf = async (run: () => Promise<unknown>): Promise<number> => {
@@ -63,6 +64,35 @@ describe('PlaceholdersController (todo 7 placeholder catalog)', () => {
       (async () => controller.list('start'))(),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(await statusOf(async () => controller.list('start'))).toBe(404);
+  });
+
+  it('every key of every command has an explicit PLACEHOLDER_META row (C9)', () => {
+    // The controller falls back to `{type:'string', nullable:true,
+    // example:''}` when a key is missing from PLACEHOLDER_META — a
+    // silent gap. Every real row carries a non-empty example, so a
+    // fallback is detectable at the response boundary. This iterates
+    // ALL commands, so a key added to the registry without metadata
+    // fails here instead of shipping an empty catalog entry.
+    const controller = new PlaceholdersController();
+    for (const command of TEMPLATE_COMMANDS) {
+      for (const entry of controller.list(command).placeholders) {
+        expect(entry.example).not.toBe('');
+        expect(entry.type).not.toBe('');
+      }
+    }
+  });
+
+  it('exposes holderTopRow META (derived, nullable, blank-line example)', () => {
+    const controller = new PlaceholdersController();
+    const entry = controller
+      .list('ca')
+      .placeholders.find((row) => row.key === 'holderTopRow');
+    expect(entry).toBeDefined();
+    expect(entry?.type).toBe('derived');
+    expect(entry?.nullable).toBe(true);
+    expect(entry?.example).toBe('\\n\\n👥 TH: 4.3⋅3.3⋅2.8⋅2.3⋅1.8 [20%]');
+    expect(entry?.example.startsWith('\\n\\n')).toBe(true);
+    expect(entry?.description).toEqual(expect.any(String));
   });
 
   it('returns placeholders alphabetically by key for ca + c (timeframe only c/cc)', () => {
