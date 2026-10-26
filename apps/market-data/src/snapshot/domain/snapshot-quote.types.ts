@@ -48,6 +48,22 @@ export interface SnapshotQuote {
   readonly geckoLaunchpadHint: string | null;
   readonly liquidityUsd: number | null;
   readonly volume24hUsd: number | null;
+  /**
+   * Pair-level 1-hour market bucket (dexter `1H` row) — DexScreener
+   * `pair.volume.h1`, NOT summed with other buckets. Written ONLY by
+   * the `dexscreener` fetcher; absent/non-finite resolves `null`
+   * (never `0`), a real `0` survives.
+   */
+  readonly volume1hUsd: number | null;
+  /** Pair-level 1-hour price change in percent (`pair.priceChange.h1`). */
+  readonly priceChange1h: number | null;
+  /**
+   * Pair-level 1-hour transaction counts (`pair.txns.h1`), flattened
+   * for the merged quote. Both are `null` when `txns.h1` is absent or
+   * either side is not a finite number — absence never becomes `0`.
+   */
+  readonly txns1hBuys: number | null;
+  readonly txns1hSells: number | null;
   readonly priceChange24h: number | null;
   readonly holders: number | null;
   readonly top10HolderPercent: number | null;
@@ -99,6 +115,10 @@ export const SNAPSHOT_QUOTE_FIELDS: ReadonlyArray<keyof SnapshotQuote> = [
   'geckoLaunchpadHint',
   'liquidityUsd',
   'volume24hUsd',
+  'volume1hUsd',
+  'priceChange1h',
+  'txns1hBuys',
+  'txns1hSells',
   'priceChange24h',
   'holders',
   'top10HolderPercent',
@@ -122,6 +142,10 @@ export function emptySnapshotQuote(): SnapshotQuote {
     geckoLaunchpadHint: null,
     liquidityUsd: null,
     volume24hUsd: null,
+    volume1hUsd: null,
+    priceChange1h: null,
+    txns1hBuys: null,
+    txns1hSells: null,
     priceChange24h: null,
     holders: null,
     top10HolderPercent: null,

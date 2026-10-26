@@ -98,7 +98,7 @@ src/
 │   │                          # (manual CLI, default dry-run, NOT a bootstrap hook)
 │   └── api/http/               # message-templates + template-preview + display-maps controllers (management via HTTP API only)
 ├── placeholders/               # renderer + registry ({{key}} only, {% rejected)
-│   ├── domain/placeholder-registry.ts # 22 base + 23 derived keys + per-command whitelist
+│   ├── domain/placeholder-registry.ts # 22 base + 30 derived keys + per-command whitelist
 │   ├── application/template-renderer.service.ts # TemplateRendererService (DISPLAY_RESOLVER-backed)
 │   └── api/http/placeholders.controller.ts # placeholder catalog reference
 └── settings/                   # chat config + bot config
@@ -937,3 +937,30 @@ Pump'}`. Specs: 6 tests in
   existing pairs skip, display differences are drift and are never
   overwritten). The BSC row is committed but NOT applied by the app at
   boot. No live verification claimed.
+
+- Rick 1-hour row (2026-10-26, code + specs only — NO live
+  verification): ONE composed derived key `market1hRow` on EVERY
+  command, fed by four NEW optional snapshot fields — `volume1hUsd`,
+  `priceChange1h`, `txns1hBuys`, `txns1hSells` (wire contract owned
+  by the market-data lane). Reference row (docs:
+  pricebot#reading-a-token-scan): `📈 1H: 159 ⋅ 1.7% 🅑 3 Ⓢ 5` =
+  1h volume, 1h change, buys, sells; `📉` ONLY on a strictly
+  negative change (zero and positive → `📈`). Composition reuses the
+  shared formatters (`formatMoneyText`, `formatPercentText` — it
+  ALREADY emits `%`, so none is appended — and `formatNumberText`
+  for the counts) and escapes the composed string EXACTLY ONCE
+  (`1\.7%` is the MarkdownV2 decimal point Telegram displays as
+  `1.7%`). SILENCE (`""`) when ANY of the four is missing/non-finite
+  (counts additionally `>= 0`) — never a half-empty row, never
+  `N/A`: `volume === null || change === null || buys === null ||
+sells === null → ''`. Client boundary `toFiniteNumberOrNull` /
+  `toNonNegativeCountOrNull`; the pipeline passes the four through
+  with explicit `null` when absent. The port fields are OPTIONAL
+  (`?: number | null`) so the 25 existing `ResolvedToken` literals
+  keep compiling — the same convention as
+  `honeypot`/`pairCreatedAt`/`fdvAthUsd`. Registry: 22 base + 30
+  derived = 52 keys for `ca|x|z|bare` / 53 for `c|cc`; catalog META
+  example is the exact sample. Specs:
+  `template-renderer-market-1h-row.spec.ts`,
+  `market-data-client-market-1h.spec.ts`,
+  `token-scan-market-1h.spec.ts` + registry/rick-card count pins.

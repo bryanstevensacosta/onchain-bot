@@ -101,7 +101,7 @@ describe('gateway market-data snapshot compat edge (todo 5)', () => {
     await app?.close();
   });
 
-  it('GET /api/market-data/snapshot returns the 15 MarketData fields + echo', async () => {
+  it('GET /api/market-data/snapshot returns the MarketData fields (incl. 1h bucket) + echo', async () => {
     const res = await request(app.getHttpServer()).get(
       `/api/market-data/snapshot?chain=solana&address=${SOL}`,
     );
@@ -110,9 +110,13 @@ describe('gateway market-data snapshot compat edge (todo 5)', () => {
       'priceUsd',
       'liquidityUsd',
       'volume24hUsd',
+      'volume1hUsd',
       'marketCapUsd',
       'fdvUsd',
       'priceChange24h',
+      'priceChange1h',
+      'txns1hBuys',
+      'txns1hSells',
       'holders',
       'top10HolderPercent',
       'symbol',

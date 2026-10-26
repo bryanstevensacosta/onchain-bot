@@ -200,6 +200,13 @@ const PLACEHOLDER_META: Record<string, Omit<PlaceholderDescriptor, 'key'>> = {
     description:
       'Plain name link using botStartUrl; falls back to the plain name without a URL. Reuses the name default (N/A) and unverified suffix. Compose bold as [*{{name}}*]({{botStartUrl}}).',
   },
+  market1hRow: {
+    type: 'derived',
+    nullable: true,
+    example: '📈 1H: 159 ⋅ 1.7% 🅑 3 Ⓢ 5',
+    description:
+      'Rick-style 1-hour row: 📈/📉 direction, 1h volume, 1h change, buys (🅑) and sells (Ⓢ). Empty unless all four 1h values are known.',
+  },
   timeframe: { type: 'string', nullable: true, example: '5m' },
   botStartUrl: {
     type: 'url',
@@ -218,8 +225,8 @@ export interface PlaceholdersView {
 /**
  * Placeholder catalog (`GET /api/dexter/placeholders/:command`).
  *
- * Metadata-only read of the closed registry vocabulary: 51 keys for
- * `ca|x|z|bare`, 52 for `c|cc` (`timeframe` ONLY there). No
+ * Metadata-only read of the closed registry vocabulary: 52 keys for
+ * `ca|x|z|bare`, 53 for `c|cc` (`timeframe` ONLY there). No
  * persistence, no pipeline, no sends. Unknown command → 404.
  *
  * v1 sin auth como /dexter/token — same unauthenticated regime as the

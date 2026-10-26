@@ -457,6 +457,21 @@ export function selectBestPairSummaryForSlug(
 function toPairSummary(pair: DexScreenerPair): DexScreenerPairSummary {
   const vol24h = Object.values(pair.volume).reduce((sum, v) => sum + v, 0);
   const txns24h = pair.txns?.h24 ?? { buys: 0, sells: 0 };
+  // 1-hour bucket (dexter `1H` row): pair-level values carried
+  // verbatim. Absent/non-finite → null (never 0; a real 0 survives),
+  // and a partial/non-finite `txns.h1` nulls the WHOLE object — no
+  // `{buys:0,sells:0}` default. Byte-parity with the sibling mapper
+  // (`toSummaryFromTripwire` in `discovery-cache.service.ts`).
+  const h1Volume = pair.volume?.['h1'];
+  const h1Change = pair.priceChange?.['h1'];
+  const h1Txns = pair.txns?.['h1'];
+  const txns1h =
+    typeof h1Txns?.buys === 'number' &&
+    Number.isFinite(h1Txns.buys) &&
+    typeof h1Txns?.sells === 'number' &&
+    Number.isFinite(h1Txns.sells)
+      ? { buys: h1Txns.buys, sells: h1Txns.sells }
+      : null;
 
   return {
     pairAddress: pair.pairAddress,
@@ -484,5 +499,14 @@ function toPairSummary(pair: DexScreenerPair): DexScreenerPairSummary {
         : null,
     priceChange24h: pair.priceChange?.h24 ?? null,
     txns24h,
+    volume1hUsd:
+      typeof h1Volume === 'number' && Number.isFinite(h1Volume)
+        ? h1Volume
+        : null,
+    priceChange1h:
+      typeof h1Change === 'number' && Number.isFinite(h1Change)
+        ? h1Change
+        : null,
+    txns1h,
   };
 }

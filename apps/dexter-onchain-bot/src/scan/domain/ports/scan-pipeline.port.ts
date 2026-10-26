@@ -95,6 +95,19 @@ export interface ResolvedToken {
   readonly lockedLiquidityPercent: number | null;
   readonly burnedPercent: number | null;
   readonly volume24hUsd: number | null;
+  /**
+   * 1-hour window (dexter `{{market1hRow}}`, Rick parity): 1h volume,
+   * 1h price change (%) and the buy/sell transaction counts of that
+   * window. ALWAYS set by the pipeline (explicit `null` when
+   * market-data has no reading); optional only so older literals keep
+   * compiling — same convention as `honeypot`/`pairCreatedAt`.
+   * The renderer silences the WHOLE row when any of the four is
+   * missing/non-finite (never a half-empty row, never a guess).
+   */
+  readonly volume1hUsd?: number | null;
+  readonly priceChange1h?: number | null;
+  readonly txns1hBuys?: number | null;
+  readonly txns1hSells?: number | null;
   readonly holders: number | null;
   readonly top10HolderPercent: number | null;
   readonly top20HolderPercent: number | null;

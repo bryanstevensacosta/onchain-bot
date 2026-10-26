@@ -50,6 +50,9 @@ function discoveredSummary(
     priceChange24h: 2.5,
     txns24h: { buys: 10, sells: 5 },
     pairCreatedAt: null,
+    volume1hUsd: null,
+    priceChange1h: null,
+    txns1h: null,
     ...overrides,
   };
 }

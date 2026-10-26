@@ -122,6 +122,14 @@ export const DERIVED_PLACEHOLDERS: readonly string[] = [
   // PLAIN text (owner correction 2026-10-26): `**Name**` leaked
   // literally because MarkdownV2 bold is single `*`.
   'nameLink',
+  // Rick 1-hour window row (Rick parity, 2026-10-26): ONE composed
+  // derived key so a card carries the whole row or nothing —
+  // `📈 1H: 159 ⋅ 1.7% 🅑 3 Ⓢ 5` (1h volume, 1h change, buys,
+  // sells; `📉` only on a negative change). Fed by the four optional
+  // snapshot fields `volume1hUsd`/`priceChange1h`/`txns1hBuys`/
+  // `txns1hSells`; `""` (silence) when ANY is missing/non-finite —
+  // never a half-empty row, never `N/A`.
+  'market1hRow',
 ];
 
 /** Chart timeframe — valid ONLY inside `c`/`cc` bodies. */

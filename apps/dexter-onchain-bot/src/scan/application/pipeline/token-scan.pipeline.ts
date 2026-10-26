@@ -313,6 +313,10 @@ export class TokenScanPipeline implements ScanPipeline {
       readonly lockedLiquidityPercent: number | null;
       readonly burnedPercent: number | null;
       readonly volume24hUsd: number | null;
+      readonly volume1hUsd?: number | null;
+      readonly priceChange1h?: number | null;
+      readonly txns1hBuys?: number | null;
+      readonly txns1hSells?: number | null;
       readonly holders: number | null;
       readonly top10HolderPercent: number | null;
       readonly totalSupply: number | null;
@@ -354,6 +358,10 @@ export class TokenScanPipeline implements ScanPipeline {
       lockedLiquidityPercent: snapshot.lockedLiquidityPercent,
       burnedPercent: snapshot.burnedPercent,
       volume24hUsd: snapshot.volume24hUsd,
+      volume1hUsd: snapshot.volume1hUsd ?? null,
+      priceChange1h: snapshot.priceChange1h ?? null,
+      txns1hBuys: snapshot.txns1hBuys ?? null,
+      txns1hSells: snapshot.txns1hSells ?? null,
       holders: snapshot.holders,
       top10HolderPercent: snapshot.top10HolderPercent,
       top20HolderPercent: null,

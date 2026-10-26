@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **DexScreener 1-hour bucket on the snapshot quote (2026-10-26):** four
+  new nullable fields — `volume1hUsd`, `priceChange1h`, `txns1hBuys`,
+  `txns1hSells` — carried pair-level (never summed with other buckets;
+  the pre-existing `volume24h` bucket-sum oddity is deliberately
+  untouched and spec-pinned). `DexScreenerPairSummary` gains
+  `volume1hUsd` / `priceChange1h` / `txns1h` with BOTH mappers kept in
+  byte-parity (`toPairSummary` in `dexscreener.service.ts` and
+  `toSummaryFromTripwire` in `discovery-cache.service.ts`): absent or
+  non-finite → `null` (never `0`; a real `0` survives), and a
+  partial/non-finite `txns.h1` nulls the WHOLE object — absence must
+  silence downstream instead of rendering a `{buys:0,sells:0}` default.
+  `SnapshotQuote` + `SNAPSHOT_QUOTE_FIELDS` + `emptySnapshotQuote`
+  carry the four; the dexscreener quote fetcher is the ONLY writer
+  (other legs emit no key); `selectPreferredQuote` in
+  `evm-tolerance.ts` passes them through the direct/aggregator merge so
+  the fast path cannot drop them; the compat edge whitelist exposes
+  them. Consumers: dexter's derived `{{market1hRow}}`. Specs:
+  `dexscreener-summary-1h.spec.ts` + `provider-quote-1h.spec.ts` +
+  gateway key-set pin; suite 160/1295 green, `tsc` clean.
+
 - **Gecko-only market parity: pool market fields + launchpad hint +
   ATH-seed 429 backoff (dexter plan todo 72, 2026-10-21).** Tokens whose
   GeckoTerminal `/info` is complete (the usual pump.fun case) now serve

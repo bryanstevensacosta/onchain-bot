@@ -156,6 +156,21 @@ export interface DexScreenerPairSummary {
   readonly priceNative: string;
   readonly liquidityUsd: number | null;
   readonly volume24h: number;
+  /**
+   * Pair-level 1-hour volume in USD (dexter `1H` row): raw
+   * `pair.volume.h1`, NEVER summed with other buckets (the
+   * pre-existing `volume24h` bucket-sum semantics stay untouched).
+   * Absent/non-finite → `null` (never `0`); a real `0` survives.
+   * Both mappers (`toPairSummary` in `dexscreener.service.ts` and
+   * `toSummaryFromTripwire` in `discovery-cache.service.ts`) apply
+   * the same guard — byte-parity pinned.
+   */
+  readonly volume1hUsd: number | null;
+  /**
+   * Pair-level 1-hour price change in percent (`pair.priceChange.h1`,
+   * dexter `1H` row). Absent/non-finite → `null`; a real `0` survives.
+   */
+  readonly priceChange1h: number | null;
   readonly fdv: number | null;
   readonly marketCap: number | null;
   /**
@@ -172,4 +187,14 @@ export interface DexScreenerPairSummary {
   readonly pairCreatedAt: number | null;
   readonly priceChange24h: number | null;
   readonly txns24h: { readonly buys: number; readonly sells: number };
+  /**
+   * Pair-level 1-hour transaction counts (`pair.txns.h1`). `null` when
+   * `h1` is absent OR either side is not a finite number — NEVER
+   * completed with a `{buys:0,sells:0}` default, because absence must
+   * silence downstream instead of inventing zero trades.
+   */
+  readonly txns1h: {
+    readonly buys: number;
+    readonly sells: number;
+  } | null;
 }

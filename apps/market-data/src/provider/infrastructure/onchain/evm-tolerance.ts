@@ -103,6 +103,14 @@ export function selectPreferredQuote(
     ),
     liquidityUsd: pickDefined(direct.liquidityUsd, aggregator.liquidityUsd),
     volume24hUsd: pickDefined(direct.volume24hUsd, aggregator.volume24hUsd),
+    // 1h bucket (dexter `1H` row): the direct fast path never carries
+    // these (no DSC payload in the readers), so the aggregator's
+    // DexScreener-leg values survive untouched — same pass-through rule
+    // as `dexscreenerFdvUsd` above.
+    volume1hUsd: pickDefined(direct.volume1hUsd, aggregator.volume1hUsd),
+    priceChange1h: pickDefined(direct.priceChange1h, aggregator.priceChange1h),
+    txns1hBuys: pickDefined(direct.txns1hBuys, aggregator.txns1hBuys),
+    txns1hSells: pickDefined(direct.txns1hSells, aggregator.txns1hSells),
     priceChange24h: pickDefined(
       direct.priceChange24h,
       aggregator.priceChange24h,

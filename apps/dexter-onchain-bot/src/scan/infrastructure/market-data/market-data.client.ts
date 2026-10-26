@@ -151,6 +151,28 @@ export function toFdvAthUsdOrNull(raw: unknown): number | null {
   return typeof raw === 'number' && Number.isFinite(raw) ? raw : null;
 }
 
+/**
+ * 1-hour window numbers (dexter `{{market1hRow}}`, Rick parity):
+ * `volume1hUsd` / `priceChange1h` must be FINITE numbers — anything
+ * else (absent on older market-data answers, string, NaN, Infinity)
+ * resolves `null` so the renderer silences the whole row instead of
+ * printing a guess.
+ */
+export function toFiniteNumberOrNull(raw: unknown): number | null {
+  return typeof raw === 'number' && Number.isFinite(raw) ? raw : null;
+}
+
+/**
+ * 1-hour transaction counts (`txns1hBuys` / `txns1hSells`): finite
+ * AND `>= 0` — a negative or non-finite count is garbage, never data
+ * to round-trip. Absent reads `null` (row silenced by the renderer).
+ */
+export function toNonNegativeCountOrNull(raw: unknown): number | null {
+  return typeof raw === 'number' && Number.isFinite(raw) && raw >= 0
+    ? raw
+    : null;
+}
+
 export function toFdvAthAtOrNull(raw: unknown): string | null {
   if (typeof raw !== 'string' || raw === '') return null;
   return Number.isNaN(Date.parse(raw)) ? null : raw;
@@ -228,6 +250,17 @@ export interface MarketDataSnapshot {
   readonly lockedLiquidityPercent: number | null;
   readonly burnedPercent: number | null;
   readonly volume24hUsd: number | null;
+  /**
+   * 1-hour window (dexter `{{market1hRow}}`, Rick parity): 1h volume,
+   * 1h price change (%) and the buy/sell transaction counts of that
+   * window. Optional on the wire — validated here by
+   * `toFiniteNumberOrNull` / `toNonNegativeCountOrNull` (violation
+   * reads `null`; the renderer silences the row when any is absent).
+   */
+  readonly volume1hUsd?: number | null;
+  readonly priceChange1h?: number | null;
+  readonly txns1hBuys?: number | null;
+  readonly txns1hSells?: number | null;
   readonly holders: number | null;
   readonly top10HolderPercent: number | null;
   readonly totalSupply: number | null;
@@ -316,6 +349,10 @@ export class MarketDataClient {
         lockedLiquidityPercent: body.lockedLiquidityPercent ?? null,
         burnedPercent: body.burnedPercent ?? null,
         volume24hUsd: body.volume24hUsd ?? null,
+        volume1hUsd: toFiniteNumberOrNull(body.volume1hUsd),
+        priceChange1h: toFiniteNumberOrNull(body.priceChange1h),
+        txns1hBuys: toNonNegativeCountOrNull(body.txns1hBuys),
+        txns1hSells: toNonNegativeCountOrNull(body.txns1hSells),
         holders: body.holders ?? null,
         top10HolderPercent: body.top10HolderPercent ?? null,
         totalSupply: body.totalSupply ?? null,

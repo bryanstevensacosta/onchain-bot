@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Rick 1-hour row — `{{market1hRow}}` (2026-10-26):** ONE composed
+  derived key on EVERY command, fed by four NEW optional snapshot
+  fields (`volume1hUsd`, `priceChange1h`, `txns1hBuys`,
+  `txns1hSells` — wire contract owned by the market-data lane).
+  Reference row (docs: pricebot#reading-a-token-scan):
+  `📈 1H: 159 ⋅ 1.7% 🅑 3 Ⓢ 5` = 1h volume, 1h change, buys, sells;
+  `📉` ONLY on a strictly negative change (zero and positive render
+  `📈`). Composition reuses the shared formatters (`formatMoneyText`,
+  `formatPercentText` — it ALREADY emits `%`, so none is appended —
+  and `formatNumberText` for the counts) and escapes the composed
+  string EXACTLY ONCE (`1\.7%` is the MarkdownV2 decimal point
+  Telegram displays as `1.7%`). SILENCE (`""`) when ANY of the four
+  is missing/non-finite (counts additionally `>= 0`) — never a
+  half-empty row, never `N/A`. Client boundary `toFiniteNumberOrNull`
+  / `toNonNegativeCountOrNull`; the pipeline passes the four through
+  with explicit `null` when absent. Port fields are OPTIONAL
+  (`?: number | null`) so every existing `ResolvedToken` literal
+  keeps compiling. Registry: 22 base + 30 derived = 52 keys for
+  `ca|x|z|bare` / 53 for `c|cc`; catalog META carries the exact
+  sample as its example. Specs: `template-renderer-market-1h-row.spec.ts`,
+  `market-data-client-market-1h.spec.ts`,
+  `token-scan-market-1h.spec.ts` + registry/rick-card count pins.
+
 - **Rick compact-card placeholders + BSC seed row (2026-10-22):** six
   new derived keys on every command — `headerIcon` (launchpad icon link
   when present, else the chain DisplayMap emoji), `liquidityUsdSide`
@@ -50,6 +73,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--allow-prod`. Specs: +2 suites / +22 tests (75 suites / 815
   tests), including a seed → resolver → renderer integration that
   renders the exact label.
+
+### Fixed
+
+- **`nameLink` renders PLAIN text (2026-10-26):** the derived key now
+  emits `[Name](botStartUrl)` (or bare `Name` without a URL) instead
+  of `[**Name**](botStartUrl)`. MarkdownV2 bold is a SINGLE `*`, so the
+  double-asterisk shape leaked literal `**` markers into the card.
+  Compose bold in a template body as `[*{{name}}*]({{botStartUrl}})`
+  when a style wants it. The `{{name}}` helper is still reused, so the
+  `(unverified)` suffix and the `N/A` default are identical; 76
+  suites / 855 tests green, `tsc` clean. Supersedes the `[**Name**]`
+  wording in the 2026-10-22 entry. Blast radius: only the inactive
+  `RickBurpBot` dev row used the key — `bare-ca-v1` v2 is unchanged.
 
 ### Changed
 

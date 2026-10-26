@@ -215,6 +215,28 @@ function resolveHoneypotLineCore(
 }
 
 /**
+ * Guard for the four 1-hour row values (dexter `{{market1hRow}}`):
+ * a finite number or `null` — anything else (absent, string, NaN,
+ * Infinity) silences the whole row rather than printing a guess.
+ * Local on purpose: the renderer must not trust `TemplateValues`
+ * (always `Partial<ResolvedToken>`), whatever the producer sent.
+ */
+function finiteNumberOrNull(raw: unknown): number | null {
+  return typeof raw === 'number' && Number.isFinite(raw) ? raw : null;
+}
+
+/**
+ * 1-hour transaction counts: finite AND `>= 0` — the same rule the
+ * client boundary applies; a negative count is garbage, never a
+ * number to format.
+ */
+function nonNegativeCountOrNull(raw: unknown): number | null {
+  return typeof raw === 'number' && Number.isFinite(raw) && raw >= 0
+    ? raw
+    : null;
+}
+
+/**
  * Stateless MarkdownV2 template renderer with closed placeholder
  * semantics. Static body text is author-owned MarkdownV2 (never
  * touched); every substituted VALUE is `escapeV2`-escaped exactly
@@ -633,6 +655,40 @@ export class TemplateRendererService {
         // stays byte-identical for existing templates.
         const core = resolveHoneypotLineCore(values.honeypot);
         return core === '' ? '' : esc(`\n\n🍯 ${core}`);
+      }
+      case 'market1hRow': {
+        // Rick 1-hour window row (docs: pricebot#reading-a-token-scan):
+        // `📈 1H: 159 ⋅ 1.7% 🅑 3 Ⓢ 5` = 1h volume, 1h price change,
+        // 1h buys, 1h sells. Direction icon is price-led: `📉` ONLY on
+        // a strictly negative change (zero and positive → `📈`).
+        //
+        // SILENCE (`""`) when ANY of the four is missing/non-finite —
+        // no half-empty row, no `N/A`, never a guessed value. Counts
+        // additionally require `>= 0` (same rule as the client).
+        // Composition reuses the shared formatters (`formatMoneyText`,
+        // `formatPercentText` — it already emits `%`, so none is
+        // appended — and `formatNumberText` for the counts) and is
+        // escaped EXACTLY ONCE (precedent: `honeypotBlock`/`ageSuffix`).
+        // No leading/trailing whitespace: templates own separators.
+        const volume = finiteNumberOrNull(values.volume1hUsd);
+        const change = finiteNumberOrNull(values.priceChange1h);
+        const buys = nonNegativeCountOrNull(values.txns1hBuys);
+        const sells = nonNegativeCountOrNull(values.txns1hSells);
+        if (
+          volume === null ||
+          change === null ||
+          buys === null ||
+          sells === null
+        ) {
+          return '';
+        }
+        const icon = change < 0 ? '📉' : '📈';
+        return esc(
+          `${icon} 1H: ${MessageFormatterAdapter.formatMoneyText(volume)} ⋅ ` +
+            `${MessageFormatterAdapter.formatPercentText(change)} 🅑 ` +
+            `${MessageFormatterAdapter.formatNumberText(buys)} Ⓢ ` +
+            `${MessageFormatterAdapter.formatNumberText(sells)}`,
+        );
       }
       case 'ageSuffix': {
         // P1-2 (Rick compact card): `" ⋅ Age: `7d`"` when the shared

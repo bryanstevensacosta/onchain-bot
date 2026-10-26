@@ -56,6 +56,13 @@ export class MarketDataSnapshotController {
       priceUsd: snap.priceUsd,
       liquidityUsd: snap.liquidityUsd,
       volume24hUsd: snap.volume24hUsd,
+      // 1h bucket (dexter `1H` row): explicit keys — this whitelist is
+      // an intentional map, never a spread. Batch keeps its reduced
+      // surface (these four are NOT added there).
+      volume1hUsd: snap.volume1hUsd,
+      priceChange1h: snap.priceChange1h,
+      txns1hBuys: snap.txns1hBuys,
+      txns1hSells: snap.txns1hSells,
       marketCapUsd: snap.marketCapUsd,
       fdvUsd: snap.fdvUsd,
       priceChange24h: snap.priceChange24h,

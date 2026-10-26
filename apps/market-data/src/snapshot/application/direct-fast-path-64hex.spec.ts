@@ -32,6 +32,9 @@ const v4Summary = (
   priceChange24h: 1.5,
   txns24h: { buys: 3, sells: 1 },
   pairCreatedAt: null,
+  volume1hUsd: null,
+  priceChange1h: null,
+  txns1h: null,
   ...overrides,
 });
 

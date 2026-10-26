@@ -101,8 +101,8 @@ describe('TemplateRendererService rick compact card keys', () => {
     jest.restoreAllMocks();
   });
 
-  it('whitelists the 6 new derived keys on every command (29 derived total)', () => {
-    expect(DERIVED_PLACEHOLDERS).toHaveLength(29);
+  it('whitelists the 6 new derived keys on every command (30 derived total)', () => {
+    expect(DERIVED_PLACEHOLDERS).toHaveLength(30);
     for (const command of TEMPLATE_COMMANDS) {
       for (const key of NEW_KEYS) {
         expect(isKnownPlaceholder(command, key)).toBe(true);
@@ -124,12 +124,12 @@ describe('TemplateRendererService rick compact card keys', () => {
     }
   });
 
-  it('catalog docstring counts are 51 (ca/x/z/bare) and 52 (c/cc)', () => {
+  it('catalog docstring counts are 52 (ca/x/z/bare) and 53 (c/cc)', () => {
     for (const command of ['ca', 'x', 'z', 'bare'] as const) {
-      expect(placeholdersFor(command)).toHaveLength(51);
+      expect(placeholdersFor(command)).toHaveLength(52);
     }
     for (const command of ['c', 'cc'] as const) {
-      expect(placeholdersFor(command)).toHaveLength(52);
+      expect(placeholdersFor(command)).toHaveLength(53);
     }
   });
 

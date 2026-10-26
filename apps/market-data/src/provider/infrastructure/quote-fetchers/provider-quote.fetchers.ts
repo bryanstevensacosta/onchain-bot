@@ -353,6 +353,15 @@ export function buildProviderQuoteFetchers(
       if (identity === null) {
         return null;
       }
+      const txns1h = best.txns1h;
+      const txns1hBuys =
+        typeof txns1h?.buys === 'number' && Number.isFinite(txns1h.buys)
+          ? txns1h.buys
+          : null;
+      const txns1hSells =
+        typeof txns1h?.sells === 'number' && Number.isFinite(txns1h.sells)
+          ? txns1h.sells
+          : null;
       const quote: Partial<SnapshotQuote> = {
         priceUsd: toNumber(best.priceUsd),
         marketCapUsd: toNumber(best.marketCap),
@@ -364,6 +373,13 @@ export function buildProviderQuoteFetchers(
         dexscreenerFdvUsd: toNumber(best.fdv),
         liquidityUsd: toNumber(best.liquidityUsd),
         volume24hUsd: toNumber(best.volume24h),
+        // 1-hour bucket (dexter `1H` row): pair-level values from the
+        // best-liquidity pair only. Absent/non-finite → null (never 0);
+        // a real 0 survives. Only this leg writes these four fields.
+        volume1hUsd: toNumber(best.volume1hUsd),
+        priceChange1h: toNumber(best.priceChange1h),
+        txns1hBuys,
+        txns1hSells,
         priceChange24h: toNumber(best.priceChange24h),
         symbol: identity.symbol || null,
         name: identity.name || null,

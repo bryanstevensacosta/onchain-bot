@@ -124,10 +124,10 @@ describe('TemplateRendererService age key (plan todo 63)', () => {
     ).toBe('Age: ');
   });
 
-  it('catalog contract reflects the new key (51 base, 52 with timeframe)', () => {
-    expect(placeholdersFor('ca')).toHaveLength(51);
-    expect(placeholdersFor('z')).toHaveLength(51);
-    expect(placeholdersFor('c')).toHaveLength(52);
-    expect(placeholdersFor('cc')).toHaveLength(52);
+  it('catalog contract reflects the new key (52 base, 53 with timeframe)', () => {
+    expect(placeholdersFor('ca')).toHaveLength(52);
+    expect(placeholdersFor('z')).toHaveLength(52);
+    expect(placeholdersFor('c')).toHaveLength(53);
+    expect(placeholdersFor('cc')).toHaveLength(53);
   });
 });
