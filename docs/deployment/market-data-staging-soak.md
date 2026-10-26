@@ -234,13 +234,27 @@ composed `{{market1hRow}}`; deploys `40308277602` (dexter) and
 `40308277696` (market-data) are green. Live staging probe
 (`solana:48hn…pump`): `volume1hUsd=192.71`, `priceChange1h=-0.85`,
 `txns1hBuys=5`, `txns1hSells=5` → `📉 1H: 193 ⋅ -0.8% 🅑 5 Ⓢ 5` in the
-preview. DATA GAP (not a template defect): for the BSC Flap token
-`0xcEb8…7777` DexScreener returns `pairs: null` (validated against
-`token-pairs`, `latest/dex/tokens` and `search`), so all four fields
-stay `null` and the row is silent by contract; GeckoTerminal's best
-pool does carry `volume_usd.h1="0.0"`, `price_change_percentage.h1="0"`
-and `transactions.h1={0,0}` but the pool harvest only reads `h24`
-(todo 72 scope) — extending it is an owner decision, not a bug.
+preview. BSC Flap token `0xcEb8…7777`: DexScreener returns `pairs: null`
+(validated against `token-pairs`, `latest/dex/tokens` and `search`), so
+the row depends entirely on the Gecko pool pick — which does carry
+`volume_usd.h1="0.0"`, `price_change_percentage.h1="0"` and
+`transactions.h1={0,0}`.
+
+**Resolved same day (`bf419b99`, deploy `40313846788`; first attempt was
+cancelled on the self-hosted runner and re-run green).** Root cause was
+not the harvest: the four fields only filled through the OHLC-derivation
+leg, and that leg early-returns under native-wins whenever the merged
+quote already carries `priceChange24h` — which is exactly what
+`selectPoolQuote` supplies for this class. Both pool-pick literals in the
+`geckoterminal` quote fetcher now forward `volume1hUsd` /
+`priceChange1h` / `txns1hBuys` / `txns1hSells` from the SAME pick: zero
+extra HTTP calls, null-only fill + whole-pair txns contract unchanged,
+and the info-complete path still emits no key (single-writer pin intact).
+Live staging after the deploy (fresh row, not SWR): `volume1hUsd=0`,
+`priceChange1h=0`, `txns1hBuys=0`, `txns1hSells=0` with
+`liquidityUsd 4044.5769` / `volume24hUsd 0.2577854268` unchanged →
+preview `📈 1H: 0 ⋅ 0% 🅑 0 Ⓢ 0`. Real zeros survive; a pool without an
+`h1` bucket still resolves `null` and the row stays silent.
 
 ## 7. Thresholds and escalation
 
