@@ -123,15 +123,28 @@ plus `normalizeHistorySources`) is live; the validated baseline is the
 evm-rpc]`, 33 rows, health 3 ms. Start day 1 after that deploy and ignore
 the pre-fix line.
 
-| Day | Date       | Health | Latency (ms) | Snapshot status | providerErrors | TypeORM errors | Rows | Notes                                                                                                                                                                |
-| --- | ---------- | ------ | ------------ | --------------- | -------------- | -------------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | 2026-10-21 | 200    | 2            | ready           | 3              | 0              | 39   | chains=7; providerErrors keys `onchain-direct`/`dev:fast-path`/`honeypot:fast-path`; snapshot_ms=1593; degraded=true; stale=false                                    |
-| 2   | 2026-10-22 | 200    | 1            | ready           | 1              | 0              | 48   | chains=7; providerErrors key `swr-now`; snapshot_ms=39; degraded=false; stale=true; sources `dexscreener`/`geckoterminal`/`evm-rpc`; 429-log-lines=5 (<20 threshold) |
-| 3   | 2026-10-23 | 200    | 3            | ready           | 4              | 0              | 80   | chains=7; snapshot_ms=1257; degraded=true; stale=false; 429-log-lines=2; deploy 39942801522 (fix 5) green; health p95 9.9 ms n=22 (20.1 h window, incomplete)        |
-| 4   | —          | —      | —            | —               | —              | —              | —    | —                                                                                                                                                                    |
-| 5   | —          | —      | —            | —               | —              | —              | —    | —                                                                                                                                                                    |
-| 6   | —          | —      | —            | —               | —              | —              | —    | —                                                                                                                                                                    |
-| 7   | —          | —      | —            | —               | —              | —              | —    | —                                                                                                                                                                    |
+| Day | Date       | Health | Latency (ms) | Snapshot status | providerErrors | TypeORM errors | Rows | Notes                                                                                                                                                                         |
+| --- | ---------- | ------ | ------------ | --------------- | -------------- | -------------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | 2026-10-21 | 200    | 2            | ready           | 3              | 0              | 39   | chains=7; providerErrors keys `onchain-direct`/`dev:fast-path`/`honeypot:fast-path`; snapshot_ms=1593; degraded=true; stale=false                                             |
+| 2   | 2026-10-22 | 200    | 1            | ready           | 1              | 0              | 48   | chains=7; providerErrors key `swr-now`; snapshot_ms=39; degraded=false; stale=true; sources `dexscreener`/`geckoterminal`/`evm-rpc`; 429-log-lines=5 (<20 threshold)          |
+| 3   | 2026-10-23 | 200    | 3            | ready           | 4              | 0              | 80   | chains=7; snapshot_ms=1257; degraded=true; stale=false; 429-log-lines=2; deploy 39942801522 (fix 5) green; health p95 9.9 ms n=22 (20.1 h window, incomplete)                 |
+| 4   | 2026-10-24 | —      | —            | —               | —              | —              | —    | **NO RUN** — daily soak did not execute (gap; see continuity note)                                                                                                            |
+| 5   | 2026-10-25 | —      | —            | —               | —              | —              | —    | **NO RUN** — daily soak did not execute (gap; see continuity note)                                                                                                            |
+| 6   | 2026-10-26 | 200    | 3            | ready           | 9              | 0              | 84   | chains=7; snapshot_ms=2203; degraded=false; stale=false; sources `dexscreener`/`evm-rpc`; 429-log-lines=9 (<20); deploys 40308277602 (dexter) + 40308277696 (1H fields) green |
+| 7   | 2026-10-27 | —      | —            | —               | —              | —              | —    | —                                                                                                                                                                             |
+
+**Continuity gap (days 4-5, 2026-10-24 / 2026-10-25).** The daily soak
+run did not execute on either day: `~/market-data-soak.jsonl` has no
+line between `2026-10-23T11:06:02Z` and `2026-10-26T10:43:52Z`. The
+hourly health sampler kept running through the whole gap (93 lines on
+host, 24/24 hours present in the 24 h window read on 2026-10-26), so
+liveness evidence exists — but §10 exit criterion #1 asks for one
+recorded run per consecutive day, and reconstructing the missing lines
+is forbidden (measured values only). Consequence: as written, the
+streak restarts at day 6 and the earliest honest close is
+**2026-11-01**. Owner decision pending: either accept the sampler as
+continuity proof for a reworded criterion, or run the daily script
+through 2026-11-01 before the cutover review.
 
 **Validation note (2026-10-22) — how to read a staging snapshot.**
 `status`/`stale` describe the SERVE, not the code version. When the
@@ -207,9 +220,25 @@ the 60.5K peak seeded in dev; Gecko day calls remain under 429 pressure
 (2 matching log lines in 24 h). Not a template defect — the v16 body was
 not changed. v16 stays written to the INACTIVE `RickBurpBot` row
 (sha256 `6bc4f1b1…c51354`, `version=17`, `isActive=false`); no activation.
-Health sampler read at `2026-10-23T11:00Z`: **p95 9.9 ms, n=22** over
-`2026-10-22T14:52Z → 2026-10-23T11:00Z` (20.1 h, still short of the full
-24 h window; re-read after ~14:52Z).
+Health sampler read at `2026-10-26T10:45Z`: **p95 13.9 ms, n=24** over
+`2026-10-25T11:00Z → 2026-10-26T10:00Z` — a FULL 24 h window (min
+1.4 ms, max 14.3 ms), far under the 500 ms cutover gate. Supersedes the
+partial read of `2026-10-23` (p95 9.9 ms, n=22, 20.1 h).
+
+**1-hour row lane (2026-10-26, staging only).** `market-data` now
+carries `volume1hUsd`/`priceChange1h`/`txns1hBuys`/`txns1hSells` on the
+snapshot quote (pair-level, absent → `null`) and dexter renders the
+composed `{{market1hRow}}`; deploys `40308277602` (dexter) and
+`40308277696` (market-data) are green. Live staging probe
+(`solana:48hn…pump`): `volume1hUsd=192.71`, `priceChange1h=-0.85`,
+`txns1hBuys=5`, `txns1hSells=5` → `📉 1H: 193 ⋅ -0.8% 🅑 5 Ⓢ 5` in the
+preview. DATA GAP (not a template defect): for the BSC Flap token
+`0xcEb8…7777` DexScreener returns `pairs: null` (validated against
+`token-pairs`, `latest/dex/tokens` and `search`), so all four fields
+stay `null` and the row is silent by contract; GeckoTerminal's best
+pool does carry `volume_usd.h1="0.0"`, `price_change_percentage.h1="0"`
+and `transactions.h1={0,0}` but the pool harvest only reads `h24`
+(todo 72 scope) — extending it is an owner decision, not a bug.
 
 ## 7. Thresholds and escalation
 
