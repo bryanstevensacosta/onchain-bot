@@ -172,7 +172,7 @@ describe('TemplateRendererService rick compact card keys', () => {
       // empty — accepted class, documented; the fix is data (a BSC
       // DisplayMap row / a launchpad), never a fabricated emoji.
       expect(render('{{headerIcon}} {{nameLink}}', baseToken(), null)).toBe(
-        ' [**Koda**](https://t.me/DexterBot?start=0xd3775c4D5C517AaCAe0CCF906DCD96713b5749cF)',
+        ' [Koda](https://t.me/DexterBot?start=0xd3775c4D5C517AaCAe0CCF906DCD96713b5749cF)',
       );
     });
   });
@@ -316,22 +316,22 @@ describe('TemplateRendererService rick compact card keys', () => {
     });
   });
 
-  describe('nameLink (D8)', () => {
-    it('renders the bold link when botStartUrl resolves', () => {
-      expect(render('{{nameLink}}', baseToken())).toBe(
-        `[**Koda**](${BOT_URL})`,
-      );
+  describe('nameLink (D8, plain per owner correction 2026-10-26)', () => {
+    it('renders the plain link when botStartUrl resolves (no literal ** markers)', () => {
+      const out = render('{{nameLink}}', baseToken());
+      expect(out).toBe(`[Koda](${BOT_URL})`);
+      expect(out).not.toContain('**');
     });
 
-    it('renders plain bold name without a URL (never `[Koda]()`)', () => {
+    it('renders plain name without a URL (never `[Koda]()`)', () => {
       expect(render('{{nameLink}}', baseToken(), CHAIN_RESOLVER, null)).toBe(
-        '**Koda**',
+        'Koda',
       );
     });
 
     it('reuses the {{name}} default: empty name → N/A (escaped once)', () => {
       expect(render('{{nameLink}}', baseToken({ name: '' }))).toBe(
-        `[**N/A**](${BOT_URL})`,
+        `[N/A](${BOT_URL})`,
       );
       expect(render('{{name}}', baseToken({ name: '' }))).toBe('N/A');
     });
@@ -342,7 +342,7 @@ describe('TemplateRendererService rick compact card keys', () => {
         identityProvenance: 'metadata',
       });
       expect(render('{{nameLink}}', token)).toBe(
-        `[**Koda \\(unverified\\)**](${BOT_URL})`,
+        `[Koda \\(unverified\\)](${BOT_URL})`,
       );
       expect(render('{{name}}', token)).toBe('Koda \\(unverified\\)');
     });
@@ -402,7 +402,7 @@ describe('TemplateRendererService rick compact card keys', () => {
 
     expect(out.text).toBe(
       [
-        `🟡 [**Koda**](${BOT_URL}) *[751/0%] $KODA*`,
+        `🟡 [Koda](${BOT_URL}) *[751/0%] $KODA*`,
         '🌐 BNB @ Pancakeswap V2',
         '💰 USD: `0\\.00007707`',
         '💎 FDV: `751` ⇨ `2\\.6K` [`7d`]',

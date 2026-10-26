@@ -196,9 +196,9 @@ const PLACEHOLDER_META: Record<string, Omit<PlaceholderDescriptor, 'key'>> = {
   nameLink: {
     type: 'derived',
     nullable: true,
-    example: '[**Koda**](https://t.me/DexterBot?start=…)',
+    example: '[Koda](https://t.me/DexterBot?start=…)',
     description:
-      'Bold name link using botStartUrl; falls back to bold name without a URL. Reuses the name default (N/A) and unverified suffix.',
+      'Plain name link using botStartUrl; falls back to the plain name without a URL. Reuses the name default (N/A) and unverified suffix. Compose bold as [*{{name}}*]({{botStartUrl}}).',
   },
   timeframe: { type: 'string', nullable: true, example: '5m' },
   botStartUrl: {

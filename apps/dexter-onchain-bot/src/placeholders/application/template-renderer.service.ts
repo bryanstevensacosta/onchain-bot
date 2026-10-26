@@ -644,14 +644,19 @@ export class TemplateRendererService {
         return ` ⋅ Age: \`${age}\``;
       }
       case 'nameLink': {
-        // D8/P1-3 (Rick compact card): `[**Name**](botStartUrl)` when
-        // the deep-link resolves, plain `**Name**` otherwise (never
-        // `[Name]()`). Reuses the `name` resolution exactly (`N/A`
-        // default, escaped once, metadata `(unverified)` suffix
-        // included) — never a raw `esc(name)` nor a different default.
+        // D8/P1-3 (Rick compact card): `[Name](botStartUrl)` when the
+        // deep-link resolves, plain `Name` otherwise (never
+        // `[Name]()`). PLAIN text since the owner correction
+        // 2026-10-26: `**Name**` is Discord-style bold, not
+        // MarkdownV2 (Telegram bold = single `*`), so the double
+        // markers leaked literally into the card. Bold stays
+        // composable in a body: `[*{{name}}*]({{botStartUrl}})`.
+        // Reuses the `name` resolution exactly (`N/A` default,
+        // escaped once, metadata `(unverified)` suffix included) —
+        // never a raw `esc(name)` nor a different default.
         const nameText = this.resolveValue('name', values);
         const url = this.resolveValue('botStartUrl', values);
-        return url === '' ? `**${nameText}**` : `[**${nameText}**](${url})`;
+        return url === '' ? nameText : `[${nameText}](${url})`;
       }
       case 'alternatives': {
         const rest = values.alternatives;

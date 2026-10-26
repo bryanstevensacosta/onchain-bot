@@ -116,9 +116,11 @@ export const DERIVED_PLACEHOLDERS: readonly string[] = [
   // P1-2: `ageSuffix` — ``" ⋅ Age: `7d`"`` when `age` resolves,
   // `""` otherwise (never leaves a dangling `⋅ Age:` behind).
   'ageSuffix',
-  // D8/P1-3: `nameLink` — `[**Name**](botStartUrl)` when a deep-link
-  // resolves, `**Name**` otherwise (never `[Name]()`); reuses the
+  // D8/P1-3: `nameLink` — `[Name](botStartUrl)` when a deep-link
+  // resolves, `Name` otherwise (never `[Name]()`); reuses the
   // `name` resolution (N/A default + `(unverified)` provenance).
+  // PLAIN text (owner correction 2026-10-26): `**Name**` leaked
+  // literally because MarkdownV2 bold is single `*`.
   'nameLink',
 ];
 

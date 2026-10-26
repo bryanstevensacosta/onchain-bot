@@ -169,6 +169,8 @@ El body nuevo usa `🌐` fijo en la línea de venue. Aplica a todas las chains (
 
 `[**Name**](botStartUrl)` si hay URL; `**Name**` si no. Evita `[Name]()`. **Debe reusar el mismo helper de `{{name}}`**: si la metadata es unverified, conserva el sufijo `(unverified)`; si el nombre está vacío, usa el mismo default que `{{name}}` (`N/A`/`Unknown`), no un `Unknown` distinto. Si el owner prefiere el body actual `[{{name}}]({{botStartUrl}})`, se deja; no bloquea BSC.
 
+> **OWNER CORRECTION 2026-10-26:** vigente = texto PLANO `[Name](botStartUrl)` / `Name` (sin `**`). MarkdownV2 usa `*` simple para bold; `**Name**` se renderizaba literal (`**Dog In Pain**`) en el card. Para bold, componer en el body `[*{{name}}*]({{botStartUrl}})`.
+
 ### D9 — Blank line del 🍯: **`honeypotBlock`**
 
 Nuevo derived `honeypotBlock` = `\n\n🍯 ${core}` (mismo `core` que `honeypotLine`). El body lo pone inline después de `Age`; cuando no hay fila, no deja newline. `honeypotLine` no se toca (compatibilidad con templates existentes).

@@ -920,8 +920,10 @@ Pump'}`. Specs: 6 tests in
   (`"\n\n🍯 " + <same core as honeypotLine>`; `honeypotLine` stays
   byte-identical so existing templates are untouched), `ageSuffix`
   (`" ⋅ Age: "` + a static code span around the rendered age; `""`
-  when age is empty → never a dangling `Age:` label), and `nameLink` (`[**Name**](botStartUrl)` or
-  `**Name**` without a URL — reuses the `{{name}}` helper so the
+  when age is empty → never a dangling `Age:` label), and `nameLink` (`[Name](botStartUrl)` or
+  `Name` without a URL — PLAIN text since the owner correction
+  2026-10-26; `**Name**` is not MarkdownV2 bold and leaked literally.
+  Compose bold in a body as `[*{{name}}*]({{botStartUrl}})`). It reuses the `{{name}}` helper so the
   `(unverified)` suffix and the `N/A` default are identical, and no
   `[Name]()` is produced). Registry: 22 base + 29 derived = 51 keys
   for `ca|x|z|bare` / 52 for `c|cc`; `PLACEHOLDER_META` carries all
