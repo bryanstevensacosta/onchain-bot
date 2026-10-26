@@ -91,9 +91,12 @@ docker logs --since 24h onchain-bot-market-data-staging 2>&1 \
 
 **`solana-holders` (new 2026-10-26, enabled by default).** Solana cold snapshots
 now spend up to 4 extra Solana RPC calls (supply + largest accounts + 2
-`getMultipleAccounts` batches) on their own leg, isolated behind a 1500 ms
-budget and a `try/catch`. Read it in `providerErrors` **separately** from
-`solana-rpc`:
+`getMultipleAccounts` batches) on their own leg, isolated behind a **3800 ms**
+budget (calibrated 2026-10-26 after measuring the keyed Helius transport:
+`getTokenLargestAccounts` alone answers in 2360-2936 ms, so the original
+1500 ms budget sat below the band and every pre-change live card read
+`holderConcentration: null`) and a `try/catch`. Read it in `providerErrors`
+**separately** from `solana-rpc`:
 
 - `solana-holders: "no data"` while `solana-rpc` also says `no data` → the RPC
   tier walk is walled (429/403); this is the documented fail-open, not a bug.
@@ -103,6 +106,9 @@ budget and a `try/catch`. Read it in `providerErrors` **separately** from
   `{ topPercents, top10Percent }`.
 - `holderConcentration: null` on an EVM row is **expected** (Solana-only, no
   keyless per-wallet EVM source) — never record it as a miss.
+- `solana-holders: "abandoned at fanout deadline (4000ms) — fail-open"` → the
+  leg outlived the 3800 ms budget's margin (RPC jitter). Honest null, zero
+  card impact; count it as latency pressure, not a provider outage.
 - Kill-switch for a storm: `SNAPSHOT_HOLDER_CONCENTRATION_ENABLED=false`
   (zero RPC, field stays `null`, no note).
 

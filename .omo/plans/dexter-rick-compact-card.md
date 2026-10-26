@@ -531,7 +531,7 @@ El ejemplo de docs (3 valores) es **ilustrativo/truncado**; la captura (5 valore
 - **4 llamadas RPC** por cold Solana: `getTokenSupply` (1) + `getTokenLargestAccounts` (1) + batch ATA (1) + batch wallets (1); chunks ≤100 → 1 llamada cada una. Duplica supply+largest respecto a la variante "dentro del fetcher" (+2 llamadas): se paga a cambio de aislar los campos legacy. Medirlo en el soak.
 - **Coste de bucket:** `applyOutboundRateLimit` cobra `cost` **por invocación del fetcher** (default 1, `rate-limited-fetchers.ts:40-56`) → las 4 RPC internas consumen **1 token**; a 60/min aguanta 60 colds/min, muy por encima de la cadencia (~2/min). El cálculo de 4 req contra el límite público de 40 req/10 s sí es por llamada real.
 - **`applyOutboundRateLimit` PUEDE lanzar** al agotar el bucket (`rate-limited-fetchers.ts:52`) → el fetcher envuelve TODO en try/catch y degrada a `null`; nunca propaga.
-- **Presupuesto propio dentro del fetcher:** `SNAPSHOT_HOLDER_CONCENTRATION_TIMEOUT_MS` (default **1500**, resolver con fallback pinneado como `resolveHoneypotTimeoutMs`) mediante `Promise.race`; al vencer resuelve `holderConcentration: null` y nada más (las llamadas abandonadas mueren por su timeout interno, igual que `withTailBudget`). El deadline de fan-out (4000 ms) queda de backstop.
+- **Presupuesto propio dentro del fetcher:** `SNAPSHOT_HOLDER_CONCENTRATION_TIMEOUT_MS` (default **3800** desde 2026-10-26 — el 1500 original moría en TODA llamada del transporte keyed; la calibración medida está en §10.13; resolver con fallback pinneado como `resolveHoneypotTimeoutMs`) mediante `Promise.race`; al vencer resuelve `holderConcentration: null` y nada más (las llamadas abandonadas mueren por su timeout interno, igual que `withTailBudget`). El deadline de fan-out (4000 ms) queda de backstop y el pin `DEFAULT < SNAPSHOT_FANOUT_DEADLINE_MS_DEFAULT` es un test.
 - **Kill-switch:** `SNAPSHOT_HOLDER_CONCENTRATION_ENABLED` (default habilitado; false-ish → no llamadas, sin campo, sin nota).
 - Fail-open total: cualquier gap (tier caído, decode fallido, supply 0/null, timeout, rate-limit) → `null`, nunca throw, nunca afecta a otros campos.
 
@@ -650,21 +650,21 @@ Cambio propuesto (una versión más), **solo tras OK del owner**:
 
 ### 10.12 Riesgos
 
-| Riesgo                                                         | Mitigación                                                                                                                                   |
-| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| Lista dominada por el vault del pool/curva → fila engañosa     | F3(b): excluir uninitialized/burn/program-owned/null **antes del corte**; si el owner elige (a), el silencio es preferible a una fila falsa  |
-| Token con <10 wallets silenciado por `NaN`                     | `min(10, n)` en el acumulador (§10.6.5) + spec de n=1..9                                                                                     |
-| Un token 100%-held descartado por un ulp                       | Guard `[-ε, 100+ε]` + clamp a `[0,100]` para display (§10.6.7)                                                                               |
-| Excluir program-owned tira wallets multisig                    | Falso NEGATIVO aceptado y documentado (Squads); nunca falso positivo                                                                         |
-| Un ATA sin inicializar se clasifica como burn                  | Filtrar `isUninitializedTokenAccount` ANTES de la exclusión de burn (§10.6.4)                                                                |
-| Top-10 es lower bound (ventana de 20 cuentas)                  | Documentado; nunca sobrestatement                                                                                                            |
-| Token-2022                                                     | Reusar `decodeTokenAccount` (`>= 165`, program-agnóstico); **no** gatear por program id (C2)                                                 |
-| +4 RPC y días 429-walled                                       | Fetcher propio en paralelo + presupuesto 1500 ms + kill-switch + try/catch (el rate-limit gate lanza); los campos legacy no se tocan         |
-| Bracket menor que la suma mostrada / `ceil` inflado por floats | Décimas enteras + `max(round(top10), ceil(décimas/10))` (§10.7)                                                                              |
-| Dos "top 10" distintos en el mismo card                        | C8: eliminar `{{top10HolderPercent}}` del body nuevo + regla documentada                                                                     |
-| `[N%]` con exclusiones no comparable con Rick                  | Los docs de Rick NO documentan exclusiones → no reclamamos paridad numérica, solo estructura                                                 |
-| Línea en blanco doble o fila colgada                           | Contigüidad obligatoria de las tres keys (§10.8) + leer la fila viva + preview con 1H vacío y con 1H presente                                |
-| `truncateText` puede cortar entre `\` y el carácter escapado   | Preexistente (`message-formatter.ts:45-52`); la fila alarga el tail ~40 chars → más exposición. Fuera de alcance: anotado, no corregido aquí |
+| Riesgo                                                         | Mitigación                                                                                                                                            |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Lista dominada por el vault del pool/curva → fila engañosa     | F3(b): excluir uninitialized/burn/program-owned/null **antes del corte**; si el owner elige (a), el silencio es preferible a una fila falsa           |
+| Token con <10 wallets silenciado por `NaN`                     | `min(10, n)` en el acumulador (§10.6.5) + spec de n=1..9                                                                                              |
+| Un token 100%-held descartado por un ulp                       | Guard `[-ε, 100+ε]` + clamp a `[0,100]` para display (§10.6.7)                                                                                        |
+| Excluir program-owned tira wallets multisig                    | Falso NEGATIVO aceptado y documentado (Squads); nunca falso positivo                                                                                  |
+| Un ATA sin inicializar se clasifica como burn                  | Filtrar `isUninitializedTokenAccount` ANTES de la exclusión de burn (§10.6.4)                                                                         |
+| Top-10 es lower bound (ventana de 20 cuentas)                  | Documentado; nunca sobrestatement                                                                                                                     |
+| Token-2022                                                     | Reusar `decodeTokenAccount` (`>= 165`, program-agnóstico); **no** gatear por program id (C2)                                                          |
+| +4 RPC y días 429-walled                                       | Fetcher propio en paralelo + presupuesto 3800 ms (medido; §10.13) + kill-switch + try/catch (el rate-limit gate lanza); los campos legacy no se tocan |
+| Bracket menor que la suma mostrada / `ceil` inflado por floats | Décimas enteras + `max(round(top10), ceil(décimas/10))` (§10.7)                                                                                       |
+| Dos "top 10" distintos en el mismo card                        | C8: eliminar `{{top10HolderPercent}}` del body nuevo + regla documentada                                                                              |
+| `[N%]` con exclusiones no comparable con Rick                  | Los docs de Rick NO documentan exclusiones → no reclamamos paridad numérica, solo estructura                                                          |
+| Línea en blanco doble o fila colgada                           | Contigüidad obligatoria de las tres keys (§10.8) + leer la fila viva + preview con 1H vacío y con 1H presente                                         |
+| `truncateText` puede cortar entre `\` y el carácter escapado   | Preexistente (`message-formatter.ts:45-52`); la fila alarga el tail ~40 chars → más exposición. Fuera de alcance: anotado, no corregido aquí          |
 
 ### 10.13 Implementación + evidencia live (2026-10-26)
 
@@ -674,7 +674,7 @@ Cambio propuesto (una versión más), **solo tras OK del owner**:
 
 - `snapshot/domain/snapshot-holder-concentration.ts` — política congelada (TOP_N 5, TOP10_N 10, ε `1e-9`) + resolvers de env.
 - `provider/infrastructure/quote-fetchers/holder-concentration.ts` — `computeHolderConcentration` (supply → largest → 1 batch de ATAs → merge en BigInt por wallet → drop de importe 0 → las 4 exclusiones EN ORDEN → sort desc → `min(5,n)` / `min(10,n)`) + `buildHolderConcentration` puro para guards/clamp.
-- `provider-quote.fetchers.ts` — fetcher `solana-holders` en la posición 5 (justo tras `solana-rpc`), tier `free`, kill-switch, presupuesto propio de 1500 ms, `try/catch` total.
+- `provider-quote.fetchers.ts` — fetcher `solana-holders` en la posición 5 (justo tras `solana-rpc`), tier `free`, kill-switch, presupuesto propio de 3800 ms (recalibrado 2026-10-26 desde 1500 tras medir el transporte keyed), `try/catch` total.
 - `snapshot-aggregator.service.ts` — `MergeAcc` ensanchado con la unión **concreta** `| HolderConcentration` (C1).
 - `snapshot-quote.types.ts` — campo + `SNAPSHOT_QUOTE_FIELDS` + `emptySnapshotQuote()`.
 - `market-data-snapshot.controller.ts:96` — clave explícita en el whitelist del compat edge (C3); el batch queda intacto.
@@ -697,10 +697,30 @@ Cambio propuesto (una versión más), **solo tras OK del owner**:
 - Preview `HDR{{market1hRow}}{{holderTopRow}}{{honeypotBlock}}` → `HDR📉 1H: 8\.1K ⋅ \-1% 🅑 13 Ⓢ 24`: el tail sigue limpio con TH en silencio.
 - **TH no se ha observado todavía con datos reales**: en esta ventana todos los tiers de RPC de Solana están caídos desde el host de staging (`api.mainnet.solana.com` → **429**, `solana.publicnode.com` → **403**, Helius 429), así que `solana-rpc` y `solana-holders` responden `no data` y el campo sale `null` por diseño fail-open. La fila exacta (`4\.3⋅3\.3⋅2\.8⋅2\.3⋅1\.8 \[20%\]`) está pinneada **por spec**, no por observación live. No se inventó ni se forzó ningún valor para "demostrar" la fila.
 
+**Recalibración del presupuesto TH + primera fila live (2026-10-26, después de `6f27cac3`)**
+
+Diagnóstico medido (Helius keyed, leído por NOMBRE desde `apps/market-data/.env`, nunca impreso): `getTokenSupply` ≈**247 ms**, `getTokenLargestAccounts` **2360–2936 ms** (n=20), `getMultipleAccounts` ≈**257 ms** por lote; el camino es SECUENCIAL (supply → largest → lote ATAs → lote wallets) ⇒ **3.15–3.70 s** en el happy path. El presupuesto original de **1500 ms** quedaba por debajo de esa banda y **todas las cards live previas al cambio leyeron `holderConcentration: null`**; el RPC público (`api.mainnet.solana.com`) responde **429** justo en `getTokenLargestAccounts`, así que el tier público no puede rescatar la pata. Esto es una calibración, no un cambio de contrato: la política §10.6 queda intacta.
+
+- Fix: `SNAPSHOT_HOLDER_CONCENTRATION_TIMEOUT_MS_DEFAULT` **1500 → 3800** (cabe la banda medida y sigue por debajo del deadline de fan-out de 4000 ms, que es el backstop). Test nuevo pinea `DEFAULT < SNAPSHOT_FANOUT_DEADLINE_MS_DEFAULT` para que un futuro ajuste no rompa el orden.
+- `.env.example`: bloque de tuning opcional con `SNAPSHOT_HOLDER_CONCENTRATION_ENABLED=true` + `SNAPSHOT_HOLDER_CONCENTRATION_TIMEOUT_MS=3800` y la razón medida (cierra el pendiente 5).
+- Docs: `apps/market-data/AGENTS.md` gana `BUDGET CALIBRATION` y `docs/deployment/market-data-staging-soak.md` §4 gana la lectura de `abandoned at fanout deadline (4000ms)` (presión de latencia, no caída de proveedor).
+- Verificación: market-data **164 suites / 1358 tests** verdes, `tsc --noEmit` limpio.
+
+**Primera fila TH real (dev `:4000`, pm2 id 6 reiniciado con el build nuevo).** BONK `DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263` cold: `status: ready`, `stale: false`, **3.507 s**, `sources: [dexscreener, geckoterminal, solana-rpc, solana-holders, coingecko]`, `providerErrors` SIN clave `solana-holders`, y
+
+```json
+"holderConcentration": {
+  "topPercents": [8.830700941879325, 6.792953673448346, 3.6204544529811615, 3.0550385529742394, 3.0423870911992643],
+  "top10Percent": 38.23674188221453
+}
+```
+
+Línea de serve de esa llamada: `directMs=800 fanoutMs=1822 kindMs=0 tailMs=406 existenceMs=246 totalMs=3507`. Repetición inmediata: **2.1 ms** (cache) con el MISMO objeto, `stale: false`. Honestidad: ese `fanoutMs=1822` muestra que en esa llamada el RPC fue más rápido que la banda medida n=20 (por eso el presupuesto no se ata en llamadas rápidas y solo acota la cola lenta). El `top10HolderPercent` legacy de BONK (38.24, per-cuenta y pool-inclusivo) coincide numéricamente con nuestro `38.2367` per-wallet, pero son métricas DISTINTAS: coincidencia de este token, **no** una reclamación de paridad. La fila renderizada por dexter sigue sin observarse contra el body vivo: eso depende del owner (pendientes 1-2).
+
 **Sigue pendiente (requiere OK explícito)**
 
 1. Editar el body vivo de `RickBurpBot` para insertar `{{holderTopRow}}` — contiguo a `{{market1hRow}}` (la fila baja su propia línea en blanco) y **eliminando** `{{top10HolderPercent}}` si estuviera (C8). Leer antes versión + body + `isActive`.
 2. Cualquier activación del template.
 3. Cutover a prod (`master`) — fuera de alcance por instrucción permanente.
 4. C2 (`TOKEN_2022_PROGRAM`) sigue como limpieza opcional no aprobada.
-5. Declarar `SNAPSHOT_HOLDER_CONCENTRATION_ENABLED` / `SNAPSHOT_HOLDER_CONCENTRATION_TIMEOUT_MS` en `.env.example` (quedó fuera del write-scope de la lane; los defaults funcionan sin declararlas).
+5. ~~Declarar `SNAPSHOT_HOLDER_CONCENTRATION_ENABLED` / `SNAPSHOT_HOLDER_CONCENTRATION_TIMEOUT_MS` en `.env.example`~~ HECHO 2026-10-26: bloque de tuning opcional al final de `apps/market-data/.env.example` con los defaults (habilitado / 3800 ms) y la razón medida.

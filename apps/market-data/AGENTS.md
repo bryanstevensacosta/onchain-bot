@@ -1998,10 +1998,22 @@ batch surface never carries it.
   explicit false-ish `0|false|off|no|disabled` disables ⇒ zero RPC, no
   field; delegates to `resolveHoneypotEnabled` — ONE vocabulary) and
   `SNAPSHOT_HOLDER_CONCENTRATION_TIMEOUT_MS` (default
-  `1_500` = `SNAPSHOT_HOLDER_CONCENTRATION_TIMEOUT_MS_DEFAULT`;
+  `3_800` = `SNAPSHOT_HOLDER_CONCENTRATION_TIMEOUT_MS_DEFAULT`;
   non-finite/≤0/garbage → default, `Math.floor`). Both read at
   `buildProviderQuoteFetchers` construction (no ConfigService there);
   the 4000ms fan-out deadline remains the backstop.
+- BUDGET CALIBRATION (2026-10-26, measured — the number is NOT a
+  honeypot-copy anymore): the leg is four SEQUENTIAL rounds on the
+  keyed Helius primary — `getTokenSupply` ≈247ms,
+  `getTokenLargestAccounts` 2360–2936ms (n=20), then two
+  `getMultipleAccounts` batches ≈257ms each ⇒ **3.15–3.70s** on the
+  happy path. The original 1500ms budget sat BELOW that band, and every
+  live card observed before the change read `holderConcentration: null`
+  (`hcKey` present). 3800 fits the measured band and stays under the fan-out
+  deadline; a fast transport (~1s) never binds it. If a future probe
+  moves the largest-accounts latency, re-measure BEFORE touching the
+  number (and keep `DEFAULT < SNAPSHOT_FANOUT_DEADLINE_MS_DEFAULT` —
+  spec-pinned).
 - STALE/SWR: nothing extra — `holderConcentration` rides `...row.quote`
   on both serve paths, so replays preserve the object verbatim; it is
   NEVER cached separately and no seed/history writer touches it.
@@ -2018,10 +2030,11 @@ batch surface never carries it.
   `provider-quote-newprov.spec.ts` / `zero-cost-cascade.spec.ts`,
   `snapshot-quote.types.spec.ts`, the gateway edge/batch pair and the
   stale replay.
-- ENV INVENTORY / `.env.example` are OUTSIDE this lane's write scope
-  (`src/**` + this file): the two vars above are documented here and
-  default correctly when unset — add them to `.env.example` on the next
-  env-touching todo.
+- ENV INVENTORY / `.env.example`: DECLARED 2026-10-26 (was a
+  next-lane follow-up) — both switches above sit in the file's
+  optional-tuning block with their code defaults, so an operator can
+  find them without reading `src/**`. Undeclared remains FINE at
+  runtime (the defaults are the contract).
 
 ## SECURITY (P46, todo 10)
 

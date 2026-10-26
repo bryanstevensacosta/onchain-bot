@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`{{holderTopRow}}` — the `👥 TH:` derived key (2026-10-26):** Rick
+  compact-card row fed by market-data's `holderConcentration`. SILENCE
+  (`""`) on ANY gap — absent/null/malformed, empty `topPercents`, more
+  than five entries, any non-finite or out-of-range value,
+  `sum(top5) > top10 + ε` — never a half row, never `N/A`, never a
+  literal placeholder. Otherwise emits `"\n\n👥 TH: "` + the payload as
+  `4\.3⋅3\.3⋅2\.8⋅2\.3⋅1\.8 \[20%\]`: each percent at 1 decimal with the
+  trailing zero KEPT (`2.0`), joined by `⋅`, then ONE space and the
+  integer top-10 bracket. The bracket is computed from the DISPLAYED
+  tenths (`max(round(top10), ceil(Σround(p*10)/10))`) so binary carry
+  can never print a number below the printed five, and the composed
+  string is escaped EXACTLY ONCE. Client guard
+  `toHolderConcentrationOrNull` validates shape, non-increasing order
+  (ties valid) and coherence; `HolderConcentrationInfo` is declared on
+  the scan port AND in `toResolvedToken`'s structural type (an
+  undeclared field is dropped silently). Registry: **53** keys for
+  `ca|x|z|bare`, **54** for `c|cc`; catalog META carries the sample.
+  Renderer only — the live `RickBurpBot` body stays operator-owned and
+  is not modified or activated by this change.
+
 - **Rick 1-hour row — `{{market1hRow}}` (2026-10-26):** ONE composed
   derived key on EVERY command, fed by four NEW optional snapshot
   fields (`volume1hUsd`, `priceChange1h`, `txns1hBuys`,

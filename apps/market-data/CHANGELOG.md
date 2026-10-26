@@ -9,6 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Holder concentration (`holderConcentration`) — the `👥 TH:` source
+  (2026-10-26):** new REQUIRED `AddressSnapshot.holderConcentration`
+  (`{ topPercents, top10Percent } | null`, always emitted) produced by a
+  dedicated `solana-holders` quote fetcher (position 5, right after
+  `solana-rpc`; tier `free`; Solana-only — no keyless per-wallet EVM
+  source exists) that emits ONLY that field. Denominator is on-chain
+  TOTAL supply; `getTokenLargestAccounts` ATAs are decoded through the
+  existing token-account decoder and summed per WALLET in BigInt; zero
+  amounts dropped; four exclusions applied BEFORE the sort/cut
+  (uninitialized ATA, System-Program burn owner, wallet account `null`,
+  program-owned wallet) so `sum(top5) <= top10` holds by construction;
+  `topPercents` = first `min(5,n)`, `top10Percent` = first `min(10,n)`.
+  Guards: zero/null supply, non-finite, top-10 outside `[-ε, 100+ε]` →
+  `null` (inside → clamp `[0,100]`); zero eligible wallets → `null`
+  (silence). Lower-bound caveat documented (≤20 accounts) and it is a
+  DIFFERENT metric from the legacy `top10HolderPercent` (per account,
+  pool-inclusive, no exclusions). Compat edge whitelist carries the key
+  explicitly; the reduced batch surface stays untouched. Kill-switch
+  `SNAPSHOT_HOLDER_CONCENTRATION_ENABLED` (default on).
+  **Budget calibrated 1500 → 3800 ms** through
+  `SNAPSHOT_HOLDER_CONCENTRATION_TIMEOUT_MS`: the leg is four SEQUENTIAL
+  rounds and the keyed Helius primary answers `getTokenLargestAccounts`
+  in 2360–2936 ms (`n=20`), so the whole path measures 3.15–3.70 s —
+  1500 sat below the band and every pre-change live card read `null`
+  (the public endpoint 429s that exact method). A new spec pins
+  `DEFAULT < SNAPSHOT_FANOUT_DEADLINE_MS_DEFAULT` (4000 ms, the
+  backstop). First live row (dev, BONK cold serve 3.507 s):
+  `[8.8307, 6.7930, 3.6205, 3.0550, 3.0424]` / top-10 `38.2367`.
+  `.env.example` now declares both switches with their defaults.
+  Suite 164 / 1358 green, `tsc --noEmit` clean.
+
 - **GeckoTerminal pool 1-hour bucket (2026-10-26):** Gecko-only tokens
   (`/info` complete, no DexScreener pair) now render dexter's `1H` row.
   `selectPoolQuote` harvests `volume_usd.h1`, `price_change_percentage.h1`

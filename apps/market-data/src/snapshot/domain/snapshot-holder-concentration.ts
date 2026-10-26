@@ -22,10 +22,11 @@ import { resolveHoneypotEnabled } from './snapshot-honeypot';
  *   the other). It absorbs re-accumulation/display rounding, never
  *   serialization (JSON preserves the exact double).
  * - `resolveHolderConcentrationTimeoutMs` — the fetcher's OWN budget
- *   (`SNAPSHOT_HOLDER_CONCENTRATION_TIMEOUT_MS`, default 1500, the
- *   `resolveHoneypotTimeoutMs` precedent). On expiry the leg resolves
- *   `null` and nothing else; abandoned RPC calls die on their internal
- *   timeouts and the 4000ms fan-out deadline stays the backstop.
+ *   (`SNAPSHOT_HOLDER_CONCENTRATION_TIMEOUT_MS`, default 3800; see the
+ *   constant for the measurement behind the number). On expiry the leg
+ *   resolves `null` and nothing else; abandoned RPC calls die on their
+ *   internal timeouts and the 4000ms fan-out deadline stays the
+ *   backstop.
  * - `resolveHolderConcentrationEnabled` — kill-switch
  *   (`SNAPSHOT_HOLDER_CONCENTRATION_ENABLED`, default ENABLED; only an
  *   explicit false-ish token disables). OFF ⇒ zero RPC, no field, no
@@ -91,12 +92,26 @@ export const HOLDER_CONCENTRATION_TOP10_N = 10;
 export const HOLDER_CONCENTRATION_PERCENT_EPSILON = 1e-9;
 
 /**
- * Own fetcher budget (`SNAPSHOT_HOLDER_CONCENTRATION_TIMEOUT_MS`,
- * default 1500 — same pinned number/resolver shape as the honeypot
- * tail budget). Governs ONLY the `solana-holders` leg; on expiry it
- * resolves `null` and nothing else.
+ * Own fetcher budget (`SNAPSHOT_HOLDER_CONCENTRATION_TIMEOUT_MS`) —
+ * same resolver shape as `resolveHoneypotTimeoutMs`, different number.
+ * Governs ONLY the `solana-holders` leg; on expiry it resolves `null`
+ * and nothing else.
+ *
+ * WHY 3800 (measured 2026-10-26 on the keyed Helius primary path, the
+ * transport this leg actually runs on): the leg is FOUR sequential
+ * rounds — `getTokenSupply` ~247ms, `getTokenLargestAccounts`
+ * 2360-2936ms (n=20), then TWO `getMultipleAccounts` batches ~257ms
+ * each — so the happy path lands at ~3.15-3.70s. The original 1500
+ * budget (copied from the honeypot tail) sat BELOW that measured band,
+ * and every live card observed before this change read
+ * `holderConcentration: null`. 3800 fits the measured band with margin
+ * and still sits BELOW the 4000ms `SNAPSHOT_FANOUT_DEADLINE_MS`, which
+ * remains the hard backstop (an over-run there is abandoned fail-open
+ * with its own note, never a blocked card). On a fast transport (~1s
+ * total) the budget never binds, so the number costs nothing where it
+ * is not needed.
  */
-export const SNAPSHOT_HOLDER_CONCENTRATION_TIMEOUT_MS_DEFAULT = 1_500;
+export const SNAPSHOT_HOLDER_CONCENTRATION_TIMEOUT_MS_DEFAULT = 3_800;
 
 /**
  * Non-finite / non-positive / garbage raw -> the pinned default (same

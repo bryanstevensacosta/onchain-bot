@@ -6,15 +6,20 @@ import {
   resolveHolderConcentrationEnabled,
   resolveHolderConcentrationTimeoutMs,
 } from './snapshot-holder-concentration';
+import {
+  SNAPSHOT_FANOUT_DEADLINE_MS_DEFAULT,
+  resolveFanoutDeadlineMs,
+} from './snapshot-latency';
 
 /**
  * Holder concentration domain (`rick-compact-card` §10, lane TH).
  *
  * Pure env/policy pins: the own fetcher budget (`SNAPSHOT_HOLDER_
- * CONCENTRATION_TIMEOUT_MS`, default 1500 — same resolver shape as
- * `resolveHoneypotTimeoutMs`), the kill-switch (default ENABLED, only
- * explicit false-ish disables) and the frozen policy numbers the
- * calculator consumes (top-5 / top-10 / ε). No I/O here.
+ * CONCENTRATION_TIMEOUT_MS`, default 3800 — the measured Helius
+ * sequential path; same resolver shape as `resolveHoneypotTimeoutMs`),
+ * the kill-switch (default ENABLED, only explicit false-ish disables)
+ * and the frozen policy numbers the calculator consumes (top-5 /
+ * top-10 / ε). No I/O here.
  */
 describe('snapshot-holder-concentration domain', () => {
   it('pins the §10 policy numbers', () => {
@@ -23,9 +28,16 @@ describe('snapshot-holder-concentration domain', () => {
     expect(HOLDER_CONCENTRATION_PERCENT_EPSILON).toBe(1e-9);
   });
 
-  it('defaults the own fetcher budget to 1500ms', () => {
-    expect(SNAPSHOT_HOLDER_CONCENTRATION_TIMEOUT_MS_DEFAULT).toBe(1_500);
-    expect(resolveHolderConcentrationTimeoutMs(undefined)).toBe(1_500);
+  it('defaults the own fetcher budget to 3800ms', () => {
+    expect(SNAPSHOT_HOLDER_CONCENTRATION_TIMEOUT_MS_DEFAULT).toBe(3_800);
+    expect(resolveHolderConcentrationTimeoutMs(undefined)).toBe(3_800);
+  });
+
+  it('keeps the own budget under the fan-out deadline (backstop order)', () => {
+    expect(SNAPSHOT_HOLDER_CONCENTRATION_TIMEOUT_MS_DEFAULT).toBeLessThan(
+      SNAPSHOT_FANOUT_DEADLINE_MS_DEFAULT,
+    );
+    expect(resolveFanoutDeadlineMs(undefined)).toBe(4_000);
   });
 
   it('accepts a positive override (Math.floor)', () => {
@@ -44,7 +56,7 @@ describe('snapshot-holder-concentration domain', () => {
       'Infinity',
       '-Infinity',
     ]) {
-      expect(resolveHolderConcentrationTimeoutMs(raw)).toBe(1_500);
+      expect(resolveHolderConcentrationTimeoutMs(raw)).toBe(3_800);
     }
   });
 
