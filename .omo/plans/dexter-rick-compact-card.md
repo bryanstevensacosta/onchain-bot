@@ -442,9 +442,9 @@ Con OK a **D1/D2/D4/D5/D6/D8** el spec queda decision-complete. **D3** (🔒 GoP
 
 ---
 
-## 10. `👥 TH:` — holders top-5 (PLAN ONLY — cero código, cero body, cero activación)
+## 10. `👥 TH:` — holders top-5 (CÓDIGO IMPLEMENTADO 2026-10-26 — body y activación siguen pendientes)
 
-> **Estado (2026-10-26, revisado adversarialmente):** documentado y decidido a nivel de contrato; **NO implementado**. Este bloque fija la evidencia, separa lo documentado de lo NO documentado, enumera las decisiones de producto que SOLO el owner puede tomar, y deja el contrato de datos/render listo para una lane posterior. **Regla dura:** nada de `apps/market-data` ni `apps/dexter-onchain-bot` toca este spec hasta que el owner firme §10.11 **y** se resuelvan las precondiciones de código de §10.0. Ninguna template se edita: el body vivo es operator-owned y NO está en git; el plan lo cita como **v15** (§2/P0-11) y el operador lo reporta como **v20**. Antes de tocarlo hay que LEERLO (versión + body + `isActive`).
+> **Estado (2026-10-26, tras revisión adversarial doble + implementación):** contrato **implementado en código** (commit `c6e9245b`, deploys de staging verdes — §10.13). El **body de template NO se tocó** y **`RickBurpBot` sigue inactivo**: esas dos cosas siguen necesitando un OK explícito del owner. El owner dijo "procede con la implementacion" el 2026-10-26; se interpretó como **ratificación de las 8 recomendaciones** de §10.11 (F1/F2/F3/F4/F5/F6/F8/F9) — la interpretación queda escrita aquí para que sea auditable y reversible. Ninguna template se edita: el body vivo es operator-owned y NO está en git; el plan lo cita como **v15** (§2/P0-11) y el operador lo reporta como **v20**. Antes de tocarlo hay que LEERLO (versión + body + `isActive`).
 
 ### 10.0 Checklist de precondiciones (review adversarial 1 + delta 2026-10-26)
 
@@ -634,7 +634,7 @@ Cambio propuesto (una versión más), **solo tras OK del owner**:
 - `docs/deployment/market-data-staging-soak.md` — contadores nuevos: tasa de `holderConcentration: null` en Solana, latencia del fetcher y nº de llamadas RPC extra.
 - Este plan: al implementarse, mover §10.11 a "resueltas" con la decisión firmada.
 
-### 10.11 Decisiones abiertas para el owner (TH) — BLOQUEAN toda implementación
+### 10.11 Decisiones del owner (TH) — RATIFICADAS 2026-10-26 (ver §10.13)
 
 1. **F1 — Alcance:** ¿aceptamos que TH sea **Solana-only** (KODA/BSC en silencio, aunque Rick sí lo muestre), o el owner abre una fuente keyed (Moralis/Birdeye/Covalent) rompiendo "free-forever"?
 2. **F2 — Denominador:** supply total (recomendado) vs circulante reportado.
@@ -665,3 +665,42 @@ Cambio propuesto (una versión más), **solo tras OK del owner**:
 | `[N%]` con exclusiones no comparable con Rick                  | Los docs de Rick NO documentan exclusiones → no reclamamos paridad numérica, solo estructura                                                 |
 | Línea en blanco doble o fila colgada                           | Contigüidad obligatoria de las tres keys (§10.8) + leer la fila viva + preview con 1H vacío y con 1H presente                                |
 | `truncateText` puede cortar entre `\` y el carácter escapado   | Preexistente (`message-formatter.ts:45-52`); la fila alarga el tail ~40 chars → más exposición. Fuera de alcance: anotado, no corregido aquí |
+
+### 10.13 Implementación + evidencia live (2026-10-26)
+
+**Alcance entregado (código only):** commit `c6e9245b` en `dev` — 31 ficheros; market-data **164 suites / 1357 tests**, dexter **82 suites / 971 tests**, `tsc --noEmit` limpio en las dos apps. Deploys de staging **verdes**: `40329711489` (market-data) + `40329711364` (dexter), con Branch Governance `40329711396` y CI `40329711648`. **No** se editó ningún body, **no** se activó nada.
+
+**market-data (productor)**
+
+- `snapshot/domain/snapshot-holder-concentration.ts` — política congelada (TOP_N 5, TOP10_N 10, ε `1e-9`) + resolvers de env.
+- `provider/infrastructure/quote-fetchers/holder-concentration.ts` — `computeHolderConcentration` (supply → largest → 1 batch de ATAs → merge en BigInt por wallet → drop de importe 0 → las 4 exclusiones EN ORDEN → sort desc → `min(5,n)` / `min(10,n)`) + `buildHolderConcentration` puro para guards/clamp.
+- `provider-quote.fetchers.ts` — fetcher `solana-holders` en la posición 5 (justo tras `solana-rpc`), tier `free`, kill-switch, presupuesto propio de 1500 ms, `try/catch` total.
+- `snapshot-aggregator.service.ts` — `MergeAcc` ensanchado con la unión **concreta** `| HolderConcentration` (C1).
+- `snapshot-quote.types.ts` — campo + `SNAPSHOT_QUOTE_FIELDS` + `emptySnapshotQuote()`.
+- `market-data-snapshot.controller.ts:96` — clave explícita en el whitelist del compat edge (C3); el batch queda intacto.
+- C2 **no** se tocó (sigue siendo limpieza opcional). C8 **no aplica todavía** (no se editó body).
+- Specs nuevas: `holder-concentration.spec.ts`, `snapshot-holder-concentration.spec.ts`, `provider-quote-holder-concentration.spec.ts` + pins de orden/keyset actualizados (`cascade-order`, `provider-quote-newprov`, `zero-cost-cascade`).
+
+**dexter (renderer)**
+
+- `market-data.client.ts` — `toHolderConcentrationOrNull` (guarda de forma, orden no creciente con empates válidos, coherencia `sum ≤ top10 + ε`).
+- `scan-pipeline.port.ts` + `token-scan.pipeline.ts` — `HolderConcentrationInfo` y el campo **declarado** en el tipo estructural de `toResolvedToken` (sin declararlo, el pipeline lo tira en silencio).
+- `template-renderer.service.ts` — key `holderTopRow`: `""` o `"\n\n👥 TH: " + payload`; 1dp con el cero conservado; bracket en décimas enteras; escape **una sola vez**.
+- `placeholder-registry.ts` — alta en `DERIVED_PLACEHOLDERS` tras `market1hRow` + whitelist de TODOS los comandos (**53** keys en `ca|x|z|bare`, **54** en `c|cc`).
+- `placeholders.controller.ts` — `PLACEHOLDER_META` con el ejemplo literal `\n\n👥 TH: …` (C9) + spec de completitud del catálogo.
+- Specs nuevas: `template-renderer-holder-top-row.spec.ts`, `market-data-client-holder-concentration.spec.ts`, `token-scan-holder-concentration.spec.ts`.
+
+**Verificación live (staging, read-only)**
+
+- Catálogo de dexter `:4061`: `ca` = 53 keys, `c`/`cc` = 54, `holderTopRow` presente con su META.
+- Preview `A{{holderTopRow}}B` → `"AB"`: la key resuelve y **silencia** — no filtra el placeholder literal, no deja `N/A`, no deja etiqueta colgada.
+- Preview `HDR{{market1hRow}}{{holderTopRow}}{{honeypotBlock}}` → `HDR📉 1H: 8\.1K ⋅ \-1% 🅑 13 Ⓢ 24`: el tail sigue limpio con TH en silencio.
+- **TH no se ha observado todavía con datos reales**: en esta ventana todos los tiers de RPC de Solana están caídos desde el host de staging (`api.mainnet.solana.com` → **429**, `solana.publicnode.com` → **403**, Helius 429), así que `solana-rpc` y `solana-holders` responden `no data` y el campo sale `null` por diseño fail-open. La fila exacta (`4\.3⋅3\.3⋅2\.8⋅2\.3⋅1\.8 \[20%\]`) está pinneada **por spec**, no por observación live. No se inventó ni se forzó ningún valor para "demostrar" la fila.
+
+**Sigue pendiente (requiere OK explícito)**
+
+1. Editar el body vivo de `RickBurpBot` para insertar `{{holderTopRow}}` — contiguo a `{{market1hRow}}` (la fila baja su propia línea en blanco) y **eliminando** `{{top10HolderPercent}}` si estuviera (C8). Leer antes versión + body + `isActive`.
+2. Cualquier activación del template.
+3. Cutover a prod (`master`) — fuera de alcance por instrucción permanente.
+4. C2 (`TOKEN_2022_PROGRAM`) sigue como limpieza opcional no aprobada.
+5. Declarar `SNAPSHOT_HOLDER_CONCENTRATION_ENABLED` / `SNAPSHOT_HOLDER_CONCENTRATION_TIMEOUT_MS` en `.env.example` (quedó fuera del write-scope de la lane; los defaults funcionan sin declararlas).

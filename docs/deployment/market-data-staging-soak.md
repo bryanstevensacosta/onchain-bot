@@ -89,6 +89,23 @@ docker logs --since 24h onchain-bot-market-data-staging 2>&1 \
   | grep -icE '429|rate limit|quota'
 ```
 
+**`solana-holders` (new 2026-10-26, enabled by default).** Solana cold snapshots
+now spend up to 4 extra Solana RPC calls (supply + largest accounts + 2
+`getMultipleAccounts` batches) on their own leg, isolated behind a 1500 ms
+budget and a `try/catch`. Read it in `providerErrors` **separately** from
+`solana-rpc`:
+
+- `solana-holders: "no data"` while `solana-rpc` also says `no data` → the RPC
+  tier walk is walled (429/403); this is the documented fail-open, not a bug.
+  Both public endpoints 429/403 simultaneously on 2026-10-26.
+- `solana-holders` **absent** from `providerErrors` on a Solana ready row → the
+  leg contributed; `quote.holderConcentration` should carry
+  `{ topPercents, top10Percent }`.
+- `holderConcentration: null` on an EVM row is **expected** (Solana-only, no
+  keyless per-wallet EVM source) — never record it as a miss.
+- Kill-switch for a storm: `SNAPSHOT_HOLDER_CONCENTRATION_ENABLED=false`
+  (zero RPC, field stays `null`, no note).
+
 ## 5. JSONL record
 
 Each line is self-contained; fields the parser could not recover are
