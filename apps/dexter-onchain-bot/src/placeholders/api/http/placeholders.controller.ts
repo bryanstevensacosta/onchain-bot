@@ -203,16 +203,16 @@ const PLACEHOLDER_META: Record<string, Omit<PlaceholderDescriptor, 'key'>> = {
   market1hRow: {
     type: 'derived',
     nullable: true,
-    example: '📈 1H: 159 ⋅ 1.7% 🅑 3 Ⓢ 5',
+    example: '📈 1H: `159` ⋅ `1.7%` 🅑 `3` Ⓢ `5`',
     description:
-      'Rick-style 1-hour row: 📈/📉 direction, 1h volume, 1h change, buys (🅑) and sells (Ⓢ). Empty unless all four 1h values are known.',
+      'Rick-style 1-hour row: 📈/📉 direction, 1h volume, 1h change, buys (🅑) and sells (Ⓢ). Every number rides its own MarkdownV2 code span (monospace). Empty unless all four 1h values are known.',
   },
   holderTopRow: {
     type: 'derived',
     nullable: true,
-    example: '\\n\\n👥 TH: 4.3⋅3.3⋅2.8⋅2.3⋅1.8 [20%]',
+    example: '\\n\\n👥 TH: `4.3`⋅`3.3`⋅`2.8`⋅`2.3`⋅`1.8` [`20%`]',
     description:
-      'Holders top-5 row lowered after a BLANK line: per-holder % at 1 decimal (trailing zero kept) joined by ⋅, then the top-10 total in brackets. Empty on any gap/malformed input (never N/A, never a partial row).',
+      'Holders top-5 row lowered after a BLANK line: per-holder % at 1 decimal (trailing zero kept) each in its own code span, joined by ⋅, then the top-10 total in brackets (also monospaced). Empty on any gap/malformed input (never N/A, never a partial row).',
   },
   timeframe: { type: 'string', nullable: true, example: '5m' },
   botStartUrl: {

@@ -90,7 +90,9 @@ describe('PlaceholdersController (todo 7 placeholder catalog)', () => {
     expect(entry).toBeDefined();
     expect(entry?.type).toBe('derived');
     expect(entry?.nullable).toBe(true);
-    expect(entry?.example).toBe('\\n\\n👥 TH: 4.3⋅3.3⋅2.8⋅2.3⋅1.8 [20%]');
+    expect(entry?.example).toBe(
+      '\\n\\n👥 TH: `4.3`⋅`3.3`⋅`2.8`⋅`2.3`⋅`1.8` [`20%`]',
+    );
     expect(entry?.example.startsWith('\\n\\n')).toBe(true);
     expect(entry?.description).toEqual(expect.any(String));
   });

@@ -18,9 +18,14 @@ import { PlaceholdersController } from '@/placeholders/api/http/placeholders.con
  * decimal (trailing zero KEPT), `⋅` between values, one space before
  * an integer bracket carrying the top-10 total. The value lowers a
  * BLANK line (`"\n\n👥 TH: " + payload`, same mechanics as
- * `honeypotBlock`) and is escaped EXACTLY ONCE: `escapeV2` escapes
- * `.`/`[`/`]`, so `4.3` renders `4\.3` and `[20%]` renders
- * `\[20%\]` — Telegram displays `4.3` / `[20%]`. `⋅` and `%` stay raw.
+ * `honeypotBlock`).
+ *
+ * Monospace (owner request 2026-10-26): every percentage rides its
+ * OWN code span joined by `⋅`, and the bracket span keeps its V2
+ * escapes OUTSIDE the ticks — `\[`20%`\]`. Inside a code entity
+ * numbers travel RAW (`4\.3` there would print the backslash);
+ * `shownOf` below pins the text Telegram displays, byte-identical to
+ * the captured Rick row.
  *
  * SILENCE (`""`) on ANY gap — absent/null/malformed, empty
  * `topPercents`, >5 entries, non-finite or out-of-range values,
@@ -38,6 +43,9 @@ const FIVE = {
 /** MarkdownV2 unescape for display-form assertions (test-only). */
 const displayOf = (text: string): string =>
   text.replace(/\\([_*[\]()~`>#+=|{}.!\\-])/g, '$1');
+
+/** Telegram's rendered TEXT: V2 backslashes gone, code-span ticks gone. */
+const shownOf = (text: string): string => displayOf(text).replace(/`/g, '');
 
 function baseToken(overrides: Partial<ResolvedToken> = {}): ResolvedToken {
   return {
@@ -92,17 +100,21 @@ describe('TemplateRendererService holderTopRow (plan §10.5-§10.9)', () => {
     expect(entry?.nullable).toBe(true);
     // Literal `\n\n` encoding, byte-identical in style to
     // `honeypotBlock` (the VALUE carries the blank-line prefix).
-    expect(entry?.example).toBe('\\n\\n👥 TH: 4.3⋅3.3⋅2.8⋅2.3⋅1.8 [20%]');
+    expect(entry?.example).toBe(
+      '\\n\\n👥 TH: `4.3`⋅`3.3`⋅`2.8`⋅`2.3`⋅`1.8` [`20%`]',
+    );
     expect(entry?.example.startsWith('\\n\\n')).toBe(true);
   });
 
-  it('renders the exact captured 5-value row (blank line prefix, escaped once)', () => {
+  it('renders the exact captured 5-value row (blank line prefix, monospaced values)', () => {
     const out = render(
       '{{holderTopRow}}',
       baseToken({ holderConcentration: FIVE }),
     );
-    expect(out).toBe('\n\n👥 TH: 4\\.3⋅3\\.3⋅2\\.8⋅2\\.3⋅1\\.8 \\[20%\\]');
-    expect(displayOf(out)).toBe('\n\n👥 TH: 4.3⋅3.3⋅2.8⋅2.3⋅1.8 [20%]');
+    // Only the bracket pair keeps a V2 escape; the numbers travel RAW
+    // inside their code spans (a `\.` there would print the backslash).
+    expect(out).toBe('\n\n👥 TH: `4.3`⋅`3.3`⋅`2.8`⋅`2.3`⋅`1.8` \\[`20%`\\]');
+    expect(shownOf(out)).toBe('\n\n👥 TH: 4.3⋅3.3⋅2.8⋅2.3⋅1.8 [20%]');
     // Exactly two newlines (blank line), never three.
     expect(out.startsWith('\n\n👥 TH: ')).toBe(true);
     expect(out.startsWith('\n\n\n')).toBe(false);
@@ -119,7 +131,7 @@ describe('TemplateRendererService holderTopRow (plan §10.5-§10.9)', () => {
           },
         }),
       ),
-    ).toBe('\n\n👥 TH: 12\\.5⋅7\\.0⋅3\\.3 \\[42%\\]');
+    ).toBe('\n\n👥 TH: `12.5`⋅`7.0`⋅`3.3` \\[`42%`\\]');
   });
 
   it('renders 1 value', () => {
@@ -130,7 +142,7 @@ describe('TemplateRendererService holderTopRow (plan §10.5-§10.9)', () => {
           holderConcentration: { topPercents: [5], top10Percent: 5 },
         }),
       ),
-    ).toBe('\n\n👥 TH: 5\\.0 \\[5%\\]');
+    ).toBe('\n\n👥 TH: `5.0` \\[`5%`\\]');
   });
 
   it('keeps the trailing zero (toFixed(1), never trimmed)', () => {
@@ -141,7 +153,7 @@ describe('TemplateRendererService holderTopRow (plan §10.5-§10.9)', () => {
           holderConcentration: { topPercents: [4.3, 2.0], top10Percent: 20 },
         }),
       ),
-    ).toBe('\n\n👥 TH: 4\\.3⋅2\\.0 \\[20%\\]');
+    ).toBe('\n\n👥 TH: `4.3`⋅`2.0` \\[`20%`\\]');
   });
 
   it('SILENCE on an empty topPercents array (the object is valid, the row is not)', () => {
@@ -210,7 +222,7 @@ describe('TemplateRendererService holderTopRow (plan §10.5-§10.9)', () => {
           holderConcentration: { topPercents: [5, 5, 2], top10Percent: 12 },
         }),
       ),
-    ).toBe('\n\n👥 TH: 5\\.0⋅5\\.0⋅2\\.0 \\[12%\\]');
+    ).toBe('\n\n👥 TH: `5.0`⋅`5.0`⋅`2.0` \\[`12%`\\]');
   });
 
   it('computes the bracket from DISPLAYED TENTHS (binary carry never yields 21)', () => {
@@ -225,7 +237,7 @@ describe('TemplateRendererService holderTopRow (plan §10.5-§10.9)', () => {
         },
       }),
     );
-    expect(out).toBe('\n\n👥 TH: 0\\.1⋅0\\.1⋅0\\.1⋅16\\.1⋅3\\.6 \\[20%\\]');
+    expect(out).toBe('\n\n👥 TH: `0.1`⋅`0.1`⋅`0.1`⋅`16.1`⋅`3.6` \\[`20%`\\]');
     expect(out).not.toContain('21');
   });
 
@@ -240,7 +252,7 @@ describe('TemplateRendererService holderTopRow (plan §10.5-§10.9)', () => {
           holderConcentration: { topPercents: [1, 9], top10Percent: 20 },
         }),
       ),
-    ).toBe('\n\n👥 TH: 1\\.0⋅9\\.0 \\[20%\\]');
+    ).toBe('\n\n👥 TH: `1.0`⋅`9.0` \\[`20%`\\]');
   });
 
   it('never prints a bracket below the displayed sum (max of round(top10) and ceil(tenths/10))', () => {
@@ -256,17 +268,21 @@ describe('TemplateRendererService holderTopRow (plan §10.5-§10.9)', () => {
           },
         }),
       ),
-    ).toBe('\n\n👥 TH: 0\\.1⋅0\\.1⋅0\\.1⋅0\\.1⋅0\\.1 \\[1%\\]');
+    ).toBe('\n\n👥 TH: `0.1`⋅`0.1`⋅`0.1`⋅`0.1`⋅`0.1` \\[`1%`\\]');
   });
 
-  it('escapes exactly ONCE (no double-escaped dot or bracket)', () => {
+  it('wraps every value in a code span and escapes ONLY the brackets', () => {
     const out = render(
       '{{holderTopRow}}',
       baseToken({ holderConcentration: FIVE }),
     );
+    // Five payload spans + the bracket span = 6 spans = 12 ticks.
+    expect(out.match(/`/g)?.length).toBe(12);
+    // The only V2 escapes left are `\[` and `\]`.
+    expect(out.match(/\\/g)?.length).toBe(2);
+    expect(out).toContain('\\[`20%`\\]');
     expect(out).not.toContain('\\\\.');
-    expect(out).not.toContain('\\\\[');
-    expect(out.match(/\\\./g)?.length).toBe(5);
+    expect(out).not.toContain('\\`');
   });
 
   it('never emits N/A', () => {
@@ -285,7 +301,7 @@ describe('TemplateRendererService holderTopRow (plan §10.5-§10.9)', () => {
         'Prev{{holderTopRow}}Next',
         baseToken({ holderConcentration: FIVE }),
       ),
-    ).toBe('Prev\n\n👥 TH: 4\\.3⋅3\\.3⋅2\\.8⋅2\\.3⋅1\\.8 \\[20%\\]Next');
+    ).toBe('Prev\n\n👥 TH: `4.3`⋅`3.3`⋅`2.8`⋅`2.3`⋅`1.8` \\[`20%`\\]Next');
     expect(render('Prev{{holderTopRow}}Next', baseToken())).toBe('PrevNext');
   });
 

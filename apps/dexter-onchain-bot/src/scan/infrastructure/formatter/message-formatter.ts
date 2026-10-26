@@ -33,6 +33,22 @@ export class MessageFormatterAdapter {
     return MessageFormatterAdapter.escapeV2(text);
   }
 
+  /**
+   * MarkdownV2 CODE ENTITY (`monospace`). Telegram renders the span in
+   * its monospaced font — the owner's number style for the Rick rows
+   * (`📉 1H: `1.1K` ⋅ `-4.1%` 🅑 `25` Ⓢ `26``).
+   *
+   * Inside a code entity only `\` and the backtick itself must be
+   * escaped (Telegram spec); the general V2 set is deliberately NOT
+   * applied — a `\.` there prints its backslash literally. Callers
+   * pass the DISPLAY form (numeric formatters run first). Empty input
+   * stays empty so a silent value never leaves a bare ``` `` ``` pair.
+   */
+  public static codeV2Text(text: string): string {
+    if (!text) return '';
+    return '`' + text.replace(/([\\`])/g, '\\$1') + '`';
+  }
+
   public static truncateText(
     text: string,
     maxLength = MessageFormatterAdapter.MAX_LENGTH,

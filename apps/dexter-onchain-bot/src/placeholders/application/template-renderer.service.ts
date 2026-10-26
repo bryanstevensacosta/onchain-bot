@@ -723,9 +723,15 @@ export class TemplateRendererService {
         // additionally require `>= 0` (same rule as the client).
         // Composition reuses the shared formatters (`formatMoneyText`,
         // `formatPercentText` — it already emits `%`, so none is
-        // appended — and `formatNumberText` for the counts) and is
-        // escaped EXACTLY ONCE (precedent: `honeypotBlock`/`ageSuffix`).
-        // No leading/trailing whitespace: templates own separators.
+        // appended — and `formatNumberText` for the counts); each
+        // value rides its OWN MarkdownV2 code span (owner request
+        // 2026-10-26: monospaced numbers — `1H: `1.1K` ⋅ `-4.1%``).
+        // The static glue (`1H:`, `⋅`, `🅑`, `Ⓢ`) carries no V2
+        // specials, so nothing else needs escaping and the values are
+        // escaped exactly once INSIDE the span (`codeV2Text`, not
+        // `escapeV2Text`: a `\.` inside a code entity would print its
+        // backslash). No leading/trailing whitespace: templates own
+        // separators.
         const volume = finiteNumberOrNull(values.volume1hUsd);
         const change = finiteNumberOrNull(values.priceChange1h);
         const buys = nonNegativeCountOrNull(values.txns1hBuys);
@@ -739,11 +745,13 @@ export class TemplateRendererService {
           return '';
         }
         const icon = change < 0 ? '📉' : '📈';
-        return esc(
-          `${icon} 1H: ${MessageFormatterAdapter.formatMoneyText(volume)} ⋅ ` +
-            `${MessageFormatterAdapter.formatPercentText(change)} 🅑 ` +
-            `${MessageFormatterAdapter.formatNumberText(buys)} Ⓢ ` +
-            `${MessageFormatterAdapter.formatNumberText(sells)}`,
+        const code = (text: string): string =>
+          MessageFormatterAdapter.codeV2Text(text);
+        return (
+          `${icon} 1H: ${code(MessageFormatterAdapter.formatMoneyText(volume))} ⋅ ` +
+          `${code(MessageFormatterAdapter.formatPercentText(change))} 🅑 ` +
+          `${code(MessageFormatterAdapter.formatNumberText(buys))} Ⓢ ` +
+          `${code(MessageFormatterAdapter.formatNumberText(sells))}`
         );
       }
       case 'holderTopRow': {
@@ -766,7 +774,12 @@ export class TemplateRendererService {
         // SILENCE (`""`) on ANY gap: absent/null/malformed, empty
         // `topPercents`, >5 entries, any non-finite/out-of-range
         // value, `sum > top10 + ε`. NEVER `N/A`, never a half row.
-        // Escaped EXACTLY ONCE at the end.
+        //
+        // Monospace (owner request 2026-10-26): each percentage rides
+        // its OWN code span joined by `⋅`, and the bracket keeps its
+        // V2 escapes OUTSIDE the span (`\[`20%`\]`) — numbers travel
+        // raw inside the code entity (`codeV2Text`, never
+        // `escapeV2Text`: `4\.3` would print its backslash).
         const concentration = holderConcentrationOrNull(
           values.holderConcentration,
         );
@@ -781,10 +794,12 @@ export class TemplateRendererService {
           Math.round(concentration.top10Percent),
           Math.ceil(displayedTenths / 10),
         );
+        const code = (text: string): string =>
+          MessageFormatterAdapter.codeV2Text(text);
         const payload = concentration.topPercents
-          .map((percent) => percent.toFixed(1))
+          .map((percent) => code(percent.toFixed(1)))
           .join('⋅');
-        return esc(`\n\n👥 TH: ${payload} [${bracket}%]`);
+        return `\n\n👥 TH: ${payload} \\[${code(`${bracket}%`)}\\]`;
       }
       case 'ageSuffix': {
         // P1-2 (Rick compact card): `" ⋅ Age: `7d`"` when the shared

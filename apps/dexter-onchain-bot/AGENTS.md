@@ -948,9 +948,18 @@ Pump'}`. Specs: 6 tests in
   negative change (zero and positive → `📈`). Composition reuses the
   shared formatters (`formatMoneyText`, `formatPercentText` — it
   ALREADY emits `%`, so none is appended — and `formatNumberText`
-  for the counts) and escapes the composed string EXACTLY ONCE
-  (`1\.7%` is the MarkdownV2 decimal point Telegram displays as
-  `1.7%`). SILENCE (`""`) when ANY of the four is missing/non-finite
+  for the counts). MONOSPACE (owner request 2026-10-26): every value
+  rides its OWN MarkdownV2 code span and the numbers travel RAW inside
+  the span (`MessageFormatterAdapter.codeV2Text`, NOT `escapeV2Text`: a
+  `\.` inside a code entity prints its backslash). The static glue
+  (`1H:`, `⋅`, `🅑`, `Ⓢ`) carries no V2 specials, so the row emits ZERO
+  backslashes. Rendered shape:
+
+  ```text
+  📈 1H: `159` ⋅ `1.7%` 🅑 `3` Ⓢ `5`
+  ```
+
+  SILENCE (`""`) when ANY of the four is missing/non-finite
   (counts additionally `>= 0`) — never a half-empty row, never
   `N/A`: `volume === null || change === null || buys === null ||
 sells === null → ''`. Client boundary `toFiniteNumberOrNull` /
@@ -978,8 +987,16 @@ sells === null → ''`. Client boundary `toFiniteNumberOrNull` /
   line before the row (captured Rick layout: after the 1H row, §10.1b),
   same mechanics as `honeypotBlock`; silence leaves no label, no
   newline, no separator. **Payload**: per-holder percentages at 1
-  decimal with the trailing zero KEPT (`2.0`, `4.3`) joined by `⋅`,
-  ONE space, then `[M%]`: `4.3⋅3.3⋅2.8⋅2.3⋅1.8 [20%]`. **Bracket in
+  decimal with the trailing zero KEPT (`2.0`, `4.3`), MONOSPACED
+  (owner request 2026-10-26): each value in its own code span joined by
+  `⋅`, ONE space, then the integer top-10 bracket whose V2 escapes stay
+  OUTSIDE the span. Carried shape:
+
+  ```text
+  \n\n👥 TH: `4.3`⋅`3.3`⋅`2.8`⋅`2.3`⋅`1.8` \[`20%`\]
+  ```
+
+  **Bracket in
   displayed TENTHS**: `displayedTenths = Σ Math.round(p*10)`,
   `bracket = Math.max(Math.round(top10Percent), Math.ceil(displayedTenths
 / 10))` — the binary carry (`0.1+0.1+0.1+16.1+3.6` accumulates to
@@ -998,9 +1015,10 @@ sells === null → ''`. Client boundary `toFiniteNumberOrNull` /
   `top10Percent` outside `[-ε, 100+ε]`, incoherent sum) → the
   pipeline re-validates in `toResolvedToken` (double validation,
   same as `honeypot`/`venue`; the field MUST stay declared in the
-  inline structural type or it is silently dropped). Escaped EXACTLY
-  ONCE: Telegram displays `4.3`/`[20%]` from `4\.3`/`\[20%\]`;
-  `⋅`/`%` stay raw. The legacy `{{top10HolderPercent}}` is a
+  inline structural type or it is silently dropped). The row emits
+  exactly TWO backslashes (`\[`/`\]` around the bracket span); the
+  numbers travel raw inside their spans. The legacy
+  `{{top10HolderPercent}}` is a
   DIFFERENT metric (per-account, pool-inclusive) and is untouched.
   Specs: `template-renderer-holder-top-row.spec.ts`,
   `market-data-client-holder-concentration.spec.ts`,

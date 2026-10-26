@@ -14,13 +14,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`""`) on ANY gap — absent/null/malformed, empty `topPercents`, more
   than five entries, any non-finite or out-of-range value,
   `sum(top5) > top10 + ε` — never a half row, never `N/A`, never a
-  literal placeholder. Otherwise emits `"\n\n👥 TH: "` + the payload as
-  `4\.3⋅3\.3⋅2\.8⋅2\.3⋅1\.8 \[20%\]`: each percent at 1 decimal with the
-  trailing zero KEPT (`2.0`), joined by `⋅`, then ONE space and the
-  integer top-10 bracket. The bracket is computed from the DISPLAYED
-  tenths (`max(round(top10), ceil(Σround(p*10)/10))`) so binary carry
-  can never print a number below the printed five, and the composed
-  string is escaped EXACTLY ONCE. Client guard
+  literal placeholder. Otherwise emits `"\n\n👥 TH: "` + the payload in
+  MONOSPACE (owner request 2026-10-26): each percent at 1 decimal with
+  the trailing zero KEPT (`2.0`) in its OWN code span joined by `⋅`,
+  then ONE space and the integer top-10 bracket, whose V2 escapes stay
+  OUTSIDE the span. Carried shape:
+
+  ```text
+  \n\n👥 TH: `4.3`⋅`3.3`⋅`2.8`⋅`2.3`⋅`1.8` \[`20%`\]
+  ```
+
+  The bracket is computed from the DISPLAYED tenths
+  (`max(round(top10), ceil(Σround(p*10)/10))`) so binary carry can
+  never print a number below the printed five. Client guard
   `toHolderConcentrationOrNull` validates shape, non-increasing order
   (ties valid) and coherence; `HolderConcentrationInfo` is declared on
   the scan port AND in `toResolvedToken`'s structural type (an
@@ -38,9 +44,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `📉` ONLY on a strictly negative change (zero and positive render
   `📈`). Composition reuses the shared formatters (`formatMoneyText`,
   `formatPercentText` — it ALREADY emits `%`, so none is appended —
-  and `formatNumberText` for the counts) and escapes the composed
-  string EXACTLY ONCE (`1\.7%` is the MarkdownV2 decimal point
-  Telegram displays as `1.7%`). SILENCE (`""`) when ANY of the four
+  and `formatNumberText` for the counts) and renders every value in its
+  own MarkdownV2 code span (owner request 2026-10-26, monospaced
+  numbers), so the row carries NO V2 backslashes (`codeV2Text`, not
+  `escapeV2Text`: a `\.` inside a code entity prints its backslash).
+  Rendered shape:
+
+  ```text
+  📈 1H: `159` ⋅ `1.7%` 🅑 `3` Ⓢ `5`
+  ```
+
+  SILENCE (`""`) when ANY of the four
   is missing/non-finite (counts additionally `>= 0`) — never a
   half-empty row, never `N/A`. Client boundary `toFiniteNumberOrNull`
   / `toNonNegativeCountOrNull`; the pipeline passes the four through

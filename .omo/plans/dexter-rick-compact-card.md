@@ -584,15 +584,15 @@ Cada punto es una **decisión de producto**, no una inferencia de los docs.
 
 Precedente exacto: `market1hRow` (`template-renderer.service.ts:659-692`) + `honeypotBlock` (`:651-657`).
 
-- Key: **`holderTopRow`**, registrada en **`DERIVED_PLACEHOLDERS`** (`placeholder-registry.ts:51-133` — ese catálogo ordenado es el **seam de resolución**; añadirla solo por comando o solo a META deja el body irresoluble y el preview roto) y en la composición de TODOS los comandos (`ca|x|z|bare`, + `c|cc` con timeframe) → registry **22 base + 31 derived = 53** (`54` para `c|cc`); `PLACEHOLDER_META` gana `{type:'derived', nullable:true, example:'\n\n👥 TH: 4.3⋅3.3⋅2.8⋅2.3⋅1.8 [20%]'}` (los `\n` van en el ejemplo, como `honeypotBlock`, `placeholders.controller.ts:182-186`).
+- Key: **`holderTopRow`**, registrada en **`DERIVED_PLACEHOLDERS`** (`placeholder-registry.ts:51-133` — ese catálogo ordenado es el **seam de resolución**; añadirla solo por comando o solo a META deja el body irresoluble y el preview roto) y en la composición de TODOS los comandos (`ca|x|z|bare`, + `c|cc` con timeframe) → registry **22 base + 31 derived = 53** (`54` para `c|cc`); `PLACEHOLDER_META` gana un entry `{type:'derived', nullable:true, example}` con la forma monoespaciada de §10.13 y los `\n` DENTRO del ejemplo (como `honeypotBlock`, `placeholders.controller.ts:182-186`).
 - Valor: `""` (silencio) o **`"\n\n👥 TH: " + <payload>`** — mismas mecánicas que `honeypotBlock` (`"\n\n🍯 " + core`): **línea en blanco delante**, evidenciada por la captura (§10.1b). El silencio no deja etiqueta colgada ni línea en blanco. `cleanupDanglingSeparators` **NO** se toca (sus familias bracket/backtick/`⇨` tienen guards anti-link delicados; además **no colapsa blancos**, así que no hay red de seguridad para un `\n` de más — de ahí §10.8).
-- Payload: `p1⋅p2⋅…⋅pN [M%]` con UN espacio antes del bracket.
+- Payload: `p1⋅p2⋅…⋅pN [M%]` con UN espacio antes del bracket. **Monoespaciado (owner, 2026-10-26):** cada porcentaje va en su PROPIO code span de MarkdownV2, unido por `⋅`, y el bracket conserva sus escapes V2 FUERA del span (forma exacta del wire en §10.13). Dentro de un code entity los números viajan CRUDOS: `codeV2Text` (solo escapa la barra invertida y la propia backtick), NUNCA `escapeV2Text` — un escape de punto dentro del span imprime su backslash.
 - Formato: cada valor `toFixed(1)` **conservando el cero** (`2.0`, `4.3`) porque el único material documentado/capturado muestra 1 decimal; `formatPercentText` NO sirve (trimmea y pierde el `.0`), `formatMoneyText` tampoco.
 - **Bracket y coherencia de display (en décimas enteras):** `displayedTenths = Σ round(p_i * 10)` sobre los MISMOS valores formateados; `bracket = Math.max(Math.round(top10Percent), Math.ceil(displayedTenths / 10))`. Sumar décimas **evita el acarreo binario** (`0.1+0.1+0.1+16.1+3.6 = 20.000000000000004` haría `ceil → 21` con suma impresa 20.0). Garantiza que la fila nunca se contradiga: jamás un bracket menor que los números impresos.
 - **Guard de coherencia:** `sum(topPercents) > top10Percent + HOLDER_SUM_EPSILON` → silencio. `ε = 1e-9` (puntos porcentuales), **una sola constante por app** (dexter no puede importar de market-data; `COMPUTED_FDV_EPSILON_*` es FDV-scoped, no reutilizable) y **el mismo literal pinneado en los dos specs**. El invariante es exacto cuando ambos lados acumulan sobre el MISMO array en el MISMO orden (§10.6.5); el ε absorbe el re-acumulado de dexter y el redondeo de display, **no la serialización** (JSON preserva el double exacto).
 - **Orden:** el cliente rechaza `topPercents` que no sea **no creciente** (`p[i] >= p[i+1]`); los empates son válidos.
 - Silencio (`""`) si: objeto ausente/null/malformado; `topPercents` vacío o >5; valor no finito o fuera de 0-100; `top10Percent` no finito o fuera de 0-100; suma incoherente. **Nunca `N/A`, nunca media fila.**
-- Escapado: componer crudo y `esc` UNA vez. `esc` = `escapeV2Text` → `escapeV2` (`message-formatter.ts:348-351`), set `[_*[\]()~`>#+=|{}.!\\-]`. Pinneado: `4.3`→`4\.3`(Telegram muestra`4.3`); `[20%]`→`\[20%\]`(muestra`[20%]`); `⋅`y`%` no se tocan. **NUNCA** escapar dos veces.
+- Escapado: **code spans (owner 2026-10-26)** — cada valor se formatea primero y se envuelve con `MessageFormatterAdapter.codeV2Text` (escapa SOLO la barra invertida y la backtick, que es lo único que la spec de Telegram exige dentro de un code entity); los corchetes se escapan FUERA (`\[`, `\]`). La fila emite exactamente DOS backslashes y cero escapes de punto. `⋅` y `%` viajan crudos. **NUNCA** `escapeV2Text` dentro del span y **NUNCA** escapar dos veces.
 - Cliente/pipeline: guard `toHolderConcentrationOrNull` en `market-data.client.ts` (patrón `toVenueOrNull`/`toHoneypotOrNull`, L80+) → rechaza arrays malformados, >5 entradas, no finitos, fuera de rango, no no-creciente y `sum > top10 + ε`; `ResolvedToken.holderConcentration?: … | null` (opcional para no romper los literales existentes); **añadirlo al tipo estructural inline de `toResolvedToken`** (`token-scan.pipeline.ts:302-345`) + mapearlo, o se descarta en silencio; re-validación en el pipeline (doble validación, precedente `honeypot`/`venue`).
 - **Línea legacy** `👥 Holders` de `message-formatter.ts` (~L325, card `formatScanCard`): NO se toca.
 
@@ -621,7 +621,7 @@ Cambio propuesto (una versión más), **solo tras OK del owner**:
 
 **dexter**
 
-- `template-renderer-holder-top-row.spec.ts` — matriz: 5/3/1 valores, `[]` → `""`, objeto null → `""`, >5 → `""`, no finito/rango → `""`, `sum > top10 + ε` → `""`, prefijo exacto `"\n\n👥 TH: "`, formato `4.3` (cero conservado), **bracket desde décimas** (el caso `0.1+0.1+0.1+16.1+3.6` da 20, no 21), escapado simple (`4\.3`, `\[20%\]`), sin `N/A`, catálogo/META, counts 53/54.
+- `template-renderer-holder-top-row.spec.ts` — matriz: 5/3/1 valores, `[]` → `""`, objeto null → `""`, >5 → `""`, no finito/rango → `""`, `sum > top10 + ε` → `""`, prefijo exacto `"\n\n👥 TH: "`, formato `4.3` (cero conservado), **bracket desde décimas** (el caso `0.1+0.1+0.1+16.1+3.6` da 20, no 21), **code spans por valor** (12 backticks = 6 spans, exactamente 2 backslashes, cero escapes de punto, cero escapes de backtick), sin `N/A`, catálogo/META, counts 53/54.
 - `market-data-client-holder-concentration.spec.ts` — guard: no-objeto, `topPercents` no array, >5, **no no-creciente** (con empates válidos), no finito, fuera de rango, `sum > top10 + ε`, strings, ausente.
 - `token-scan-holder-concentration.spec.ts` — passthrough + re-validación + el campo aparece en `ResolvedToken` (seam `toResolvedToken`).
 - `placeholders.controller.spec.ts` (nuevo) — **todos** los keys de **todos** los comandos tienen fila en `PLACEHOLDER_META` (C9).
@@ -685,7 +685,7 @@ Cambio propuesto (una versión más), **solo tras OK del owner**:
 
 - `market-data.client.ts` — `toHolderConcentrationOrNull` (guarda de forma, orden no creciente con empates válidos, coherencia `sum ≤ top10 + ε`).
 - `scan-pipeline.port.ts` + `token-scan.pipeline.ts` — `HolderConcentrationInfo` y el campo **declarado** en el tipo estructural de `toResolvedToken` (sin declararlo, el pipeline lo tira en silencio).
-- `template-renderer.service.ts` — key `holderTopRow`: `""` o `"\n\n👥 TH: " + payload`; 1dp con el cero conservado; bracket en décimas enteras; escape **una sola vez**.
+- `template-renderer.service.ts` — key `holderTopRow`: `""` o `"\n\n👥 TH: " + payload`; 1dp con el cero conservado; bracket en décimas enteras; cada valor en su code span (`codeV2Text`) y el bracket escapado fuera del span.
 - `placeholder-registry.ts` — alta en `DERIVED_PLACEHOLDERS` tras `market1hRow` + whitelist de TODOS los comandos (**53** keys en `ca|x|z|bare`, **54** en `c|cc`).
 - `placeholders.controller.ts` — `PLACEHOLDER_META` con el ejemplo literal `\n\n👥 TH: …` (C9) + spec de completitud del catálogo.
 - Specs nuevas: `template-renderer-holder-top-row.spec.ts`, `market-data-client-holder-concentration.spec.ts`, `token-scan-holder-concentration.spec.ts`.
@@ -694,7 +694,7 @@ Cambio propuesto (una versión más), **solo tras OK del owner**:
 
 - Catálogo de dexter `:4061`: `ca` = 53 keys, `c`/`cc` = 54, `holderTopRow` presente con su META.
 - Preview `A{{holderTopRow}}B` → `"AB"`: la key resuelve y **silencia** — no filtra el placeholder literal, no deja `N/A`, no deja etiqueta colgada.
-- Preview `HDR{{market1hRow}}{{holderTopRow}}{{honeypotBlock}}` → `HDR📉 1H: 8\.1K ⋅ \-1% 🅑 13 Ⓢ 24`: el tail sigue limpio con TH en silencio.
+- Preview `HDR{{market1hRow}}{{holderTopRow}}{{honeypotBlock}}` → `HDR📉 1H: 8\.1K ⋅ \-1% 🅑 13 Ⓢ 24` (forma monoespaciada desde 2026-10-26: ver §10.13): el tail sigue limpio con TH en silencio.
 - **TH no se ha observado todavía con datos reales**: en esta ventana todos los tiers de RPC de Solana están caídos desde el host de staging (`api.mainnet.solana.com` → **429**, `solana.publicnode.com` → **403**, Helius 429), así que `solana-rpc` y `solana-holders` responden `no data` y el campo sale `null` por diseño fail-open. La fila exacta (`4\.3⋅3\.3⋅2\.8⋅2\.3⋅1\.8 \[20%\]`) está pinneada **por spec**, no por observación live. No se inventó ni se forzó ningún valor para "demostrar" la fila.
 
 **Recalibración del presupuesto TH + primera fila live (2026-10-26, después de `6f27cac3`)**
@@ -718,6 +718,33 @@ Diagnóstico medido (Helius keyed, leído por NOMBRE desde `apps/market-data/.en
 Línea de serve de esa llamada: `directMs=800 fanoutMs=1822 kindMs=0 tailMs=406 existenceMs=246 totalMs=3507`. Repetición inmediata: **2.1 ms** (cache) con el MISMO objeto, `stale: false`. Segunda muestra (WIF `EKpQGS…5zcjm`, cold **2.925 s**): `topPercents [13.7245, 10.1374, 3.8269, 3.6201, 3.4812]`, `top10Percent 43.7192`, `sources` con `solana-holders`. Honestidad: ese `fanoutMs=1822` muestra que en esa llamada el RPC fue más rápido que la banda medida n=20 (por eso el presupuesto no se ata en llamadas rápidas y solo acota la cola lenta). El `top10HolderPercent` legacy de BONK (38.24, per-cuenta y pool-inclusivo) coincide numéricamente con nuestro `38.2367` per-wallet, pero son métricas DISTINTAS: coincidencia de este token, **no** una reclamación de paridad. La fila renderizada por dexter sigue sin observarse contra el body vivo: eso depende del owner (pendientes 1-2).
 
 **Staging post-deploy (mismo commit `eca171e6`, deploy `40337827218` verde).** El dist desplegado lleva `3_800`; la sonda keyed a BONK devuelve `holderConcentration: null` con `solana-holders: "no data"` y ambos endpoints públicos de Solana en backoff 429 (`api.mainnet.solana.com`, `api.mainnet-beta.solana.com`). Causa: staging NO tiene `HELIUS_RPC_URL_MAINNET` (leído por nombre) y los tiers free-B tienen `getTokenLargestAccounts` excluido por diseño, así que `getTokenSupply` responde pero el método de holders está amurallado. Es la lectura honesta esperada, no una regresión de TH: la fila se sirve en dev con el transporte keyed. Queda anotado en el runbook de soak §4 como regla de lectura propia; se cierra cuando aterrice la key de Helius de staging (owner queue).
+
+**Monoespaciado de los números (owner, 2026-10-26 — body y activación siguen siendo del owner)**
+
+Pedido textual del owner (dos formas, wire y render):
+
+```text
+📉 1H: `1.1K` ⋅ `-4.1%` 🅑 `25` Ⓢ `26`
+👥 TH: `2.4`⋅`1.3`⋅`1.2`⋅`1.2`⋅`1.2` [`12%`]
+```
+
+Implementado en el renderer:
+
+- Nuevo `MessageFormatterAdapter.codeV2Text` (`message-formatter.ts`): envuelve el valor YA formateado en un code entity de MarkdownV2 y escapa SOLO la barra invertida y la backtick (lo único que la spec de Telegram exige dentro de `code`); vacío → `""` (nunca un par de backticks suelto). No se usa `escapeV2Text` dentro del span: un escape de punto ahí imprime su backslash.
+- `market1hRow`: `📈`/`📉`, `1H:`, `⋅`, `🅑`, `Ⓢ` quedan como texto estático; cada uno de los cuatro números viaja en su PROPIO span. La fila emite CERO backslashes (antes `1\.6M`).
+- `holderTopRow`: cinco spans unidos por `⋅` + el bracket como `\[` + span + `\]` — los corchetes conservan su escape FUERA del span. `⋅` y `%` crudos.
+- META del catálogo (`placeholders.controller.ts`) actualizada con la forma monoespaciada en AMBOS keys; specs re-pinneados (12 backticks = 6 spans y exactamente 2 backslashes en TH, cero en 1H).
+- Riesgo pre-existente, NO nuevo: `enforceLengthText` puede cortar dentro de un span si el body supera 4096 — antes ya podía cortar entre la barra y el carácter escapado. Anotado, no corregido en esta lane.
+
+**Verificación dev (2026-10-26, `:4060`, BONK, build + `pm2 restart dexter`).** Preview real:
+
+```text
+📈 1H: `18.8K` ⋅ `1.1%` 🅑 `308` Ⓢ `421`
+
+👥 TH: `8.8`⋅`6.8`⋅`3.6`⋅`3.1`⋅`3.0` \[`38%`\]
+```
+
+Silencio verificado con un token sin los campos (`A{{holderTopRow}}B` → `AB`, `A{{market1hRow}}B` → `AB`) y el catálogo devuelve la META nueva en ambos keys. dexter **82 suites / 971 tests** verdes + `tsc --noEmit` + prettier limpios.
 
 **Sigue pendiente (requiere OK explícito)**
 

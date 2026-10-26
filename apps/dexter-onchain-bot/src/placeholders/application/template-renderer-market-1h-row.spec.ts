@@ -13,10 +13,13 @@ import { PlaceholdersController } from '@/placeholders/api/http/placeholders.con
  *
  * Reference row (official docs, pricebot#reading-a-token-scan):
  * `📈 1H: 159 ⋅ 1.7% 🅑 3 Ⓢ 5` = 1h volume, 1h price change, buys,
- * sells. `📈`/`📉` is the price direction. The renderer emits the
- * MarkdownV2-escaped form (`1\.7%` is the escaped decimal point —
- * `escapeV2Text` escapes `.`), which Telegram DISPLAYS as `1.7%`;
- * `displayOf` below pins the human-facing string.
+ * sells. `📈`/`📉` is the price direction. Monospace (owner request
+ * 2026-10-26): every VALUE rides its own MarkdownV2 code span so
+ * Telegram renders the numbers in its monospaced font —
+ * `📈 1H: `159` ⋅ `1.7%` 🅑 `3` Ⓢ `5``. Inside a code entity the
+ * decimal point travels RAW (`4\.3` there would print the backslash),
+ * so the row carries NO `\` escapes at all; `shownOf` below pins the
+ * text Telegram displays (span styling drops the ticks).
  */
 
 const CHALE_MINT = '2o1wthqgEbeLr3Lxv4LtBYHtFTbMK4TmSr9U5RsPpump';
@@ -31,6 +34,9 @@ const FULL = {
 /** MarkdownV2 unescape for display-form assertions (test-only). */
 const displayOf = (text: string): string =>
   text.replace(/\\([_*[\]()~`>#+=|{}.!\\-])/g, '$1');
+
+/** Telegram's rendered TEXT: V2 backslashes gone, code-span ticks gone. */
+const shownOf = (text: string): string => displayOf(text).replace(/`/g, '');
 
 function baseToken(overrides: Partial<ResolvedToken> = {}): ResolvedToken {
   return {
@@ -77,35 +83,38 @@ describe('TemplateRendererService market1hRow (Rick parity, 2026-10-26)', () => 
       .placeholders.find((row) => row.key === 'market1hRow');
     expect(entry?.type).toBe('derived');
     expect(entry?.nullable).toBe(true);
-    expect(entry?.example).toBe('📈 1H: 159 ⋅ 1.7% 🅑 3 Ⓢ 5');
+    expect(entry?.example).toBe('📈 1H: `159` ⋅ `1.7%` 🅑 `3` Ⓢ `5`');
   });
 
-  it('renders the exact Rick sample (positive change → 📈)', () => {
+  it('renders the exact Rick sample, every value in its own code span', () => {
     const out = render('{{market1hRow}}', baseToken(FULL));
-    // Escaped ONCE: the decimal point of `1.7%` is MarkdownV2-escaped.
-    expect(out).toBe('📈 1H: 159 ⋅ 1\\.7% 🅑 3 Ⓢ 5');
-    expect(displayOf(out)).toBe('📈 1H: 159 ⋅ 1.7% 🅑 3 Ⓢ 5');
+    // Zero V2 escapes: the numbers travel RAW inside the code entities
+    // (a `\.` there would print its backslash). Four spans = 8 ticks.
+    expect(out).toBe('📈 1H: `159` ⋅ `1.7%` 🅑 `3` Ⓢ `5`');
+    expect(out).not.toContain('\\');
+    expect(out.match(/`/g)?.length).toBe(8);
+    expect(shownOf(out)).toBe('📈 1H: 159 ⋅ 1.7% 🅑 3 Ⓢ 5');
   });
 
-  it('renders 📉 for a negative change (sign escaped once)', () => {
+  it('renders 📉 for a negative change (sign raw inside the span)', () => {
     const out = render(
       '{{market1hRow}}',
       baseToken({ ...FULL, priceChange1h: -3.4 }),
     );
-    expect(out).toBe('📉 1H: 159 ⋅ \\-3\\.4% 🅑 3 Ⓢ 5');
-    expect(displayOf(out)).toBe('📉 1H: 159 ⋅ -3.4% 🅑 3 Ⓢ 5');
+    expect(out).toBe('📉 1H: `159` ⋅ `-3.4%` 🅑 `3` Ⓢ `5`');
+    expect(shownOf(out)).toBe('📉 1H: 159 ⋅ -3.4% 🅑 3 Ⓢ 5');
   });
 
   it('renders 📈 for a ZERO change (never 📉)', () => {
     expect(
       render('{{market1hRow}}', baseToken({ ...FULL, priceChange1h: 0 })),
-    ).toBe('📈 1H: 159 ⋅ 0% 🅑 3 Ⓢ 5');
+    ).toBe('📈 1H: `159` ⋅ `0%` 🅑 `3` Ⓢ `5`');
   });
 
   it('renders a zero volume as `0` via the shared money formatter', () => {
     expect(
       render('{{market1hRow}}', baseToken({ ...FULL, volume1hUsd: 0 })),
-    ).toBe('📈 1H: 0 ⋅ 1\\.7% 🅑 3 Ⓢ 5');
+    ).toBe('📈 1H: `0` ⋅ `1.7%` 🅑 `3` Ⓢ `5`');
   });
 
   it('formats volume compact (K/M/B) and counts with the count formatter', () => {
@@ -119,7 +128,7 @@ describe('TemplateRendererService market1hRow (Rick parity, 2026-10-26)', () => 
           txns1hSells: 850,
         }),
       ),
-    ).toBe('📈 1H: 1\\.6M ⋅ 12\\.5% 🅑 1\\.2K Ⓢ 850');
+    ).toBe('📈 1H: `1.6M` ⋅ `12.5%` 🅑 `1.2K` Ⓢ `850`');
   });
 
   it.each([
@@ -158,7 +167,7 @@ describe('TemplateRendererService market1hRow (Rick parity, 2026-10-26)', () => 
 
   it('emits no leading/trailing whitespace or newline (templates own separators)', () => {
     const out = render('Prev\n{{market1hRow}}\nNext', baseToken(FULL));
-    expect(out).toBe('Prev\n📈 1H: 159 ⋅ 1\\.7% 🅑 3 Ⓢ 5\nNext');
+    expect(out).toBe('Prev\n📈 1H: `159` ⋅ `1.7%` 🅑 `3` Ⓢ `5`\nNext');
     expect(out).not.toMatch(/^\s|\s$/);
   });
 
