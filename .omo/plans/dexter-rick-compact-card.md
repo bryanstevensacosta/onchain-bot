@@ -444,23 +444,23 @@ Con OK a **D1/D2/D4/D5/D6/D8** el spec queda decision-complete. **D3** (🔒 GoP
 
 ## 10. `👥 TH:` — holders top-5 (PLAN ONLY — cero código, cero body, cero activación)
 
-> **Estado (2026-10-26, revisado adversarialmente):** documentado y decidido a nivel de contrato; **NO implementado**. Este bloque fija la evidencia, separa lo documentado de lo NO documentado, enumera las decisiones de producto que SOLO el owner puede tomar, y deja el contrato de datos/render listo para una lane posterior. **Regla dura:** nada de `apps/market-data` ni `apps/dexter-onchain-bot` toca este spec hasta que el owner firme §10.11 **y** se resuelvan las precondiciones de código de §10.0. Ninguna template se edita: `RickBurpBot` sigue en **v20**, `isActive=false`.
+> **Estado (2026-10-26, revisado adversarialmente):** documentado y decidido a nivel de contrato; **NO implementado**. Este bloque fija la evidencia, separa lo documentado de lo NO documentado, enumera las decisiones de producto que SOLO el owner puede tomar, y deja el contrato de datos/render listo para una lane posterior. **Regla dura:** nada de `apps/market-data` ni `apps/dexter-onchain-bot` toca este spec hasta que el owner firme §10.11 **y** se resuelvan las precondiciones de código de §10.0. Ninguna template se edita: el body vivo es operator-owned y NO está en git; el plan lo cita como **v15** (§2/P0-11) y el operador lo reporta como **v20**. Antes de tocarlo hay que LEERLO (versión + body + `isActive`).
 
-### 10.0 Checklist de precondiciones (del review adversarial 2026-10-26)
+### 10.0 Checklist de precondiciones (review adversarial 1 + delta 2026-10-26)
 
-Ninguna de estas es una decisión de producto; son bugs/contratos existentes que, sin corregir, hacen que TH sea un no-op o rompan el build.
+Ninguna es una decisión de producto: son contratos/bugs existentes que, sin resolver, hacen que TH sea un no-op o rompan el build.
 
-| #   | Precondición                                                                                                                                                                                                                                                         | Dónde                                                                                |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| C1  | **`MergeAcc` no acepta objetos.** `type MergeAcc = { -readonly [K in keyof SnapshotQuote]: number \| string \| ReadonlyArray<unknown> \| null }`. Al añadir el objeto, `tsc` falla y el merge (que solo copia cuando `current === null`) nunca lo asignaría.         | `snapshot-aggregator.service.ts:184-191`, `:199-206`                                 |
-| C2  | **`TOKEN_2022_PROGRAM` está MAL** en el repo (`…PHnAAvKmd1qT6M`) vs el canónico (`…PHnBqCXEpPxuEb`, ya en el fixture). Un gate por ese id rechazaría TODA cuenta Token-2022 → TH vacío silencioso. Bug preexistente: corregir constante + fixture + spec.            | `solana-program-ids.ts:73`, `solana-mainnet.fixtures.ts:84`                          |
-| C3  | **El edge compat es un whitelist explícito** (nunca spread): sin la clave nueva, el campo no llega a dexter. Batch sigue reducido (como `venue`/`launchpad`/`fdvAth`).                                                                                               | `market-data-snapshot.controller.ts:55-103`, `addresses-batch.controller.ts:110-124` |
-| C4  | **El fast path nunca produce el objeto** (`...emptySnapshotQuote()` en su quote) y corre en vez del fan-out. Sin decisión F8, los tokens calientes jamás muestran TH.                                                                                                | `direct-fast-path.service.ts:500-520`, `address-snapshot.service.ts:1476-1518`       |
-| C5  | **No meterlo dentro del fetcher `solana-rpc`:** `callRpc` camina tiers en serie con timeout de **10 s por tier** y el fan-out abandona el fetcher COMPLETO a 4000 ms → se perderían `totalSupply`/`top10HolderPercent` que hoy se sirven. Diseño corregido en §10.4. | `solana-rpc.service.ts:302-345`, `snapshot-aggregator.service.ts:100-155`            |
-| C6  | **Reusar el decoder existente** (`decodeTokenAccount`, `TOKEN_ACCOUNT_MIN_LEN = 165`, `isUninitializedTokenAccount`), no re-especificar el layout a mano.                                                                                                            | `token-accounts.codec.ts:25`, `:34-52`, `:184-186`; exports `onchain/index.ts:56,61` |
-| C7  | **Un solo `ε`** para el guard `sum(top5) ≤ top10`, idéntico en las dos apps, y coherencia de display (el bracket no puede quedar por debajo de la suma mostrada). §10.6/§10.7.                                                                                       | cliente + renderer                                                                   |
-| C8  | **El body v21 debe ELIMINAR `{{top10HolderPercent}}`** si el v20 vivo lo trae (la semilla `FULL_DEXTER_BODY` lo usa). Dos "top 10" distintos en el mismo card es exactamente lo prohibido.                                                                           | `message-template-seed.service.ts:45`, §10.8                                         |
-| C9  | **`PLACEHOLDER_META` no tiene enforcement**: sin entrada cae a `{type:'string', nullable:true, example:''}` sin fallar. Añadir el spec que itera todos los comandos.                                                                                                 | `placeholders.controller.ts:24`, `:250`                                              |
+| #   | Precondición                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Dónde                                                                                        |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| C1  | **`MergeAcc` no acepta objetos.** Falla `tsc` en el spread `{ ...emptySnapshotQuote() }` (L191) y en el cast `merged as SnapshotQuote` (L213); el loop (L199-206) castea a `Record<string, unknown>` y **sí** asignaría en runtime. Fix: ensanchar el mapped type con la unión **concreta** `\| HolderConcentration` (`Record<string, unknown>` NO sirve: las interfaces sin index signature no son asignables).                                                                             | `snapshot-aggregator.service.ts:184-213`                                                     |
+| C2  | **`TOKEN_2022_PROGRAM` tiene un typo** (`…PHnAAvKmd1qT6M` vs el canónico `…PHnBqCXEpPxuEb`), pero **no es precondición**: solo lo consume el re-export `onchain/index.ts:11` (sin uso runtime), ningún spec pinnea la constante y `decodeTokenAccount` es **program-agnóstico** (valida longitud, no programa). **Decisión: NO gatear por program id.** Limpieza opcional en el mismo commit: constante + el literal mock de `onchain-solana.reader.spec.ts:293`; el fixture ya es canónico. | `solana-program-ids.ts:73`, `solana-mainnet.fixtures.ts:84`, `token-accounts.codec.ts:34-52` |
+| C3  | **El edge compat es un whitelist explícito** (nunca spread): sin la clave nueva, el campo no llega a dexter. Batch sigue reducido (como `venue`/`launchpad`/`fdvAth`).                                                                                                                                                                                                                                                                                                                       | `market-data-snapshot.controller.ts:55-103`, `addresses-batch.controller.ts:110-124`         |
+| C4  | **El fast path nunca produce el objeto** (`...emptySnapshotQuote()` en su quote) y corre en vez del fan-out. Sin F8, los tokens calientes jamás muestran TH.                                                                                                                                                                                                                                                                                                                                 | `direct-fast-path.service.ts:500-520`, `address-snapshot.service.ts:1470-1498`               |
+| C5  | **No meterlo dentro del fetcher `solana-rpc`:** `callRpc` camina tiers en serie con timeout de **10 s por tier** y el fan-out abandona el fetcher COMPLETO a 4000 ms → se perderían `totalSupply`/`top10HolderPercent` que hoy se sirven. Diseño corregido en §10.4.                                                                                                                                                                                                                         | `solana-rpc.service.ts:302-345`, `snapshot-aggregator.service.ts:100-155`                    |
+| C6  | **Reusar el decoder existente** (`decodeTokenAccount`, `TOKEN_ACCOUNT_MIN_LEN = 165`, `isUninitializedTokenAccount`), no re-especificar el layout a mano.                                                                                                                                                                                                                                                                                                                                    | `token-accounts.codec.ts:25`, `:34-52`, `:184-186`; exports `onchain/index.ts:56,61`         |
+| C7  | **Un solo `ε`** para el guard `sum(top5) ≤ top10`, idéntico en las dos apps, y coherencia de display (el bracket no puede quedar por debajo de la suma mostrada). §10.6/§10.7.                                                                                                                                                                                                                                                                                                               | cliente + renderer                                                                           |
+| C8  | **El body nuevo debe ELIMINAR `{{top10HolderPercent}}`** si el body vivo lo trae (la semilla `FULL_DEXTER_BODY` lo usa). Dos "top 10" distintos en el mismo card es exactamente lo prohibido.                                                                                                                                                                                                                                                                                                | `message-template-seed.service.ts:45`, §10.8                                                 |
+| C9  | **`PLACEHOLDER_META` no tiene enforcement**: sin entrada cae a `{type:'string', nullable:true, example:''}` sin fallar. Añadir el spec que itera todos los comandos.                                                                                                                                                                                                                                                                                                                         | `placeholders.controller.ts:24`, `:250`                                                      |
 
 ### 10.1 Evidencia
 
@@ -524,25 +524,28 @@ El ejemplo de docs (3 valores) es **ilustrativo/truncado**; la captura (5 valore
 
 **Fetcher propio `solana-holders`** (NO dentro de `solana-rpc`):
 
-- `supportsChains: ['solana']`, tier `free`, posición inmediatamente después de `solana-rpc` en `QUOTE_FETCHER_COST_TIER` (el spec de cascade-order se actualiza).
-- **No** es fila de `DEFAULT_PROVIDERS` — precedente `evm-rpc`: sin descriptor, bucket por defecto 60/min, sin breaker (y como nunca lanza, el breaker tampoco abriría).
+- `supportsChains: ['solana']`, tier `free`. Registro **en dos sitios**: `QUOTE_FETCHER_COST_TIER` (`provider-quote.fetchers.ts:203-218`, es un `Record` de clasificación **sin semántica de orden**) **y** el array de `buildProviderQuoteFetchers` (`:238+`), inmediatamente después de `solana-rpc` — **ese array define el orden de ejecución, no el Record**.
+- **Tres specs pinnean orden/keyset y se actualizan en el mismo commit:** `cascade-order.spec.ts:55-68` (lista exacta de nombres), `provider-quote-newprov.spec.ts`, `zero-cost-cascade.spec.ts:66-68` (free antes que keyed).
+- **No** es fila de `DEFAULT_PROVIDERS`: sin descriptor → sin breaker (el `recordFailure` early-returna para nombres desconocidos, `provider-registry.service.ts:119-122`) y bucket propio por defecto **60/min**.
 - Corre **en paralelo** con `solana-rpc` dentro del fan-out → `totalSupply`/`top10HolderPercent` dejan de estar en riesgo (fix de C5).
 - **4 llamadas RPC** por cold Solana: `getTokenSupply` (1) + `getTokenLargestAccounts` (1) + batch ATA (1) + batch wallets (1); chunks ≤100 → 1 llamada cada una. Duplica supply+largest respecto a la variante "dentro del fetcher" (+2 llamadas): se paga a cambio de aislar los campos legacy. Medirlo en el soak.
+- **Coste de bucket:** `applyOutboundRateLimit` cobra `cost` **por invocación del fetcher** (default 1, `rate-limited-fetchers.ts:40-56`) → las 4 RPC internas consumen **1 token**; a 60/min aguanta 60 colds/min, muy por encima de la cadencia (~2/min). El cálculo de 4 req contra el límite público de 40 req/10 s sí es por llamada real.
+- **`applyOutboundRateLimit` PUEDE lanzar** al agotar el bucket (`rate-limited-fetchers.ts:52`) → el fetcher envuelve TODO en try/catch y degrada a `null`; nunca propaga.
 - **Presupuesto propio dentro del fetcher:** `SNAPSHOT_HOLDER_CONCENTRATION_TIMEOUT_MS` (default **1500**, resolver con fallback pinneado como `resolveHoneypotTimeoutMs`) mediante `Promise.race`; al vencer resuelve `holderConcentration: null` y nada más (las llamadas abandonadas mueren por su timeout interno, igual que `withTailBudget`). El deadline de fan-out (4000 ms) queda de backstop.
 - **Kill-switch:** `SNAPSHOT_HOLDER_CONCENTRATION_ENABLED` (default habilitado; false-ish → no llamadas, sin campo, sin nota).
-- Presupuesto público: 40 req/10s por IP; +4 por cold con la cadencia actual (~2 cold/min) es ruido, pero el soak lo mide.
-- Fail-open total: cualquier gap (tier caído, decode fallido, supply 0/null, timeout) → `null`, nunca throw, nunca afecta a otros campos.
+- Fail-open total: cualquier gap (tier caído, decode fallido, supply 0/null, timeout, rate-limit) → `null`, nunca throw, nunca afecta a otros campos.
 
 ### 10.5 Contrato de datos — dos opciones
 
 **Opción A (recomendada) — objeto coherente, un solo writer**
 
 ```ts
-/** Solana-only. `topPercents` DESCENDENTE, 1..5 entradas. `top10Percent`
- *  suma los top-10 de la MISMA lista mergeada-por-wallet, en el MISMO
- *  orden, bajo el MISMO denominador y las MISMAS exclusiones: al ser
- *  sumas acumuladas sobre el mismo array, `sum(topPercents) <=
- *  top10Percent` es exacto (no aproximado). */
+/** Solana-only. `topPercents` NO CRECIENTE (empates válidos), `0..5`
+ *  entradas: `[]` = silencio, `1..5` = render (el objeto puede existir
+ *  con `[]`; no es malformado). `top10Percent` suma los top-10 de la
+ *  MISMA lista mergeada-por-wallet, ya filtrada, en el MISMO orden,
+ *  bajo el MISMO denominador: al ser sumas acumuladas sobre el mismo
+ *  array, `sum(topPercents) <= top10Percent` es exacto. */
 export interface HolderConcentration {
   readonly topPercents: ReadonlyArray<number>;
   readonly top10Percent: number;
@@ -550,7 +553,7 @@ export interface HolderConcentration {
 ```
 
 - `SnapshotQuote.holderConcentration?: HolderConcentration | null`
-- **Obligatorio (3 ediciones):** (1) `SNAPSHOT_QUOTE_FIELDS` (L120-144) **y** `emptySnapshotQuote()` (L146+) como `null` explícito; (2) **ensanchar `MergeAcc`** (C1) para que el objeto sea asignable/mergeable; (3) clave explícita en el edge compat (C3).
+- **Obligatorio (3 ediciones):** (1) `SNAPSHOT_QUOTE_FIELDS` (L120-144) **y** `emptySnapshotQuote()` (L146+) como `null` explícito; (2) **ensanchar `MergeAcc`** con `| HolderConcentration` (C1); (3) clave explícita en el edge compat (C3).
 - `top10HolderPercent` legacy (`{{top10HolderPercent}}`) **NO se toca** y se documenta como **métrica distinta** (por cuenta, pool-inclusiva). **Regla:** un body no puede mezclar ambos en el mismo card.
 - Historial: `snapshot_history.quote` es jsonb y persiste el quote completo (`address-snapshot.service.ts:1833-1834`), así que el campo viaja en SWR/stale sin trabajo extra. Añadir el test de SWR (el replay lo sirve tal cual, con el mismo trato de honestidad que `venue`/`launchpad` vivos vs números stale).
 
@@ -558,71 +561,75 @@ export interface HolderConcentration {
 
 ### 10.6 Política de cálculo (borrador v1 — requiere OK, ver §10.11)
 
-Cada punto es una **decisión de producto**, no una inferencia de los docs:
+Cada punto es una **decisión de producto**, no una inferencia de los docs.
+
+**Orden de ejecución real (no negociable): merge → exclusiones → orden descendente → acumulados → corte.**
 
 1. **Denominador = supply TOTAL** (`getTokenSupply`). Único on-chain; el circulante es reportado por agregadores y suele faltar.
-2. **Merge por wallet:** acumular **en BigInt** (`amount` ya viene en base units) sumando por `owner`, convertir a `Number` UNA sola vez al calcular el porcentaje; documentar el techo de precisión `Number` para u64 (error relativo ~1e-16, aceptable para un porcentaje). Re-ordenar descendente **después** del merge.
-3. **Top-10 sobre la MISMA lista mergeada** (no sobre las cuentas): `topPercents` = primeros 5 de la lista ordenada; `top10Percent` = suma acumulada de los primeros 10 de esa misma lista. Así `sum(top5) ≤ top10` es exacto y el bracket es coherente con la lista.
+2. **Merge por wallet:** acumular **en BigInt** (`amount` ya viene en base units) sumando por `owner`; convertir a `Number` UNA sola vez al calcular el porcentaje (`Number(BigInt(amount)) / Number(BigInt(supply)) * 100`, patrón ya usado en `onchain-solana.reader.ts:547-564`). Documentar el techo de precisión `Number` para u64 (error relativo ~1e-16, aceptable para un porcentaje).
+3. **Exclusiones sobre la lista mergeada, ANTES de ordenar y de cortar** (§10.6.4). El corte no puede precederlas o `sum ≤ top10` deja de ser cierto.
 4. **Exclusiones v1, EN ESTE ORDEN:**
    - **Cuenta sin inicializar primero** (`isUninitializedTokenAccount`) → excluida (mint y owner en cero; sin este paso, un ATA sin inicializar se colaría como "burn").
    - owner == `11111111111111111111111111111111` (dirección del System Program usada como holder) → **UN patrón de burn**, no "el sink canónico"; el incinerador SPL no tiene constante en el repo (F9).
    - wallet **program-owned** (el `owner` de la cuenta wallet ≠ System Program) → excluida: captura pool/curva/PDA/vault. **Coste aceptado:** también cae una wallet multisig (Squads) → falso NEGATIVO, nunca falso positivo.
    - **wallet account `null`** (la dirección no existe on-chain, p. ej. el incinerador) → **excluida**, razón documentada. Nunca se inventa su ownership.
    - Se descarta excluir por lista de marcas/CEX: no hay fuente keyless → sería invención.
-5. **< 5 wallets:** renderizar las que haya (1..5); `0` → silencio. **Nunca** padding.
-6. **Límites duros:** `supply === 0n` o `null` → `null`; cualquier porcentaje no finito → `null` (chequear antes de emitir; `JSON.stringify` convertiría `NaN`/`Infinity` en `null` por accidente — fail-open por diseño, no por suerte); `top10Percent` fuera de `[0,100]` → `null`.
-7. **Cota honesta:** `getTokenLargestAccounts` devuelve ≤20 cuentas, así que el top-10 post-merge es un **lower bound** del top-10 real de wallets, nunca un sobrestatement.
-8. **Creator bold: OUT de v1.** Requiere resolver la wallet del creator (no existe hoy) + cambiar la composición de "escapar una vez" a "escapar cada valor y componer con `*` crudo" (MarkdownV2 bold = UN `*`; `**` se renderiza literal — lección `nameLink`).
+5. **Acumulados y corte:** re-ordenar descendente; `topPercents` = primeros `min(5, n)`; `top10Percent` = suma acumulada de los primeros **`min(10, n)`** de esa misma lista. El acumulador solo recorre índices existentes (`i < n`): `undefined` jamás entra a la suma. **Sin el `min`, todo token con menos de 10 wallets produce `NaN` y se silencia** — justo el caso de los tokens nuevos.
+6. **< 5 wallets:** renderizar las que haya (1..5); `0` → silencio. **Nunca** padding.
+7. **Límites duros:** `supply === 0n` o `null` → `null`. `top10Percent` fuera de `[-ε, 100+ε]` → `null`; dentro del margen se **clampea a `[0,100]` para display** (nunca se descarta un token legítimamente 100%-held por un ulp tras el redondeo BigInt→Number). Cualquier porcentaje no finito → `null`, chequeado antes de emitir (`JSON.stringify` convertiría `NaN`/`Infinity` en `null` por accidente — fail-open por diseño, no por suerte).
+8. **Cota honesta:** `getTokenLargestAccounts` devuelve ≤20 cuentas, así que el top-10 post-merge es un **lower bound** del top-10 real de wallets, nunca un sobrestatement.
+9. **Creator bold: OUT de v1.** Requiere resolver la wallet del creator (no existe hoy) + cambiar la composición de "escapar una vez" a "escapar cada valor y componer con `*` crudo" (MarkdownV2 bold = UN `*`; `**` se renderiza literal — lección `nameLink`).
 
 ### 10.7 Renderer (dexter) — una sola key compuesta
 
-Precedente exacto: `market1hRow` (`template-renderer.service.ts:659-692`) + `honeypotBlock`.
+Precedente exacto: `market1hRow` (`template-renderer.service.ts:659-692`) + `honeypotBlock` (`:651-657`).
 
-- Key: **`holderTopRow`** en TODOS los comandos (`ca|x|z|bare`, + `c|cc` con timeframe) → registry **22 base + 31 derived = 53** (`54` para `c|cc`); `PLACEHOLDER_META` gana `{type:'derived', nullable:true, example:'👥 TH: 4.3⋅3.3⋅2.8⋅2.3⋅1.8 [20%]'}`.
-- Valor: `""` (silencio) o **`"\n\n👥 TH: " + <payload>`** — mismas mecánicas que `honeypotBlock` (`"\n\n🍯 " + core`): **línea en blanco delante**, evidenciada por la captura (§10.1b). El silencio no deja etiqueta colgada ni línea en blanco. `cleanupDanglingSeparators` **NO** se toca (sus familias bracket/backtick/`⇨` tienen guards anti-link delicados; añadir una nueva es riesgo global innecesario).
+- Key: **`holderTopRow`**, registrada en **`DERIVED_PLACEHOLDERS`** (`placeholder-registry.ts:51-133` — ese catálogo ordenado es el **seam de resolución**; añadirla solo por comando o solo a META deja el body irresoluble y el preview roto) y en la composición de TODOS los comandos (`ca|x|z|bare`, + `c|cc` con timeframe) → registry **22 base + 31 derived = 53** (`54` para `c|cc`); `PLACEHOLDER_META` gana `{type:'derived', nullable:true, example:'\n\n👥 TH: 4.3⋅3.3⋅2.8⋅2.3⋅1.8 [20%]'}` (los `\n` van en el ejemplo, como `honeypotBlock`, `placeholders.controller.ts:182-186`).
+- Valor: `""` (silencio) o **`"\n\n👥 TH: " + <payload>`** — mismas mecánicas que `honeypotBlock` (`"\n\n🍯 " + core`): **línea en blanco delante**, evidenciada por la captura (§10.1b). El silencio no deja etiqueta colgada ni línea en blanco. `cleanupDanglingSeparators` **NO** se toca (sus familias bracket/backtick/`⇨` tienen guards anti-link delicados; además **no colapsa blancos**, así que no hay red de seguridad para un `\n` de más — de ahí §10.8).
 - Payload: `p1⋅p2⋅…⋅pN [M%]` con UN espacio antes del bracket.
 - Formato: cada valor `toFixed(1)` **conservando el cero** (`2.0`, `4.3`) porque el único material documentado/capturado muestra 1 decimal; `formatPercentText` NO sirve (trimmea y pierde el `.0`), `formatMoneyText` tampoco.
-- **Bracket y coherencia de display:** `bracket = Math.max(Math.round(top10Percent), Math.ceil(displayedSum))` donde `displayedSum` es la suma de los valores YA formateados. Garantiza que la fila nunca se contradiga (`1.3⋅1.3⋅1.3⋅1.3⋅1.3 [6%]` sería imposible: el bracket sube a 7). Nunca mostrar un bracket MENOR que los números impresos.
-- **Guard de coherencia:** `sum(topPercents) > top10Percent + HOLDER_SUM_EPSILON` → silencio. `ε = 1e-9` (puntos porcentuales), **una sola constante por app** (dexter no puede importar de market-data) y **el mismo literal pinneado en los dos specs**. En producción el invariante es exacto (§10.6.3); el ε solo absorbe serialización.
-- **Orden:** el cliente rechaza `topPercents` no descendente (cheap y determinista); el renderer imprime el array tal cual.
+- **Bracket y coherencia de display (en décimas enteras):** `displayedTenths = Σ round(p_i * 10)` sobre los MISMOS valores formateados; `bracket = Math.max(Math.round(top10Percent), Math.ceil(displayedTenths / 10))`. Sumar décimas **evita el acarreo binario** (`0.1+0.1+0.1+16.1+3.6 = 20.000000000000004` haría `ceil → 21` con suma impresa 20.0). Garantiza que la fila nunca se contradiga: jamás un bracket menor que los números impresos.
+- **Guard de coherencia:** `sum(topPercents) > top10Percent + HOLDER_SUM_EPSILON` → silencio. `ε = 1e-9` (puntos porcentuales), **una sola constante por app** (dexter no puede importar de market-data; `COMPUTED_FDV_EPSILON_*` es FDV-scoped, no reutilizable) y **el mismo literal pinneado en los dos specs**. El invariante es exacto cuando ambos lados acumulan sobre el MISMO array en el MISMO orden (§10.6.5); el ε absorbe el re-acumulado de dexter y el redondeo de display, **no la serialización** (JSON preserva el double exacto).
+- **Orden:** el cliente rechaza `topPercents` que no sea **no creciente** (`p[i] >= p[i+1]`); los empates son válidos.
 - Silencio (`""`) si: objeto ausente/null/malformado; `topPercents` vacío o >5; valor no finito o fuera de 0-100; `top10Percent` no finito o fuera de 0-100; suma incoherente. **Nunca `N/A`, nunca media fila.**
 - Escapado: componer crudo y `esc` UNA vez. `esc` = `escapeV2Text` → `escapeV2` (`message-formatter.ts:348-351`), set `[_*[\]()~`>#+=|{}.!\\-]`. Pinneado: `4.3`→`4\.3`(Telegram muestra`4.3`); `[20%]`→`\[20%\]`(muestra`[20%]`); `⋅`y`%` no se tocan. **NUNCA** escapar dos veces.
-- Cliente/pipeline: guard `toHolderConcentrationOrNull` en `market-data.client.ts` (patrón `toVenueOrNull`/`toHoneypotOrNull`, L80+) → rechaza arrays malformados, >5 entradas, no finitos, fuera de rango, no descendente y `sum > top10 + ε`; `ResolvedToken.holderConcentration?: … | null` (opcional para no romper los literales existentes); **añadirlo al tipo estructural inline de `toResolvedToken`** (`token-scan.pipeline.ts:302-345`) + mapearlo, o se descarta en silencio; re-validación en el pipeline (doble validación, precedente `honeypot`/`venue`).
+- Cliente/pipeline: guard `toHolderConcentrationOrNull` en `market-data.client.ts` (patrón `toVenueOrNull`/`toHoneypotOrNull`, L80+) → rechaza arrays malformados, >5 entradas, no finitos, fuera de rango, no no-creciente y `sum > top10 + ε`; `ResolvedToken.holderConcentration?: … | null` (opcional para no romper los literales existentes); **añadirlo al tipo estructural inline de `toResolvedToken`** (`token-scan.pipeline.ts:302-345`) + mapearlo, o se descarta en silencio; re-validación en el pipeline (doble validación, precedente `honeypot`/`venue`).
 - **Línea legacy** `👥 Holders` de `message-formatter.ts` (~L325, card `formatScanCard`): NO se toca.
 
-### 10.8 Body (v21) — NO aplicar en esta lane
+### 10.8 Body — NO aplicar en esta lane
 
-El body vivo es v20 (`RickBurpBot`, `isActive=false`). Cambio propuesto (v21), **solo tras OK del owner**:
+**La versión viva NO se puede afirmar desde el repo.** Este plan la cita como **v15** (§2 L54, P0-11 L88, L180, L319) y el operador la reporta como **v20**; el row es operator-owned y no está en git, `FULL_DEXTER_BODY` (`message-template-seed.service.ts:45`) es otra línea base y `runOnce` nunca sobreescribe un `(command,name)` existente. **Antes de cualquier edit: leer la fila viva y registrar versión + body + `isActive` en el preview.**
+
+Cambio propuesto (una versión más), **solo tras OK del owner**:
 
 `…{{ageSuffix}}{{market1hRow}}{{holderTopRow}}{{honeypotBlock}}`
 
-- **Inserción pura**: `holderTopRow` aporta su `\n\n` (línea en blanco, como en la captura) y el 🍯 aporta el suyo → `1H` → blanco → `👥 TH` → blanco → `🍯`. No hay que tocar los `\n` del body.
-- **Antes de aplicar, LEER la fila viva** y:
-  - si el v20 contiene `{{top10HolderPercent}}` (la semilla `FULL_DEXTER_BODY` lo trae: `👥 Holders {{holders}} • Top 10 {{top10HolderPercent}} • {{devLine}}`, `message-template-seed.service.ts:45`), **eliminarlo en el mismo edit** (C8): dos "top 10" con políticas distintas en el mismo card es lo prohibido.
-  - verificar que no haya un `\n` propio delante de `{{market1hRow}}` que produzca una línea en blanco extra cuando 1H está en silencio.
+- **Inserción CONDICIONAL, no "pura":** `holderTopRow` y `honeypotBlock` ya aportan su `\n\n`. Las tres keys deben quedar **contiguas, sin `\n` del body entre ellas**; si el body vivo trae separadores propios, eliminarlos en el mismo edit. Un `\n` extra = 3 `\n` = dos líneas en blanco, y `cleanupDanglingSeparators` no colapsa blancos.
+- **Eliminar `{{top10HolderPercent}}`** si está presente (C8): la semilla trae `👥 Holders {{holders}} • Top 10 {{top10HolderPercent}} • {{devLine}}` (`message-template-seed.service.ts:45`). Dos "top 10" con políticas distintas en el mismo card es lo prohibido.
 - Orden TH → después de 1H: **resuelto por evidencia** (§10.1b), ya no es fork.
-- Preview antes/después + `placeholdersUsed`; una sola operación.
+- Preview obligatorio en dos escenarios: `1H` presente + `TH` presente, y `1H` en silencio + `TH` presente (aquí se ve la contigüidad). Verificar `placeholdersUsed`.
 
 ### 10.9 Tests failing-first (cuando se implemente)
 
 **market-data**
 
-- `holder-concentration.service.spec.ts` (o el nombre del lane) — decode ATA vía `decodeTokenAccount`, `>= 165` con extensiones, merge BigInt por owner, re-orden descendente, **sumas acumuladas** (`sum(top5) ≤ top10` exacto), exclusiones en orden (uninitialized → burn `1111…` → program-owned → wallet `null`), denominador supply total, `supply 0n/null`, <5 y 0, no finitos, timeout propio → `null`, kill-switch.
-- `provider-quote-holder-concentration.spec.ts` — el fetcher emite SOLO `holderConcentration`; **exactamente 4 llamadas RPC** y chunks ≤100; `largest === null` → `null` con **cero** llamadas extra; un decode fallido se salta esa cuenta (no anula el objeto); call-counts pinneados; campo listado en `SNAPSHOT_QUOTE_FIELDS` + `emptySnapshotQuote()`; `MergeAcc` compila con el objeto.
+- `holder-concentration.service.spec.ts` (o el nombre del lane) — decode ATA vía `decodeTokenAccount`, `>= 165` con extensiones, merge BigInt por owner, exclusiones en orden (uninitialized → burn `1111…` → program-owned → wallet `null`), **exclusiones antes del corte**, re-orden descendente, **acumulados con `min(10,n)`** (`sum(top5) ≤ top10` exacto; **n = 1..9 no produce `NaN`**), denominador supply total, `supply 0n/null`, <5 y 0, no finitos, `top10 ≥ 100` clampeado, timeout propio → `null`, kill-switch, rate-limit throw → `null`.
+- `provider-quote-holder-concentration.spec.ts` — el fetcher emite SOLO `holderConcentration`; **tabla de call-counts por caso**: happy **4** (supply, largest, batch ATA, batch wallets) · `largest === null` → **1** y cero extra · `supply` null/0 → **1** y corta · decode parcial → **4** igual (los batches ya se pagaron) · timeout → corta donde esté. Chunks ≤100; un decode fallido se salta esa cuenta (no anula el objeto); campo listado en `SNAPSHOT_QUOTE_FIELDS` + `emptySnapshotQuote()`; `MergeAcc` compila con el objeto.
+- `cascade-order.spec.ts` / `provider-quote-newprov.spec.ts` / `zero-cost-cascade.spec.ts` — lista ordenada de nombres actualizada con `solana-holders` después de `solana-rpc`.
 - `gateway-market-data-snapshot.spec.ts` — la clave viaja en el edge compat y **NO** en batch.
 - `address-snapshot-holder-concentration-stale.spec.ts` — el replay SWR/stale sirve el objeto de la fila (sin recalcular), con el trato de honestidad ya existente.
 
 **dexter**
 
-- `template-renderer-holder-top-row.spec.ts` — matriz: 5/3/1 valores, 0 → `""`, objeto null → `""`, >5 → `""`, no finito/rango → `""`, `sum > top10 + ε` → `""`, prefijo exacto `"\n\n👥 TH: "`, formato `4.3` (cero conservado), bracket `Math.ceil(displayedSum)` cuando la suma mostrada supera el redondeo, escapado simple (`4\.3`, `\[20%\]`), sin `N/A`, catálogo/META, counts 53/54.
-- `market-data-client-holder-concentration.spec.ts` — guard: no-objeto, `topPercents` no array, >5, no descendente, no finito, fuera de rango, `sum > top10 + ε`, strings, ausente.
+- `template-renderer-holder-top-row.spec.ts` — matriz: 5/3/1 valores, `[]` → `""`, objeto null → `""`, >5 → `""`, no finito/rango → `""`, `sum > top10 + ε` → `""`, prefijo exacto `"\n\n👥 TH: "`, formato `4.3` (cero conservado), **bracket desde décimas** (el caso `0.1+0.1+0.1+16.1+3.6` da 20, no 21), escapado simple (`4\.3`, `\[20%\]`), sin `N/A`, catálogo/META, counts 53/54.
+- `market-data-client-holder-concentration.spec.ts` — guard: no-objeto, `topPercents` no array, >5, **no no-creciente** (con empates válidos), no finito, fuera de rango, `sum > top10 + ε`, strings, ausente.
 - `token-scan-holder-concentration.spec.ts` — passthrough + re-validación + el campo aparece en `ResolvedToken` (seam `toResolvedToken`).
 - `placeholders.controller.spec.ts` (nuevo) — **todos** los keys de **todos** los comandos tienen fila en `PLACEHOLDER_META` (C9).
 - Pins de conteo en los specs de registry/rick-card existentes (52→53, 53→54).
 
 ### 10.10 Docs a actualizar (cuando se implemente)
 
-- `apps/market-data/AGENTS.md` — sección nueva `HOLDER CONCENTRATION (TH)`: contrato, política (denominador/exclusiones/lower-bound), fetcher propio + coste (+4 RPC), cadena (Solana-only), fail-open, y el bug corregido de `TOKEN_2022_PROGRAM`.
+- `apps/market-data/AGENTS.md` — sección nueva `HOLDER CONCENTRATION (TH)`: contrato, política (denominador/exclusiones/orden/lower-bound), fetcher propio + coste (+4 RPC = 1 token), cadena (Solana-only), fail-open, y el typo de `TOKEN_2022_PROGRAM` si se limpia.
 - `apps/dexter-onchain-bot/AGENTS.md` — registry 53/54, la key derivada, mecánica `\n\n`, reglas de silencio/ε/coherencia de display, referencia a este §10.
 - `docs/deployment/market-data-staging-soak.md` — contadores nuevos: tasa de `holderConcentration: null` en Solana, latencia del fetcher y nº de llamadas RPC extra.
 - Este plan: al implementarse, mover §10.11 a "resueltas" con la decisión firmada.
@@ -633,26 +640,28 @@ El body vivo es v20 (`RickBurpBot`, `isActive=false`). Cambio propuesto (v21), *
 2. **F2 — Denominador:** supply total (recomendado) vs circulante reportado.
 3. **F3 — Exclusiones:** (a) ninguna; (b) uninitialized + burn + program-owned + wallet-null (recomendado); (c) además lista curada de pools/CEX (necesita fuente, hoy inexistente).
 4. **F4 — <5 wallets:** renderizar 1..5 (recomendado) vs exigir exactamente 5 o silencio.
-5. **F5 — Redondeo:** 1dp con cero conservado (evidencia) + bracket `max(round, ceil(displayedSum))` (recomendado) vs `floor` vs trim.
+5. **F5 — Redondeo:** 1dp con cero conservado (evidencia) + bracket `max(round, ceil(décimas/10))` (recomendado) vs `floor` vs trim.
 6. **F6 — Creator bold:** fuera de v1 (recomendado) vs incluirlo (requiere resolución de la wallet del creator + composición con `*` crudo).
 7. **F7 — ~~Orden en el card~~:** **RESUELTO por evidencia** — TH va después de `1H`, separada por una línea en blanco (§10.1b). Ya no es decisión.
-8. **F8 — Fast path (nueva, del review):** los cards fast nunca producen el objeto. (a) calcularlo ahí (probablemente rompe el presupuesto de 800 ms), (b) **declarar los cards fast TH-silenciosos y spec-pinnearlo (recomendado**, mismo trato que honeypot/lock), (c) desactivar el fast serve para tokens sin concentración.
-9. **F9 — Burn/null-wallet (nueva, del review):** ¿basta `1111…` como único patrón de burn (recomendado) o el owner quiere además el incinerador SPL (requiere constante verificada, hoy no existe en el repo)? ¿Y confirmamos "wallet `null` → excluida"?
+8. **F8 — Fast path:** (a) calcularlo ahí y (c) desactivar el fast serve quedan **DESCARTADAS**: `tryResolve(..., 800)` es all-or-nothing (`address-snapshot.service.ts:1470-1478`), así que una pata TH ahí dentro puede perder el fast serve COMPLETO (ya se incumplen los 800 ms con 2 rondas secuenciales, 900-1200 ms medidos; TH añade 2), y (c) lo desactivaría justo en los tokens fríos. **Única opción viva: (b) cards fast TH-silenciosos** → `holderConcentration` ausente/null **sin** nota `degraded` y **sin** `honeypot:fast-path`: el precedente correcto es el **lock** (null silencioso), no el honeypot (que sí anota porque su ausencia es fallo de análisis; la de TH es límite de alcance). Spec-pinnear: fast path → objeto ausente, `degraded` sin cambios.
+9. **F9 — Burn/null-wallet:** ¿basta `1111…` como único patrón de burn (recomendado) o el owner quiere además el incinerador SPL (requiere constante verificada, hoy no existe en el repo)? ¿Y confirmamos "wallet `null` → excluida"?
 
-**Gate:** firmar F1-F9 **no** desbloquea la implementación por sí solo: §10.0 tiene 3 precondiciones de código que son bugs/contratos (C1 `MergeAcc`, C2 `TOKEN_2022_PROGRAM`, C3 edge compat) y C8 es un paso del edit del body. Sin F1-F9 firmadas **y** C1-C9 resueltas, NO se escribe código, NO se edita el body, NO se activa nada. `RickBurpBot` sigue en v20 `isActive=false`.
+**Gate:** firmar F1-F9 **no** desbloquea la implementación por sí solo: §10.0 tiene precondiciones que son contratos (C1 `MergeAcc`, C3 edge compat, C5 fetcher aislado, C8 limpieza del body) y C4 depende de F8. **C2 es limpieza opcional, no bloquea.** Sin F1-F9 firmadas **y** C1/C3/C5/C8 resueltas, NO se escribe código, NO se edita el body, NO se activa nada. El `RickBurpBot` sigue inactivo.
 
 ### 10.12 Riesgos
 
-| Riesgo                                                       | Mitigación                                                                                                                                   |
-| ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| Lista dominada por el vault del pool/curva → fila engañosa   | F3(b): excluir uninitialized/burn/program-owned/null; si el owner elige (a), el silencio es preferible a una fila falsa                      |
-| Excluir program-owned tira wallets multisig                  | Falso NEGATIVO aceptado y documentado (Squads); nunca falso positivo                                                                         |
-| Un ATA sin inicializar se clasifica como burn                | Filtrar `isUninitializedTokenAccount` ANTES de la exclusión de burn (§10.6.4)                                                                |
-| Top-10 es lower bound (ventana de 20 cuentas)                | Documentado; nunca sobrestatement                                                                                                            |
-| Token-2022                                                   | Reusar `decodeTokenAccount` (`>= 165`); gate por programa con la constante CORREGIDA (C2) o sin gate; extensiones ignoradas → fail-open      |
-| +4 RPC y días 429-walled                                     | Fetcher propio en paralelo + presupuesto 1500 ms + kill-switch; el soak mide; los campos legacy no se tocan                                  |
-| Bracket menor que la suma mostrada                           | `Math.max(round(top10), ceil(displayedSum))` + spec                                                                                          |
-| Dos "top 10" distintos en el mismo card                      | C8: eliminar `{{top10HolderPercent}}` del body v21 + regla documentada                                                                       |
-| `[N%]` con exclusiones no comparable con Rick                | Los docs de Rick NO documentan exclusiones → no reclamamos paridad numérica, solo estructura                                                 |
-| Fila colgada o línea en blanco extra                         | `\n\n` en la key + leer la fila viva antes del edit + preview antes/después                                                                  |
-| `truncateText` puede cortar entre `\` y el carácter escapado | Preexistente (`message-formatter.ts:45-52`); la fila alarga el tail ~40 chars → más exposición. Fuera de alcance: anotado, no corregido aquí |
+| Riesgo                                                         | Mitigación                                                                                                                                   |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Lista dominada por el vault del pool/curva → fila engañosa     | F3(b): excluir uninitialized/burn/program-owned/null **antes del corte**; si el owner elige (a), el silencio es preferible a una fila falsa  |
+| Token con <10 wallets silenciado por `NaN`                     | `min(10, n)` en el acumulador (§10.6.5) + spec de n=1..9                                                                                     |
+| Un token 100%-held descartado por un ulp                       | Guard `[-ε, 100+ε]` + clamp a `[0,100]` para display (§10.6.7)                                                                               |
+| Excluir program-owned tira wallets multisig                    | Falso NEGATIVO aceptado y documentado (Squads); nunca falso positivo                                                                         |
+| Un ATA sin inicializar se clasifica como burn                  | Filtrar `isUninitializedTokenAccount` ANTES de la exclusión de burn (§10.6.4)                                                                |
+| Top-10 es lower bound (ventana de 20 cuentas)                  | Documentado; nunca sobrestatement                                                                                                            |
+| Token-2022                                                     | Reusar `decodeTokenAccount` (`>= 165`, program-agnóstico); **no** gatear por program id (C2)                                                 |
+| +4 RPC y días 429-walled                                       | Fetcher propio en paralelo + presupuesto 1500 ms + kill-switch + try/catch (el rate-limit gate lanza); los campos legacy no se tocan         |
+| Bracket menor que la suma mostrada / `ceil` inflado por floats | Décimas enteras + `max(round(top10), ceil(décimas/10))` (§10.7)                                                                              |
+| Dos "top 10" distintos en el mismo card                        | C8: eliminar `{{top10HolderPercent}}` del body nuevo + regla documentada                                                                     |
+| `[N%]` con exclusiones no comparable con Rick                  | Los docs de Rick NO documentan exclusiones → no reclamamos paridad numérica, solo estructura                                                 |
+| Línea en blanco doble o fila colgada                           | Contigüidad obligatoria de las tres keys (§10.8) + leer la fila viva + preview con 1H vacío y con 1H presente                                |
+| `truncateText` puede cortar entre `\` y el carácter escapado   | Preexistente (`message-formatter.ts:45-52`); la fila alarga el tail ~40 chars → más exposición. Fuera de alcance: anotado, no corregido aquí |
