@@ -101,6 +101,13 @@ budget (calibrated 2026-10-26 after measuring the keyed Helius transport:
 - `solana-holders: "no data"` while `solana-rpc` also says `no data` → the RPC
   tier walk is walled (429/403); this is the documented fail-open, not a bug.
   Both public endpoints 429/403 simultaneously on 2026-10-26.
+- `solana-holders: "no data"` + `holderConcentration: null` while `solana-rpc`
+  **still contributes** `totalSupply` → the public tier answers
+  `getTokenSupply` but 429s `getTokenLargestAccounts`. Measured on staging
+  2026-10-26 right after the 3800 ms deploy (staging has NO
+  `HELIUS_RPC_URL_MAINNET`): expected on Solana until the staging provider
+  key lands, **not** a TH regression — dev with the keyed transport serves
+  the row (BONK 3.507 s / WIF 2.925 s cold, both `ready`).
 - `solana-holders` **absent** from `providerErrors` on a Solana ready row → the
   leg contributed; `quote.holderConcentration` should carry
   `{ topPercents, top10Percent }`.
