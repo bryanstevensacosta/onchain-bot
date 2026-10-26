@@ -2421,6 +2421,12 @@ new provider, no key: same responses.
   across sources), `applied` now covers the seven quote fields, and
   `sources` still names `geckoterminal` exactly once. No new HTTP: the
   bucket rides the same pool response the OHLC leg already paid for.
+  FETCHER SEAM (2026-10-26, staging-fixed): the `geckoterminal` quote
+  fetcher's two pool-pick literals (`needsPool` gap-fill + `searchPools`
+  discovery) ALSO forward the four fields — its own `priceChange24h`
+  makes the derivation early-return (native-wins), so the fetcher is the
+  only producer for that class. Still zero extra calls; the
+  info-complete path emits NO key (single-writer pin intact).
 - `pairCreatedAt`: `pairCreatedAtMs ?? derivedResolution.market?.poolCreatedAtMs ?? null`,
   converted ONCE with `toIsoPairCreatedAt` — closes the todo-63 caveat
   "Gecko-only → null".
@@ -2477,7 +2483,8 @@ new provider, no key: same responses.
   `snapshot-venue-market.spec.ts`, plus extended
   `provider-quote-fetchers-gecko-nets.spec.ts` / `geckoterminal-top5.spec.ts` /
   `address-snapshot-venue-gecko.spec.ts`.
-  Suite 161/1307 (1h harvest: +1 suite / +12 tests over the 160/1295
+  Suite 161/1309 (1h harvest: +2 tests from the fetcher-seam regression
+  found on staging; +1 suite / +12 tests over the 160/1295
   lane baseline; todo-72 baseline 157/1198).
 
 ## LATENCY PACKAGE — SWR-NOW + EXISTENCE + RACE DEADLINES + PENDING AGING (dexter plan todo 21, 2026-10-18)

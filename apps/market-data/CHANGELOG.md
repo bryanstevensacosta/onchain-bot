@@ -1390,3 +1390,21 @@ program | exchange | unknown`) via `AddressIdVo` (mandatory chain
 - **Precondition Gate T2 (todo 0):** 6/6 backend feed areas verified carrying
   `Moved to apps/feed-publisher` headers (see
   `.omo/evidence/task-0-mega-refactor-market-data.log`).
+
+### Fixed
+
+- **Gecko 1H row now reaches the card on the pool-fallback fetcher
+  (2026-10-26, staging regression found by the soak).** The 1-hour
+  harvest only wrote the four fields into `VenueMarketReading`, so it
+  fired exclusively through the OHLC-derivation leg. A Gecko-only token
+  whose `priceChange24h` comes from `selectPoolQuote` (the
+  `geckoterminal` quote fetcher's `needsPool` / `searchPools` legs) makes
+  the derivation early-return under native-wins, so the row stayed
+  `null` even though the same pool response already carried
+  `volume_usd.h1`, `price_change_percentage.h1` and `transactions.h1`.
+  Both pool-pick literals now forward `volume1hUsd`, `priceChange1h`,
+  `txns1hBuys` and `txns1hSells` from the pick they already hold — ZERO
+  extra HTTP calls, identical null-only/whole-pair contract, and the
+  info-complete path keeps emitting no key (single-writer pin intact).
+  Specs: `provider-quote-1h.spec.ts` +2 (needsPool + searchPools legs,
+  failing-first red→green); suite 161/1309 green, `tsc` clean.

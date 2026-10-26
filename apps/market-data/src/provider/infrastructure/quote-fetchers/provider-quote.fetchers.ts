@@ -433,6 +433,14 @@ export function buildProviderQuoteFetchers(
           liquidityUsd: pick.liquidityUsd,
           volume24hUsd: pick.volume24hUsd,
           priceChange24h: pick.priceChange24h,
+          // 1H bucket off the SAME pick, same response (dexter `1H` row).
+          // This leg is the ONLY producer for Gecko-only tokens: its own
+          // `priceChange24h` makes the OHLC derivation early-return
+          // (native-wins), so dropping these four would null the row.
+          volume1hUsd: pick.volume1hUsd,
+          priceChange1h: pick.priceChange1h,
+          txns1hBuys: pick.txns1hBuys,
+          txns1hSells: pick.txns1hSells,
         };
         return quote;
       }
@@ -472,6 +480,19 @@ export function buildProviderQuoteFetchers(
           toNumber(info.priceChangePercentH24) ??
           poolPick?.priceChange24h ??
           null,
+        // 1H bucket off the SAME pool pick (`null` when no pool was
+        // needed, absent key otherwise — the single-writer contract for
+        // the common info-complete path stays byte-identical): `0`
+        // survives, absent stays `null`, txns are a whole pair —
+        // `selectPoolQuote` owns that contract. Zero extra calls.
+        ...(poolPick === null
+          ? {}
+          : {
+              volume1hUsd: poolPick.volume1hUsd,
+              priceChange1h: poolPick.priceChange1h,
+              txns1hBuys: poolPick.txns1hBuys,
+              txns1hSells: poolPick.txns1hSells,
+            }),
         holders: toNumber(info.holders),
         top10HolderPercent: toNumber(info.top10HolderPercent),
         symbol: info.symbol,

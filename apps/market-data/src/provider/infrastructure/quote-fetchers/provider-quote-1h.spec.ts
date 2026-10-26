@@ -1,5 +1,6 @@
 import { buildProviderQuoteFetchers } from './provider-quote.fetchers';
 import type { DexScreenerPairSummary } from 'provider/infrastructure/dexscreener/dexscreener.types';
+import type { GeckoTerminalPoolResource } from 'provider/infrastructure/geckoterminal/geckoterminal.types';
 
 /**
  * DexScreener 1-hour bucket → snapshot quote (dexter `1H` row).
@@ -11,6 +12,8 @@ import type { DexScreenerPairSummary } from 'provider/infrastructure/dexscreener
  */
 const MINT = 'So11111111111111111111111111111111111111112';
 const EVM = '0x1111111111111111111111111111111111111111';
+const OTHER = '0x0000000000000000000000000000000000000002';
+const EVM_POOL = '0x7c5e1f873f02b042995d0c6ebee94120a740e348';
 const ONE_HOUR_KEYS = [
   'volume1hUsd',
   'priceChange1h',
@@ -238,5 +241,98 @@ describe('other quote legs never write the 1h fields', () => {
     for (const key of ONE_HOUR_KEYS) {
       expect(quote).not.toHaveProperty(key);
     }
+  });
+});
+
+/**
+ * GeckoTerminal quote fetcher — 1h bucket off the pool pick it ALREADY
+ * fetches (dexter `1H` row, zero extra HTTP calls).
+ *
+ * The two pool legs (`needsPool` gap-fill and the `searchPools`
+ * Gecko-only discovery) already forward liquidity/volume24h/change24h
+ * from the same pick; the 1h bucket rides along under the identical
+ * null-only contract (real `0` survives, absent → `null`, txns are a
+ * whole pair). Live regression this pins: a Gecko-only token whose
+ * 24h change comes from ITS OWN pool pick never enters the OHLC
+ * derivation leg (native-wins), so the fetcher mapping is the only
+ * place the 1h bucket can reach the card.
+ */
+function gPool(): GeckoTerminalPoolResource {
+  return {
+    id: `bsc_${EVM_POOL}`,
+    type: 'pool',
+    attributes: {
+      address: EVM_POOL,
+      base_token_price_usd: '0.000002130265097',
+      quote_token_price_usd: '2692.72',
+      fdv_usd: '2130.265097',
+      reserve_in_usd: '4044.5769',
+      volume_usd: { h24: '0.2577854268', h1: '0' },
+      price_change_percentage: { h24: '0', h1: '0' },
+      transactions: { h1: { buys: 0, sells: 0 } },
+    },
+    relationships: {
+      base_token: { data: { id: `bsc_${EVM}` } },
+      quote_token: { data: { id: `bsc_${OTHER}` } },
+      dex: { data: { id: 'pancakeswap_v2', type: 'dex' } },
+    },
+  };
+}
+
+function gInfo(overrides: Record<string, unknown> = {}) {
+  return {
+    address: EVM,
+    name: 'Flap Token',
+    symbol: 'FLAP',
+    totalSupply: '1000000000',
+    decimals: 18,
+    holders: 92,
+    top10HolderPercent: 12,
+    gtScore: null,
+    priceUsd: '0.000002130265097',
+    fdvUsd: '2130.265097',
+    marketCapUsd: null,
+    volumeUsdH24: null,
+    priceChangePercentH24: null,
+    gtCategoryIds: null,
+    ...overrides,
+  };
+}
+
+describe('geckoterminal quote fetcher — 1h bucket off the same pool pick', () => {
+  it('forwards the 1h bucket on the needsPool gap-fill leg', async () => {
+    const d = deps({
+      geckoterminal: {
+        getTokenInfo: async () => gInfo({ priceUsd: null }),
+        getTokenPools: async () => [gPool()],
+      },
+    });
+
+    const quote = await fetcher(d, 'geckoterminal').fetch('bsc', EVM);
+
+    expect(quote?.priceChange24h).toBe(0);
+    expect(quote?.volume1hUsd).toBe(0);
+    expect(quote?.priceChange1h).toBe(0);
+    expect(quote?.txns1hBuys).toBe(0);
+    expect(quote?.txns1hSells).toBe(0);
+  });
+
+  it('forwards the 1h bucket on the search-pools discovery leg', async () => {
+    const getTokenPools = jest.fn(async () => null);
+    const d = deps({
+      geckoterminal: {
+        getTokenInfo: async () => null,
+        getTokenPools,
+        searchPools: async () => [gPool()],
+      },
+    });
+
+    const quote = await fetcher(d, 'geckoterminal').fetch('bsc', EVM);
+
+    expect(quote?.volume1hUsd).toBe(0);
+    expect(quote?.priceChange1h).toBe(0);
+    expect(quote?.txns1hBuys).toBe(0);
+    expect(quote?.txns1hSells).toBe(0);
+    expect(getTokenPools).not.toHaveBeenCalled();
   });
 });
