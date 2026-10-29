@@ -161,7 +161,7 @@ the pre-fix line.
 | 4   | 2026-10-24 | —      | —            | —               | —              | —              | —    | **NO RUN** — daily soak did not execute (gap; see continuity note)                                                                                                            |
 | 5   | 2026-10-25 | —      | —            | —               | —              | —              | —    | **NO RUN** — daily soak did not execute (gap; see continuity note)                                                                                                            |
 | 6   | 2026-10-26 | 200    | 3            | ready           | 9              | 0              | 84   | chains=7; snapshot_ms=2203; degraded=false; stale=false; sources `dexscreener`/`evm-rpc`; 429-log-lines=9 (<20); deploys 40308277602 (dexter) + 40308277696 (1H fields) green |
-| 7   | 2026-10-27 | —      | —            | —               | —              | —              | —    | —                                                                                                                                                                             |
+| 7   | 2026-10-27 | —      | —            | —               | —              | —              | —    | **NO RUN** — daily script not executed; sampler covered 24/24 hours (min 1.4 ms / max 11.4 ms)                                                                                |
 
 **Continuity gap (days 4-5, 2026-10-24 / 2026-10-25).** The daily soak
 run did not execute on either day: `~/market-data-soak.jsonl` has no
@@ -177,6 +177,23 @@ streak therefore continues (days 1-7 = 2026-10-21 → 2026-10-27, with
 days 4-5 covered by sampler liveness only), the cutover review stays on
 **2026-10-28**, and the missing daily lines stay marked `NO RUN` — they
 are never back-filled.
+
+**Post-window read (2026-10-29, measured).** Day 7 produced no daily line, so the
+window's last recorded daily run is day 6; the sampler carries days 4, 5 and 7
+(24/24 distinct hours on 10-24, 10-25, 10-27 and 10-28, hourly until the read on
+10-29). A fresh daily run was recorded after the window closed:
+`2026-10-29T13:11:23Z` — health `200` at 2 ms, chains `200` / 7, snapshot
+`ready` at 1212 ms, `providerErrors` 3 keys (`dev:fast-path`,
+`honeypot:fast-path`, `onchain-direct`), `degraded:true`, `stale:false`,
+sources `onchain-direct` / `geckoterminal-ohlcv` / `geckoterminal`,
+`snapshot_history` 105 rows. Same window: TypeORM/connection errors **0**,
+429/quota log lines **8** (< 20 threshold), health sampler p95 **31.3 ms**
+(n=24, min 1.2 ms, max 33.3 ms) — higher than the 13.9 ms read of 2026-10-26
+but still ~16× under the 500 ms gate. Last market-data staging deploy inside the
+window is `40337827218` (2026-10-26T14:14Z, green, post-deploy smoke included).
+**Criterion #4 is still open:** no rollback rehearsal has been dispatched, so
+the soak cannot be declared closed until that run id and its measured downtime
+are recorded here (operator decision — the §8 lane is dispatch-only).
 
 **Validation note (2026-10-22) — how to read a staging snapshot.**
 `status`/`stale` describe the SERVE, not the code version. When the
