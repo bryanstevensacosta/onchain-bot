@@ -746,6 +746,16 @@ Implementado en el renderer:
 
 Silencio verificado con un token sin los campos (`A{{holderTopRow}}B` → `AB`, `A{{market1hRow}}B` → `AB`) y el catálogo devuelve la META nueva en ambos keys. dexter **82 suites / 971 tests** verdes + `tsc --noEmit` + prettier limpios.
 
+**Staging (deploy `40869291275` verde sobre `3558f85f`).** El catálogo `:4061` sirve la META nueva en AMBOS keys. Preview con `token` echo (sin proveedores, con los valores exactos del pedido):
+
+```text
+📉 1H: `1.1K` ⋅ `-4.1%` 🅑 `25` Ⓢ `26`
+
+👥 TH: `2.4`⋅`1.3`⋅`1.2`⋅`1.2`⋅`1.2` \[`12%`\]
+```
+
+Un preview por address (BONK) en staging devuelve `Token not found` — market-data staging no resuelve ese mint en esta ventana (proveedores 429), no un fallo del renderer; el path `token` prueba el build desplegado sin red.
+
 **Sigue pendiente (requiere OK explícito)**
 
 1. Editar el body vivo de `RickBurpBot` para insertar `{{holderTopRow}}` — contiguo a `{{market1hRow}}` (la fila baja su propia línea en blanco) y **eliminando** `{{top10HolderPercent}}` si estuviera (C8). Leer antes versión + body + `isActive`.
