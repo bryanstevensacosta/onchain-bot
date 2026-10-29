@@ -191,9 +191,28 @@ sources `onchain-direct` / `geckoterminal-ohlcv` / `geckoterminal`,
 (n=24, min 1.2 ms, max 33.3 ms) — higher than the 13.9 ms read of 2026-10-26
 but still ~16× under the 500 ms gate. Last market-data staging deploy inside the
 window is `40337827218` (2026-10-26T14:14Z, green, post-deploy smoke included).
-**Criterion #4 is still open:** no rollback rehearsal has been dispatched, so
-the soak cannot be declared closed until that run id and its measured downtime
-are recorded here (operator decision — the §8 lane is dispatch-only).
+**Criterion #4 is still open:** no rollback rehearsal had been dispatched when
+this paragraph was first written. **Rehearsal recorded the same day — see the
+paragraph below.**
+
+**Rollback rehearsal (criterion #4) — run `40881063144`, dispatched
+2026-10-29T13:20:42Z.** Lane:
+`gh workflow run deploy-market-data-staging.yml --ref dev -f lane=rollback-market-data-staging`;
+job green in 31 s. It pulled `:staging-prev-market-data`, recreated the service
+and passed the health gate with a measured downtime window of
+`2026-10-29T13:20:57Z → 2026-10-29T13:21:11Z` (**14 s**; the 10 s poll step
+reported healthy after ~20 s). The re-raised image carries the same creation
+timestamp as the build that was running before the rehearsal
+(`2026-10-26T14:17:11Z`), so this was a controlled recreate of the identical
+build — no code downgrade, no schema or data change. Post-rehearsal soak line
+`2026-10-29T13:22:04Z`: health `200` at 4 ms, chains `200` / 7, snapshot
+`ready`, `degraded:false`, `stale:true` (SWR-now right after the recreate),
+`providerErrors` 1, `snapshot_history` 105 rows; in the following hour 0
+TypeORM errors and 1 × 429 log line. **Interpretation flagged for owner
+sign-off:** §7 says "any rollback dispatch restarts the 7-day count"; this
+dispatch is recorded as a rehearsal (same build, health gate never failed), not
+an incident, so the streak is not restarted — the owner should ratify that
+reading when the cutover decision is recorded.
 
 **Validation note (2026-10-22) — how to read a staging snapshot.**
 `status`/`stale` describe the SERVE, not the code version. When the
