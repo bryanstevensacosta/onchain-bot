@@ -81,3 +81,12 @@ test-telegram-message.mjs
 # Playwright local artifacts
 apps/frontend/playwright-report/
 apps/frontend/test-results/
+
+# oh-my-opencode-slim / OpenCode local state
+# Config itself IS tracked: .opencode/oh-my-opencode-slim.jsonc (+ commands/, skills/)
+.slim/worktrees/
+.slim/worktrees.json
+.slim/clonedeps/repos/
+.slim/deepwork/
+.opencode/images/
+.opencode/node_modules/

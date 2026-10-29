@@ -1,0 +1,280 @@
+// Project-scoped oh-my-opencode-slim config (committed on purpose).
+// Discovery: <repo>/.opencode/oh-my-opencode-slim.json[c], merged user -> ancestors -> cwd.
+// Deep-merged keys: presets, agents, council, backgroundJobs, fallback, webfetch, multiplexer,
+// interview, acpAgents, companion. Everything else (and every array) is REPLACED by this file.
+// Root-level `preset` pins the project default; delete it to let each dev keep their own.
+// No secrets here: only model IDs/variants/skills/mcps. Use "{env:VAR}" if a value needs an env.
+// Changes in .opencode/ alter tools/models/permissions -> treat PRs touching it as security-relevant.
+// Escape hatch to ignore this layer entirely: OPENCODE_DISABLE_PROJECT_CONFIG=true
+{
+  "$schema": "https://unpkg.com/oh-my-opencode-slim@latest/oh-my-opencode-slim.schema.json",
+  "preset": "opencode-max",
+  "council": {
+    "presets": {
+      "opencode": {
+        "seat-deepseek": {
+          "model": "opencode/deepseek-v4.1-flash-free",
+          "variant": "high"
+        },
+        "seat-mimo": {
+          "model": "opencode/mimo-v2.6-flash-free"
+        },
+        "seat-glm": {
+          "model": "opencode/glm-5.3-flash-free",
+          "variant": "low"
+        }
+      },
+      "opencode-max": {
+        "seat-deepseek": {
+          "model": "opencode/deepseek-v4.1-flash-free",
+          "variant": "max"
+        },
+        "seat-mimo": {
+          "model": "opencode/mimo-v2.6-flash-free"
+        },
+        "seat-glm": {
+          "model": "opencode/glm-5.3-flash-free",
+          "variant": "max"
+        }
+      }
+    },
+    "default_preset": "opencode"
+  },
+  "presets": {
+    "openai": {
+      "orchestrator": {
+        "model": "openai/gpt-6-sol",
+        "variant": "high",
+        "skills": [
+          "*"
+        ],
+        "mcps": [
+          "*",
+          "!context7"
+        ]
+      },
+      "oracle": {
+        "model": "openai/gpt-6-astra",
+        "variant": "high",
+        "skills": [
+          "simplify"
+        ],
+        "mcps": []
+      },
+      "librarian": {
+        "model": "openai/gpt-6-luna",
+        "variant": "low",
+        "skills": [],
+        "mcps": [
+          "context7",
+          "gh_grep"
+        ]
+      },
+      "explorer": {
+        "model": "openai/gpt-6-luna",
+        "variant": "low",
+        "skills": [],
+        "mcps": []
+      },
+      "designer": {
+        "model": "openai/gpt-6-luna",
+        "variant": "medium",
+        "skills": [],
+        "mcps": []
+      },
+      "fixer": {
+        "model": "openai/gpt-6-luna",
+        "variant": "high",
+        "skills": [],
+        "mcps": []
+      }
+    },
+    "opencode-go": {
+      "orchestrator": {
+        "model": "opencode-go/minimax-m3",
+        "variant": "thinking",
+        "skills": [
+          "*"
+        ],
+        "mcps": [
+          "*",
+          "!context7"
+        ]
+      },
+      "oracle": {
+        "model": "opencode-go/qwen3.7-max",
+        "variant": "max",
+        "skills": [
+          "simplify"
+        ],
+        "mcps": []
+      },
+      "explorer": {
+        "model": "opencode-go/deepseek-v4-flash",
+        "variant": "high",
+        "skills": [],
+        "mcps": []
+      },
+      "librarian": {
+        "model": "opencode-go/deepseek-v4-flash",
+        "variant": "high",
+        "skills": [],
+        "mcps": [
+          "context7",
+          "gh_grep"
+        ]
+      },
+      "designer": {
+        "model": "opencode-go/kimi-k2.7-code",
+        "skills": [],
+        "mcps": []
+      },
+      "fixer": {
+        "model": "opencode-go/deepseek-v4-flash",
+        "variant": "high",
+        "skills": [],
+        "mcps": []
+      },
+      "observer": {
+        "model": "opencode-go/mimo-v2.5",
+        "skills": [],
+        "mcps": []
+      }
+    },
+    "opencode": {
+      "orchestrator": {
+        "model": "opencode/deepseek-v4.1-flash-free",
+        "variant": "high",
+        "temperature": 0.2,
+        "skills": [
+          "*"
+        ],
+        "mcps": [
+          "*",
+          "!context7"
+        ]
+      },
+      "explorer": {
+        "model": "opencode/mimo-v2.6-flash-free",
+        "temperature": 0.2,
+        "skills": [],
+        "mcps": []
+      },
+      "librarian": {
+        "model": "opencode/glm-5.3-flash-free",
+        "variant": "low",
+        "temperature": 0.2,
+        "skills": [],
+        "mcps": [
+          "context7",
+          "gh_grep"
+        ]
+      },
+      "oracle": {
+        "model": "opencode/deepseek-v4.1-flash-free",
+        "variant": "high",
+        "temperature": 0.2,
+        "skills": [
+          "simplify"
+        ],
+        "mcps": []
+      },
+      "designer": {
+        "model": "opencode/glm-5.3-flash-free",
+        "variant": "low",
+        "temperature": 0.7,
+        "skills": [],
+        "mcps": []
+      },
+      "fixer": {
+        "model": "opencode/deepseek-v4.1-flash-free",
+        "variant": "high",
+        "temperature": 0.2,
+        "skills": [],
+        "mcps": []
+      },
+      "observer": {
+        "model": "opencode/mimo-v2.6-flash-free",
+        "temperature": 0.2,
+        "skills": [],
+        "mcps": []
+      },
+      "council": {
+        "model": "opencode/deepseek-v4.1-flash-free",
+        "variant": "high",
+        "temperature": 0.4
+      }
+    },
+    "opencode-max": {
+      "orchestrator": {
+        "model": "opencode/deepseek-v4.1-flash-free",
+        "variant": "max",
+        "temperature": 0.2,
+        "skills": [
+          "*"
+        ],
+        "mcps": [
+          "*",
+          "!context7"
+        ]
+      },
+      "explorer": {
+        "model": "opencode/deepseek-v4.1-flash-free",
+        "variant": "max",
+        "temperature": 0.2,
+        "skills": [
+          "codemap",
+          "clonedeps"
+        ],
+        "mcps": []
+      },
+      "librarian": {
+        "model": "opencode/deepseek-v4.1-flash-free",
+        "variant": "max",
+        "temperature": 0.2,
+        "skills": [],
+        "mcps": [
+          "context7",
+          "gh_grep"
+        ]
+      },
+      "oracle": {
+        "model": "opencode/deepseek-v4.1-flash-free",
+        "variant": "max",
+        "temperature": 0.2,
+        "skills": [
+          "simplify",
+          "verification-planning"
+        ],
+        "mcps": []
+      },
+      "designer": {
+        "model": "opencode/deepseek-v4.1-flash-free",
+        "variant": "max",
+        "temperature": 0.7,
+        "skills": [],
+        "mcps": []
+      },
+      "fixer": {
+        "model": "opencode/deepseek-v4.1-flash-free",
+        "variant": "max",
+        "temperature": 0.2,
+        "skills": [
+          "verification-planning"
+        ],
+        "mcps": []
+      },
+      "observer": {
+        "model": "opencode/mimo-v2.6-flash-free",
+        "temperature": 0.2,
+        "skills": [],
+        "mcps": []
+      },
+      "council": {
+        "model": "opencode/deepseek-v4.1-flash-free",
+        "variant": "max",
+        "temperature": 0.4
+      }
+    }
+  }
+}

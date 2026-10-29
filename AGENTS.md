@@ -651,6 +651,7 @@ Lossy by design: no replay (backfill endpoint deleted with the multi-backend lay
 - **Frontend port 5173 is strict**: Vite exits if port is held; cleanup script handles this.
 - **`@/*` = `src/*` in every Nest app** (2026-09-27 migration): use it for all imports 2+ levels up; single-level `../x` stays relative.
 - **No CLAUDE.md exists** — conventions live in `apps/backend/docs/spydefi/arch/`, `GOVERNANCE.md` (branches), and per-app AGENTS.md files.
+- **oh-my-opencode-slim config is project-scoped** (since 2026-10-29): `.opencode/oh-my-opencode-slim.jsonc` is committed and deep-merged over the user's `~/.config/opencode/oh-my-opencode-slim.json` (user → ancestors → cwd). `opencode.json` registers `"plugin": ["oh-my-opencode-slim"]`. Root `preset: opencode-max` pins the project default; arrays and non-mergeable keys are REPLACED by the project file. No secrets inside — only model IDs/variants/skills/mcps (use `{env:VAR}` if ever needed). Escape hatch: `OPENCODE_DISABLE_PROJECT_CONFIG=true`. Treat edits under `.opencode/` as security-relevant (they change tools/models/permissions).
 - **AGENTS.md map**: this file (root) + `apps/{backend,ingestion-telegram,frontend}/AGENTS.md`. No sub-BC AGENTS.md remain (consolidated 2026-09-04).
 
 ## MEGA-REFACTOR (branch `feat/mega-refactor-tramos`)
