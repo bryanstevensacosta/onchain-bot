@@ -41,8 +41,8 @@ describe('placeholder-registry (todo 4 closed vocabulary)', () => {
     ]);
   });
 
-  it('holds the thirty-two derived keys (devLine is derived, not base)', () => {
-    expect(DERIVED_PLACEHOLDERS).toHaveLength(32);
+  it('holds the thirty-nine derived keys (devLine is derived, not base)', () => {
+    expect(DERIVED_PLACEHOLDERS).toHaveLength(39);
     expect([...DERIVED_PLACEHOLDERS]).toEqual([
       'chainDisplay',
       'scanLinks',
@@ -71,6 +71,14 @@ describe('placeholder-registry (todo 4 closed vocabulary)', () => {
       'headerIcon',
       // Rick title status emoji (newTokenIcon, <15m pair age).
       'newTokenIcon',
+      // Launchpad (bonding-curve) layout (2026-10-30): the 7 keys.
+      'curveRow',
+      'quoteSuffix',
+      'fdvChangeBracket',
+      'usdRow',
+      'liqRow',
+      'market5mRow',
+      'marketRow',
       'liquidityUsdSide',
       'liquidityFlags',
       'honeypotBlock',
@@ -83,15 +91,15 @@ describe('placeholder-registry (todo 4 closed vocabulary)', () => {
     ]);
   });
 
-  it('grants every command base + derived (54 keys)', () => {
+  it('grants every command base + derived (61 keys)', () => {
     for (const command of ['ca', 'x', 'z', 'bare'] as const) {
-      expect(PLACEHOLDERS_BY_COMMAND[command]).toHaveLength(54);
+      expect(PLACEHOLDERS_BY_COMMAND[command]).toHaveLength(61);
     }
   });
 
-  it('grants timeframe ONLY to c/cc (55 keys)', () => {
-    expect(PLACEHOLDERS_BY_COMMAND.c).toHaveLength(55);
-    expect(PLACEHOLDERS_BY_COMMAND.cc).toHaveLength(55);
+  it('grants timeframe ONLY to c/cc (62 keys)', () => {
+    expect(PLACEHOLDERS_BY_COMMAND.c).toHaveLength(62);
+    expect(PLACEHOLDERS_BY_COMMAND.cc).toHaveLength(62);
     expect(PLACEHOLDERS_BY_COMMAND.c).toContain(TIMEFRAME_PLACEHOLDER);
     expect(PLACEHOLDERS_BY_COMMAND.cc).toContain(TIMEFRAME_PLACEHOLDER);
     for (const command of ['ca', 'x', 'z', 'bare'] as const) {
@@ -171,6 +179,22 @@ describe('placeholder-registry (todo 4 closed vocabulary)', () => {
   it('whitelists the composed holderTopRow on every command', () => {
     for (const command of TEMPLATE_COMMANDS) {
       expect(isKnownPlaceholder(command, 'holderTopRow')).toBe(true);
+    }
+  });
+
+  it('whitelists the seven launchpad-layout keys on every command', () => {
+    for (const command of TEMPLATE_COMMANDS) {
+      for (const key of [
+        'curveRow',
+        'quoteSuffix',
+        'fdvChangeBracket',
+        'usdRow',
+        'liqRow',
+        'market5mRow',
+        'marketRow',
+      ]) {
+        expect(isKnownPlaceholder(command, key)).toBe(true);
+      }
     }
   });
 

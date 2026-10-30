@@ -98,7 +98,7 @@ src/
 │   │                          # (manual CLI, default dry-run, NOT a bootstrap hook)
 │   └── api/http/               # message-templates + template-preview + display-maps controllers (management via HTTP API only)
 ├── placeholders/               # renderer + registry ({{key}} only, {% rejected)
-│   ├── domain/placeholder-registry.ts # 22 base + 32 derived keys + per-command whitelist
+│   ├── domain/placeholder-registry.ts # 22 base + 39 derived keys + per-command whitelist
 │   ├── application/template-renderer.service.ts # TemplateRendererService (DISPLAY_RESOLVER-backed)
 │   └── api/http/placeholders.controller.ts # placeholder catalog reference
 └── settings/                   # chat config + bot config
@@ -1044,3 +1044,70 @@ sells === null → ''`. Client boundary `toFiniteNumberOrNull` /
   catalog META `{type:'derived', nullable:true, example:'🆕'}`.
   Spec: `template-renderer-new-token-icon.spec.ts` + registry/age/
   rick-card count pins.
+
+- Launchpad (bonding-curve) SHORT layout (2026-10-30; code only — no
+  body edit, no seed/DB change, no activation). Rick docs: "Tokens
+  still on a launchpad bonding curve use a shorter layout: `🆕💊` -
+  the launchpad headline drops `[FDV/24h change]`; `⏳ 45% @ Pump` -
+  bonding progress, launchpad; There is no USD or Liq row, and `5M:`
+  replaces `1H:`". SEVEN new derived keys on EVERY command, ALL
+  self-silencing OFF curve, so ONE body can serve both layouts and an
+  existing body that does not use them stays byte-identical.
+  `headerIcon` already covers the `💊` half of `🆕💊` (the 🆕 comes
+  from `newTokenIcon`).
+  | Key | Off curve | On curve |
+  | ------------------ | ------------------------------------------------ | --------------------------------------- |
+  | `curveRow` | `""` | `\n⏳ [prog% ]@ Name` (name falls back to `bondingCurve.launchpadId`) |
+  | `quoteSuffix` | `""` | `/<quoteSymbol>` or `""` |
+  | `fdvChangeBracket` | `\[<fdvUsd>/<priceChange24h>\] ` (key owns the escapes; `""` when both unknown) | `""` |
+  | `usdRow` | `\n💰 USD: <price>` in a code span (zero backslashes) | `""` |
+  | `liqRow` | `\n💦 Liq: <one-side>` in a code span + `liquidityFlags` outside it | `""` |
+  | `market5mRow` | exact `market1hRow` mirror on `5M:` | same |
+  | `marketRow` | `market1hRow` (byte-identical) | `market5mRow` (byte-identical) |
+
+  Wire contract (frozen, owned by market-data): top-level
+  `bondingCurve?: { onCurve: boolean; launchpadId: string;
+quoteSymbol: string | null; quoteMint: string | null;
+progressPercent: number | null } | null` — `onCurve === true` means
+  "verified on-chain, still on the curve". Boundary guard
+  `toBondingCurveOrNull` (client) resolves the WHOLE object to `null`
+  unless it is a non-array object with `onCurve === true`, a non-empty
+  `launchpadId`, quote members absent/null or non-empty strings, and
+  `progressPercent` absent/null or finite in `[0,100]`; the pipeline
+  re-validates the same way in `toResolvedToken` (the field MUST stay
+  declared in its inline structural type or it is silently dropped —
+  same bug class as `holderConcentration`). Four new optional 5m wire
+  fields (`volume5mUsd`, `priceChange5m`, `txns5mBuys`, `txns5mSells`)
+  validate exactly like the 1h ones (`toFiniteNumberOrNull` /
+  `toNonNegativeCountOrNull`); port fields optional so older
+  `ResolvedToken` literals compile, pipeline always sets explicit
+  `null`. `curveRow` progress uses `formatPercentText` (it already
+  emits `%`) and the launchpad display name honors the `launchpadName`
+  DisplayMap override (`pump-fun` → `Pump`), escaped once; a dotted
+  detector fallback renders `pump\.fun`. For the mint class this
+  layout targets the snapshot carries `launchpad: null`, so `curveRow`
+  falls back to `bondingCurve.launchpadId` (guard-guaranteed
+  non-empty) as both `id` and `name` — the `launchpadName` override
+  still applies, so the acceptance case renders `⏳ 75% @ Pump`.
+  `fdvChangeBracket` owns its MarkdownV2 bracket escaping: it emits
+  `\[` + fdv + `/` + change + `\]` + one trailing space, so a body
+  MUST NOT add literal brackets (precedent: `holderTopRow` owns
+  `\[`/`\]`); BOTH sides unknown (absent/null/non-finite) → `""`
+  (never `[N/A/N/A] `), exactly one unknown → the other renders
+  `N/A` (`\[9\.6K/N/A\] `). `usdRow`/`liqRow` put the number in a
+  MarkdownV2 code span (owner monospace requirement; the composed key
+  is the ONLY correct way — a body wrapping `{{priceUsd}}` in ticks
+  receives an already escaped value and prints the `\.`), so both
+  rows emit ZERO backslashes; `liqRow` keeps `liquidityFlags` OUTSIDE
+  the span and `formatMoneyText(liquidityUsd/2)` supplies the
+  one-side number. `market5mRow` shares the
+  extracted `renderMarketWindowRow` helper with `market1hRow` (the 1H
+  bytes are pinned unchanged). Registry: 22 base + 39 derived
+  = **61** keys for `ca|x|z|bare` / **62** for `c|cc`; catalog META
+  carries all seven. Specs:
+  `template-renderer-bonding-curve.spec.ts`,
+  `market-data-client-bonding-curve.spec.ts`,
+  `token-scan-bonding-curve.spec.ts` + registry/age/rick-card count
+  pins. The seeded `ca` body is untouched (it still lacks the
+  `💰 USD:`/`💦 Liq:` lines — the launchpad layout is opt-in for the
+  owner's live template).

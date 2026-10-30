@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import {
   MarketDataClient,
+  toBondingCurveOrNull,
   toFdvAthAtOrNull,
   toFdvAthUsdOrNull,
   toHolderConcentrationOrNull,
@@ -318,6 +319,10 @@ export class TokenScanPipeline implements ScanPipeline {
       readonly priceChange1h?: number | null;
       readonly txns1hBuys?: number | null;
       readonly txns1hSells?: number | null;
+      readonly volume5mUsd?: number | null;
+      readonly priceChange5m?: number | null;
+      readonly txns5mBuys?: number | null;
+      readonly txns5mSells?: number | null;
       readonly holders: number | null;
       readonly top10HolderPercent: number | null;
       readonly totalSupply: number | null;
@@ -334,6 +339,7 @@ export class TokenScanPipeline implements ScanPipeline {
       readonly devPctSupply?: number | null;
       readonly launchpad?: unknown;
       readonly venue?: unknown;
+      readonly bondingCurve?: unknown;
       readonly honeypot?: unknown;
       readonly holderConcentration?: unknown;
       readonly pairCreatedAt?: unknown;
@@ -364,6 +370,10 @@ export class TokenScanPipeline implements ScanPipeline {
       priceChange1h: snapshot.priceChange1h ?? null,
       txns1hBuys: snapshot.txns1hBuys ?? null,
       txns1hSells: snapshot.txns1hSells ?? null,
+      volume5mUsd: snapshot.volume5mUsd ?? null,
+      priceChange5m: snapshot.priceChange5m ?? null,
+      txns5mBuys: snapshot.txns5mBuys ?? null,
+      txns5mSells: snapshot.txns5mSells ?? null,
       holders: snapshot.holders,
       top10HolderPercent: snapshot.top10HolderPercent,
       top20HolderPercent: null,
@@ -380,6 +390,7 @@ export class TokenScanPipeline implements ScanPipeline {
         snapshot.launchpad,
       ),
       venue: toVenueOrNull(snapshot.venue),
+      bondingCurve: toBondingCurveOrNull(snapshot.bondingCurve),
       honeypot: toHoneypotOrNull(snapshot.honeypot),
       holderConcentration: toHolderConcentrationOrNull(
         snapshot.holderConcentration,

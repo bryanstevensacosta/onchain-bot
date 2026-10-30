@@ -172,6 +172,55 @@ const PLACEHOLDER_META: Record<string, Omit<PlaceholderDescriptor, 'key'>> = {
     description:
       'Title status emoji for best-pair age under 15 minutes; compose before headerIcon ({{newTokenIcon}}{{headerIcon}} → 🆕💊). Empty at/after 15m and when the age is unknown or in the future.',
   },
+  curveRow: {
+    type: 'derived',
+    nullable: true,
+    example: '\\n⏳ 45% @ Pump',
+    description:
+      'Launchpad-layout bonding row lowered as a NEW line: ⏳ + optional progress% + the launchpad display name. The name falls back to bondingCurve.launchpadId when the snapshot launchpad is null (so the launchpadName override still applies). Empty off curve.',
+  },
+  quoteSuffix: {
+    type: 'derived',
+    nullable: true,
+    example: '/Bitcoin',
+    description:
+      'Curve quote-symbol suffix for the headline ($SYMBOL/Bitcoin). Empty off curve or without a quote symbol.',
+  },
+  fdvChangeBracket: {
+    type: 'derived',
+    nullable: true,
+    example: '\\[9.6K/353%\\] ',
+    description:
+      'Headline [FDV/24h change] bracket with its OWN trailing space. The key owns the MarkdownV2 bracket escaping (\\[…\\]) — a body must NOT add literal brackets. Empty when both values are unknown or on curve (the launchpad layout drops it).',
+  },
+  usdRow: {
+    type: 'derived',
+    nullable: true,
+    example: '\\n💰 USD: `0.00007707`',
+    description:
+      '💰 USD line lowered as a NEW line with the price in a MarkdownV2 code span (raw value inside — never compose the span in the body); empty on curve (the launchpad layout has no USD row).',
+  },
+  liqRow: {
+    type: 'derived',
+    nullable: true,
+    example: '\\n💦 Liq: `394` ⚠️🔒',
+    description:
+      '💦 Liq line lowered as a NEW line: one-side liquidity in a MarkdownV2 code span (raw value inside) plus the badges outside it; empty on curve (the launchpad layout has no Liq row).',
+  },
+  market5mRow: {
+    type: 'derived',
+    nullable: true,
+    example: '📈 5M: `159` ⋅ `1.7%` 🅑 `3` Ⓢ `5`',
+    description:
+      'Rick-style 5-minute row (mirror of market1hRow): 📈/📉 direction, 5m volume, 5m change, buys (🅑) and sells (Ⓢ), every number in its own code span. Empty unless all four 5m values are known.',
+  },
+  marketRow: {
+    type: 'derived',
+    nullable: true,
+    example: '📈 5M: `159` ⋅ `1.7%` 🅑 `3` Ⓢ `5`',
+    description:
+      'Layout switch for the window row: market5mRow on a bonding curve, market1hRow off curve (byte-identical to that key).',
+  },
   liquidityUsdSide: {
     type: 'derived',
     nullable: true,
@@ -239,8 +288,8 @@ export interface PlaceholdersView {
 /**
  * Placeholder catalog (`GET /api/dexter/placeholders/:command`).
  *
- * Metadata-only read of the closed registry vocabulary: 54 keys for
- * `ca|x|z|bare`, 55 for `c|cc` (`timeframe` ONLY there). No
+ * Metadata-only read of the closed registry vocabulary: 61 keys for
+ * `ca|x|z|bare`, 62 for `c|cc` (`timeframe` ONLY there). No
  * persistence, no pipeline, no sends. Unknown command → 404.
  *
  * v1 sin auth como /dexter/token — same unauthenticated regime as the

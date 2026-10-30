@@ -316,16 +316,18 @@ Evidencia: dev DB `dexter_display_maps` fila `chain/bsc/🟡`; no se agregan las
 
 ### 5.3 Template body (DB, no código)
 
-Body nuevo para el row `bare/RickBurpBot` (v15 → v16), **sin activar**:
+Body nuevo para el row `bare/RickBurpBot` (v15 → v16), **sin activar**. ⚠️ Corregido el 2026-10-30 tras la review adversarial: la versión anterior de este bloque tenía `*[{{fdvUsd}}/{{priceChange24h}}]*` con corchetes CRUDOS (MarkdownV2 reservado ⇒ 400 en el primer envío, para todo token) y envolvía placeholders crudos en backticks (`` `{{priceUsd}}` `` imprime `0\.00007707`: el valor se escapa con `escapeV2Text` y el backslash se ve dentro del code entity). Este es el body BASE, correcto pero NO monoespaciado en esas filas; el body recomendado final es el v17 de §10.15.
 
 ```text
-{{headerIcon}} {{nameLink}} *[{{fdvUsd}}/{{priceChange24h}}] ${{symbol}}*
+{{headerIcon}} {{nameLink}} *\[{{fdvUsd}}/{{priceChange24h}}\] ${{symbol}}*
 🌐 {{chainName}}{{venueSuffixShort}}
-💰 USD: `{{priceUsd}}`
-💎 FDV: `{{fdvUsd}}` ⇨ `{{fdvAth}}` [`{{fdvAthAgo}}`]
-💦 Liq: `{{liquidityUsdSide}}`{{liquidityFlags}}
-📊 Vol: `{{volume24hUsd}}`{{ageSuffix}}{{honeypotBlock}}
+💰 USD: {{priceUsd}}
+💎 FDV: {{fdvUsd}} ⇨ {{fdvAth}} \[{{fdvAthAgo}}\]
+💦 Liq: {{liquidityUsdSide}}{{liquidityFlags}}
+📊 Vol: {{volume24hUsd}}{{ageSuffix}}{{honeypotBlock}}
 ```
+
+Corchetes: son texto ESTÁTICO del body, por eso van escapados a mano (`\[`, `\]`). Los corchetes de una key compuesta (`fdvChangeBracket`, `holderTopRow`) los escapa la KEY — nunca ambos lados.
 
 Si D8 no se aprueba, reemplazar `{{nameLink}}` por `[{{name}}]({{botStartUrl}})`. Si D9 no se aprueba, `{{honeypotBlock}}` → `{{honeypotLine}}` (sin blank line). Si D9 se aprueba pero `ageSuffix` no, `{{ageSuffix}}` → `⋅ Age:`{{age}}`` (y aceptar el colgado si age null).
 
@@ -794,3 +796,190 @@ Emoji CRUDO: sin `escapeV2`, sin espacio delante ni detrás (el body es dueño d
 - No se toca ningún body sembrado, ni el seed, ni la DB: la key queda disponible para que el owner componga `{{newTokenIcon}}{{headerIcon}}` cuando lo decida.
 
 **Estado.** Código + specs (13 tests nuevos) + META de catálogo; registry 22 base + 32 derivadas = **54** keys en `ca|x|z|bare` / **55** en `c|cc`. Sin body edit, sin activación.
+
+### 10.15 Launchpad (bonding-curve) — layout CORTO — CÓDIGO IMPLEMENTADO 2026-10-30
+
+**Regla del producto (docs de Rick).** Mientras el token sigue en la bonding curve de un launchpad, Rick NO usa la tarjeta completa. Citas literales (docs de Rick, layout de tarjeta):
+
+> Tokens still on a launchpad bonding curve use a shorter layout: `🆕💊` - the launchpad headline drops `[FDV/24h change]`; `⏳ 45% @ Pump` - bonding progress, launchpad; There is no USD or Liq row, and `5M:` replaces `1H:`.
+
+Es un **layout alternativo**, no una tarjeta nueva: las MISMAS keys de la tarjeta normal siguen disponibles y las 7 keys nuevas se auto-silencian FUERA de la curva, así que **un solo body** puede servir ambos layouts y un body que no las usa queda byte-idéntico. `headerIcon` ya cubre la mitad 💊 de `🆕💊` (el 🆕 lo pone `{{newTokenIcon}}`, §10.14).
+
+**Contrato de wire (frozen, propiedad de market-data).** Campo top-level opcional en el snapshot:
+
+```ts
+bondingCurve?: {
+  onCurve: boolean;               // strict true = verificado on-chain, sigue en la curva
+  launchpadId: string;            // 'pump-fun'
+  quoteSymbol: string | null;     // p.ej. 'Bitcoin'
+  quoteMint: string | null;
+  progressPercent: number | null; // 0..100 inclusive; null = desconocido
+} | null;
+```
+
+Guard de frontera `toBondingCurveOrNull` (cliente dexter): rechaza (→ `null`) salvo objeto no-array, `onCurve === true`, `launchpadId` string no vacío, `quoteSymbol`/`quoteMint` ausentes/null o strings no vacíos, y `progressPercent` ausente/null o número finito en `[0,100]`. El pipeline re-valida igual en `toResolvedToken` (doble validación, patrón `honeypot`/`venue`/`holderConcentration`); el campo DEBE quedar declarado en el tipo estructural inline o se descarta en silencio (misma clase de bug que `holderConcentration`). Cuatro campos 5m opcionales (`volume5mUsd`, `priceChange5m`, `txns5mBuys`, `txns5mSells`) se validan exactamente como los de 1H (`toFiniteNumberOrNull` / `toNonNegativeCountOrNull`); en el port son opcionales (`?: number | null`) para que los literales existentes compilen y el pipeline siempre pone `null` explícito.
+
+**Keys (todas en cada comando, en este orden justo después de `newTokenIcon`):**
+
+| Key                | Fuera de curva                                                                       | En curva                                                         | Silencio                                                         |
+| ------------------ | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `curveRow`         | `""`                                                                                 | `"\n⏳ "` + `[<prog>% ]` + `"@ "` + nombre display del launchpad | sin curva; y sin progreso NI nombre → `""`                       |
+| `quoteSuffix`      | `""`                                                                                 | `"/" + quoteSymbol` (p.ej. `/Bitcoin`)                           | sin curva o `quoteSymbol` null                                   |
+| `fdvChangeBracket` | `"\\[" + fdvUsd + "/" + priceChange24h + "\\] "` (brackets ESCAPADOS, espacio final) | `""`                                                             | ambos valores desconocidos → `""` (nunca `[N/A/N/A]`)            |
+| `usdRow`           | `"\n💰 USD: "` + priceUsd en code span (`codeV2Text`, valor RAW)                     | `""`                                                             | —                                                                |
+| `liqRow`           | `"\n💦 Liq: "` + liquidityUsdSide en code span + liquidityFlags fuera del span       | `""`                                                             | —                                                                |
+| `market5mRow`      | espejo exacto de `market1hRow` con `5M:`                                             | igual                                                            | cualquiera de los 4 valores 5m ausente/no finito (counts `>= 0`) |
+| `marketRow`        | `market1hRow` (byte-idéntico)                                                        | `market5mRow` (byte-idéntico)                                    | hereda el silencio de la key elegida                             |
+
+`curveRow` formatea el progreso con `formatPercentText` (ya emite `%`; el `%` no es especial V2) y usa `resolveLaunchpadDisplayName` (override `launchpadName` → `pump-fun` a `Pump`), escapado UNA vez (fallback detector con punto → `pump\.fun`). Si el snapshot NO trae `launchpad` (el caso exacto de estos mints: el detector devuelve null), el nombre cae a `bondingCurve.launchpadId` sintetizando `{id, name: id}` para que el override `launchpadName` siga aplicando; sin ninguno de los dos se omite el `@ nombre`. El progreso es opcional: con `progressPercent: null` la fila queda `⏳ @ Name` (o `""` si tampoco hay nombre). `market5mRow` comparte helper privado con `market1hRow` (bytes 1H pinneados sin cambios), misma composición monoespaciada (cada número en su code span, CERO backslashes).
+
+**`fdvChangeBracket` es dueña del escapado de SUS corchetes.** `[` y `]` están en el set reservado de MarkdownV2 fuera de la sintaxis de link; el valor compuesto debe emitir `\[` / `\]` (precedente exacto: `holderTopRow`, que ya emite `\[`/`\]`). Un body compone la key DESNUDA (`*{{fdvChangeBracket}}${{symbol}}*`); ponerle corchetes literales alrededor (`\[{{fdvChangeBracket}}\]`) duplicaría el escape y el render imprimiría `\[…\]`. Un solo lado escapa, y es la key.
+
+**`[N/A/N/A]` no existe.** Si `fdvUsd` y `priceChange24h` son AMBOS desconocidos (no finito / null) la key emite `""`: un headline `*[N/A/N/A] $NET*` es ruido, no dato. Con UN lado conocido el bracket sí sale y el otro lado imprime `N/A` (`\[9\.6K/N/A\] `), igual que el resto del body.
+
+**Composición de headline (sample):**
+
+```text
+*{{fdvChangeBracket}}${{symbol}}{{quoteSuffix}}*
+```
+
+Fuera de curva → `*\[9.6K/353%\] $NET*` (el body renderiza el par escapado; ver la nota de arriba: el bracket crudo de §5.3 era un 400 garantizado). En curva → `*$NET/Bitcoin*` (el bracket desaparece). Fila de ventana: `{{marketRow}}` → `5M:` en curva / `1H:` fuera.
+
+**Composición con el body objetivo (v17, supersede §5.3).** Las DOS filas que el layout corto elimina (`💰 USD:`, `💦 Liq:`) y el bracket del headline se componen SOLO con estas keys; una misma línea estática no puede silenciarse. Cada key que empieza con `\n` se pega al FINAL de la línea anterior (mecánica de `honeypotBlock` / `holderTopRow`): una línea que contenga solo la key deja una línea en blanco fuera de curva. Body completo, listo para pegar:
+
+```text
+{{headerIcon}} {{nameLink}} *{{fdvChangeBracket}}${{symbol}}{{quoteSuffix}}*
+🌐 {{chainName}}{{venueSuffixShort}}
+💎 FDV: {{fdvUsd}} ⇨ {{fdvAth}} \[{{fdvAthAgo}}\]
+📊 Vol: {{volume24hUsd}}{{ageSuffix}}{{honeypotBlock}}{{usdRow}}{{liqRow}}
+{{marketRow}}{{curveRow}}
+```
+
+Reglas de composición, pinneadas:
+
+- `usdRow` / `liqRow` son la versión MONOESPACIADA correcta de las filas de §5.3 (`💰 USD: \`<precio>\``, `💦 Liq: \`<lado>\`<flags>`): el número viaja RAW dentro del code span (`codeV2Text`: escapa solo `\` y backtick; `0.00007707`, jamás `0\.00007707`) y las flags quedan FUERA del span. **NO hay paridad byte-a-byte con §5.3**: el body de §5.3 compone `` `{{priceUsd}}` `` (placeholder crudo dentro de backticks) y eso imprime el backslash — es el defecto documentado abajo. La paridad que se exige es con la INTENCIÓN de §5.3 (mismo texto, número monoespaciado, CERO backslashes en la fila), y por eso §5.3 queda reemplazada por este body.
+- **Defecto de §5.3 (documentado; el body v17 lo evita):** envolver un placeholder crudo en backticks (`` `{{priceUsd}}` ``) NO produce monospace correcto — el renderer escapa el valor con `escapeV2Text` (`0\.00007707`) y dentro de un code entity el backslash se imprime. Regla general: **un número que deba ir monoespaciado necesita una key compuesta** (`usdRow`, `liqRow`, `marketRow`, `holderTopRow`, `market1hRow`/`market5mRow`), nunca backticks alrededor de un `{{placeholder}}` crudo. Las filas `FDV`/`Vol`/age de §5.3 no tienen key compuesta todavía: en v17 van SIN backticks (texto escapado normal, correcto pero no monoespaciado) hasta que exista una lane de `fdvRow`/`volRow`.
+- Los corchetes de `{{fdvAthAgo}}` son texto ESTÁTICO del body, así que el body los escapa (`\[…\]`); los de `fdvChangeBracket` los escapa la KEY. Nunca los dos.
+- `usdRow` / `liqRow` NUNCA conviven con la línea combinada del seed (`💰 {{priceUsd}} ({{priceChange24h}}) • MC … • Liq …`): se reemplaza, no se duplica. El seed no se toca.
+- El `{{nameLink}}` del headline NO se silencia en curva (Rick lo omite en la captura, pero los docs solo documentan que cae `[FDV/24h change]`): residual documentado, fuera de las 7 keys. Si el owner lo quiere fuera, necesita una octava key condicional (no implementada).
+- **Dependencia de orden entre lanes (L3):** en curva `{{marketRow}}` delega en `{{market5mRow}}` SIN fallback. Si market-data publica `bondingCurve` antes que los cuatro campos 5m, la fila de actividad DESAPARECE de toda tarjeta en curva. Las dos mitades (`bondingCurve` + `priceChange5m`/`txns5m*`/`volume5mUsd`) se despliegan juntas, y el body v17 se activa DESPUÉS.
+- **Residual del proxy de edad (heredado de §10.14, no se corrige aquí):** `{{newTokenIcon}}` y `{{age}}` leen el `pairCreatedAt` de la MEJOR pair; en un token en curva esa pair es la AMM (Meteora), no la curva. Un token recién migrado puede renderizar `🆕` junto a `⏳` (o `🆕💊`). La fuente honesta sería el timestamp de creación de la CUENTA de curva — fuera de esta lane.
+
+**No-goals explícitos (sin key, sin fuente de datos; NO implementados).**
+
+- `🔥 #N` trending rank — no hay fuente en el snapshot.
+- `📺` viewers — no hay fuente.
+- `👨‍💻 DEV` — no hay fuente/atribución de dev en esta ruta.
+- `🧬` — no hay dato ni key detrás.
+- No se toca ningún body sembrado, ni el seed, ni la DB, ni el body vivo del owner: las keys quedan disponibles para que componga el layout corto cuando lo decida.
+
+**Estado.** Código + specs (`template-renderer-bonding-curve.spec.ts`, `market-data-client-bonding-curve.spec.ts`, `token-scan-bonding-curve.spec.ts`) + META de catálogo; registry 22 base + 39 derivadas = **61** keys en `ca|x|z|bare` / **62** en `c|cc`. Correcciones post-review 2026-10-30 aplicadas en la MISMA lane: `fdvChangeBracket` escapa sus corchetes y calla con ambos valores desconocidos, `curveRow` cae a `bondingCurve.launchpadId` cuando el snapshot no trae `launchpad`, `usdRow`/`liqRow` emiten el número dentro de un code span (cero backslashes). Sin body edit, sin activación, sin migración.
+
+### 10.16 Launchpad (bonding-curve) — lane market-data — DISEÑO 2026-10-30 (NO implementado)
+
+> Cierra el lado emisor de §10.15: sin `bondingCurve` en el snapshot, las 7 keys dexter quedan en silencio y la tarjeta sigue siendo la completa. Hoy es exactamente lo que pasa: `launchpad: null`, `venue: {dexId:'meteora', labels:['DYN2']}` y `degraded: true` para el mint de referencia.
+
+**Root cause (corregido con probe on-chain + DexScreener, 2026-10-30).** El mint `2dNdT2gD8x2BkmffjAyQe3o6hES33jg1tAgTJCRkvBTC` tiene DOS pares en DexScreener:
+
+| Par           | DEX     | Quote            | Liq   | Estado                                                                             |
+| ------------- | ------- | ---------------- | ----- | ---------------------------------------------------------------------------------- |
+| `5sqQd6…QiCC` | pumpfun | `Bitcoin` F7931A | null  | cuenta de curva de 166 B, owner `6EF8rre…F6P`, `complete = false`                  |
+| `BbaM9…`      | meteora | USDC             | $0.94 | el par que gana "mejor liquidez" y de donde salen `priceUsd 8.261e-6` / `fdv 8261` |
+
+La cuenta de la curva es el PDA CLÁSICO `[b"bonding-curve", mint]` bajo `6EF8rre…F6P` y **es exactamente el `pairAddress` del par pumpfun**. Un probe anterior derivó `G1Tavd…CDhNA` y concluyó "quote custom / cuenta de otro tipo": era un error de esa derivación (seed literal/bump), NO un tipo de cuenta distinto. `src/launchpad/infrastructure/solana-pda.ts` implementa `createProgramAddress` canónico (sha256(seeds ++ bump ++ programId ++ `"ProgramDerivedAddress"`), rechazo on-curve, bump 255→0) — **no se toca sin un vector que falle**; la detección de abajo no necesita el PDA.
+
+Layout de la cuenta (166 B = prefijo clásico + apéndices), lectura del slot actual:
+
+```text
+virtualToken   492,488,240,059,025   u64 @8
+virtualQuote    25,532,329,372,013   u64 @16
+realToken      212,588,240,059,025   u64 @24
+realQuote       13,813,436,588,426   u64 @32
+tokenSupply          1,000,000,000,000,000  u64 @40
+complete        false                bool @48
+initialVirtualQuote 11,718,892,783,587  apéndice
+depth           1                    apéndice
+creatorFeeBps   300                  apéndice
+```
+
+**Progreso (pinneado, no se ajusta a Rick).**
+
+```text
+progress% = clamp(100 × (1 − realToken / 793_100_000_000_000), 0, 100)
+```
+
+El denominador es el sold-out de pump.fun (`793.1M` tokens vendidos); `206.9M` quedan en el pool al graduarse. Con el slot de arriba da **73.1953%**. La captura de Rick dice `75%` porque es OTRO slot: el progreso es **no monótono** (una venta lo baja; se midió 1.09 pts de deriva en 3 min). No se redondea al entero de Rick ni se toca el denominador para "cuadrar".
+
+**Wire (frozen; ya consumido por §10.15).**
+
+```ts
+bondingCurve?: {
+  onCurve: boolean;               // true SOLO con complete === false leído on-chain
+  launchpadId: string;            // 'pump-fun' (id de launchpad-table.ts)
+  quoteSymbol: string | null;     // 'Bitcoin' · null cuando el quote es SOL
+  quoteMint: string | null;
+  progressPercent: number | null; // 0..100, 4dp en el wire
+} | null;
+```
+
+**Detección (REVISADA 2026-10-30 tras review adversarial: el gate sobre la "mejor pair" era INSATISFACIBLE).** `selectBestPairSummaryForSlug` ordena por `liquidity?.usd ?? 0`; el par pumpfun del mint de referencia tiene `liquidity: null` y Meteora $0.94, así que **el par pumpfun nunca puede ganar** y un gate `dexId === 'pumpfun'` sobre la mejor pair no dispara JAMÁS para la clase de mint que esta lane existe para cubrir. El gate se mueve a la VERDAD ON-CHAIN y deja de depender de DexScreener:
+
+1. **PDA derivado (local, sin red):** `findProgramAddress([utf8Seed('bonding-curve'), addressToBytes(mint)], PUMP_FUN_PROGRAM)` — `src/launchpad/infrastructure/solana-pda.ts`, canónico, **no se toca**. Ya es exactamente lo que hace el fast path.
+2. **Lectura de la cuenta:** UNA `getMultiple([pda])` por los tiers existentes. `null` (cuenta inexistente) / owner ≠ pump / corta (< `PUMP_CURVE_MIN_LEN`) → `bondingCurve: null` (fail-open, nunca throw). NO se filtra por un par DexScreener: un token de pump sin par indexado también se detecta.
+3. **Decode** con `pump-bonding-curve.codec.ts` (`realTokenReserves@24`, `complete@48`; ya devuelve `null` con `complete !== 0` ⇒ graduado = tarjeta completa). No se inventan offsets de apéndices.
+4. **Progreso** = la fórmula de arriba, con el `realTokenReserves` de la MISMA lectura.
+5. **Quote (mejor esfuerzo, jamás inventado):** `quoteSymbol`/`quoteMint` salen del par `dexId === 'pumpfun'` de DexScreener **solo cuando el pair-list está en la mano**. Sin par pumpfun indexado → ambos `null` y `quoteSuffix` calla (`$NET`, nunca `$NET/???`). NO se deduce el quote del tamaño de los reserves ni del leg B (ver caveat del reader).
+6. `launchpadId = 'pump-fun'` (id ya existente en `launchpad-table.ts` y en el catálogo de overrides dexter).
+
+**Coste real (la promesa "cero red extra" era falsa y se retira).**
+
+- **Fast path: CERO red extra.** `DirectFastPathService.resolveSolana` YA deriva el PDA y YA hace `reader.getPoolView(curvePda, mint)` en CADA serve Solana (incluso si discovery muere). El leg solo consume ese resultado: `bondingCurve` viaja con el resto del `FastPartial` cuando el pool view gana su carrera; `null` cuando el view es null.
+- **Fan-out: UNA lectura de cuenta extra por mint Solana** (hoy el fan-out no lee la curva). Se acepta y se documenta; no corre en chains no-Solana.
+- **Quote:** gratis cuando el pair-list ya se pidió en esa request (miss de discovery); en un hit del discovery-cache puede faltar → `quoteSymbol: null` (sufijo callado), SIN request extra. Extender el tripwire del discovery cache con el par pumpfun es FOLLOW-UP, no requisito de v1.
+
+**Reader — hueco real (no detectado por la review).** `OnchainPoolView` expone `legs[0].reserve = virtualTokenReserves`, **no** `realTokenReserves`: el progreso NO se puede calcular con el view de hoy. Hay que exponerlo — campo opcional nuevo en `OnchainPoolView` solo para `family === 'pump'`, p.ej. `curve?: { realTokenReserves: bigint; tokenTotalSupply: bigint }`, rellenado por `pumpView` desde el codec existente, con pin en el spec del reader. `decodePumpCurve` no se modifica.
+
+**Caveat NUEVO, pre-existente y FUERA de lane (no se toca).** `pumpView` hardcodea el leg B como wrapped SOL (9 decimals) y calcula `priceBA = virtualQuoteReserves / 1e9 / (virtualTokenReserves / 10^decimals)`. Para curvas con quote memecoin ("Bitcoin" F7931A) eso es **numéricamente incorrecto** (los "SOL reserves" son unidades base del quote). Hoy el precio servido sale del par DexScreener/Meteora, no de este leg, así que la tarjeta no está mal — pero (a) `bondingCurve` NO debe consumir `priceBA`, y (b) merece su propio ticket (resolver el quote mint on-chain y aplicar SUS decimals).
+
+**Plumbing (lista COMPLETA; `bondingCurve` REQUERIDO en `AddressSnapshot`, tipo `BondingCurveInfo | null` — nunca `undefined`, para que olvidarlo en un literal sea error de compilación).**
+
+1. `src/provider/infrastructure/onchain/onchain-solana.reader.ts` (+ spec) — campo `curve` en `OnchainPoolView` + `pumpView`.
+2. `src/provider/infrastructure/dexscreener/dexscreener.service.ts` — `DexScreenerPairSummary` gana los 4 campos 5m; `toPairSummary` los mapea; nuevo selector `selectPumpfunPairForSlug(pairs, slug)` (explícito, SIN ordenar por liquidez).
+3. `src/snapshot/application/discovery-cache.service.ts` — `toSummaryFromTripwire` mapea los 4 campos 5m: el cache-hit a 30 días es el camino NORMAL, un mapper olvidado pierde 5m en silencio.
+4. `src/snapshot/domain/` (`SnapshotQuote`, `SNAPSHOT_QUOTE_FIELDS`, `emptySnapshotQuote`) — los 4 campos 5m en tipo + lista + literal vacío.
+5. `src/provider/.../provider-quote.fetchers.ts` — único escritor de los 4 campos 5m.
+6. `src/snapshot/application/address-snapshot.service.ts` — tipo `AddressSnapshot` (campo requerido) + TODOS los literales (`:1485` fast, `:1531`, `:1711`, `:1825`, `:1937`, `:2644`, `:2736` y el invalid-card) con `bondingCurve: null` explícito salvo el del fan-out que lo calcula.
+7. `src/snapshot/application/direct-fast-path.service.ts` — `FastPartial.bondingCurve` + su mapeo al literal `:1485`.
+8. `src/gateway/infrastructure/http/market-data-snapshot.controller.ts` — whitelist del compat edge: `bondingCurve` + los 4 campos 5m. El batch reducido no los lleva.
+9. Specs: `address-snapshot-bonding-curve`, `direct-fast-path-bonding-curve`, reader (curve), dexscreener (5m + selector), discovery-cache (tripwire 5m), controller (whitelist).
+
+**Serve paths que NO calculan la curva (H3, pinneado).** SWR-now, stale replay, invalid card y background refresh sirven `bondingCurve: null` explícito — MISMA clase aceptada que `launchpad`/`venue`/`pairCreatedAt`, que ya se nullan en esos literales. Consecuencia documentada: un replay stale de un token en curva renderiza el layout COMPLETO (bracket + `1H`) y el siguiente serve fresco vuelve al corto. Persistir el flag en `snapshot_history` exigiría columna jsonb nueva + migración: NO en v1.
+
+**Campos 5m (wire, para `market5mRow`) — fuente y honestidad por CLASE de quote.**
+
+- Fuente: el par **`dexId === 'pumpfun'`** (el mercado de la curva), NO la mejor pair. Mezclar la actividad del par Meteora en una tarjeta de curva sería mentir sobre dónde ocurre el trading.
+- `priceChange5m` ← `priceChange.m5`; `txns5mBuys`/`txns5mSells` ← `txns.m5.buys`/`sells` (par completo o ambos `null`, misma regla que 1H).
+- **Regla de honestidad por clase, no por valor:** si el quote del par NO es USD/SOL (memecoin tipo "Bitcoin" F7931A), DexScreener no mide ese mercado en USD → **los CUATRO campos 5m van a `null`** y la fila calla. Con quote USD/SOL los valores pasan VERBATIM (un `0` real sobrevive; un `0` no medido no se fabrica). Esto elimina la contradicción con 1H: no es "`0` → `null`", es "mercado no medido en USD → sin dato".
+- Consecuencia pinneada para el mint de referencia: `market5mRow` → `""` y por tanto `marketRow` → `""` (NO hay fila de actividad en la tarjeta corta hasta que exista una fuente). No se sustituye por 1H, ni por `priceNative`, ni por una fila vacía.
+- Los cuatro campos viajan solo en el compat edge `GET /api/market-data/snapshot` (whitelist explícita del controller); el batch reducido no.
+
+**Caveats pinneados.**
+
+- El quote puede ser un memecoin: `priceUsd`/`fdv` de la curva son `null` en DexScreener y el precio USD de la tarjeta sigue viniendo del par Meteora (liq $0.94). La tarjeta corta no muestra USD ni Liq, así que no se mezclan.
+- `launchpadId` desconocido para dexter ⇒ `resolveLaunchpadDisplayName` cae al id crudo (escapado). No se inventan ids nuevos.
+- Staging: falta la fila DisplayMap `(launchpad, pump-fun, 💊)` → `headerIcon` cae a `[Pump](url)` (texto); y `(launchpadName, pump-fun, Pump)` es lo que produce `@ Pump`. Ambas se aplican con `npm run seed:display-maps -- --apply`, nunca en boot.
+- `solana-pda.ts`: se deja intacto. La detección de esta lane YA no depende de DexScreener (deriva el PDA y lee la cuenta), así que el vector `[bonding-curve, mint]` no necesita re-verificación: el propio acceptance #1 lo prueba end-to-end sobre el mint de referencia.
+- `quoteSuffix` es el ÚNICO dato best-effort del wire: con el pair-list frío el headline sale `$NET` (sin `/Bitcoin`) y la tarjeta sigue siendo corta y correcta. Ningún otro campo se degrada por cache.
+
+**Acceptance (staging, mint de referencia).**
+
+1. `GET /api/market-data/snapshot?chain=solana&address=2dNdT2gD…` → `bondingCurve.onCurve === true`, `launchpadId 'pump-fun'`, `progressPercent ≈ 73.2` (±0.01), `complete === false` confirmado por el decode. `quoteSymbol` = `'Bitcoin'` SOLO si el pair-list estaba caliente; con cache frío `null` (y el headline sale `$NET`) — ambos resultados son PASS.
+2. Mint graduado (SCRIP `y95bhwz…pump`) → `bondingCurve: null` (nunca `onCurve:false`).
+3. Mint que no es de pump → `bondingCurve: null`; el coste es la lectura del PDA (en el fast path ya se pagaba; en el fan-out es la lectura extra documentada). Sin llamada a DexScreener por este leg.
+4. Cuenta null/corta/owner ajeno/timeout → `null` (fail-open) y la tarjeta completa intacta.
+5. Preview dexter con el body v17 de §10.15 → `⏳ 73.2% @ Pump`, sin `💰 USD:` ni `💦 Liq:`, bracket ausente, `5M:`/`1H:` EN SILENCIO (quote memecoin ⇒ 5m null) y headline `*$NET/Bitcoin*` o `*$NET*` según cache.
+6. Off curve → bytes del body v17 (bracket `\[…\]`, `💰 USD: \`<precio>\``, `💦 Liq: \`<lado>\``, `📈 1H:`). **NO** se compara contra §5.3 literal: ese body quedó superseded (sus filas monoespaciadas imprimían el backslash).
+
+**Review adversarial (oracle, 2026-10-30) — resoluciones.** B1 (corchetes crudos ⇒ 400): `fdvChangeBracket` escapa `\[`/`\]` y §5.3 se corrigió. B2 (gate sobre la mejor pair insatisfacible): gate movido al PDA on-chain + `selectPumpfunPairForSlug` explícito. H1 (`curveRow` sin `@ Pump`): fallback a `bondingCurve.launchpadId` implementado. H2 (paridad byte con §5.3 imposible): paridad con la INTENCIÓN, §5.3 superseded por el body v17. H3 (flip de layout en replay): `bondingCurve: null` pineado en los literales de replay + consecuencia aceptada. M1 (fuente 5m sin definir + `0→null`): fuente = par pumpfun, regla por CLASE de quote. M2 (plumbing incompleto, campo opcional): lista completa de 9 puntos + `bondingCurve` REQUERIDO. M3 (leg de 1 s en el fast path de 800 ms): el leg del fast path NO es una llamada nueva (reutiliza `pdaP`); el fan-out no tiene deadline de 800 ms. L1 (`[N/A/N/A]`): silencio con ambos desconocidos. L2 (doc que dice escapar `.` dentro de code spans): se documenta como incorrecto; la regla real es `codeV2Text`. L3 (orden entre lanes): `marketRow` sin fallback ⇒ `bondingCurve` y los 4 campos 5m se despliegan JUNTOS antes de activar el body.
+
+**Orden de ejecución.** (1) market-data: reader (`curve`) + selector pumpfun + campos 5m + wire + literales + whitelist + specs → (2) `tsc`/tests/build → (3) commit a `dev` + deploy staging → (4) probe del mint de referencia + SCRIP + un mint no-pump → (5) el owner compone el body v17 en `ca|x|z|bare` → (6) preview y captura. `bondingCurve` y los 4 campos 5m van en el MISMO deploy; el body se activa DESPUÉS. Sin tocar `master`, sin deploy prod, sin body edit por mi parte.

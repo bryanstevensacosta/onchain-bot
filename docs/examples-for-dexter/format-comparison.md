@@ -70,19 +70,30 @@ text (a frontend could wrap it in `<span class="cashtag">` for styling).
 ```text
 🚀 MILESTONE 33x 🔷 $ETHEREUM
 
-MC: `$131\.7K` → `$10\.06M`
+MC: `$131.7K` → `$10.06M`
 `0x5b4c3e76df54babf45e9478ccdfe850f77100000`
 ```
 
 Escaping notes (MarkdownV2 reserved set
-`_ * [ ] ( ) ~ \` > # + - = | { } . !`— must be`\`-escaped outside
-entities, and `code` spans too where the char is reserved):
+`_ * [ ] ( ) ~ \` > # + - = | { } . !`— must be`\`-escaped OUTSIDE
+entities):
 
 - `$ETHEREUM` (Cashtag): `$` is NOT reserved — verbatim, no entity syntax.
-- `$131.7K` → `$131\.7K` inside backticks: `.` IS reserved, so escaped
-  even inside `` `…` `` in MarkdownV2 (unlike GitHub-md).
+- **Inside a `code` / `pre` entity the ONLY characters that need escaping
+  are `` ` `` and `\`** (Bot API spec). `.`, `[`, `]`, `-` travel RAW:
+  `` `$131.7K` `` renders `$131.7K`. Writing `` `$131\.7K` `` renders a
+  literal `$131\.7K` — the backslash is part of the code content.
+  (An earlier revision of this doc claimed `.` must be escaped inside
+  code spans; that was wrong and is exactly the mistake that produced
+  the backslash-in-code-span defect in the dexter template bodies —
+  see `.omo/plans/dexter-rick-compact-card.md` §5.3/§10.15.)
 - `→` : not reserved — verbatim.
 - Contract hex: `[0-9a-fx]` only — no escaping needed inside backticks.
+- **Renderer rule:** a value that must be monospaced needs a composed
+  key that emits `codeV2Text(value)` (raw value inside the span), never
+  backticks wrapped around a raw `{{placeholder}}` (the renderer escapes
+  the substituted value with `escapeV2Text` first, so the span would
+  print the escapes).
 
 ---
 

@@ -9,6 +9,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Launchpad (bonding-curve) short-layout keys (2026-10-30):** Rick
+  renders a SHORTER card while a token is still on a launchpad bonding
+  curve (docs: "the launchpad headline drops `[FDV/24h change]`",
+  "There is no USD or Liq row, and `5M:` replaces `1H:`"). Seven new
+  derived keys on EVERY command, each SILENT off curve so ONE body
+  serves both layouts and any existing body stays byte-identical:
+  `curveRow` (`\n⏳ [prog% ]@ Name`, launchpad display name honoring
+  the `launchpadName` override and falling back to
+  `bondingCurve.launchpadId` when the snapshot `launchpad` is null),
+  `quoteSuffix` (`/<quoteSymbol>` or `""`), `fdvChangeBracket`
+  (owning its V2 bracket escapes: off curve `\[<fdvUsd>/<priceChange24h>\] `
+  with its own trailing space, `""` when both values are unknown and
+  `N/A` for one unknown side; `""` on curve), `usdRow`
+  (`\n💰 USD: <priceUsd>` with the price in a code span — raw value,
+  zero backslashes; `""` on curve), `liqRow`
+  (`\n💦 Liq: <one-side>` in a code span plus `liquidityFlags`
+  outside it — zero backslashes; `""` on curve), `market5mRow`
+  (exact `market1hRow` mirror with
+  `5M:` and the four new 5m fields), and `marketRow` (layout switch:
+  `market5mRow` on curve, `market1hRow` off curve, both
+  byte-identical to the key they delegate to). The 1H row was
+  extracted into a shared private helper with its bytes pinned
+  unchanged. Wire contract (owned by market-data):
+  `bondingCurve: { onCurve, launchpadId, quoteSymbol, quoteMint,
+progressPercent } | null`, validated by `toBondingCurveOrNull`
+  (rejects unless `onCurve === true`, non-empty `launchpadId`,
+  absent/null or non-empty quote strings, and a finite
+  `0..100` progress) and re-validated in the pipeline (the field is
+  declared in `toResolvedToken`'s structural type). Four optional 5m
+  fields (`volume5mUsd`, `priceChange5m`, `txns5mBuys`, `txns5mSells`)
+  validate exactly like the 1h ones. Registry: **61** keys for
+  `ca|x|z|bare`, **62** for `c|cc`. Renderer + specs only — no
+  template body, seed or DB change; `headerIcon` already covers the
+  💊 half of `🆕💊`.
+
 - **`{{newTokenIcon}}` — the 🆕 title status emoji (2026-10-30):**
   Rick scan-icons rule (`pricebot#scan-icons`, "🆕 - token age under
   15 minutes") reproduced as a SEPARATE derived key on every command,

@@ -85,6 +85,24 @@ export interface HolderConcentrationInfo {
 }
 
 /**
+ * Bonding-curve state of a launchpad token (dexter launchpad layout,
+ * 2026-10-30). Produced by market-data; `onCurve === true` means
+ * "verified on-chain, still on the curve" (a graduated token is never
+ * `true`). The client AND the pipeline re-validate the same shape
+ * (`toBondingCurveOrNull`); any violation reads `null` — the launchpad
+ * keys then stay silent. `progressPercent` is 0..100 inclusive (`null`
+ * when unknown), `quoteSymbol`/`quoteMint` are display-only identity
+ * of the curve's quote side.
+ */
+export interface BondingCurveInfo {
+  readonly onCurve: boolean;
+  readonly launchpadId: string;
+  readonly quoteSymbol: string | null;
+  readonly quoteMint: string | null;
+  readonly progressPercent: number | null;
+}
+
+/**
  * A non-picked chain where the same address also resolved (dexter
  * best-pick, plan todo 17). Carried on every multi-chain `ResolvedToken`
  * so the choice is always disclosed (`{{alternatives}}` renders it).
@@ -123,6 +141,16 @@ export interface ResolvedToken {
   readonly priceChange1h?: number | null;
   readonly txns1hBuys?: number | null;
   readonly txns1hSells?: number | null;
+  /**
+   * 5-minute window (dexter `{{market5mRow}}` / `{{marketRow}}`,
+   * launchpad layout): the same four measures as the 1h window, fed by
+   * the `5m` wire fields. Optional/null for the same reason; the
+   * renderer silences the whole row when any is missing/non-finite.
+   */
+  readonly volume5mUsd?: number | null;
+  readonly priceChange5m?: number | null;
+  readonly txns5mBuys?: number | null;
+  readonly txns5mSells?: number | null;
   readonly holders: number | null;
   readonly top10HolderPercent: number | null;
   readonly top20HolderPercent: number | null;
@@ -135,6 +163,16 @@ export interface ResolvedToken {
   readonly source: 'market-data-http';
   readonly launchpad?: LaunchpadInfo | null;
   readonly venue?: VenueInfo | null;
+  /**
+   * Bonding-curve state (dexter launchpad layout, 2026-10-30):
+   * `{ onCurve, launchpadId, quoteSymbol, quoteMint, progressPercent }`
+   * re-validated from the snapshot (`null` when the snapshot carries
+   * none or the shape is malformed). `onCurve === true` is the ONLY
+   * state the launchpad keys act on; `null`/absent reads as off curve.
+   * Optional only so older `ResolvedToken` literals keep compiling —
+   * the pipeline ALWAYS sets it (explicit `null` when absent).
+   */
+  readonly bondingCurve?: BondingCurveInfo | null;
   /**
    * Honey-tax / simulation reading (dexter 🍯 row, plan todo 71):
    * `{ buy, sell, sim }` (% 0-100) re-validated from the snapshot

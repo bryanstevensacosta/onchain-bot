@@ -1,6 +1,7 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
 import { MessageFormatterAdapter } from '@/scan/infrastructure/formatter/message-formatter';
 import type {
+  BondingCurveInfo,
   HolderConcentrationInfo,
   HoneypotInfo,
   LaunchpadInfo,
@@ -300,6 +301,54 @@ function holderConcentrationOrNull(
 }
 
 /**
+ * Shape guard for the launchpad-layout keys (dexter bonding-curve
+ * layout, 2026-10-30): a coherent on-curve `BondingCurveInfo` or
+ * `null` (off curve / silence). Local on purpose — the renderer must
+ * not trust `TemplateValues` (always `Partial<ResolvedToken>`),
+ * whatever the producer sent. Rules mirror the market-data client
+ * guard: `onCurve === true`, a non-empty `launchpadId`,
+ * `quoteSymbol`/`quoteMint` absent/null or non-empty strings, and
+ * `progressPercent` absent/null or finite within [0, 100].
+ */
+function bondingCurveOrNull(raw: unknown): BondingCurveInfo | null {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return null;
+  }
+  const candidate = raw as Record<string, unknown>;
+  if (candidate.onCurve !== true) return null;
+  if (
+    typeof candidate.launchpadId !== 'string' ||
+    candidate.launchpadId === ''
+  ) {
+    return null;
+  }
+  const optionalString = (value: unknown): string | null | undefined => {
+    if (value === null || value === undefined) return null;
+    if (typeof value !== 'string' || value === '') return undefined;
+    return value;
+  };
+  const quoteSymbol = optionalString(candidate.quoteSymbol);
+  const quoteMint = optionalString(candidate.quoteMint);
+  if (quoteSymbol === undefined || quoteMint === undefined) return null;
+  const rawProgress = candidate.progressPercent;
+  let progressPercent: number | null = null;
+  if (rawProgress !== null && rawProgress !== undefined) {
+    if (typeof rawProgress !== 'number' || !Number.isFinite(rawProgress)) {
+      return null;
+    }
+    if (rawProgress < 0 || rawProgress > 100) return null;
+    progressPercent = rawProgress;
+  }
+  return {
+    onCurve: true,
+    launchpadId: candidate.launchpadId,
+    quoteSymbol,
+    quoteMint,
+    progressPercent,
+  };
+}
+
+/**
  * Stateless MarkdownV2 template renderer with closed placeholder
  * semantics. Static body text is author-owned MarkdownV2 (never
  * touched); every substituted VALUE is `escapeV2`-escaped exactly
@@ -436,6 +485,46 @@ export class TemplateRendererService {
       return `[${MessageFormatterAdapter.escapeV2Text(display)}](${launchpad.url})`;
     }
     return `[${emoji}](${launchpad.url})`;
+  }
+
+  /**
+   * Shared window-row renderer for `market1hRow` / `market5mRow`
+   * (launchpad layout 2026-10-30 extraction — the 1H bytes MUST stay
+   * identical). `label` is the only difference between the two keys
+   * (`1H` / `5M`).
+   *
+   * `icon` is price-led (`📉` only on a strictly negative change).
+   * SILENCE (`""`) when ANY of the four is missing/non-finite — no
+   * half-empty row, no `N/A`, never a guessed value. Counts
+   * additionally require `>= 0`. Every value rides its OWN MarkdownV2
+   * code span and the numbers travel RAW inside the span
+   * (`codeV2Text`, never `escapeV2Text`: a `\.` inside a code entity
+   * prints its backslash), so the row emits ZERO backslashes. No
+   * leading/trailing whitespace: templates own separators.
+   */
+  private renderMarketWindowRow(
+    label: '1H' | '5M',
+    volumeRaw: unknown,
+    changeRaw: unknown,
+    buysRaw: unknown,
+    sellsRaw: unknown,
+  ): string {
+    const volume = finiteNumberOrNull(volumeRaw);
+    const change = finiteNumberOrNull(changeRaw);
+    const buys = nonNegativeCountOrNull(buysRaw);
+    const sells = nonNegativeCountOrNull(sellsRaw);
+    if (volume === null || change === null || buys === null || sells === null) {
+      return '';
+    }
+    const icon = change < 0 ? '📉' : '📈';
+    const code = (text: string): string =>
+      MessageFormatterAdapter.codeV2Text(text);
+    return (
+      `${icon} ${label}: ${code(MessageFormatterAdapter.formatMoneyText(volume))} ⋅ ` +
+      `${code(MessageFormatterAdapter.formatPercentText(change))} 🅑 ` +
+      `${code(MessageFormatterAdapter.formatNumberText(buys))} Ⓢ ` +
+      `${code(MessageFormatterAdapter.formatNumberText(sells))}`
+    );
   }
 
   private resolveValue(key: string, values: TemplateValues): string {
@@ -738,27 +827,174 @@ export class TemplateRendererService {
         // escaped exactly once INSIDE the span (`codeV2Text`, not
         // `escapeV2Text`: a `\.` inside a code entity would print its
         // backslash). No leading/trailing whitespace: templates own
-        // separators.
-        const volume = finiteNumberOrNull(values.volume1hUsd);
-        const change = finiteNumberOrNull(values.priceChange1h);
-        const buys = nonNegativeCountOrNull(values.txns1hBuys);
-        const sells = nonNegativeCountOrNull(values.txns1hSells);
-        if (
-          volume === null ||
-          change === null ||
-          buys === null ||
-          sells === null
-        ) {
-          return '';
-        }
-        const icon = change < 0 ? '📉' : '📈';
-        const code = (text: string): string =>
-          MessageFormatterAdapter.codeV2Text(text);
+        // separators. The shared helper (launchpad layout, 2026-10-30)
+        // keeps these bytes identical for `market5mRow`.
+        return this.renderMarketWindowRow(
+          '1H',
+          values.volume1hUsd,
+          values.priceChange1h,
+          values.txns1hBuys,
+          values.txns1hSells,
+        );
+      }
+      case 'market5mRow': {
+        // Launchpad layout (2026-10-30): exact mirror of `market1hRow`
+        // on the 5-MINUTE window — `5M:` replaces `1H:`, same shared
+        // helper, same SILENCE matrix (feed the four new 5m fields).
+        return this.renderMarketWindowRow(
+          '5M',
+          values.volume5mUsd,
+          values.priceChange5m,
+          values.txns5mBuys,
+          values.txns5mSells,
+        );
+      }
+      case 'marketRow': {
+        // Layout switch (launchpad layout, 2026-10-30): on curve the
+        // card uses the 5-minute row, off curve the 1-hour row —
+        // byte-identical to the key it delegates to. A body composes
+        // `{{marketRow}}` instead of `{{market1hRow}}`; the old key
+        // keeps its behavior untouched.
+        return this.resolveValue(
+          bondingCurveOrNull(values.bondingCurve) === null
+            ? 'market1hRow'
+            : 'market5mRow',
+          values,
+        );
+      }
+      case 'curveRow': {
+        // Launchpad layout (2026-10-30; Rick docs: "Tokens still on a
+        // launchpad bonding curve use a shorter layout: `⏳ 45% @ Pump`
+        // — bonding progress, launchpad"). Lowers a NEW line
+        // (`"\n⏳ "`), `""` = silence off curve. Progress is optional
+        // (finite 0..100 → shared percent formatter, which already
+        // emits `%`; escaped once so a decimal point stays V2-valid).
+        //
+        // NAME SOURCE (2026-10-30 fix): for this exact mint class the
+        // snapshot carries `launchpad: null` (market-data's origin
+        // detector answers null on a curve mint), so the launchpad
+        // object is reconstructed from `bondingCurve.launchpadId`
+        // (guard-guaranteed non-empty) as both `id` and `name`. The
+        // `launchpadName` DisplayMap override (`pump-fun` → `Pump`)
+        // still wins through the shared resolver; without an override
+        // the detector-style slug renders escaped (`pump\.fun`). The
+        // `@ name` part is omitted only when the resolver yields
+        // empty, and with neither progress nor name the key is
+        // silent.
+        const curve = bondingCurveOrNull(values.bondingCurve);
+        if (curve === null) return '';
+        const progressText =
+          curve.progressPercent === null
+            ? ''
+            : esc(
+                MessageFormatterAdapter.formatPercentText(
+                  curve.progressPercent,
+                ),
+              );
+        const launchpad = values.launchpad ?? {
+          id: curve.launchpadId,
+          name: curve.launchpadId,
+          url: '',
+        };
+        const name = esc(
+          resolveLaunchpadDisplayName(launchpad, this.displayResolver),
+        );
+        if (progressText === '' && name === '') return '';
+        const parts: string[] = [];
+        if (progressText !== '') parts.push(progressText);
+        if (name !== '') parts.push(`@ ${name}`);
+        return `\n⏳ ${parts.join(' ')}`;
+      }
+      case 'quoteSuffix': {
+        // Launchpad layout (2026-10-30): display-only `/Bitcoin` suffix
+        // for the headline (`${{symbol}}{{quoteSuffix}}`), escaped
+        // once. `""` off curve or without a quote symbol.
+        const curve = bondingCurveOrNull(values.bondingCurve);
+        if (curve === null || curve.quoteSymbol === null) return '';
+        return `/${esc(curve.quoteSymbol)}`;
+      }
+      case 'fdvChangeBracket': {
+        // Launchpad layout (2026-10-30): the `[FDV/24h change] `
+        // bracket of the headline. Off curve it uses the SAME
+        // `fdvUsd` / `priceChange24h` resolutions (escaped exactly
+        // once) so an off-curve card renders what the two keys render
+        // today, and owns its trailing separating space (suffix-key
+        // precedent: `venueSuffix`). On curve the headline DROPS the
+        // bracket → `""`.
+        //
+        // ESCAPING IS OWNED HERE (adversarial review fix 2026-10-30):
+        // raw `[`/`]` are reserved MarkdownV2 characters, so a body
+        // MUST NOT add literal brackets around this key — the value
+        // emits `\[` + fdv + `/` + change + `\]` itself (precedent:
+        // `holderTopRow` owns `\[`/`\]`).
+        //
+        // SILENCE rule: BOTH sides unknown (absent/null/non-finite) →
+        // `""` (never `[N/A/N/A] `); exactly one unknown renders the
+        // other side as `N/A` (`\[9\.6K/N/A\] `).
+        if (bondingCurveOrNull(values.bondingCurve) !== null) return '';
+        const fdvKnown =
+          typeof values.fdvUsd === 'number' && Number.isFinite(values.fdvUsd);
+        const changeKnown =
+          typeof values.priceChange24h === 'number' &&
+          Number.isFinite(values.priceChange24h);
+        if (!fdvKnown && !changeKnown) return '';
+        const fdvText = fdvKnown ? this.resolveValue('fdvUsd', values) : 'N/A';
+        const changeText = changeKnown
+          ? this.resolveValue('priceChange24h', values)
+          : 'N/A';
+        return `\\[${fdvText}/${changeText}\\] `;
+      }
+      case 'usdRow': {
+        // Launchpad layout (2026-10-30): the 💰 USD line lowered as a
+        // NEW line. On curve the shorter layout has NO USD row → `""`
+        // (no label, no newline).
+        //
+        // MONOSPACE (owner requirement, fix 2026-10-30): the price
+        // rides a MarkdownV2 code span — the composed key is the ONLY
+        // correct way to do it (a body composing
+        // `` `{{priceUsd}}` `` receives an ALREADY escaped value, so
+        // the `\.` inside the span prints its backslash). The value is
+        // formatted first (adaptive price formatter) and then wrapped
+        // by `codeV2Text`, which escapes only `\`/backtick — the row
+        // carries ZERO backslashes. Unknown price → `N/A` inside the
+        // span (`` `N/A` ``), never a bare label.
+        if (bondingCurveOrNull(values.bondingCurve) !== null) return '';
+        const price =
+          typeof values.priceUsd === 'number' &&
+          Number.isFinite(values.priceUsd)
+            ? values.priceUsd
+            : null;
         return (
-          `${icon} 1H: ${code(MessageFormatterAdapter.formatMoneyText(volume))} ⋅ ` +
-          `${code(MessageFormatterAdapter.formatPercentText(change))} 🅑 ` +
-          `${code(MessageFormatterAdapter.formatNumberText(buys))} Ⓢ ` +
-          `${code(MessageFormatterAdapter.formatNumberText(sells))}`
+          '\n💰 USD: ' +
+          MessageFormatterAdapter.codeV2Text(
+            MessageFormatterAdapter.formatPriceText(price),
+          )
+        );
+      }
+      case 'liqRow': {
+        // Launchpad layout (2026-10-30): the 💦 Liq line lowered as a
+        // NEW line — one-side liquidity (display-only `liquidityUsd/2`)
+        // plus the ⚠️/🔒 badges, which already carry their own leading
+        // space. On curve the shorter layout has NO Liq row → `""`.
+        //
+        // MONOSPACE (fix 2026-10-30): the number rides a code span
+        // (same owner rule as `usdRow`); `liquidityFlags` stays OUTSIDE
+        // the span byte-identical (raw emoji, leading space, never
+        // escaped, `''` or `' ⚠️🔒'`). `codeV2Text` escapes only
+        // `\`/backtick, so the row carries ZERO backslashes. Unknown
+        // liquidity → `` `N/A` `` inside the span.
+        if (bondingCurveOrNull(values.bondingCurve) !== null) return '';
+        const side =
+          typeof values.liquidityUsd === 'number' &&
+          Number.isFinite(values.liquidityUsd)
+            ? values.liquidityUsd / 2
+            : null;
+        return (
+          '\n💦 Liq: ' +
+          MessageFormatterAdapter.codeV2Text(
+            MessageFormatterAdapter.formatMoneyText(side),
+          ) +
+          this.resolveValue('liquidityFlags', values)
         );
       }
       case 'holderTopRow': {

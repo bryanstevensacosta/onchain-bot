@@ -291,6 +291,75 @@ export function toPairCreatedAtOrNull(raw: unknown): string | null {
   return Number.isNaN(Date.parse(raw)) ? null : raw;
 }
 
+/**
+ * Bonding-curve state of a launchpad token (dexter launchpad layout,
+ * 2026-10-30). Mirrors market-data's frozen wire shape:
+ * `{ onCurve, launchpadId, quoteSymbol, quoteMint, progressPercent }`.
+ *
+ * NEVER trusted blindly — `toBondingCurveOrNull` shape-checks at this
+ * boundary and resolves the WHOLE object to `null` on any violation:
+ * non-object/array, `onCurve !== true` (only a verified on-curve token
+ * qualifies), a non-string/empty `launchpadId`, a present
+ * `quoteSymbol`/`quoteMint` that is not a non-empty string, or a
+ * present `progressPercent` that is not a finite number in [0, 100].
+ * Absent/null optional members normalize to `null`.
+ */
+export interface MarketDataBondingCurve {
+  readonly onCurve: boolean;
+  readonly launchpadId: string;
+  readonly quoteSymbol: string | null;
+  readonly quoteMint: string | null;
+  readonly progressPercent: number | null;
+}
+
+/**
+ * Optional string member: absent/`null` reads `null`, a non-empty
+ * string passes through, anything else is a contract violation
+ * (sentinel `undefined`).
+ */
+function optionalNonEmptyStringOrUndefined(
+  raw: unknown,
+): string | null | undefined {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw !== 'string' || raw === '') return undefined;
+  return raw;
+}
+
+export function toBondingCurveOrNull(
+  raw: unknown,
+): MarketDataBondingCurve | null {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return null;
+  }
+  const candidate = raw as Record<string, unknown>;
+  if (candidate.onCurve !== true) return null;
+  if (
+    typeof candidate.launchpadId !== 'string' ||
+    candidate.launchpadId === ''
+  ) {
+    return null;
+  }
+  const quoteSymbol = optionalNonEmptyStringOrUndefined(candidate.quoteSymbol);
+  const quoteMint = optionalNonEmptyStringOrUndefined(candidate.quoteMint);
+  if (quoteSymbol === undefined || quoteMint === undefined) return null;
+  const rawProgress = candidate.progressPercent;
+  let progressPercent: number | null = null;
+  if (rawProgress !== null && rawProgress !== undefined) {
+    if (typeof rawProgress !== 'number' || !Number.isFinite(rawProgress)) {
+      return null;
+    }
+    if (rawProgress < 0 || rawProgress > 100) return null;
+    progressPercent = rawProgress;
+  }
+  return {
+    onCurve: true,
+    launchpadId: candidate.launchpadId,
+    quoteSymbol,
+    quoteMint,
+    progressPercent,
+  };
+}
+
 export interface MarketDataSnapshot {
   readonly chain: string;
   readonly address: string;
@@ -315,6 +384,16 @@ export interface MarketDataSnapshot {
   readonly priceChange1h?: number | null;
   readonly txns1hBuys?: number | null;
   readonly txns1hSells?: number | null;
+  /**
+   * 5-minute window (dexter `{{market5mRow}}` / `{{marketRow}}`,
+   * launchpad layout): the same four measures on the 5-minute window,
+   * validated exactly like the 1h ones (`toFiniteNumberOrNull` /
+   * `toNonNegativeCountOrNull`). Absent on older answers.
+   */
+  readonly volume5mUsd?: number | null;
+  readonly priceChange5m?: number | null;
+  readonly txns5mBuys?: number | null;
+  readonly txns5mSells?: number | null;
   readonly holders: number | null;
   readonly top10HolderPercent: number | null;
   readonly totalSupply: number | null;
@@ -329,6 +408,13 @@ export interface MarketDataSnapshot {
   readonly degraded?: boolean | null;
   readonly launchpad?: MarketDataLaunchpad | null;
   readonly venue?: MarketDataVenue | null;
+  /**
+   * Bonding-curve state (dexter launchpad layout, 2026-10-30), frozen
+   * wire contract owned by market-data. Validated by
+   * `toBondingCurveOrNull` at this boundary — any violation reads
+   * `null` (the launchpad keys then stay silent).
+   */
+  readonly bondingCurve?: MarketDataBondingCurve | null;
   /**
    * Honey-tax / simulation reading (dexter 🍯 row, plan todo 71):
    * `{ buy, sell, sim }` (%, 0-100) or `null`/absent (chain without a
@@ -415,6 +501,10 @@ export class MarketDataClient {
         priceChange1h: toFiniteNumberOrNull(body.priceChange1h),
         txns1hBuys: toNonNegativeCountOrNull(body.txns1hBuys),
         txns1hSells: toNonNegativeCountOrNull(body.txns1hSells),
+        volume5mUsd: toFiniteNumberOrNull(body.volume5mUsd),
+        priceChange5m: toFiniteNumberOrNull(body.priceChange5m),
+        txns5mBuys: toNonNegativeCountOrNull(body.txns5mBuys),
+        txns5mSells: toNonNegativeCountOrNull(body.txns5mSells),
         holders: body.holders ?? null,
         top10HolderPercent: body.top10HolderPercent ?? null,
         totalSupply: body.totalSupply ?? null,
@@ -432,6 +522,7 @@ export class MarketDataClient {
         degraded: toDegradedOrFalse(body.degraded),
         launchpad: toLaunchpadOrNull(body.launchpad),
         venue: toVenueOrNull(body.venue),
+        bondingCurve: toBondingCurveOrNull(body.bondingCurve),
         honeypot: toHoneypotOrNull(body.honeypot),
         holderConcentration: toHolderConcentrationOrNull(
           body.holderConcentration,

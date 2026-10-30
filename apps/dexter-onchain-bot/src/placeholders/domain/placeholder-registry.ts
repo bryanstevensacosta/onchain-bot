@@ -110,6 +110,41 @@ export const DERIVED_PLACEHOLDERS: readonly string[] = [
   // minutes; `"🆕"` only for `0 <= now - at < 15m`. Raw emoji, no
   // escaping, no surrounding whitespace.
   'newTokenIcon',
+  // Launchpad (bonding-curve) layout (2026-10-30): the SHORTER card
+  // Rick renders while a token is still on a launchpad bonding curve
+  // (docs: "Tokens still on a launchpad bonding curve use a shorter
+  // layout"). Every key SILENCES off-curve, so an existing body that
+  // does not use them stays byte-identical, and ONE body can serve
+  // both layouts. Fed by the frozen wire `bondingCurve` object.
+  //
+  // `curveRow` — `"\n⏳ "` + optional progress + `"@ "` + launchpad
+  // display name (`launchpadName` override honored, falling back to
+  // `bondingCurve.launchpadId` when the snapshot launchpad is null).
+  'curveRow',
+  // `quoteSuffix` — `"/" + quoteSymbol` (e.g. `/Bitcoin`) on curve,
+  // `""` off curve / without a symbol.
+  'quoteSuffix',
+  // `fdvChangeBracket` — the FDV/change bracket a header composes as
+  // `*{{fdvChangeBracket}}${{symbol}}{{quoteSuffix}}*`; the KEY emits
+  // the V2 escapes (`\[…\] `), so a body must not add literal
+  // brackets. Off curve only (on curve the headline DROPS it) and
+  // owns its trailing separating space (suffix-key precedent:
+  // `venueSuffix`); `""` when both values are unknown.
+  'fdvChangeBracket',
+  // `usdRow` / `liqRow` — the 💰 USD and 💦 Liq lines, each a NEW line
+  // (`"\n💰 USD: "` / `"\n💦 Liq: "`) with the number inside a V2
+  // code span (zero backslashes in the row); BOTH silence on curve
+  // (the launchpad layout has no USD or Liq row).
+  'usdRow',
+  'liqRow',
+  // `market5mRow` — exact mirror of `market1hRow` on the 5-minute
+  // window (`5M:` replaces `1H:`); same SILENCE rule and monospace
+  // composition, fed by `volume5mUsd`/`priceChange5m`/`txns5mBuys`/
+  // `txns5mSells`.
+  'market5mRow',
+  // `marketRow` — the layout switch for the window row: `market5mRow`
+  // on curve, `market1hRow` off curve (byte-identical to that key).
+  'marketRow',
   // D4: `liquidityUsdSide` — display-only one-side liquidity
   // (`liquidityUsd / 2`, money-compact, `N/A` on absent/non-finite).
   // The CORE `liquidityUsd` keeps meaning total — never overridden.
