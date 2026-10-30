@@ -15,6 +15,7 @@ import { AddressKindDetectorService } from 'address/application/address-kind-det
 import {
   AddressSnapshot,
   AddressSnapshotInput,
+  type BondingCurveInfo,
 } from '../domain/snapshot.types';
 import {
   SNAPSHOT_CACHE_TTL_SECONDS,
@@ -97,6 +98,7 @@ import {
 } from 'provider/infrastructure/onchain/evm-tolerance';
 import { DiscoveryCacheService } from './discovery-cache.service';
 import { OnchainSolanaReaderService } from 'provider/infrastructure/onchain/onchain-solana.reader';
+import type { BondingCurveReading } from 'provider/infrastructure/onchain/onchain-solana.reader';
 import { GoplusService } from 'provider/infrastructure/goplus';
 import { SingleflightService } from './singleflight.service';
 import {
@@ -223,6 +225,16 @@ export const METADATA_IDENTITY_BUDGET_MS = 2000;
  */
 export const SNAPSHOT_TAIL_LAUNCHPAD_TIMEOUT_MS_DEFAULT =
   DETECTOR_SLOW_LEG_TIMEOUT_MS_DEFAULT;
+
+/**
+ * Bonding-curve fan-out budget (`rick-compact-card` §10.16): the
+ * fan-out-only curve read (`getPumpCurve`) rides this own deadline —
+ * the FAST path pays ZERO (it reuses the already-read curve-PDA view),
+ * the fan-out pays at most this. Same env-read idiom as the
+ * neighbouring budgets: non-finite/<=0/garbage resolves the default.
+ */
+export const SNAPSHOT_PUMP_CURVE_TIMEOUT_MS =
+  Number(process.env['SNAPSHOT_PUMP_CURVE_TIMEOUT_MS'] ?? 1500) || 1500;
 
 // Breaker key namespace moved to
 // `shared/infrastructure/rate-limiter/domain/snapshot-breaker-key.ts`
@@ -1464,6 +1476,26 @@ export class AddressSnapshotService {
       prepared.retried,
       prepared.halfOpenKey,
     );
+    // Bonding-curve state (`rick-compact-card` §10.16): fan-out-only
+    // leg, Solana token-kind only, optional-method guarded so hand-built
+    // reader stubs (every spec outside the real reader) skip it with
+    // zero reads. Rides its own budget; never throws. Started ONCE,
+    // concurrently with the fast path + fan-out. The abandoned-on-
+    // timeout promise is observed by the race below (`withTailBudget`),
+    // so no unhandled rejection is possible; on a FAST-PATH serve it is
+    // simply never awaited — it settles on its own inside the
+    // already-running background fan-out.
+    const curveP: Promise<
+      BondingCurveReading | null | typeof TAIL_TIMEOUT
+    > | null =
+      knownId === 'solana' &&
+      kind === 'token' &&
+      typeof this.solanaReader?.getPumpCurve === 'function'
+        ? withTailBudget(
+            this.solanaReader.getPumpCurve(inputValue).catch(() => null),
+            SNAPSHOT_PUMP_CURVE_TIMEOUT_MS,
+          )
+        : null;
     const fastStartedAt = performance.now();
     const fast =
       this.fastPath === null
@@ -1483,6 +1515,7 @@ export class AddressSnapshotService {
         supporting,
         outcome: fast.outcome,
         launchpad: { resolved: true, value: fast.launchpad },
+        bondingCurve: fast.bondingCurve,
         venue: {
           resolved: true,
           value: fast.venue,
@@ -1520,6 +1553,20 @@ export class AddressSnapshotService {
     const fanoutStartedAt = performance.now();
     const outcome = await fanoutP;
     const fanoutMs = Math.round(performance.now() - fanoutStartedAt);
+    // Fan-out curve resolution (`rick-compact-card` §10.16): awaited
+    // ONLY on this branch. `TAIL_TIMEOUT` / a rejected or null read
+    // both degrade to `null` (fail-open — the card always serves).
+    const rawCurve = curveP === null ? null : await curveP;
+    const fanoutCurve: BondingCurveInfo | null =
+      rawCurve === null || rawCurve === TAIL_TIMEOUT
+        ? null
+        : {
+            onCurve: true,
+            launchpadId: rawCurve.launchpadId,
+            quoteSymbol: rawCurve.quoteSymbol,
+            quoteMint: rawCurve.quoteMint,
+            progressPercent: rawCurve.progressPercent,
+          };
     const built = await this.buildSnapshot({
       knownId,
       inputValue,
@@ -1529,6 +1576,7 @@ export class AddressSnapshotService {
       supporting,
       outcome,
       launchpad: { resolved: false, value: null },
+      bondingCurve: fanoutCurve,
       venue: {
         resolved: false,
         value: null,
@@ -1709,6 +1757,8 @@ export class AddressSnapshotService {
       degraded: false,
       assetId: null,
       launchpad: null,
+      // Live-only extra, pinned null on invalid cards (§10.16).
+      bondingCurve: null,
       venue: null,
       pairCreatedAt: null,
       honeypot: null,
@@ -1823,6 +1873,12 @@ export class AddressSnapshotService {
         row.quote,
       ),
       launchpad: null,
+      // LIVE-ONLY, pinned on SWR-now replays (§10.16). Accepted
+      // consequence: a stale/SWR replay of an on-curve token renders
+      // the FULL layout; the next fresh serve flips back to the short
+      // one. Persisting the curve would need a new jsonb column +
+      // migration — out of scope for v1.
+      bondingCurve: null,
       venue: null,
       pairCreatedAt: null,
       honeypot: null,
@@ -1931,6 +1987,9 @@ export class AddressSnapshotService {
       supporting,
       outcome,
       launchpad: { resolved: false, value: null },
+      // Bonding curve is LIVE-ONLY and the refresh path pins `null`
+      // (accepted: the next fresh serve flips the card back).
+      bondingCurve: null,
       venue: {
         resolved: false,
         value: null,
@@ -2063,6 +2122,14 @@ export class AddressSnapshotService {
       readonly resolved: boolean;
       readonly value: LaunchpadInfo | null;
     };
+    /**
+     * pump.fun bonding-curve handoff (`rick-compact-card` §10.16), same
+     * handoff anatomy as `launchpad`: the fast serve threads
+     * `fast.bondingCurve`, the fan-out serve threads its own resolved
+     * curve, and the replay/invalid/background paths pin `null`.
+     * LIVE-ONLY — never persisted to history.
+     */
+    readonly bondingCurve: BondingCurveInfo | null;
     readonly venue: {
       readonly resolved: boolean;
       readonly value: SnapshotVenue | null;
@@ -2640,6 +2707,11 @@ export class AddressSnapshotService {
               staleRow.quote,
             ),
             launchpad,
+            // Stale replay pins `null` (§10.16): the curve is LIVE-ONLY
+            // (never persisted to history). Accepted consequence: a
+            // stale replay of an on-curve token renders the FULL layout
+            // and the next fresh serve flips back to the short one.
+            bondingCurve: null,
             venue,
             pairCreatedAt,
             honeypot,
@@ -2732,6 +2804,7 @@ export class AddressSnapshotService {
       degraded: isTailDegraded(providerErrors),
       assetId: await this.resolveAssetId(knownId, inputValue, resolvedQuote),
       launchpad,
+      bondingCurve: args.bondingCurve,
       venue,
       pairCreatedAt,
       honeypot,

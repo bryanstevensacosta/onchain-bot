@@ -63,6 +63,13 @@ export class MarketDataSnapshotController {
       priceChange1h: snap.priceChange1h,
       txns1hBuys: snap.txns1hBuys,
       txns1hSells: snap.txns1hSells,
+      // 5m bucket (dexter `5M` row): explicit keys, single-address
+      // compat edge ONLY — the reduced batch surface keeps its
+      // current shape (these four are NOT added there).
+      volume5mUsd: snap.volume5mUsd,
+      priceChange5m: snap.priceChange5m,
+      txns5mBuys: snap.txns5mBuys,
+      txns5mSells: snap.txns5mSells,
       marketCapUsd: snap.marketCapUsd,
       fdvUsd: snap.fdvUsd,
       priceChange24h: snap.priceChange24h,
@@ -83,6 +90,11 @@ export class MarketDataSnapshotController {
       key: snap.key,
       assetId: snap.assetId,
       launchpad: snap.launchpad,
+      // Bonding curve (`rick-compact-card` §10.16, launchpad short-card
+      // layout): explicit key, NEVER a spread — single-address compat
+      // edge only (the batch surface never carries it). `null` = not
+      // on curve / unreadable, which renders the FULL layout.
+      bondingCurve: snap.bondingCurve,
       venue: snap.venue,
       pairCreatedAt: snap.pairCreatedAt,
       // Honeypot (dexter plan todo 71): explicit key (no spread —

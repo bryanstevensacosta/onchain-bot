@@ -13,7 +13,11 @@ import {
 import { base64ToBytes } from './codec-utils';
 import { decodeMeteoraDbc, decodeMeteoraDlmm } from './meteora-pools.codec';
 import { decodeOrcaWhirlpool } from './orca-whirlpool.codec';
-import { decodePumpCurve } from './pump-bonding-curve.codec';
+import {
+  decodePumpCurve,
+  pumpCurveProgressPercent,
+} from './pump-bonding-curve.codec';
+import { PumpQuoteResolver } from './pump-quote.resolver';
 import {
   decodeRaydiumAmmV4,
   decodeRaydiumClmm,
@@ -28,6 +32,7 @@ import {
   RAYDIUM_CPMM_PROGRAM,
   RAYDIUM_CLMM_PROGRAM,
   METEORA_DBC_PROGRAM,
+  WSOL_MINT,
 } from './solana-program-ids';
 import {
   decodeMetadata,
@@ -83,6 +88,34 @@ export interface OnchainPoolView {
   readonly priceBA: number | null;
   /** True when the curve reports finished/migrated (pump/DBC). */
   readonly migrated: boolean;
+  /**
+   * pump.fun bonding-curve progress, filled by `pumpView` from the SAME
+   * decode + quote resolution (`rick-compact-card` §10.16). Optional so
+   * hand-built non-pump pool views keep compiling; `quoteMint` is
+   * `null` for SOL-like curves.
+   */
+  readonly curve?: {
+    readonly realTokenReserves: bigint;
+    readonly tokenTotalSupply: bigint;
+    readonly quoteMint: string | null;
+    readonly quoteSymbol: string | null;
+    readonly progressPercent: number | null;
+  };
+}
+
+/**
+ * On-chain pump.fun bonding-curve reading (`rick-compact-card` §10.16).
+ * `onCurve: true` means the PDA decoded with `complete === false`; a
+ * graduated / foreign / unreadable account resolves `null` instead —
+ * never `onCurve: false`.
+ */
+export interface BondingCurveReading {
+  readonly poolAddress: string;
+  readonly onCurve: true;
+  readonly launchpadId: 'pump-fun';
+  readonly quoteSymbol: string | null;
+  readonly quoteMint: string | null;
+  readonly progressPercent: number | null;
 }
 
 export interface OnchainTokenSupply {
@@ -133,6 +166,12 @@ export interface OnchainSolanaReader {
     mintHint?: string,
   ): Promise<OnchainPoolView | null>;
   getTokenBasics(mint: string): Promise<OnchainTokenBasics | null>;
+  /**
+   * OPTIONAL on the port (hand-built reader stubs outside this module
+   * stay valid); the concrete service always implements it. Callers
+   * guard with `typeof reader.getPumpCurve === 'function'`.
+   */
+  getPumpCurve?(mint: string): Promise<BondingCurveReading | null>;
 }
 
 const Q64 = 2 ** 64;
@@ -157,11 +196,26 @@ function applyDecimals(
 
 @Injectable()
 export class OnchainSolanaReaderService implements OnchainSolanaReader {
+  /**
+   * Quote-symbol resolver, created lazily from the injected account
+   * client (no extra DI token — the module lives outside this change).
+   * ONE instance per service ⇒ ONE bounded cache per process, shared by
+   * `getPumpCurve` and `pumpView` (reset-on-deploy).
+   */
+  private quoteResolver: PumpQuoteResolver | null = null;
+
   public constructor(
     private readonly accounts: BatchAccountsClient,
     private readonly supply: TokenSupplyClient,
     private readonly holders: TokenHoldersClient,
   ) {}
+
+  private quotes(): PumpQuoteResolver {
+    if (this.quoteResolver === null) {
+      this.quoteResolver = new PumpQuoteResolver(this.accounts);
+    }
+    return this.quoteResolver;
+  }
 
   public async getPoolView(
     poolAddress: string,
@@ -260,6 +314,48 @@ export class OnchainSolanaReaderService implements OnchainSolanaReader {
     }
   }
 
+  /**
+   * On-chain pump.fun bonding-curve reading (`rick-compact-card`
+   * §10.16). Derives the classic PDA `[b"bonding-curve", mint]` under
+   * `PUMP_FUN_PROGRAM`, reads it with ONE batch call and decodes.
+   *
+   * Fail-open: bad mint / throw / missing account / foreign owner /
+   * short or undecodable data / graduated (`complete !== 0`) ⇒ `null`.
+   * Never `onCurve: false` — the caller treats `null` as "not on curve".
+   */
+  public async getPumpCurve(mint: string): Promise<BondingCurveReading | null> {
+    try {
+      let poolAddress: string;
+      try {
+        poolAddress = findProgramAddress(
+          [utf8Seed('bonding-curve'), addressToBytes(mint)],
+          PUMP_FUN_PROGRAM,
+        ).address;
+      } catch {
+        return null;
+      }
+      const fetched = await this.accounts.getMultiple([poolAddress]);
+      const account = fetched[0] ?? null;
+      if (account === null) return null;
+      if (account.owner !== PUMP_FUN_PROGRAM) return null;
+      const bytes = base64ToBytes(account.data[0]);
+      if (bytes === null) return null;
+      const curve = decodePumpCurve(bytes);
+      if (curve === null) return null;
+      const quote = await this.quotes().resolve(curve.quoteMint);
+      return {
+        poolAddress,
+        onCurve: true,
+        launchpadId: 'pump-fun',
+        quoteSymbol: quote.quoteSymbol,
+        quoteMint: quote.quoteMint,
+        progressPercent: pumpCurveProgressPercent(curve),
+      };
+    } catch {
+      return null;
+    }
+  }
+
   private async pumpView(
     poolAddress: string,
     bytes: Uint8Array,
@@ -271,10 +367,19 @@ export class OnchainSolanaReaderService implements OnchainSolanaReader {
     }
     const decimals = await this.mintDecimals(mintHint);
     if (decimals === null) return null;
+    // Leg B is the curve's REAL quote mint (SOL only when quote_mint is
+    // SOL-like). Same decode + same resolver/cache as `getPumpCurve`:
+    // the first call per quote mint pays the read, then zero.
+    const quote = await this.quotes().resolve(curve.quoteMint);
+    const legBMint = curve.quoteMint ?? WSOL_MINT;
+    const legBDecimals =
+      curve.quoteMint === null ? 9 : await this.mintDecimals(curve.quoteMint);
     const solPerToken =
-      Number(curve.virtualSolReserves) /
-      1e9 /
-      (Number(curve.virtualTokenReserves) / 10 ** decimals);
+      legBDecimals === null
+        ? null
+        : Number(curve.virtualSolReserves) /
+          10 ** legBDecimals /
+          (Number(curve.virtualTokenReserves) / 10 ** decimals);
     const legs = [
       {
         mint: mintHint,
@@ -283,10 +388,10 @@ export class OnchainSolanaReaderService implements OnchainSolanaReader {
         decimals,
       },
       {
-        mint: 'So11111111111111111111111111111111111111112',
+        mint: legBMint,
         vault: null,
         reserve: curve.virtualSolReserves,
-        decimals: 9,
+        decimals: legBDecimals,
       },
     ] as const;
     return {
@@ -294,8 +399,17 @@ export class OnchainSolanaReaderService implements OnchainSolanaReader {
       family: 'pump',
       legs,
       priceBA:
-        Number.isFinite(solPerToken) && solPerToken > 0 ? solPerToken : null,
+        solPerToken !== null && Number.isFinite(solPerToken) && solPerToken > 0
+          ? solPerToken
+          : null,
       migrated: false,
+      curve: {
+        realTokenReserves: curve.realTokenReserves,
+        tokenTotalSupply: curve.tokenTotalSupply,
+        quoteMint: quote.quoteMint,
+        quoteSymbol: quote.quoteSymbol,
+        progressPercent: pumpCurveProgressPercent(curve),
+      },
     };
   }
 

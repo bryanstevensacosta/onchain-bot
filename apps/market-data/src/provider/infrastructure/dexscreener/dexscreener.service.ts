@@ -454,14 +454,37 @@ export function selectBestPairSummaryForSlug(
   return toPairSummary(best);
 }
 
+/**
+ * First `dexId === 'pumpfun'` pair for `slug` (dexter `5M` row,
+ * `rick-compact-card` §10.16). Explicit and unsorted on purpose: the
+ * pump.fun pair carries the curve's 5-minute activity, while the
+ * best-liquidity pick (the strict discovery answer) is generally a
+ * MIGRATED pool (Meteora/Raydium) — for the reference mint the Meteora
+ * pair wins on liquidity and the pumpfun row would never be reached
+ * through a sort. Foreign-chain / non-pumpfun / empty input resolves
+ * `null`; no fallback to another dex is ever made (a foreign pair's
+ * numbers must never reach the card). Pure, never throws.
+ */
+export function selectPumpfunPairForSlug(
+  pairs: ReadonlyArray<DexScreenerPair> | null | undefined,
+  slug: string,
+): DexScreenerPairSummary | null {
+  if (!Array.isArray(pairs) || pairs.length === 0) return null;
+  const match = (pairs as ReadonlyArray<DexScreenerPair>).find(
+    (pair) => pair.chainId === slug && pair.dexId === 'pumpfun',
+  );
+  return match === undefined ? null : toPairSummary(match);
+}
+
 function toPairSummary(pair: DexScreenerPair): DexScreenerPairSummary {
   const vol24h = Object.values(pair.volume).reduce((sum, v) => sum + v, 0);
   const txns24h = pair.txns?.h24 ?? { buys: 0, sells: 0 };
-  // 1-hour bucket (dexter `1H` row): pair-level values carried
-  // verbatim. Absent/non-finite → null (never 0; a real 0 survives),
-  // and a partial/non-finite `txns.h1` nulls the WHOLE object — no
-  // `{buys:0,sells:0}` default. Byte-parity with the sibling mapper
-  // (`toSummaryFromTripwire` in `discovery-cache.service.ts`).
+  // 1-hour + 5-minute buckets (dexter `1H` / `5M` rows): pair-level
+  // values carried verbatim. Absent/non-finite → null (never 0; a real
+  // 0 survives), and a partial/non-finite `txns.h1`/`txns.m5` nulls the
+  // WHOLE transaction count — no `{buys:0,sells:0}` default. Byte-parity
+  // with the sibling mapper (`toSummaryFromTripwire` in
+  // `discovery-cache.service.ts`) for BOTH buckets.
   const h1Volume = pair.volume?.['h1'];
   const h1Change = pair.priceChange?.['h1'];
   const h1Txns = pair.txns?.['h1'];
@@ -472,6 +495,14 @@ function toPairSummary(pair: DexScreenerPair): DexScreenerPairSummary {
     Number.isFinite(h1Txns.sells)
       ? { buys: h1Txns.buys, sells: h1Txns.sells }
       : null;
+  const m5Volume = pair.volume?.['m5'];
+  const m5Change = pair.priceChange?.['m5'];
+  const m5Txns = pair.txns?.['m5'];
+  const txns5mComplete =
+    typeof m5Txns?.buys === 'number' &&
+    Number.isFinite(m5Txns.buys) &&
+    typeof m5Txns?.sells === 'number' &&
+    Number.isFinite(m5Txns.sells);
 
   return {
     pairAddress: pair.pairAddress,
@@ -508,5 +539,16 @@ function toPairSummary(pair: DexScreenerPair): DexScreenerPairSummary {
         ? h1Change
         : null,
     txns1h,
+    // 5-minute bucket: flat pair (both sides null together).
+    volume5mUsd:
+      typeof m5Volume === 'number' && Number.isFinite(m5Volume)
+        ? m5Volume
+        : null,
+    priceChange5m:
+      typeof m5Change === 'number' && Number.isFinite(m5Change)
+        ? m5Change
+        : null,
+    txns5mBuys: txns5mComplete ? m5Txns.buys : null,
+    txns5mSells: txns5mComplete ? m5Txns.sells : null,
   };
 }

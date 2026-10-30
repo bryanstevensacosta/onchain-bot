@@ -15,7 +15,10 @@ export {
 } from './solana-program-ids';
 export {
   decodePumpCurve,
+  PUMP_CURVE_INITIAL_REAL_TOKEN_RESERVES,
   PUMP_CURVE_MIN_LEN,
+  PUMP_CURVE_PADDED_LEN,
+  pumpCurveProgressPercent,
 } from './pump-bonding-curve.codec';
 export type { DecodedPumpCurve } from './pump-bonding-curve.codec';
 export {
@@ -61,6 +64,7 @@ export type {
 } from './token-accounts.codec';
 export { OnchainSolanaReaderService } from './onchain-solana.reader';
 export type {
+  BondingCurveReading,
   OnchainHolderEntry,
   OnchainPoolFamily,
   OnchainPoolLeg,

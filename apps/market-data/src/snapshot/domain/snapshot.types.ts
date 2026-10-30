@@ -27,6 +27,26 @@ export interface AddressSnapshotInput {
   readonly probe?: AddressProbe | null;
 }
 
+/**
+ * Verified pump.fun bonding-curve state (`rick-compact-card` §10.16).
+ *
+ * `onCurve` is the LITERAL `true` on purpose: only a verified,
+ * decodable, NON-graduated pump curve ever produces an object.
+ * Everything else — graduated (`complete === true`), foreign owner,
+ * short/uninitialized account, RPC failure, timeout, non-pump token —
+ * resolves `null`. Never `onCurve: false`: `null` IS "not on curve".
+ * The five keys mirror the dexter consumer
+ * (`apps/dexter-onchain-bot/src/scan/infrastructure/market-data/market-data.client.ts`
+ * `MarketDataBondingCurve`) read-only; that file is not edited here.
+ */
+export interface BondingCurveInfo {
+  readonly onCurve: true;
+  readonly launchpadId: string;
+  readonly quoteSymbol: string | null;
+  readonly quoteMint: string | null;
+  readonly progressPercent: number | null;
+}
+
 export interface AddressSnapshot extends SnapshotQuote {
   readonly chain: string;
   readonly address: string;
@@ -74,6 +94,17 @@ export interface AddressSnapshot extends SnapshotQuote {
    * never persisted to history, never throws into the snapshot.
    */
   readonly launchpad: LaunchpadInfo | null;
+  /**
+   * pump.fun bonding-curve state (`rick-compact-card` §10.16):
+   * `{ onCurve: true, launchpadId, quoteSymbol, quoteMint,
+   * progressPercent }` when the curve account was read and decoded
+   * as NON-graduated, else `null` (never `onCurve: false` — `null`
+   * is the "not on curve / unreadable" answer). REQUIRED key, always
+   * emitted. LIVE-ONLY: never persisted to `snapshot_history` (same
+   * class as `launchpad`/`venue`/`honeypot`/`pairCreatedAt`), so a
+   * stale replay renders the full card until the next fresh serve.
+   */
+  readonly bondingCurve: BondingCurveInfo | null;
   /**
    * DEX venue of the best-liquidity pair (dexter venue-line, plan
    * todo 14): `{ dexId, labels }` or `null` when dexscreener has no

@@ -133,6 +133,10 @@ describe('gateway market-data snapshot compat edge (todo 5)', () => {
       'priceChange1h',
       'txns1hBuys',
       'txns1hSells',
+      'volume5mUsd',
+      'priceChange5m',
+      'txns5mBuys',
+      'txns5mSells',
       'holders',
       'top10HolderPercent',
       'symbol',
@@ -143,10 +147,14 @@ describe('gateway market-data snapshot compat edge (todo 5)', () => {
       'circulatingSupply',
       'maxSupply',
       'holderConcentration',
+      'bondingCurve',
     ]) {
       expect(res.body).toHaveProperty(field);
     }
     expect(res.body).toHaveProperty('holderConcentration', null);
+    // Bonding curve (`rick-compact-card` §10.16): explicit key, null on
+    // every non-curve / no-reader path — NEVER omitted.
+    expect(res.body).toHaveProperty('bondingCurve', null);
     expect(res.body.chain).toBe('solana');
     expect(res.body.address).toBe(SOL.toLowerCase());
     expect(res.body.status).toBe('pending');
@@ -154,6 +162,66 @@ describe('gateway market-data snapshot compat edge (todo 5)', () => {
     expect(res.body).toHaveProperty('venue', null);
     expect(res.body).toHaveProperty('pairCreatedAt', null);
     expect(res.body).toHaveProperty('identityProvenance', null);
+  });
+
+  it('returns EXACTLY the documented whitelist key set (§10.16 + 5m row)', async () => {
+    const res = await request(app.getHttpServer()).get(
+      `/api/market-data/snapshot?chain=solana&address=${SOL}`,
+    );
+    expect(res.status).toBe(200);
+    // Pinned sorted key array: proves the whitelist is intentional
+    // (explicit keys, never a spread) and that the batch-only surface
+    // was not widened by accident (`bondingCurve`/5m are compat-edge
+    // only).
+    expect(Object.keys(res.body).sort()).toEqual([
+      'address',
+      'assetId',
+      'bondingCurve',
+      'burnedPercent',
+      'chain',
+      'circulatingSupply',
+      'degraded',
+      'devPctSupply',
+      'devWallets',
+      'fdvAthAt',
+      'fdvAthUsd',
+      'fdvUsd',
+      'holderConcentration',
+      'holders',
+      'honeypot',
+      'identityProvenance',
+      'key',
+      'kind',
+      'launchpad',
+      'liquidityUsd',
+      'lockedLiquidityPercent',
+      'marketCapUsd',
+      'maxSupply',
+      'name',
+      'pairCreatedAt',
+      'priceChange1h',
+      'priceChange24h',
+      'priceChange5m',
+      'priceUsd',
+      'providerErrors',
+      'providers',
+      'sources',
+      'stale',
+      'staleAgeMs',
+      'staleAsOf',
+      'status',
+      'symbol',
+      'top10HolderPercent',
+      'totalSupply',
+      'txns1hBuys',
+      'txns1hSells',
+      'txns5mBuys',
+      'txns5mSells',
+      'venue',
+      'volume1hUsd',
+      'volume24hUsd',
+      'volume5mUsd',
+    ]);
   });
 
   it('second GET of a pending shell is a cache MISS (no negative cache, plan todo 19a)', async () => {

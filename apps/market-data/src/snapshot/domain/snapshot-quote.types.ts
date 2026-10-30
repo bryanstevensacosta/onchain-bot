@@ -94,6 +94,19 @@ export interface SnapshotQuote {
    */
   readonly txns1hBuys: number | null;
   readonly txns1hSells: number | null;
+  /**
+   * Pair-level 5-minute market bucket (dexter `5M` row) — the
+   * pump.fun pair's `pair.volume.m5` / `pair.priceChange.m5` and its
+   * `pair.txns.m5` counts. Written ONLY by the `dexscreener` fetcher
+   * (after the quote-CLASS gate: a non-USD/SOL quote asset nulls all
+   * four — DexScreener does not measure that market in USD). A real
+   * `0` survives; the txns pair is whole-or-nothing (both `null` when
+   * either side is absent/non-finite).
+   */
+  readonly volume5mUsd: number | null;
+  readonly priceChange5m: number | null;
+  readonly txns5mBuys: number | null;
+  readonly txns5mSells: number | null;
   readonly priceChange24h: number | null;
   readonly holders: number | null;
   readonly top10HolderPercent: number | null;
@@ -159,6 +172,10 @@ export const SNAPSHOT_QUOTE_FIELDS: ReadonlyArray<keyof SnapshotQuote> = [
   'priceChange1h',
   'txns1hBuys',
   'txns1hSells',
+  'volume5mUsd',
+  'priceChange5m',
+  'txns5mBuys',
+  'txns5mSells',
   'priceChange24h',
   'holders',
   'top10HolderPercent',
@@ -187,6 +204,10 @@ export function emptySnapshotQuote(): SnapshotQuote {
     priceChange1h: null,
     txns1hBuys: null,
     txns1hSells: null,
+    volume5mUsd: null,
+    priceChange5m: null,
+    txns5mBuys: null,
+    txns5mSells: null,
     priceChange24h: null,
     holders: null,
     top10HolderPercent: null,

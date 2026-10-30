@@ -19,6 +19,7 @@ import { SolanaRpcService } from 'provider/infrastructure/solana-rpc';
 import type { BatchAccountsClient } from 'provider/infrastructure/solana-rpc/solana-rpc.types';
 import { toVenueOrNull } from 'snapshot/domain/snapshot-venue';
 import type { SnapshotVenue } from 'snapshot/domain/snapshot-venue';
+import type { BondingCurveInfo } from 'snapshot/domain/snapshot.types';
 import { DiscoveryCacheService } from './discovery-cache.service';
 import {
   emptySnapshotQuote,
@@ -117,6 +118,16 @@ export interface DirectFastPathResult {
   readonly pairSide: 'base' | 'quote' | null;
   /** Launchpad raced inside the deadline (null = slow/unknown). */
   readonly launchpad: LaunchpadInfo | null;
+  /**
+   * pump.fun bonding-curve state (`rick-compact-card` §10.16): built
+   * from the curve-PDA view the fast path ALREADY reads (`pdaP` — the
+   * `[b"bonding-curve", mint]` account), so ZERO added network. Read
+   * from `pdaView` even when `poolView` won the priced view: a
+   * migrated token's curve leg decodes to `null` (graduated), so a
+   * frozen curve can never leak onto a graduated card. `null` = not
+   * on curve / unreadable (never `onCurve: false`).
+   */
+  readonly bondingCurve: BondingCurveInfo | null;
   readonly timings: {
     readonly discoveryMs: number | null;
     readonly directMs: number;
@@ -474,6 +485,12 @@ export class DirectFastPathService {
     const view =
       this.viewForMint(poolView, mint) ?? this.viewForMint(pdaView, mint);
     if (view === null) return null;
+    // Bonding curve (`rick-compact-card` §10.16): sourced from the
+    // CURVE-PDA view — the leg already read in `pdaP` (zero added
+    // network). Deliberately NOT from `view` (which may be the AMM
+    // pool of a graduated token: its curve leg decodes to `null`, so
+    // a graduated card can never inherit a frozen curve).
+    const curveInfo = pdaView?.curve ?? null;
     if (view.migrated) {
       await this.invalidateOnMigration('solana', mint);
     }
@@ -546,6 +563,16 @@ export class DirectFastPathService {
             ? 'base'
             : 'quote',
       launchpad,
+      bondingCurve:
+        curveInfo === null
+          ? null
+          : {
+              onCurve: true,
+              launchpadId: 'pump-fun',
+              quoteSymbol: curveInfo.quoteSymbol,
+              quoteMint: curveInfo.quoteMint,
+              progressPercent: curveInfo.progressPercent,
+            },
       timings: {
         discoveryMs,
         directMs: performance.now() - directStart,
@@ -876,6 +903,9 @@ export class DirectFastPathService {
         pairAddress: nonEmptyString(discovery.pairAddress),
         pairSide: baseIsMint ? 'base' : 'quote',
         launchpad: launchReady ? launchpadValue : null,
+        // pump.fun bonding curve is Solana-only — the EVM path never
+        // carries one (explicit `null`, never omitted).
+        bondingCurve: null,
         timings: {
           discoveryMs,
           directMs: performance.now() - directStart,

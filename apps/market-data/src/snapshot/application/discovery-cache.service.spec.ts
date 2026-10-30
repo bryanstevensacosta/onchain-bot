@@ -1,4 +1,5 @@
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
+import { selectBestPairSummaryForSlug } from 'provider/infrastructure/dexscreener/dexscreener.service';
 import type {
   DexScreenerPair,
   DexScreenerPairSummary,
@@ -233,5 +234,109 @@ describe('DiscoveryCacheService', () => {
     // the service exposes no such mapping (compile-level: no method
     // returns LaunchpadInfo; runtime: asserted above).
     expect(row?.dexId).toBe('meteoradbc');
+  });
+});
+
+/**
+ * 5-minute bucket (dexter `5M` row, `rick-compact-card` §10.16) —
+ * tripwire mapper parity.
+ *
+ * The 30-day cache hit is the NORMAL path, so `toSummaryFromTripwire`
+ * must emit the same four flat fields as the provider mapper
+ * (`toPairSummary` in `dexscreener.service.ts`) on the same pair
+ * fixture — the same byte-parity claim already pinned for the 1h
+ * bucket. Real `0` survives; absent/non-finite → `null`; a partial
+ * `txns.m5` nulls BOTH sides (never `{buys:0,sells:0}`).
+ */
+describe('DiscoveryCacheService — 5m bucket tripwire parity', () => {
+  async function bothMappers(
+    p: DexScreenerPair,
+  ): Promise<[DexScreenerPairSummary, DexScreenerPairSummary]> {
+    const cache = new DiscoveryCacheRepository();
+    await cache.save('solana', MINT, p.pairAddress, p.dexId);
+    const dexscreener = {
+      getPairByAddress: jest.fn().mockResolvedValue(p),
+      getPairsByChain: jest.fn(),
+      getBestPairSummaryForChain: jest.fn(),
+    } as unknown as DexScreenerService;
+    const tripwire = await new DiscoveryCacheService(
+      cache,
+      dexscreener,
+    ).resolveDiscovery('solana', MINT);
+    const provider = selectBestPairSummaryForSlug([p], 'solana');
+    if (tripwire === null || provider === null) {
+      throw new Error('mapper returned null');
+    }
+    return [tripwire, provider];
+  }
+
+  it('carries volume.m5 / priceChange.m5 / txns.m5 verbatim (real 0 survives)', async () => {
+    const [tripwire, provider] = await bothMappers(
+      tripwirePair({
+        dexId: 'pumpfun',
+        volume: { h24: 1000, m5: 0 },
+        priceChange: { h24: 2.5, m5: -1.25 },
+        txns: { h24: { buys: 10, sells: 5 }, m5: { buys: 1, sells: 3 } },
+      }),
+    );
+    expect(tripwire.volume5mUsd).toBe(0);
+    expect(tripwire.priceChange5m).toBe(-1.25);
+    expect(tripwire.txns5mBuys).toBe(1);
+    expect(tripwire.txns5mSells).toBe(3);
+    // Byte-parity with the provider mapper on the same fixture.
+    expect(tripwire.volume5mUsd).toBe(provider.volume5mUsd);
+    expect(tripwire.priceChange5m).toBe(provider.priceChange5m);
+    expect(tripwire.txns5mBuys).toBe(provider.txns5mBuys);
+    expect(tripwire.txns5mSells).toBe(provider.txns5mSells);
+  });
+
+  it('nulls every 5m field when the buckets are absent (provider parity)', async () => {
+    const [tripwire, provider] = await bothMappers(
+      tripwirePair({
+        txns: { h24: { buys: 10, sells: 5 } },
+        volume: { h24: 1000 },
+        priceChange: { h24: 2.5 },
+      }),
+    );
+    expect(tripwire.volume5mUsd).toBeNull();
+    expect(tripwire.priceChange5m).toBeNull();
+    expect(tripwire.txns5mBuys).toBeNull();
+    expect(tripwire.txns5mSells).toBeNull();
+    expect(provider.volume5mUsd).toBeNull();
+    expect(provider.priceChange5m).toBeNull();
+    expect(provider.txns5mBuys).toBeNull();
+    expect(provider.txns5mSells).toBeNull();
+  });
+
+  it('nulls non-finite m5 values (provider parity, never 0)', async () => {
+    const [tripwire, provider] = await bothMappers(
+      tripwirePair({
+        volume: { h24: 1000, m5: Number.NaN },
+        priceChange: { h24: 2.5, m5: Number.POSITIVE_INFINITY },
+        txns: { m5: { buys: 1, sells: 3 } },
+      }),
+    );
+    expect(tripwire.volume5mUsd).toBeNull();
+    expect(tripwire.priceChange5m).toBeNull();
+    expect(provider.volume5mUsd).toBeNull();
+    expect(provider.priceChange5m).toBeNull();
+    // txns.m5 itself was finite — only the numeric buckets null.
+    expect(tripwire.txns5mBuys).toBe(1);
+    expect(tripwire.txns5mSells).toBe(3);
+  });
+
+  it('nulls BOTH txns sides when the m5 pair is partial (provider parity)', async () => {
+    const [tripwire, provider] = await bothMappers(
+      tripwirePair({
+        txns: {
+          h24: { buys: 10, sells: 5 },
+          m5: { buys: 1 } as unknown as { buys: number; sells: number },
+        },
+      }),
+    );
+    expect(tripwire.txns5mBuys).toBeNull();
+    expect(tripwire.txns5mSells).toBeNull();
+    expect(provider.txns5mBuys).toBeNull();
+    expect(provider.txns5mSells).toBeNull();
   });
 });

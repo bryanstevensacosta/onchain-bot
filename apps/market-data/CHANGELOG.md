@@ -9,6 +9,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **pump.fun bonding curve on the wire + DexScreener 5-minute bucket
+  (`rick-compact-card` §10.16, 2026-10-30):** dexter's launchpad
+  short-card layout. `AddressSnapshot.bondingCurve` is a new REQUIRED
+  key (`BondingCurveInfo | null`, LIVE-ONLY): `{ onCurve: true,
+launchpadId, quoteSymbol, quoteMint, progressPercent }` when the
+  classic `[b"bonding-curve", mint]` account decodes as
+  NON-graduated, else `null` (never `onCurve: false`). Fast path
+  reuses the curve-PDA view it already reads (ZERO added network);
+  fan-out runs `getPumpCurve` once, gated to Solana `kind=token`,
+  bounded by `SNAPSHOT_PUMP_CURVE_TIMEOUT_MS` (default 1500,
+  fail-open); SWR-now / stale / invalid / background-refresh pin
+  `null` (accepted layout flip; persisting the curve would need a
+  jsonb column). The codec now zero-pads to the append-only 166 B
+  layout (`creator` @49, `quoteMint` @83, both length-gated), and
+  progress is a pure clamp
+  `100 × (1 − realTokenReserves / 793.1e12)` at 4 dp — denominator
+  is the initial 793.1M reserve, never `tokenTotalSupply`. New
+  `PumpQuoteResolver` (WSOL/zero ⇒ zero reads; Token-2022 TLV
+  `type 19` → Metaplex metadata → `null`, still emitting the read
+  `quoteMint`) with a cap-500 definitive-only cache; `pumpView` leg B
+  now uses the REAL quote mint + decimals, fixing `priceBA` for
+  token-quoted curves (served price still from DexScreener/Meteora,
+  never mixed). DexScreener's four 5m fields
+  (`volume5mUsd`/`priceChange5m`/`txns5mBuys`/`txns5mSells`) come from
+  the `dexId === 'pumpfun'` pair via new
+  `selectPumpfunPairForSlug` (unsorted, explicit), written ONLY by the
+  `dexscreener` fetcher behind a USD/SOL quote-CLASS gate (the
+  reference mint's `Bitcoin` quote ⇒ all four `null` ⇒ silent row; a
+  real `0` survives; partial `txns.m5` nulls both sides), riding ONE
+  extra Solana-only `getPairsByToken` promise started concurrently
+  with discovery (zero added wall-clock, ≤1 call; zero calls on other
+  chains). Both pair→summary mappers stay byte-parity. Compat edge
+  whitelist carries the five keys explicitly (batch surface
+  untouched), pinned by an exact 47-key sorted array. PREREQUISITE
+  FIX: `solana-pda.ts` had wrong `ED25519_D`/`ED25519_SQRT_M1`
+  constants — every derived PDA was wrong, silently poisoning
+  `getTokenBasics` identity and the launchpad detector; corrected and
+  pinned with 5 absolute web3.js vectors (11/11). Suite 168/1437
+  green, `tsc --noEmit` clean.
+
 - **Holder concentration (`holderConcentration`) — the `👥 TH:` source
   (2026-10-26):** new REQUIRED `AddressSnapshot.holderConcentration`
   (`{ topPercents, top10Percent } | null`, always emitted) produced by a

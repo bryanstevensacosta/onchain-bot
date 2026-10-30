@@ -2871,3 +2871,129 @@ degraded to null, fail-open` — and the post-loop transient note never
   overrides. Todo-71 follow-up run: 154/1161 green ×2, `tsc --noEmit`
   clean. Evidence:
   `.omo/evidence/task-fe-honeypot-research/slow-leg-budget-lane.log`.
+
+## PUMP BONDING CURVE + 5m BUCKET (rick-compact-card §10.16, 2026-10-30)
+
+Dexter's launchpad short-card layout needs the pump.fun bonding-curve
+state on the compat edge plus the pair-level 5-minute bucket. Both ride
+`GET /api/market-data/snapshot` (single-address compat edge ONLY — the
+reduced batch surface is deliberately NOT widened). One body + 7
+self-silencing dexter keys; NO second template. Suite 168/1437 green,
+`tsc --noEmit` clean.
+
+### PDA root-cause fix (prerequisite, same change set)
+
+`launchpad/infrastructure/solana-pda.ts` had wrong `ED25519_D` /
+`ED25519_SQRT_M1` constants, so `findProgramAddress` returned WRONG
+addresses for every input — silently poisoning `getTokenBasics`
+(identity) and the launchpad detector, not just the new curve leg. Fixed
+with 5 absolute `@solana/web3.js`-derived vectors pinned in the spec
+(11/11). Pinned: `[bonding-curve, 2dNdT2…BTC]` →
+`5sqQd6fn8FqNkRerAYcz2gewDd97JHe9fvGASwRqQiCC` (nonce 254);
+`[metadata, metaplex, Hytpiy…Dpump]` →
+`2gvncxFdRKWtuz2Qz2k2fCC59pJtfoBbtQzMQNdND6sL`.
+
+### Curve source of truth
+
+- `provider/infrastructure/onchain/pump-bonding-curve.codec.ts`: the
+  account is APPEND-ONLY (live 166 B) — decode zero-pads to
+  `PUMP_CURVE_PADDED_LEN = 166` so `readU64`/`readU8Number` never fail
+  for in-range offsets, and every field is length-gated
+  (`creator` @49 needs ≥81, `quoteMint` @83 needs ≥115; all-zero slot ⇒
+  `null`, never a fake mint). `complete !== 0` ⇒ `null` (graduated, NOT
+  `onCurve: false`). TS field names `virtualSolReserves` /
+  `realSolReserves` stay (the current IDL renamed them
+  `*_quote_*` — same offsets, do not rename).
+- PROGRESS is a pure helper: `pumpCurveProgressPercent` =
+  `clamp(100 × (1 − realTokenReserves / 793_100_000_000_000), 0, 100)`
+  rounded to 4 dp. Denominator is
+  `PUMP_CURVE_INITIAL_REAL_TOKEN_RESERVES` (793.1M × 1e6), NEVER
+  `tokenTotalSupply`. It is non-monotonic by design (reserves move both
+  ways) and is never rounded to an integer for display parity.
+- `provider/infrastructure/onchain/pump-quote.resolver.ts` (NEW): the
+  ONE place that turns `quote_mint` into a display symbol. WSOL/all-zero
+  ⇒ `{null,null}` with ZERO reads; else Token-2022 TLV `type 19`
+  (TokenMetadata, `[u16 type][u16 len][value]` from offset 166, past the
+  165-byte padded base) → Metaplex metadata PDA (`decodeMetadata`) →
+  `null` while STILL emitting the read `quoteMint` (data, not a guess).
+  Cap-500 insertion-eviction cache of DEFINITIVE answers only
+  (transport failure / unreadable mint is never memoized), one instance
+  per reader service, reset on deploy, never throws.
+- `onchain-solana.reader.ts`: `getPumpCurve(mint)` (PDA derive → ONE
+  `getMultiple([pda])` → decode → progress + quote) is REQUIRED on the
+  service and OPTIONAL on the `OnchainSolanaReader` port (hand-built
+  stub precedent — callers guard with
+  `typeof reader.getPumpCurve === 'function'`). `OnchainPoolView.curve`
+  (optional) carries the same decode to the fast path. `pumpView` leg B
+  is now `quoteMint ?? WSOL_MINT` with REAL decimals, so `priceBA` is
+  correct for token-quoted curves — a correctness fix INSIDE the view;
+  the served card price still comes from DexScreener/Meteora and is
+  never mixed.
+
+### Wire shape
+
+- `snapshot/domain/snapshot.types.ts`:
+  `BondingCurveInfo { onCurve: true; launchpadId; quoteSymbol;
+quoteMint; progressPercent }` — `onCurve` is the LITERAL `true`
+  (only a verified, decodable, non-graduated curve produces an object;
+  everything else is `null`). REQUIRED
+  `AddressSnapshot.bondingCurve: BondingCurveInfo | null`, LIVE-ONLY
+  (never persisted, same class as `launchpad`/`venue`/`honeypot`/
+  `pairCreatedAt`). Mirrors dexter's `MarketDataBondingCurve` exactly
+  (5 keys; `poolAddress` stays reader-internal).
+- FAST PATH: `DirectFastPathResult.bondingCurve` comes from the
+  curve-PDA view the fast path ALREADY reads (`pdaP`) ⇒ ZERO added
+  network; sourced from `pdaView` even when `poolView` won, because a
+  migrated token's curve leg decodes to `null`.
+- FAN-OUT: `getPumpCurve` started ONCE concurrently with `fanoutP`,
+  gated to `knownId === 'solana' && kind === 'token'`, bounded by
+  `SNAPSHOT_PUMP_CURVE_TIMEOUT_MS` (env, default 1500) through the
+  existing `withTailBudget`; `TAIL_TIMEOUT`/reject/null all degrade to
+  `null`. On a fast-path serve the promise is never awaited (it settles
+  inside the already-running background fan-out); the race observes it,
+  so no unhandled rejection. NOT a provider fetch — it consumes no
+  `outbound:*` budget.
+- REPLAY pins: SWR-now, stale replay, invalid card and background
+  refresh all serve `bondingCurve: null` explicitly. Accepted
+  consequence: a replay of an on-curve token renders the FULL card and
+  the next fresh serve flips back to the short one. Persisting it would
+  need a new jsonb column + migration — out of scope for v1.
+
+### 5-minute bucket (`market5mRow`)
+
+- `DexScreenerPairSummary` gains `volume5mUsd` / `priceChange5m` /
+  `txns5mBuys` / `txns5mSells`. The summary members are OPTIONAL only so
+  hand-built literals in older specs keep compiling; BOTH mappers
+  (`toPairSummary` and the byte-parity twin `toSummaryFromTripwire`)
+  ALWAYS emit them. `SnapshotQuote` carries them as REQUIRED keys (in
+  `SNAPSHOT_QUOTE_FIELDS`, nulled by `emptySnapshotQuote()`).
+- `selectPumpfunPairForSlug(pairs, slug)`: FIRST pair with
+  `chainId === slug && dexId === 'pumpfun'` — explicit, unsorted, no
+  fallback to another dex. The strict discovery pick is best-liquidity
+  (Meteora for a graduated pump token), so the curve's own pair can
+  only be reached this way.
+- The `dexscreener` quote fetcher is the SOLE writer. It starts ONE
+  extra Solana-only `getPairsByToken` promise BEFORE strict
+  discovery/cache awaits (zero added wall-clock, `.catch` attached at
+  creation, ≤1 call per invocation; early-bail miss paths just let it
+  resolve unused), selects the pumpfun pair, takes the side OPPOSITE
+  our mint and emits the four values ONLY when that side is USD/SOL
+  (`address === WSOL_MINT` or symbol in {SOL,WSOL,USDC,USDT}).
+  HONESTY BY CLASS, NOT VALUE: a non-USD/SOL quote (e.g. the reference
+  mint's `Bitcoin`) nulls ALL FOUR and the row goes silent; a real `0`
+  survives on a USD/SOL pair; a partial `txns.m5` nulls BOTH sides;
+  our mint on neither side of the pump pair emits nothing. Non-Solana
+  chains issue ZERO extra calls.
+- Declaration order note: `evm-tolerance.ts` spreads
+  `emptySnapshotQuote()` at the top of its `quote` literal to satisfy
+  the now-required keys — behavior-null (every `pickDefined` below
+  overrides it).
+
+### Compat edge
+
+`market-data-snapshot.controller.ts` carries the five keys explicitly
+(`volume5mUsd`, `priceChange5m`, `txns5mBuys`, `txns5mSells`,
+`bondingCurve`) — never a spread. Pinned by
+`gateway-market-data-snapshot.spec.ts` with an EXACT sorted 47-key array,
+so an accidental widening of this surface (or of the batch surface)
+fails the suite.

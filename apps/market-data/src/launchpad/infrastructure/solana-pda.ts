@@ -4,10 +4,15 @@ const BASE58_ALPHABET =
   '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 
 const ED25519_P = 2n ** 255n - 19n;
+// -121665/121666 mod p (RFC 8032 §5.1.2). Verified against
+// @solana/web3.js 1.98.0: an alternate value silently breaks the
+// off-curve test and yields WRONG program addresses (see the absolute
+// vectors in solana-pda.spec.ts).
 const ED25519_D =
-  3709570593466944313808350875456518954211387984321901638878553308594028357065n;
+  37095705934669439343138083508754565189542113879843219016388785533085940283555n;
+// sqrt(-1) mod p (RFC 8032 §5.1.2) — same pinning rationale.
 const ED25519_SQRT_M1 =
-  196811613767075059568070793049885420154460665159018070209982863036521263069n;
+  19681161376707505956807079304988542015446066515923890162744021073123829784752n;
 
 function base58ToBytes(value: string): Uint8Array {
   let num = 0n;

@@ -2,7 +2,9 @@ import { DexScreenerService } from 'provider/infrastructure/dexscreener';
 import {
   resolveDexScreenerSlug,
   selectBestPairSummaryForSlug,
+  selectPumpfunPairForSlug,
 } from 'provider/infrastructure/dexscreener/dexscreener.service';
+import { WSOL_MINT } from 'provider/infrastructure/onchain/solana-program-ids';
 import {
   GeckoTerminalService,
   selectPoolQuote,
@@ -37,7 +39,10 @@ import {
   resolveHolderConcentrationTimeoutMs,
 } from 'snapshot/domain/snapshot-holder-concentration';
 import { computeHolderConcentration } from './holder-concentration';
-import type { DexScreenerPairSummary } from 'provider/infrastructure/dexscreener/dexscreener.types';
+import type {
+  DexScreenerPair,
+  DexScreenerPairSummary,
+} from 'provider/infrastructure/dexscreener/dexscreener.types';
 
 function toNumber(value: unknown): number | null {
   if (typeof value === 'number') {
@@ -125,6 +130,31 @@ function rpcAmountToUi(
   }
   const ui = raw / 10 ** decimals;
   return Number.isFinite(ui) ? ui : null;
+}
+
+/**
+ * USD/SOL quote-CLASS gate for the 5-minute bucket (dexter `5M` row).
+ *
+ * A pair's `volume.m5` / `txns.m5` are denominated in its QUOTE asset,
+ * so they are only USD-measurable when that asset is a stablecoin or
+ * SOL. Honesty is by CLASS, not by value: the reference mint's pump
+ * pair quotes `Bitcoin`, so its numbers must stay silent instead of
+ * being rendered as USD. WSOL matches by canonical mint address
+ * (base58 is case-sensitive); the symbol list is the only keyless
+ * fallback DexScreener gives for the same class of assets.
+ */
+function isUsdOrSolQuoteSide(side: {
+  readonly address: string | null;
+  readonly symbol: string | null;
+}): boolean {
+  if (side.address === WSOL_MINT) return true;
+  const symbol = (side.symbol ?? '').trim().toUpperCase();
+  return (
+    symbol === 'SOL' ||
+    symbol === 'WSOL' ||
+    symbol === 'USDC' ||
+    symbol === 'USDT'
+  );
 }
 
 /** GeckoTerminal network slugs verified live 2026-10-06 via `GET /networks`. */
@@ -325,6 +355,24 @@ export function buildProviderQuoteFetchers(
       if (slug === null) {
         return null;
       }
+      // 5-minute bucket pre-fetch (concurrent with discovery, zero added
+      // wall-clock on the common path): Solana only, keyless, one call.
+      //
+      // Started HERE, before the discovery-cache / strict `await`, so the
+      // pumpfun pair list overlaps discovery + fallbacks instead of adding
+      // its own ~0.7s after them. Exactly ONE call is ever issued (the
+      // promise is created once); non-solana chains and deps without the
+      // method never issue one. `.catch` is attached AT CREATION, so the
+      // in-flight request can never surface an unhandled rejection — on a
+      // miss path where the early legs bail out, it simply resolves unused
+      // (documented, ≤1 call).
+      const pumpPairsP: Promise<ReadonlyArray<DexScreenerPair> | null> | null =
+        chain === 'solana' &&
+        typeof deps.dexscreener.getPairsByToken === 'function'
+          ? deps.dexscreener
+              .getPairsByToken(address)
+              .catch((): ReadonlyArray<DexScreenerPair> | null => null)
+          : null;
       const strict =
         deps.discoveryCache !== undefined && deps.discoveryCache !== null
           ? await deps.discoveryCache.resolveDiscovery(chain, address)
@@ -378,6 +426,62 @@ export function buildProviderQuoteFetchers(
       if (identity === null) {
         return null;
       }
+      // 5-minute bucket (dexter `5M` row) — the ONLY writer of these
+      // four fields. The source MUST be the pumpfun pair: the strict
+      // discovery pick is best-liquidity, and for a graduated pump
+      // curve that is a migrated pool (Meteora for the reference
+      // mint), so the curve's own pair cannot be obtained from it.
+      //
+      // ACCEPTED COST (documented, keyless): exactly ONE extra
+      // DexScreener call per COLD solana snapshot, inside the existing
+      // `outbound:dexscreener` bucket — never a second endpoint, and
+      // zero calls on every other chain (spec-pinned by spy). The call
+      // was started ABOVE, concurrently with discovery + fallbacks, so
+      // it adds ZERO wall-clock on the common path (same single call,
+      // same endpoint). On a miss path where the early legs bail before
+      // this block, the in-flight pair-list request simply resolves
+      // unused — still ≤1 call, `.catch` attached at creation so no
+      // unhandled rejection is possible. Method guard: hand-rolled stub
+      // deps without `getPairsByToken` skip silently (same precedent as
+      // `search`/`getTokensInfo`).
+      let volume5mUsd: number | null = null;
+      let priceChange5m: number | null = null;
+      let txns5mBuys: number | null = null;
+      let txns5mSells: number | null = null;
+      if (pumpPairsP !== null) {
+        const pumpPair = selectPumpfunPairForSlug(await pumpPairsP, slug);
+        // Quote-CLASS gate: take the side of the pumpfun pair
+        // OPPOSITE our mint (its `volume.m5`/`txns.m5` belong to
+        // that asset) and emit only when that side is USD/SOL. Our
+        // mint on NEITHER side of the pump pair emits nothing — a
+        // foreign pair's numbers never reach this card.
+        const oppositeSide =
+          pumpPair === null
+            ? null
+            : typeof pumpPair.baseToken.address === 'string' &&
+                pumpPair.baseToken.address.toLowerCase() === wanted
+              ? pumpPair.quoteToken
+              : typeof pumpPair.quoteToken.address === 'string' &&
+                  pumpPair.quoteToken.address.toLowerCase() === wanted
+                ? pumpPair.baseToken
+                : null;
+        if (
+          pumpPair !== null &&
+          oppositeSide !== null &&
+          isUsdOrSolQuoteSide(oppositeSide)
+        ) {
+          volume5mUsd = toNumber(pumpPair.volume5mUsd);
+          priceChange5m = toNumber(pumpPair.priceChange5m);
+          // Whole-pair rule: a partial txns pair stays BOTH null
+          // (never half a reading, never a `{0,0}` default).
+          const buys5m = toNumber(pumpPair.txns5mBuys);
+          const sells5m = toNumber(pumpPair.txns5mSells);
+          if (buys5m !== null && sells5m !== null) {
+            txns5mBuys = buys5m;
+            txns5mSells = sells5m;
+          }
+        }
+      }
       const txns1h = best.txns1h;
       const txns1hBuys =
         typeof txns1h?.buys === 'number' && Number.isFinite(txns1h.buys)
@@ -405,6 +509,14 @@ export function buildProviderQuoteFetchers(
         priceChange1h: toNumber(best.priceChange1h),
         txns1hBuys,
         txns1hSells,
+        // 5-minute bucket (dexter `5M` row): pumpfun pair only,
+        // already gated by quote CLASS above; all four stay null when
+        // the gate failed or the pair/bucket is absent. Only this leg
+        // ever writes them.
+        volume5mUsd,
+        priceChange5m,
+        txns5mBuys,
+        txns5mSells,
         priceChange24h: toNumber(best.priceChange24h),
         symbol: identity.symbol || null,
         name: identity.name || null,

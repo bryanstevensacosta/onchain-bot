@@ -1,5 +1,8 @@
 import { Logger } from '@nestjs/common';
-import type { SnapshotQuote } from 'snapshot/domain/snapshot-quote.types';
+import {
+  emptySnapshotQuote,
+  type SnapshotQuote,
+} from 'snapshot/domain/snapshot-quote.types';
 
 /**
  * Direct-vs-aggregator tolerance at the snapshot seam (Lane E, todo 22).
@@ -91,6 +94,11 @@ export function selectPreferredQuote(
     return { quote: aggregator, diverged: false, divergeBps: null };
   }
   const quote: SnapshotQuote = {
+    // Cross-lane compile seam (5M row): every explicit pick below
+    // overrides this base, so the spread is behavior-null; it only
+    // supplies the fields this comparator does not pick (today: the
+    // four 5m keys). Same shape as the fast-path literals.
+    ...emptySnapshotQuote(),
     priceUsd: pickDefined(direct.priceUsd, aggregator.priceUsd),
     marketCapUsd: pickDefined(direct.marketCapUsd, aggregator.marketCapUsd),
     fdvUsd: pickDefined(direct.fdvUsd, aggregator.fdvUsd),

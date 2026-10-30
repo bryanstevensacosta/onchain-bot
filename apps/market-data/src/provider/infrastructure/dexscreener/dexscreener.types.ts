@@ -197,4 +197,26 @@ export interface DexScreenerPairSummary {
     readonly buys: number;
     readonly sells: number;
   } | null;
+  /**
+   * Pair-level 5-minute volume in USD (`pair.volume.m5`, dexter `5M`
+   * row) — the pump.fun pair's bucket, carried verbatim. Absent /
+   * non-finite → `null` (never `0`); a real `0` survives. Both mappers
+   * (`toPairSummary` in `dexscreener.service.ts` and
+   * `toSummaryFromTripwire` in `discovery-cache.service.ts`) apply the
+   * same guard — byte-parity pinned.
+   */
+  readonly volume5mUsd?: number | null;
+  /**
+   * Pair-level 5-minute price change in percent (`pair.priceChange.m5`).
+   * Absent/non-finite → `null`; a real `0` survives.
+   */
+  readonly priceChange5m?: number | null;
+  /**
+   * Pair-level 5-minute transaction counts (`pair.txns.m5`), flattened
+   * (the 1h set keeps the nested pair). WHOLE-PAIR rule: both are
+   * `null` when `txns.m5` is absent OR either side is not a finite
+   * number — never a `{buys:0,sells:0}` completion.
+   */
+  readonly txns5mBuys?: number | null;
+  readonly txns5mSells?: number | null;
 }

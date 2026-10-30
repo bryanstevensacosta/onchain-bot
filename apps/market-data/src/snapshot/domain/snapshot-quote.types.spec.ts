@@ -52,3 +52,35 @@ describe('SnapshotQuote geckoLaunchpadHint (todo 72)', () => {
     );
   });
 });
+
+describe('SnapshotQuote 5m bucket (dexter 5M row, rick-compact-card §10.16)', () => {
+  it('emptySnapshotQuote carries the four 5m fields as null', () => {
+    const quote = emptySnapshotQuote();
+    expect(quote.volume5mUsd).toBeNull();
+    expect(quote.priceChange5m).toBeNull();
+    expect(quote.txns5mBuys).toBeNull();
+    expect(quote.txns5mSells).toBeNull();
+  });
+
+  it('SNAPSHOT_QUOTE_FIELDS lists all four (merge whitelist)', () => {
+    expect([...SNAPSHOT_QUOTE_FIELDS]).toEqual(
+      expect.arrayContaining([
+        'volume5mUsd',
+        'priceChange5m',
+        'txns5mBuys',
+        'txns5mSells',
+      ]),
+    );
+  });
+
+  it('places the 5m block immediately after the 1h block (deterministic merge order)', () => {
+    const fields = [...SNAPSHOT_QUOTE_FIELDS];
+    const after = fields.indexOf('txns1hSells') + 1;
+    expect(fields.slice(after, after + 4)).toEqual([
+      'volume5mUsd',
+      'priceChange5m',
+      'txns5mBuys',
+      'txns5mSells',
+    ]);
+  });
+});
