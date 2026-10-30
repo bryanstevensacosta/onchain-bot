@@ -877,7 +877,12 @@ pending for … — retry shortly`). `MARKET_DATA_TIMEOUT_MS` default
 trailing/leading/mid (same hspace semantics + `(?!\()` anti-link
 guard); (2) orphan empty code span (trailing/leading/mid) with
 lookarounds `(?<!\[)``(?!\])`keeping`[``](url)`byte-intact;
-(3) line-end-only dangling`⇨`(mid-line/line-start`⇨` stays).
+(3) line-end-only dangling`⇨`(mid-line/line-start`⇨`stays).
+Launchpad-layout extension (2026-10-30, plan §10.15): a FOURTH trio
+collapses the EMPTY ESCAPED pair`\[\]`(left by the body's static`\[{{fdvAthAgo}}\]`; the backslash inside the pair is invisible to the
+raw `[]`trio) in the same three positions with the same hspace rules
+and`(?!\()` guard, placed BEFORE the dangling-`⇨`rule so`FDV: 8.3K ⇨ \[\]`collapses to`FDV: 8.3K`; an escaped pair WITH
+content (`\[7d\]`) is untouched.
 Populated spans/brackets (`[x3]`, `` `x` ``, links) untouched.
 Catalog META ×2 `{type:'derived', nullable:true, example}`;
 count literals 42→44 / 43→45. Seeds NOT touched (row is opt-in

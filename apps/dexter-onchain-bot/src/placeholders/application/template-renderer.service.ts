@@ -445,6 +445,16 @@ export class TemplateRendererService {
         // Mid-line: pair floats between text — consume only the
         // previous hspace (the one before the brackets).
         .replace(/[ \t]*\[[ \t]*\](?!\()/g, '')
+        // Launchpad layout (dexter plan §10.15, body v17): the FDV line
+        // composes `\[{{fdvAthAgo}}\]` — STATIC brackets escaped by the
+        // body — so an empty age leaves the ESCAPED pair `\[\]`
+        // (backslash inside the pair), invisible to the raw `[]` trio
+        // above. Same three positions, same hspace semantics and same
+        // anti-link guard; a pair WITH content (`\[7d\]`, the ATH age)
+        // is author data and never matches.
+        .replace(/[ \t]*\\\[[ \t]*\\\](?!\()[ \t]*(?=\n|$)/g, '')
+        .replace(/(^|\n)[ \t]*\\\[[ \t]*\\\](?!\()[ \t]*/g, '$1')
+        .replace(/[ \t]*\\\[[ \t]*\\\](?!\()/g, '')
         // Todo 71: bracket containing ONLY an empty code span — the
         // ``[`{{x}}`]`` composition with an empty value — same
         // three positions and same anti-link guard as `[]` above.

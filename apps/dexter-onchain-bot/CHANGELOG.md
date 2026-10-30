@@ -164,6 +164,19 @@ progressPercent } | null`, validated by `toBondingCurveOrNull`
 
 ### Fixed
 
+- **Empty escaped bracket pair on the launchpad FDV line (2026-10-30):**
+  the recommended launchpad body composes the ATH age as the STATIC
+  escaped pair `\[{{fdvAthAgo}}\]`; with a cold ATH the rendered line
+  served `💎 FDV: 8.3K ⇨  \[\]` — a visible empty bracket pair, because
+  the raw `[]` cleanup trio cannot see a pair with a backslash inside
+  it. `cleanupDanglingSeparators` gains a FOURTH trio (trailing /
+  leading / mid-line, same hspace rules and same `(?!\()` anti-link
+  guard) placed BEFORE the dangling-`⇨` rule, so the line collapses to
+  `💎 FDV: 8.3K` (and to `💎 FDV: 8.3K ⇨ 2.5K` when only the age is
+  missing). A pair WITH content (`\[7d\]`) is never touched. Pinned at
+  the cleanup level and end-to-end with the v17 body bytes; the former
+  "never touches `\[\]`" pin is replaced by the collapse contract.
+
 - **`nameLink` renders PLAIN text (2026-10-26):** the derived key now
   emits `[Name](botStartUrl)` (or bare `Name` without a URL) instead
   of `[**Name**](botStartUrl)`. MarkdownV2 bold is a SINGLE `*`, so the

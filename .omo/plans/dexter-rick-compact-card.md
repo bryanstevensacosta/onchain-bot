@@ -845,14 +845,13 @@ Guard de frontera `toBondingCurveOrNull` (cliente dexter): rechaza (→ `null`) 
 
 Fuera de curva → `*\[9.6K/353%\] $NET*` (el body renderiza el par escapado; ver la nota de arriba: el bracket crudo de §5.3 era un 400 garantizado). En curva → `*$NET/Bitcoin*` (el bracket desaparece). Fila de ventana: `{{marketRow}}` → `5M:` en curva / `1H:` fuera.
 
-**Composición con el body objetivo (v17, supersede §5.3).** Las DOS filas que el layout corto elimina (`💰 USD:`, `💦 Liq:`) y el bracket del headline se componen SOLO con estas keys; una misma línea estática no puede silenciarse. Cada key que empieza con `\n` se pega al FINAL de la línea anterior (mecánica de `honeypotBlock` / `holderTopRow`): una línea que contenga solo la key deja una línea en blanco fuera de curva. Body completo, listo para pegar:
+**Composición con el body objetivo (v17, supersede §5.3).** Las DOS filas que el layout corto elimina (`💰 USD:`, `💦 Liq:`) y el bracket del headline se componen SOLO con estas keys; una misma línea estática no puede silenciarse. **TODA key que empieza con `\n` se pega al FINAL de la línea anterior** (mecánica de `honeypotBlock` / `holderTopRow`): una key sola en su propia línea del body produce una línea en blanco SIEMPRE (el `\n` del body MÁS el `\n` de la key), no solo cuando calla — verificado en el preview (el `⏳` salía tras un blanco). Body completo, listo para pegar:
 
 ```text
 {{headerIcon}} {{nameLink}} *{{fdvChangeBracket}}${{symbol}}{{quoteSuffix}}*
 🌐 {{chainName}}{{venueSuffixShort}}
 💎 FDV: {{fdvUsd}} ⇨ {{fdvAth}} \[{{fdvAthAgo}}\]
-📊 Vol: {{volume24hUsd}}{{ageSuffix}}{{honeypotBlock}}{{usdRow}}{{liqRow}}
-{{marketRow}}{{curveRow}}
+📊 Vol: {{volume24hUsd}}{{ageSuffix}}{{honeypotBlock}}{{usdRow}}{{liqRow}}{{marketRow}}{{curveRow}}
 ```
 
 Reglas de composición, pinneadas:
@@ -860,6 +859,7 @@ Reglas de composición, pinneadas:
 - `usdRow` / `liqRow` son la versión MONOESPACIADA correcta de las filas de §5.3 (`💰 USD: \`<precio>\``, `💦 Liq: \`<lado>\`<flags>`): el número viaja RAW dentro del code span (`codeV2Text`: escapa solo `\` y backtick; `0.00007707`, jamás `0\.00007707`) y las flags quedan FUERA del span. **NO hay paridad byte-a-byte con §5.3**: el body de §5.3 compone `` `{{priceUsd}}` `` (placeholder crudo dentro de backticks) y eso imprime el backslash — es el defecto documentado abajo. La paridad que se exige es con la INTENCIÓN de §5.3 (mismo texto, número monoespaciado, CERO backslashes en la fila), y por eso §5.3 queda reemplazada por este body.
 - **Defecto de §5.3 (documentado; el body v17 lo evita):** envolver un placeholder crudo en backticks (`` `{{priceUsd}}` ``) NO produce monospace correcto — el renderer escapa el valor con `escapeV2Text` (`0\.00007707`) y dentro de un code entity el backslash se imprime. Regla general: **un número que deba ir monoespaciado necesita una key compuesta** (`usdRow`, `liqRow`, `marketRow`, `holderTopRow`, `market1hRow`/`market5mRow`), nunca backticks alrededor de un `{{placeholder}}` crudo. Las filas `FDV`/`Vol`/age de §5.3 no tienen key compuesta todavía: en v17 van SIN backticks (texto escapado normal, correcto pero no monoespaciado) hasta que exista una lane de `fdvRow`/`volRow`.
 - Los corchetes de `{{fdvAthAgo}}` son texto ESTÁTICO del body, así que el body los escapa (`\[…\]`); los de `fdvChangeBracket` los escapa la KEY. Nunca los dos.
+- **`cleanupDanglingSeparators` colapsa el par escapado vacío (`\[\]`).** El body v17 escapó sus corchetes estáticos, así que un `fdvAthAgo` vacío deja `\[\]` — el trío crudo `[]` NO lo ve (hay un backslash dentro del par). Se añadió un cuarto trío (trailing/leading/mid, mismas reglas de hspace y mismo guard anti-link `(?!\()`) ANTES de la regla del `⇨` colgante: `💎 FDV: 8\.3K ⇨ 2\.5K \[\]` → `💎 FDV: 8\.3K ⇨ 2\.5K`; con el ATH también vacío, la regla del `⇨` remata → `💎 FDV: 8\.3K` (verificado en vivo: sin esta regla el preview servía `⇨  \[\]`). Un par CON contenido (`\[7d\]`) NUNCA se toca; `\[\](url)` tampoco (guard por simetría con la familia cruda, aunque un par escapado no es link). Pinneado en `template-renderer.service.spec.ts` (cleanup + render-level v17 con ATH frío y con `7d`).
 - `usdRow` / `liqRow` NUNCA conviven con la línea combinada del seed (`💰 {{priceUsd}} ({{priceChange24h}}) • MC … • Liq …`): se reemplaza, no se duplica. El seed no se toca.
 - El `{{nameLink}}` del headline NO se silencia en curva (Rick lo omite en la captura, pero los docs solo documentan que cae `[FDV/24h change]`): residual documentado, fuera de las 7 keys. Si el owner lo quiere fuera, necesita una octava key condicional (no implementada).
 - **Dependencia de orden entre lanes (L3):** en curva `{{marketRow}}` delega en `{{market5mRow}}` SIN fallback. Si market-data publica `bondingCurve` antes que los cuatro campos 5m, la fila de actividad DESAPARECE de toda tarjeta en curva. Las dos mitades (`bondingCurve` + `priceChange5m`/`txns5m*`/`volume5mUsd`) se despliegan juntas, y el body v17 se activa DESPUÉS.
@@ -873,7 +873,7 @@ Reglas de composición, pinneadas:
 - `🧬` — no hay dato ni key detrás.
 - No se toca ningún body sembrado, ni el seed, ni la DB, ni el body vivo del owner: las keys quedan disponibles para que componga el layout corto cuando lo decida.
 
-**Estado.** Código + specs (`template-renderer-bonding-curve.spec.ts`, `market-data-client-bonding-curve.spec.ts`, `token-scan-bonding-curve.spec.ts`) + META de catálogo; registry 22 base + 39 derivadas = **61** keys en `ca|x|z|bare` / **62** en `c|cc`. Correcciones post-review 2026-10-30 aplicadas en la MISMA lane: `fdvChangeBracket` escapa sus corchetes y calla con ambos valores desconocidos, `curveRow` cae a `bondingCurve.launchpadId` cuando el snapshot no trae `launchpad`, `usdRow`/`liqRow` emiten el número dentro de un code span (cero backslashes). Sin body edit, sin activación, sin migración.
+**Estado.** Código + specs (`template-renderer-bonding-curve.spec.ts`, `market-data-client-bonding-curve.spec.ts`, `token-scan-bonding-curve.spec.ts`) + META de catálogo; registry 22 base + 39 derivadas = **61** keys en `ca|x|z|bare` / **62** en `c|cc`. Correcciones post-review 2026-10-30 aplicadas en la MISMA lane: `fdvChangeBracket` escapa sus corchetes y calla con ambos valores desconocidos, `curveRow` cae a `bondingCurve.launchpadId` cuando el snapshot no trae `launchpad`, `usdRow`/`liqRow` emiten el número dentro de un code span (cero backslashes). El preview en vivo destapó un cuarto defecto (par escapado vacío `\[\]` visible con `fdvAthAgo` frío) y se cerró con el cuarto trío de `cleanupDanglingSeparators` (ver reglas de composición). Sin body edit, sin activación, sin migración.
 
 ### 10.16 Launchpad (bonding-curve) — lane market-data — DISEÑO 2026-10-30 (NO implementado)
 

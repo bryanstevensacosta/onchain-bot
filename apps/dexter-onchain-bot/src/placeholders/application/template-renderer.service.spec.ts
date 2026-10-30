@@ -262,8 +262,25 @@ describe('TemplateRendererService empty-bracket cleanup (plan todo 69)', () => {
     expect(clean('[x3]')).toBe('[x3]');
   });
 
-  it('never touches escapeV2-escaped brackets (`\\[\\]` — backslash between them)', () => {
-    expect(clean('\\[\\]')).toBe('\\[\\]');
+  it('collapses an EMPTY escaped bracket pair (`\\[\\]` — static-escaped body text)', () => {
+    // Launchpad layout (plan §10.15): the body escapes its own static
+    // brackets, so an empty value leaves `\[\]` (a backslash INSIDE
+    // the pair), which the raw `[]` trio above cannot see.
+    expect(clean('\\[\\]')).toBe('');
+    expect(clean('FDV: 8.3K \\[\\]')).toBe('FDV: 8.3K');
+    expect(clean('FDV: 8.3K \\[\\] ')).toBe('FDV: 8.3K');
+    expect(clean('\\[\\] SOL')).toBe('SOL');
+    expect(clean('  \\[\\] SOL')).toBe('SOL');
+    expect(clean('A \\[\\] B')).toBe('A B');
+    expect(clean('L1\n\\[\\]\nL2')).toBe('L1\n\nL2');
+  });
+
+  it('never touches an escaped bracket WITH content (`\\[7d\\]`)', () => {
+    expect(clean('\\[7d\\]')).toBe('\\[7d\\]');
+    expect(clean('FDV: 8.3K \\[7d\\]')).toBe('FDV: 8.3K \\[7d\\]');
+    // Anti-link guard: an escaped pair is not a link, so it is left
+    // byte-intact when a `(...)` follows (author text, never deleted).
+    expect(clean('\\[\\](url)')).toBe('\\[\\](url)');
   });
 
   it('an empty bracket alone on its line collapses to an empty line (neighbours kept)', () => {
@@ -291,6 +308,30 @@ describe('TemplateRendererService empty-bracket cleanup (plan todo 69)', () => {
     expect(out.text).toBe(
       '[](https://dexscreener.com/solana/So11111111111111111111111111111111111111112)',
     );
+  });
+
+  it('render-level: the v17 FDV line drops an empty escaped ATH-age bracket and its dangling arrow', () => {
+    // Body v17 (plan §10.15): static brackets escaped by the body, both
+    // ATH keys cold. Without the escaped-pair trio this served
+    // `💎 FDV: 95B ⇨  \[\ ]` — a visible empty bracket pair.
+    const out = new TemplateRendererService().render(
+      '💎 FDV: {{fdvUsd}} ⇨ {{fdvAth}} \\[{{fdvAthAgo}}\\]',
+      TOKEN,
+      'ca',
+    );
+    expect(out.text).toBe('💎 FDV: 95B');
+  });
+
+  it('render-level: a non-empty escaped ATH-age bracket survives byte-intact', () => {
+    const sevenDaysAgo = new Date(
+      Date.now() - 7 * 24 * 60 * 60 * 1000,
+    ).toISOString();
+    const out = new TemplateRendererService().render(
+      '💎 FDV: {{fdvUsd}} ⇨ {{fdvAth}} \\[{{fdvAthAgo}}\\]',
+      { ...TOKEN, fdvAthUsd: 90_000_000_000, fdvAthAt: sevenDaysAgo },
+      'ca',
+    );
+    expect(out.text).toBe('💎 FDV: 95B ⇨ 90B \\[7d\\]');
   });
 });
 
