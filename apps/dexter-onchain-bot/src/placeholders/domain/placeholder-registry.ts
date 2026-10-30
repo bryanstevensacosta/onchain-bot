@@ -99,6 +99,17 @@ export const DERIVED_PLACEHOLDERS: readonly string[] = [
   // else the `chainDisplay` value. Keeps the Solana launchpad icon and
   // gains the chain emoji on BSC, with no conditional in the body.
   'headerIcon',
+  // Rick title status emoji (docs: pricebot#scan-icons, "🆕 - token age
+  // under 15 minutes"). SEPARATE key so a body composes
+  // `{{newTokenIcon}}{{headerIcon}}` → `🆕💊`; `headerIcon` stays
+  // byte-identical. Age is the SAME best-liquidity PAIR proxy
+  // `pairCreatedAt` `age` reads (never token deploy age — a migration
+  // under-reports, so an old token can look "new"; documented caveat),
+  // computed per render. `""` = silence on absent/empty/unparseable or
+  // a FUTURE timestamp (never claim an age) and at/after exactly 15
+  // minutes; `"🆕"` only for `0 <= now - at < 15m`. Raw emoji, no
+  // escaping, no surrounding whitespace.
+  'newTokenIcon',
   // D4: `liquidityUsdSide` — display-only one-side liquidity
   // (`liquidityUsd / 2`, money-compact, `N/A` on absent/non-finite).
   // The CORE `liquidityUsd` keeps meaning total — never overridden.

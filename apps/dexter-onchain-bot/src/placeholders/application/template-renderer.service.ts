@@ -26,6 +26,13 @@ export const TRADE_HINT_TEXT = '🤖 Use /c <address> <timeframe> for chart';
 export const LOW_LIQUIDITY_SIDE_USD = 1_000;
 
 /**
+ * `newTokenIcon` 🆕 window (Rick docs: pricebot#scan-icons, "token age
+ * under 15 minutes"). Strictly BELOW this elapsed time: exactly 15
+ * minutes renders silence ("under 15 minutes", not "15 or less").
+ */
+export const NEW_TOKEN_ICON_MAX_AGE_MS = 15 * 60 * 1000;
+
+/**
  * Coherence ε for `holderTopRow` (plan dexter-rick-compact-card
  * §10.5-§10.7), in PERCENTAGE POINTS. It is the SAME literal pinned
  * in market-data's spec — dexter cannot import from market-data (no
@@ -855,6 +862,38 @@ export class TemplateRendererService {
         return esc(
           MessageFormatterAdapter.formatCompactAgeText(values.fdvAthAt),
         );
+      }
+      case 'newTokenIcon': {
+        // Rick title status emoji (docs: pricebot#scan-icons,
+        // "🆕 - token age under 15 minutes"). A SEPARATE key from
+        // `headerIcon` so a body composes `{{newTokenIcon}}{{headerIcon}}`
+        // → `🆕💊` (the launchpad icon-link or chain emoji stays
+        // byte-identical); the renderer NEVER folds the 🆕 into
+        // `headerIcon`.
+        //
+        // Age source: the SAME best-liquidity PAIR proxy `age` reads
+        // (`values.pairCreatedAt`, top-level ISO) — no new wire field,
+        // no network. It is NOT token deploy age: a curve → AMM
+        // migration can make a mature token read as "new" (documented
+        // proxy caveat, same as `age`).
+        //
+        // SILENCE (`""`) on: not a string, empty, unparseable, a
+        // FUTURE timestamp (explicit guard: `age` clamps future to
+        // `0m`, which would falsely claim a brand-new pair), and
+        // `now - at >= 15 * 60_000` (exactly 15m is silent — "under
+        // 15 minutes"). Only `0 <= now - at < 15m` renders `🆕`.
+        // Raw emoji, never escaped, no leading/trailing space: the
+        // body owns the composition.
+        if (
+          typeof values.pairCreatedAt !== 'string' ||
+          values.pairCreatedAt === '' ||
+          Number.isNaN(Date.parse(values.pairCreatedAt))
+        ) {
+          return '';
+        }
+        const elapsed = Date.now() - Date.parse(values.pairCreatedAt);
+        if (elapsed < 0 || elapsed >= NEW_TOKEN_ICON_MAX_AGE_MS) return '';
+        return '🆕';
       }
       case 'age': {
         // Best-pair age proxy (plan todo 63): the snapshot's top-level

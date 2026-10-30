@@ -165,6 +165,13 @@ const PLACEHOLDER_META: Record<string, Omit<PlaceholderDescriptor, 'key'>> = {
     description:
       'Launchpad icon-link when a launchpad resolves, else the chain display emoji (empty when neither exists).',
   },
+  newTokenIcon: {
+    type: 'derived',
+    nullable: true,
+    example: '🆕',
+    description:
+      'Title status emoji for best-pair age under 15 minutes; compose before headerIcon ({{newTokenIcon}}{{headerIcon}} → 🆕💊). Empty at/after 15m and when the age is unknown or in the future.',
+  },
   liquidityUsdSide: {
     type: 'derived',
     nullable: true,
@@ -232,8 +239,8 @@ export interface PlaceholdersView {
 /**
  * Placeholder catalog (`GET /api/dexter/placeholders/:command`).
  *
- * Metadata-only read of the closed registry vocabulary: 53 keys for
- * `ca|x|z|bare`, 54 for `c|cc` (`timeframe` ONLY there). No
+ * Metadata-only read of the closed registry vocabulary: 54 keys for
+ * `ca|x|z|bare`, 55 for `c|cc` (`timeframe` ONLY there). No
  * persistence, no pipeline, no sends. Unknown command → 404.
  *
  * v1 sin auth como /dexter/token — same unauthenticated regime as the

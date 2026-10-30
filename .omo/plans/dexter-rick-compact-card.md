@@ -763,3 +763,34 @@ Un preview por address (BONK) en staging devuelve `Token not found` — market-d
 3. Cutover a prod (`master`) — fuera de alcance por instrucción permanente.
 4. C2 (`TOKEN_2022_PROGRAM`) sigue como limpieza opcional no aprobada.
 5. ~~Declarar `SNAPSHOT_HOLDER_CONCENTRATION_ENABLED` / `SNAPSHOT_HOLDER_CONCENTRATION_TIMEOUT_MS` en `.env.example`~~ HECHO 2026-10-26: bloque de tuning opcional al final de `apps/market-data/.env.example` con los defaults (habilitado / 3800 ms) y la razón medida.
+
+### 10.14 Emoji de estado en el título — `{{newTokenIcon}}` (🆕, <15 min) — CÓDIGO IMPLEMENTADO 2026-10-30
+
+**Regla del producto (ratificada por el owner).** Los docs de Rick (`https://docs.rick.bot/features/pricebot#scan-icons`) listan, literal:
+
+> 🆕 - token age under 15 minutes.
+
+Es el **emoji de estado del título**, no un icono de launchpad: va ANTES del `{{headerIcon}}` (que sigue siendo el `[💊](url)` de launchpad o el emoji de cadena). Reproducido como key SEPARADA para poder componer `{{newTokenIcon}}{{headerIcon}}` → `🆕💊` / `🆕🟡`, exactamente como Rick.
+
+**Fuente del dato.** `values.pairCreatedAt` — el MISMO ISO de la mejor pareja (mejor liquidez) que ya usa `age`. Sin campo de wire nuevo, sin fuente nueva, sin llamada extra. Caveat de proxy heredado de `age`: es edad de la PAREJA, no de deploy del token; una migración curva → AMM sub-reporta y un token maduro puede leerse como "nuevo".
+
+**Contrato (calculado en cada render con `Date.now()`):**
+
+| Entrada                                             | Valor | Razón                                                                        |
+| --------------------------------------------------- | ----- | ---------------------------------------------------------------------------- |
+| `pairCreatedAt` no string / `''` / no parseable     | `""`  | silencio; nunca se inventa una edad                                          |
+| `Date.parse(iso) > Date.now()` (futuro)             | `""`  | guard EXPLÍCITO: `{{age}}` clampa futuro a `0m` y reclamaría "recién creado" |
+| `0 <= now - at < 15 * 60_000`                       | `🆕`  | "under 15 minutes"                                                           |
+| `now - at >= 15 * 60_000` (incluye exactamente 15m) | `""`  | "under" = estrictamente menor; 15m exactos callan                            |
+
+Emoji CRUDO: sin `escapeV2`, sin espacio delante ni detrás (el body es dueño de la composición). Constante `NEW_TOKEN_ICON_MAX_AGE_MS = 15 * 60 * 1000` exportada por el renderer.
+
+**Por qué key separada y no dentro de `headerIcon`.** (1) `headerIcon` ya tiene una cadena de resolución binaria (launchpad link → `chainDisplay`) y sus bytes están pinneados por specs/templates existentes; meterle un tercer estado cambiaría su salida en tokens nuevos. (2) El orden visual (`🆕` antes del icono) es composición del body, no del renderer — una sola key compuesta obligaría a duplicar la lógica de launchpad/cadena. (3) Silencio independiente: un token nuevo sin emoji de cadena debe renderizar solo `🆕`.
+
+**No-goals explícitos (no implementados, no documentados por Rick).**
+
+- 🚀 / 🟢 / 🔴 / ⚠️ como estados de título: el doc NO documenta su disparador ni la PRECEDENCIA entre ellos (¿el 🆕 gana a un ⚠️?). No se codifica ninguna jerarquía.
+- 🔼 y `/Bitcoin`: aparecen en capturas pero NO están documentados; fuera de alcance.
+- No se toca ningún body sembrado, ni el seed, ni la DB: la key queda disponible para que el owner componga `{{newTokenIcon}}{{headerIcon}}` cuando lo decida.
+
+**Estado.** Código + specs (13 tests nuevos) + META de catálogo; registry 22 base + 32 derivadas = **54** keys en `ca|x|z|bare` / **55** en `c|cc`. Sin body edit, sin activación.

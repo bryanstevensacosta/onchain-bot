@@ -98,7 +98,7 @@ src/
 │   │                          # (manual CLI, default dry-run, NOT a bootstrap hook)
 │   └── api/http/               # message-templates + template-preview + display-maps controllers (management via HTTP API only)
 ├── placeholders/               # renderer + registry ({{key}} only, {% rejected)
-│   ├── domain/placeholder-registry.ts # 22 base + 31 derived keys + per-command whitelist
+│   ├── domain/placeholder-registry.ts # 22 base + 32 derived keys + per-command whitelist
 │   ├── application/template-renderer.service.ts # TemplateRendererService (DISPLAY_RESOLVER-backed)
 │   └── api/http/placeholders.controller.ts # placeholder catalog reference
 └── settings/                   # chat config + bot config
@@ -1024,4 +1024,23 @@ sells === null → ''`. Client boundary `toFiniteNumberOrNull` /
   `market-data-client-holder-concentration.spec.ts`,
   `token-scan-holder-concentration.spec.ts` + controller META
   completeness (`placeholders.controller.spec.ts`) + registry/age/
+  rick-card count pins.
+
+- Rick title status emoji `{{newTokenIcon}}` (2026-10-30; code only —
+  NO body edit, NO activation; docs: pricebot#scan-icons
+  "🆕 - token age under 15 minutes"): SEPARATE derived key on EVERY
+  command so a body composes `{{newTokenIcon}}{{headerIcon}}` →
+  `🆕💊` (launchpad icon-link) / `🆕🟡` (chain emoji). `headerIcon`
+  stays byte-identical — the 🆕 is never folded into it. Age = the
+  SAME best-liquidity PAIR ISO `pairCreatedAt` that `age` reads (no
+  new wire field, no network; proxy caveat: a curve → AMM migration
+  under-reports, so a mature token can read as new). Windows:
+  `0 <= now - at < 15 * 60_000` → `🆕`; exactly 15m and older → `""`
+  (the docs say "under 15 minutes"); absent/null/empty/unparseable →
+  `""`; FUTURE timestamp → `""` (explicit guard — `{{age}}` clamps
+  future to `0m`, which would falsely claim a brand-new pair). Raw
+  emoji, no MarkdownV2 escaping, no surrounding space. Registry:
+  22 base + 32 derived = 54 keys for `ca|x|z|bare` / 55 for `c|cc`;
+  catalog META `{type:'derived', nullable:true, example:'🆕'}`.
+  Spec: `template-renderer-new-token-icon.spec.ts` + registry/age/
   rick-card count pins.

@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`{{newTokenIcon}}` — the 🆕 title status emoji (2026-10-30):**
+  Rick scan-icons rule (`pricebot#scan-icons`, "🆕 - token age under
+  15 minutes") reproduced as a SEPARATE derived key on every command,
+  so a body composes `{{newTokenIcon}}{{headerIcon}}` → `🆕💊`
+  (launchpad icon-link) or `🆕🟡` (chain emoji); `headerIcon` itself
+  stays byte-identical. Age is the SAME best-liquidity PAIR ISO
+  `pairCreatedAt` the `age` key reads — no new wire field, no new
+  HTTP call, no migration (proxy caveat unchanged: a curve → AMM
+  migration under-reports the age). Windows, computed per render with
+  `Date.now()`: `0 <= now - at < 15 * 60_000` → `🆕`; exactly 15m
+  and older → `""` (the docs say "under 15 minutes"); non-string /
+  empty / unparseable → `""`; FUTURE timestamp → `""` with an
+  explicit guard (never claim an age — `{{age}}` clamps future to
+  `0m`). Raw emoji, no MarkdownV2 escaping, no leading/trailing
+  space. Registry: **54** keys for `ca|x|z|bare`, **55** for `c|cc`;
+  catalog META carries the `🆕` example. Spec:
+  `template-renderer-new-token-icon.spec.ts` + registry/age/rick-card
+  count pins. Renderer only — no template body, seed or DB change.
+
 - **`{{holderTopRow}}` — the `👥 TH:` derived key (2026-10-26):** Rick
   compact-card row fed by market-data's `holderConcentration`. SILENCE
   (`""`) on ANY gap — absent/null/malformed, empty `topPercents`, more
