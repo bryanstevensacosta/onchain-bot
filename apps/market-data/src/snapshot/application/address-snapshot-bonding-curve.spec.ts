@@ -42,7 +42,7 @@ const READING: BondingCurveReading = {
   onCurve: true,
   launchpadId: 'pump-fun',
   quoteSymbol: 'Bitcoin',
-  quoteMint: 'HytpiyuR3sVXGB5UqoqrnTHCP2X1tWVm5neep3Dpump',
+  quoteMint: 'HytpiyuR3sVXGB5UqoqrnThCPH2X1tWVm5neep3Dpump',
   progressPercent: 65.69,
 };
 
@@ -208,7 +208,7 @@ describe('AddressSnapshotService bondingCurve — fan-out leg (§10.16)', () => 
       onCurve: true,
       launchpadId: 'pump-fun',
       quoteSymbol: 'Bitcoin',
-      quoteMint: 'HytpiyuR3sVXGB5UqoqrnTHCP2X1tWVm5neep3Dpump',
+      quoteMint: 'HytpiyuR3sVXGB5UqoqrnThCPH2X1tWVm5neep3Dpump',
       progressPercent: 65.69,
     });
     // `poolAddress` is NOT part of the wire shape (pinned).

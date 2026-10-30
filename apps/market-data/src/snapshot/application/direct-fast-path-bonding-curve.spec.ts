@@ -48,7 +48,7 @@ const pumpView = (withCurve: boolean) => ({
         curve: {
           realTokenReserves: 272_126_872_931_864n,
           tokenTotalSupply: 1_000_000_000_000_000n,
-          quoteMint: 'HytpiyuR3sVXGB5UqoqrnTHCP2X1tWVm5neep3Dpump',
+          quoteMint: 'HytpiyuR3sVXGB5UqoqrnThCPH2X1tWVm5neep3Dpump',
           quoteSymbol: 'Bitcoin',
           progressPercent: 65.69,
         },
@@ -95,7 +95,7 @@ describe('DirectFastPathService bondingCurve (§10.16)', () => {
       onCurve: true,
       launchpadId: 'pump-fun',
       quoteSymbol: 'Bitcoin',
-      quoteMint: 'HytpiyuR3sVXGB5UqoqrnTHCP2X1tWVm5neep3Dpump',
+      quoteMint: 'HytpiyuR3sVXGB5UqoqrnThCPH2X1tWVm5neep3Dpump',
       progressPercent: 65.69,
     });
     // `poolAddress` is NOT part of the wire shape (pinned).
