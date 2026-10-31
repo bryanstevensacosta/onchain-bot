@@ -98,8 +98,9 @@ describe('TemplateRendererService holderTopRow (plan §10.5-§10.9)', () => {
       .placeholders.find((row) => row.key === 'holderTopRow');
     expect(entry?.type).toBe('derived');
     expect(entry?.nullable).toBe(true);
-    // Literal `\n\n` encoding, byte-identical in style to
-    // `honeypotBlock` (the VALUE carries the blank-line prefix).
+    // The META `example` documents the VALUE's raw bytes and is
+    // intentionally unchanged; only body rendering normalizes the
+    // newlines away (owner decision 2026-10-30).
     expect(entry?.example).toBe(
       '\\n\\n👥 TH: `4.3`⋅`3.3`⋅`2.8`⋅`2.3`⋅`1.8` [`20%`]',
     );
@@ -113,11 +114,13 @@ describe('TemplateRendererService holderTopRow (plan §10.5-§10.9)', () => {
     );
     // Only the bracket pair keeps a V2 escape; the numbers travel RAW
     // inside their code spans (a `\.` there would print the backslash).
-    expect(out).toBe('\n\n👥 TH: `4.3`⋅`3.3`⋅`2.8`⋅`2.3`⋅`1.8` \\[`20%`\\]');
-    expect(shownOf(out)).toBe('\n\n👥 TH: 4.3⋅3.3⋅2.8⋅2.3⋅1.8 [20%]');
-    // Exactly two newlines (blank line), never three.
-    expect(out.startsWith('\n\n👥 TH: ')).toBe(true);
-    expect(out.startsWith('\n\n\n')).toBe(false);
+    expect(out).toBe('👥 TH: `4.3`⋅`3.3`⋅`2.8`⋅`2.3`⋅`1.8` \\[`20%`\\]');
+    expect(shownOf(out)).toBe('👥 TH: 4.3⋅3.3⋅2.8⋅2.3⋅1.8 [20%]');
+    // Alone on its body line the row renders ON that line — no blank
+    // line is emitted (owner decision 2026-10-30); the BLANK line is
+    // proven in append context by the composition tests below.
+    expect(out.startsWith('👥 TH: ')).toBe(true);
+    expect(out.startsWith('\n')).toBe(false);
   });
 
   it('renders 3 values (no padding to 5)', () => {
@@ -131,7 +134,7 @@ describe('TemplateRendererService holderTopRow (plan §10.5-§10.9)', () => {
           },
         }),
       ),
-    ).toBe('\n\n👥 TH: `12.5`⋅`7.0`⋅`3.3` \\[`42%`\\]');
+    ).toBe('👥 TH: `12.5`⋅`7.0`⋅`3.3` \\[`42%`\\]');
   });
 
   it('renders 1 value', () => {
@@ -142,7 +145,7 @@ describe('TemplateRendererService holderTopRow (plan §10.5-§10.9)', () => {
           holderConcentration: { topPercents: [5], top10Percent: 5 },
         }),
       ),
-    ).toBe('\n\n👥 TH: `5.0` \\[`5%`\\]');
+    ).toBe('👥 TH: `5.0` \\[`5%`\\]');
   });
 
   it('keeps the trailing zero (toFixed(1), never trimmed)', () => {
@@ -153,7 +156,7 @@ describe('TemplateRendererService holderTopRow (plan §10.5-§10.9)', () => {
           holderConcentration: { topPercents: [4.3, 2.0], top10Percent: 20 },
         }),
       ),
-    ).toBe('\n\n👥 TH: `4.3`⋅`2.0` \\[`20%`\\]');
+    ).toBe('👥 TH: `4.3`⋅`2.0` \\[`20%`\\]');
   });
 
   it('SILENCE on an empty topPercents array (the object is valid, the row is not)', () => {
@@ -222,7 +225,7 @@ describe('TemplateRendererService holderTopRow (plan §10.5-§10.9)', () => {
           holderConcentration: { topPercents: [5, 5, 2], top10Percent: 12 },
         }),
       ),
-    ).toBe('\n\n👥 TH: `5.0`⋅`5.0`⋅`2.0` \\[`12%`\\]');
+    ).toBe('👥 TH: `5.0`⋅`5.0`⋅`2.0` \\[`12%`\\]');
   });
 
   it('computes the bracket from DISPLAYED TENTHS (binary carry never yields 21)', () => {
@@ -237,7 +240,7 @@ describe('TemplateRendererService holderTopRow (plan §10.5-§10.9)', () => {
         },
       }),
     );
-    expect(out).toBe('\n\n👥 TH: `0.1`⋅`0.1`⋅`0.1`⋅`16.1`⋅`3.6` \\[`20%`\\]');
+    expect(out).toBe('👥 TH: `0.1`⋅`0.1`⋅`0.1`⋅`16.1`⋅`3.6` \\[`20%`\\]');
     expect(out).not.toContain('21');
   });
 
@@ -252,7 +255,7 @@ describe('TemplateRendererService holderTopRow (plan §10.5-§10.9)', () => {
           holderConcentration: { topPercents: [1, 9], top10Percent: 20 },
         }),
       ),
-    ).toBe('\n\n👥 TH: `1.0`⋅`9.0` \\[`20%`\\]');
+    ).toBe('👥 TH: `1.0`⋅`9.0` \\[`20%`\\]');
   });
 
   it('never prints a bracket below the displayed sum (max of round(top10) and ceil(tenths/10))', () => {
@@ -268,7 +271,7 @@ describe('TemplateRendererService holderTopRow (plan §10.5-§10.9)', () => {
           },
         }),
       ),
-    ).toBe('\n\n👥 TH: `0.1`⋅`0.1`⋅`0.1`⋅`0.1`⋅`0.1` \\[`1%`\\]');
+    ).toBe('👥 TH: `0.1`⋅`0.1`⋅`0.1`⋅`0.1`⋅`0.1` \\[`1%`\\]');
   });
 
   it('wraps every value in a code span and escapes ONLY the brackets', () => {

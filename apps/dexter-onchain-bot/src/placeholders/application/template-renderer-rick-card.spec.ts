@@ -260,7 +260,7 @@ describe('TemplateRendererService rick compact card keys', () => {
     it('lowers the same 🍯 core after a BLANK line', () => {
       expect(
         render('{{honeypotBlock}}', baseToken({ honeypot: HONEYPOT })),
-      ).toBe('\n\n🍯 SIM: OK ⋅ T: 0/2\\.97');
+      ).toBe('🍯 SIM: OK ⋅ T: 0/2\\.97');
     });
 
     it('renders "" when there is no row (absent / null)', () => {
@@ -279,7 +279,7 @@ describe('TemplateRendererService rick compact card keys', () => {
     it('keeps honeypotLine byte-identical (existing templates untouched)', () => {
       expect(
         render('{{honeypotLine}}', baseToken({ honeypot: HONEYPOT })),
-      ).toBe('\n🍯 SIM: OK ⋅ T: 0/2\\.97');
+      ).toBe('🍯 SIM: OK ⋅ T: 0/2\\.97');
     });
 
     it('composes inline after Age without eating the next line', () => {

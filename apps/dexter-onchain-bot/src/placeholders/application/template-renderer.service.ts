@@ -378,16 +378,11 @@ export class TemplateRendererService {
     const valid: string[] =
       PLACEHOLDERS_BY_COMMAND[command] ?? placeholdersFor(command);
     const used: string[] = [];
-    const substituted = body.replace(
-      PLACEHOLDER_PATTERN,
-      (_match: string, key: string) => {
-        if (!valid.includes(key)) {
-          throw new UnknownPlaceholder(key, valid);
-        }
-        used.push(key);
-        return this.resolveValue(key, values);
-      },
-    );
+    const substituted = body
+      .split('\n')
+      .map((line) => this.renderBodyLine(line, valid, values, used))
+      .filter((line): line is string => line !== null)
+      .join('\n');
     const cleaned =
       TemplateRendererService.cleanupDanglingSeparators(substituted);
     const capped = MessageFormatterAdapter.enforceLengthText(cleaned);
@@ -396,6 +391,59 @@ export class TemplateRendererService {
       truncated: capped.truncated,
       placeholdersUsed: [...new Set(used)],
     };
+  }
+
+  /**
+   * Line-scoped substitution (owner decision 2026-10-30): a body may put a
+   * row key on ITS OWN line or append it to the previous one, and both
+   * render identically — the template author owns the layout, the key owns
+   * only its content.
+   *
+   * Three rules, in this order:
+   *
+   * 1. FIRST content of the line → the value's leading newlines are
+   *    dropped (the body line already provides the break). This is what
+   *    makes `{{curveRow}}` / `{{usdRow}}` / `{{liqRow}}` / `{{marketRow}}`
+   *    work on their own line instead of emitting a BLANK line from
+   *    `body \n + key \n`.
+   * 2. LAST content of the line → the value's trailing newlines are
+   *    dropped (same reason, other end).
+   * 3. A line that CONTAINED at least one placeholder and renders empty
+   *    (or whitespace-only) is removed entirely, newline included. A blank
+   *    line with NO placeholders is author intent and stays untouched —
+   *    that is how a body keeps an intentional blank line (e.g. above
+   *    `{{holderTopRow}}`).
+   *
+   * Returns `null` for a dropped line. Placeholders are still validated
+   * exactly as before (`UnknownPlaceholder` carries the valid list).
+   */
+  private renderBodyLine(
+    line: string,
+    valid: readonly string[],
+    values: TemplateValues,
+    used: string[],
+  ): string | null {
+    // Non-global twin: `test` must not carry `lastIndex` between calls.
+    const hasPlaceholder = /\{\{\w+\}\}/.test(line);
+    const rendered = line.replace(
+      PLACEHOLDER_PATTERN,
+      (match: string, key: string, offset: number, source: string) => {
+        if (!valid.includes(key)) {
+          throw new UnknownPlaceholder(key, [...valid]);
+        }
+        used.push(key);
+        let value = this.resolveValue(key, values);
+        if (source.slice(0, offset).trim() === '') {
+          value = value.replace(/^\n+/, '');
+        }
+        if (source.slice(offset + match.length).trim() === '') {
+          value = value.replace(/\n+$/, '');
+        }
+        return value;
+      },
+    );
+    if (hasPlaceholder && rendered.trim() === '') return null;
+    return rendered;
   }
 
   /**

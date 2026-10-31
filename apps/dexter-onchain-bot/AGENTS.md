@@ -1124,3 +1124,30 @@ progressPercent: number | null } | null` — `onCurve === true` means
   pins. The seeded`ca`body is untouched (it still lacks the
  `💰 USD:`/`💦 Liq:` lines — the launchpad layout is opt-in for the
   owner's live template).
+
+- Renderer line normalization (2026-10-30, owner decision; plan
+  `.omo/plans/dexter-rick-compact-card.md` §10.19): `render()` now
+  substitutes LINE BY LINE (`private renderBodyLine`) instead of a
+  single body-wide replace, so a body may put a row key on ITS OWN
+  line or append it to the previous one and both render byte-identical
+  — the template author owns the layout, the key owns only its
+  content. Three rules: (1) FIRST content of a line → the value's
+  LEADING `\n+` is dropped; (2) LAST content of a line → its TRAILING
+  `\n+` is dropped (symmetric guard; no current key emits a trailing
+  newline); (3) a line that CONTAINED a placeholder and renders
+  whitespace-only is REMOVED whole, newline included. A blank line
+  with NO placeholder is author intent and survives verbatim (that is
+  how a body keeps the blank line before `{{holderTopRow}}`). This is
+  what makes `{{curveRow}}`, `{{usdRow}}`, `{{liqRow}}`,
+  `{{market5mRow}}`, `{{marketRow}}`, `{{honeypotBlock}}` and
+  `{{holderTopRow}}` usable one-per-line without blank holes; the
+  values keep their own bytes (catalog META `example` still documents
+  `\n\n…`) and every inline/append composition is byte-identical
+  (`A{{usdRow}}B` → `AB`, `Prev{{market5mRow}}Next` →
+  `Prev\n📈 5M: …Next`). The seeded bodies are untouched and render
+  identically (none uses those keys). Specs: 44 expectations updated
+  by design + new `template-renderer-line-normalization.spec.ts`
+  (own-line key, append equivalence, silent key leaves no line,
+  authored blank line survives, literal text kept). Verified jest 87
+  suites / 1067 tests, `tsc --noEmit` 0, eslint 0. No migration, no
+  body edit, no seed/DB change.

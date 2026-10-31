@@ -187,7 +187,7 @@ describe('TemplateRendererService launchpad (bonding-curve) layout keys', () => 
           baseToken({ bondingCurve: ON_CURVE, launchpad: PUMP }),
           PUMP_RESOLVER,
         ),
-      ).toBe('\n⏳ 75% @ Pump');
+      ).toBe('⏳ 75% @ Pump');
     });
 
     it('omits the progress when progressPercent is unknown', () => {
@@ -200,7 +200,7 @@ describe('TemplateRendererService launchpad (bonding-curve) layout keys', () => 
           }),
           PUMP_RESOLVER,
         ),
-      ).toBe('\n⏳ @ Pump');
+      ).toBe('⏳ @ Pump');
     });
 
     it('falls back to bondingCurve.launchpadId without a launchpad object', () => {
@@ -212,13 +212,13 @@ describe('TemplateRendererService launchpad (bonding-curve) layout keys', () => 
             launchpad: undefined,
           }),
         ),
-      ).toBe('\n⏳ 75% @ pump\\.fun');
+      ).toBe('⏳ 75% @ pump\\.fun');
       expect(
         render(
           '{{curveRow}}',
           baseToken({ bondingCurve: ON_CURVE, launchpad: undefined }),
         ),
-      ).toBe('\n⏳ 75% @ pump\\-fun');
+      ).toBe('⏳ 75% @ pump\\-fun');
     });
 
     it('applies the launchpadName override to the launchpadId fallback', () => {
@@ -228,7 +228,7 @@ describe('TemplateRendererService launchpad (bonding-curve) layout keys', () => 
           baseToken({ bondingCurve: ON_CURVE, launchpad: undefined }),
           PUMP_RESOLVER,
         ),
-      ).toBe('\n⏳ 75% @ Pump');
+      ).toBe('⏳ 75% @ Pump');
     });
 
     it('keeps the launchpadId fallback when progress is also unknown', () => {
@@ -244,7 +244,7 @@ describe('TemplateRendererService launchpad (bonding-curve) layout keys', () => 
             launchpad: undefined,
           }),
         ),
-      ).toBe('\n⏳ @ pump\\.fun');
+      ).toBe('⏳ @ pump\\.fun');
     });
 
     it('escapes a dotted detector name when no override resolves', () => {
@@ -253,7 +253,7 @@ describe('TemplateRendererService launchpad (bonding-curve) layout keys', () => 
           '{{curveRow}}',
           baseToken({ bondingCurve: ON_CURVE, launchpad: PUMP }),
         ),
-      ).toBe('\n⏳ 75% @ pump\\.fun');
+      ).toBe('⏳ 75% @ pump\\.fun');
     });
 
     it('accepts the 0 and 100 progress bounds and escapes decimals', () => {
@@ -265,7 +265,7 @@ describe('TemplateRendererService launchpad (bonding-curve) layout keys', () => 
             launchpad: PUMP,
           }),
         ),
-      ).toBe('\n⏳ 0% @ pump\\.fun');
+      ).toBe('⏳ 0% @ pump\\.fun');
       expect(
         render(
           '{{curveRow}}',
@@ -277,7 +277,7 @@ describe('TemplateRendererService launchpad (bonding-curve) layout keys', () => 
             },
           }),
         ),
-      ).toBe('\n⏳ 100% @ pump\\.fun');
+      ).toBe('⏳ 100% @ pump\\.fun');
       expect(
         render(
           '{{curveRow}}',
@@ -289,7 +289,7 @@ describe('TemplateRendererService launchpad (bonding-curve) layout keys', () => 
             },
           }),
         ),
-      ).toBe('\n⏳ 45\\.5% @ pump\\.fun');
+      ).toBe('⏳ 45\\.5% @ pump\\.fun');
     });
 
     it('is silent on an out-of-range progress (whole object rejected)', () => {
@@ -394,19 +394,19 @@ describe('TemplateRendererService launchpad (bonding-curve) layout keys', () => 
   describe('usdRow', () => {
     it('lowers the USD line off curve with the price in a code span', () => {
       const row = render('{{usdRow}}', baseToken({ priceUsd: 0.00007707 }));
-      expect(row).toBe('\n💰 USD: `0.00007707`');
+      expect(row).toBe('💰 USD: `0.00007707`');
       expect(row).not.toContain('\\');
     });
 
     it('emits no backslashes (raw value inside the code span)', () => {
       const token = baseToken({ priceUsd: 0.00002434 });
       const row = render('{{usdRow}}', token);
-      expect(row).toBe('\n💰 USD: `0.00002434`');
+      expect(row).toBe('💰 USD: `0.00002434`');
       expect(row.match(/\\/g)).toBeNull();
     });
 
     it('renders N/A inside the code span on a null price', () => {
-      expect(render('{{usdRow}}', baseToken())).toBe('\n💰 USD: `N/A`');
+      expect(render('{{usdRow}}', baseToken())).toBe('💰 USD: `N/A`');
     });
 
     it('is silent on curve (the launchpad layout has no USD row)', () => {
@@ -429,19 +429,19 @@ describe('TemplateRendererService launchpad (bonding-curve) layout keys', () => 
           burnedPercent: 0,
         }),
       );
-      expect(row).toBe('\n💦 Liq: `394` ⚠️🔒');
+      expect(row).toBe('💦 Liq: `394` ⚠️🔒');
       expect(row).not.toContain('\\');
     });
 
     it('emits no backslashes (raw value inside the code span)', () => {
       const token = baseToken({ liquidityUsd: 30_000 });
       const row = render('{{liqRow}}', token);
-      expect(row).toBe('\n💦 Liq: `15K`');
+      expect(row).toBe('💦 Liq: `15K`');
       expect(row.match(/\\/g)).toBeNull();
     });
 
     it('keeps N/A inside the code span when the liquidity is unknown', () => {
-      expect(render('{{liqRow}}', baseToken())).toBe('\n💦 Liq: `N/A`');
+      expect(render('{{liqRow}}', baseToken())).toBe('💦 Liq: `N/A`');
     });
 
     it('is silent on curve (the launchpad layout has no Liq row)', () => {
@@ -457,7 +457,7 @@ describe('TemplateRendererService launchpad (bonding-curve) layout keys', () => 
   describe('market5mRow', () => {
     it('renders the exact 5M row with zero backslashes', () => {
       const out = render('{{market5mRow}}', baseToken(FULL_5M));
-      expect(out).toBe('\n📈 5M: `159` ⋅ `1.7%` 🅑 `3` Ⓢ `5`');
+      expect(out).toBe('📈 5M: `159` ⋅ `1.7%` 🅑 `3` Ⓢ `5`');
       expect(out).not.toContain('\\');
       expect(out.match(/`/g)?.length).toBe(8);
     });
@@ -468,10 +468,10 @@ describe('TemplateRendererService launchpad (bonding-curve) layout keys', () => 
           '{{market5mRow}}',
           baseToken({ ...FULL_5M, priceChange5m: -3.4 }),
         ),
-      ).toBe('\n📉 5M: `159` ⋅ `-3.4%` 🅑 `3` Ⓢ `5`');
+      ).toBe('📉 5M: `159` ⋅ `-3.4%` 🅑 `3` Ⓢ `5`');
       expect(
         render('{{market5mRow}}', baseToken({ ...FULL_5M, priceChange5m: 0 })),
-      ).toBe('\n📈 5M: `159` ⋅ `0%` 🅑 `3` Ⓢ `5`');
+      ).toBe('📈 5M: `159` ⋅ `0%` 🅑 `3` Ⓢ `5`');
     });
 
     it.each([
@@ -520,16 +520,25 @@ describe('TemplateRendererService launchpad (bonding-curve) layout keys', () => 
       });
       const out = render('{{marketRow}}', token);
       expect(out).toBe(render('{{market5mRow}}', token));
-      expect(out).toBe('\n📈 5M: `159` ⋅ `1.7%` 🅑 `3` Ⓢ `5`');
+      expect(out).toBe('📈 5M: `159` ⋅ `1.7%` 🅑 `3` Ⓢ `5`');
     });
 
     it('is market1hRow lowered as a new line off curve (bare bytes identical)', () => {
       const token = baseToken({ ...FULL_1H, ...FULL_5M });
-      const out = render('{{marketRow}}', token);
-      expect(out).toBe(`\n${render('{{market1hRow}}', token)}`);
-      expect(out).toBe('\n📉 1H: `9.8K` ⋅ `-4.1%` 🅑 `25` Ⓢ `26`');
+      // The lowering is proven in PREFIX context: on its own line the
+      // key's leading `\n` is normalized away (owner decision
+      // 2026-10-30), so `Prev{{marketRow}}` is what shows the line
+      // break the value owns.
+      const out = render('Prev{{marketRow}}', token);
+      expect(out).toBe(`Prev\n${render('{{market1hRow}}', token)}`);
+      expect(out).toBe('Prev\n📉 1H: `9.8K` ⋅ `-4.1%` 🅑 `25` Ⓢ `26`');
       // The legacy key itself keeps its bytes (no leading newline).
       expect(render('{{market1hRow}}', token)).toBe(
+        '📉 1H: `9.8K` ⋅ `-4.1%` 🅑 `25` Ⓢ `26`',
+      );
+      expect(render('{{market1hRow}}', token).startsWith('\n')).toBe(false);
+      // Alone on its line, `marketRow` renders ON that line.
+      expect(render('{{marketRow}}', token)).toBe(
         '📉 1H: `9.8K` ⋅ `-4.1%` 🅑 `25` Ⓢ `26`',
       );
     });

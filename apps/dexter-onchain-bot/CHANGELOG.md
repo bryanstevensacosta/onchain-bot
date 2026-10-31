@@ -180,6 +180,31 @@ progressPercent } | null`, validated by `toBondingCurveOrNull`
   tests), including a seed → resolver → renderer integration that
   renders the exact label.
 
+### Changed
+
+- **Renderer normalizes newlines per body line (2026-10-30, owner
+  decision):** `render()` substitutes LINE BY LINE instead of
+  body-wide, so a template author can write one row key per line and
+  still get no blank holes. Three rules: a placeholder that is the
+  FIRST content of its line drops the value's leading `\n`s; one that
+  is the LAST content drops its trailing `\n`s; a line that contained
+  a placeholder and renders whitespace-only is removed whole (a blank
+  line with NO placeholder stays as author intent). Both body styles
+  — key alone on its line, or key appended to the previous line —
+  now render byte-identically, so `{{curveRow}}`, `{{usdRow}}`,
+  `{{liqRow}}`, `{{market5mRow}}`, `{{marketRow}}`,
+  `{{honeypotBlock}}` and `{{holderTopRow}}` no longer force the
+  append-only layout. Key VALUES keep their bytes (catalog META
+  `example` still shows `\n\n…`), every inline/append composition pin
+  is unchanged (`A{{usdRow}}B` → `AB`,
+  `Prev{{market5mRow}}Next` → `Prev\n📈 5M: …Next`), and the seeded
+  bodies render identically (none uses those keys). No migration, no
+  seed/DB change, no body activation. Specs: 44 expectations updated
+  by design plus `template-renderer-line-normalization.spec.ts`
+  (own-line key, append equivalence, silent key removes its line,
+  authored blank line survives, literal text kept). Verified jest 87
+  suites / 1067 tests, `tsc --noEmit` 0, eslint 0.
+
 ### Fixed
 
 - **Empty escaped bracket pair on the launchpad FDV line (2026-10-30):**

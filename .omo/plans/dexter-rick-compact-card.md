@@ -847,7 +847,23 @@ Guard de frontera `toBondingCurveOrNull` (cliente dexter): rechaza (→ `null`) 
 
 Fuera de curva → `*\[9.6K/353%\] $NET*` (el body renderiza el par escapado; ver la nota de arriba: el bracket crudo de §5.3 era un 400 garantizado). En curva → `*$NET/Bitcoin*` (el bracket desaparece). Fila de ventana: `{{marketRow}}` → `5M:` en curva / `1H:` fuera.
 
-**Composición con el body objetivo (v17, supersede §5.3).** Las DOS filas que el layout corto elimina (`💰 USD:`, `💦 Liq:`) y el bracket del headline se componen SOLO con estas keys; una misma línea estática no puede silenciarse. **TODA key que empieza con `\n` se pega al FINAL de la línea anterior** (mecánica de `honeypotBlock` / `holderTopRow`): una key sola en su propia línea del body produce una línea en blanco SIEMPRE (el `\n` del body MÁS el `\n` de la key), no solo cuando calla — verificado en el preview (el `⏳` salía tras un blanco). Body completo, listo para pegar:
+**Composición con el body objetivo (v17, supersede §5.3).** Las DOS filas que el layout corto elimina (`💰 USD:`, `💦 Liq:`) y el bracket del headline se componen SOLO con estas keys; una misma línea estática no puede silenciarse. **Desde la normalización de líneas (§10.19, owner decision 2026-10-30) las DOS formas valen**: una key que baja su propia línea puede ir sola en su línea del body o pegada al final de la anterior, y renderiza byte-idéntico. Antes de §10.19 solo valía la forma apilada (una key sola en su línea producía una línea en blanco SIEMPRE: el `\n` del body MÁS el `\n` de la key — verificado en el preview, el `⏳` salía tras un blanco), y por eso el body v17 se documentó apilado. Body completo, listo para pegar (forma canónica: una key por línea, MISMO orden que la forma apilada ⇒ render byte-idéntico):
+
+```text
+{{headerIcon}} {{nameLink}} *{{fdvChangeBracket}}${{symbol}}{{quoteSuffix}}*
+🌐 {{chainName}}{{venueSuffixShort}}
+💎 FDV: {{fdvUsd}} ⇨ {{fdvAth}} \[{{fdvAthAgo}}\]
+📊 Vol: {{volume24hUsd}}{{ageSuffix}}
+{{honeypotBlock}}
+{{usdRow}}
+{{liqRow}}
+{{marketRow}}
+{{curveRow}}
+```
+
+Para una línea en blanco INTENCIONAL (p. ej. antes de `{{holderTopRow}}`) se añade una línea VACÍA literal al body: una línea sin placeholders se conserva tal cual (§10.19).
+
+Forma equivalente (apilada, la única válida antes de §10.19):
 
 ```text
 {{headerIcon}} {{nameLink}} *{{fdvChangeBracket}}${{symbol}}{{quoteSuffix}}*
@@ -1081,3 +1097,29 @@ La edad BAJA ⇒ el refresh re-persistió. Ciclo observado: cache HIT (<30 s) �
 ```
 
 Fuera de curva (Bonk, no-pump) y graduado (CHALE): tarjeta completa con `💰 USD` / `💦 Liq` y la fila `1H` en su propia línea. **Residual:** un token servido por el fast path cuyo mejor par no sea el pumpfun conserva los cuatro 5m en `null` (el fast path no gasta la llamada extra de pair-list); tipicamente está fuera de curva o tiene quote no-USD/SOL, donde la fila calla igual.
+
+## 10.19 Normalización de líneas del renderer (owner decision 2026-10-30)
+
+**Problema medido.** El owner edita el body en el postgres LOCAL (docker) y quiere formatear «una key por línea». Siete keys bajan línea por sí mismas (`curveRow`, `usdRow`, `liqRow`, `market5mRow`, `marketRow`, `honeypotBlock`, `holderTopRow`), así que ponerlas solas en su línea sumaba el `\n` del body al de la key ⇒ **línea en blanco SIEMPRE**, no solo cuando la key calla. La única forma válida era apilarlas al final de la línea anterior — frágil de editar a mano.
+
+**Decisión.** El renderer normaliza por LÍNEA; las dos formas de escribir el body renderizan byte-idéntico. Implementado en `TemplateRendererService.render()` + nuevo privado `renderBodyLine` (`src/placeholders/application/template-renderer.service.ts`). Tres reglas, en este orden:
+
+1. **Primer contenido de la línea** ⇒ se descartan los `\n` INICIALES del valor (el body ya aporta el salto).
+2. **Último contenido de la línea** ⇒ se descartan los `\n` FINALES del valor (simétrico; hoy ninguna key termina en `\n`, queda como guard para keys futuras).
+3. Una línea que CONTENÍA al menos un placeholder y renderiza vacía (o solo espacios) **se elimina entera**, con su salto.
+
+Una línea en blanco SIN placeholders NO se toca: es intención de autor (así se conserva el blanco antes de `{{holderTopRow}}`).
+
+**Invariantes que NO cambian.**
+
+- La DB no se toca: el template lo sigue editando el owner; esto es solo renderer.
+- Los bodies sembrados quedan byte-idénticos: `full-dexter-v1`, `compact-rick-v1`, `compact-v1` y `chart-v1` no usan ninguna de las siete keys y ninguna pone una key al inicio/fin de línea entre las que emiten `\n`.
+- El VALOR de cada key conserva sus bytes (y por eso la META `example` del catálogo sigue documentando `\n\n…`): lo que se normaliza es la composición con el body.
+- `market1hRow` sigue sin `\n` (key legacy) y el body v17 sigue siendo válido tal cual.
+- Los cuerpos de composición INLINE ya pinneados no se mueven: `A{{usdRow}}B` → `AB`, `Prev{{market5mRow}}Next` → `Prev\n📈 5M: …Next`, `📊 Vol: …{{honeypotBlock}}` → `…\n\n🍯 …\nEND`.
+
+**Coste de migración.** Cero migración, cero cambio de schema, cero cambio de wire. Requiere build/deploy de dexter (staging + rebuild del dexter local del owner para verlo en el live editor).
+
+**Specs.** 44 expectations actualizadas por diseño (las que renderizan una key SOLA esperaban el prefijo `\n`/`\n\n`) en `template-renderer-bonding-curve.spec.ts`, `template-renderer-rick-card.spec.ts`, `template-renderer-holder-top-row.spec.ts`, `template-renderer-honeypot.spec.ts`; el pin «marketRow baja línea» se re-ancló en contexto de prefijo (`Prev{{marketRow}}`) para no perder la prueba. Nuevo `template-renderer-line-normalization.spec.ts` (5 tests): key sola en su línea, equivalencia apilada vs una-por-línea, key silenciosa deja CERO líneas, línea en blanco de autor conservada, y línea con texto literal + key vacía conserva el texto.
+
+**Verificación.** `npx jest --forceExit` → 87 suites / 1067 tests verdes; `tsc --noEmit` 0; `eslint src/placeholders/application` 0; `prettier --check` limpio (dexter). Sin body edit, sin seed, sin DB, sin activación por parte del asistente.

@@ -69,6 +69,10 @@ describe('TemplateRendererService honeypotLine 🍯 (plan todo 71)', () => {
       .placeholders.find((row) => row.key === 'honeypotLine');
     expect(entry?.type).toBe('derived');
     expect(entry?.nullable).toBe(true);
+    // The META `example` (like `honeypotBlock`'s blank-line one in the
+    // catalog) documents the VALUE's raw bytes and is intentionally
+    // unchanged; only body rendering normalizes the newlines away
+    // (owner decision 2026-10-30).
     expect(entry?.example).toBe('SIM: OK ⋅ T: 3/5');
     expect(entry?.example).not.toContain('%');
   });
@@ -77,27 +81,27 @@ describe('TemplateRendererService honeypotLine 🍯 (plan todo 71)', () => {
     [
       'SIM OK + measured sides (Rick state 1)',
       { sim: 'ok', buy: 3, sell: 5 },
-      '\n🍯 SIM: OK ⋅ T: 3/5',
+      '🍯 SIM: OK ⋅ T: 3/5',
     ],
     [
       'SIM OK + decimals (1-2 dec trim)',
       { sim: 'ok', buy: 3.99, sell: 3.8 },
-      '\n🍯 SIM: OK ⋅ T: 3\\.99/3\\.8',
+      '🍯 SIM: OK ⋅ T: 3\\.99/3\\.8',
     ],
     [
       'SIM OK + one zero side (never rounded to silence)',
       { sim: 'ok', buy: 0, sell: 5 },
-      '\n🍯 SIM: OK ⋅ T: 0/5',
+      '🍯 SIM: OK ⋅ T: 0/5',
     ],
     [
       'SIM OK + unknown sell (OUR extension of `?`)',
       { sim: 'ok', buy: 3, sell: null },
-      '\n🍯 SIM: OK ⋅ T: 3/?',
+      '🍯 SIM: OK ⋅ T: 3/?',
     ],
     [
       'SIM OK + unknown buy (OUR extension of `?`)',
       { sim: 'ok', buy: null, sell: 5 },
-      '\n🍯 SIM: OK ⋅ T: ?/5',
+      '🍯 SIM: OK ⋅ T: ?/5',
     ],
     [
       'SIM OK + exact 0/0 (clean round trip) → silence',
@@ -112,48 +116,48 @@ describe('TemplateRendererService honeypotLine 🍯 (plan todo 71)', () => {
     [
       'SIM FAIL without taxes (Rick state 3 — minimum row)',
       { sim: 'fail', buy: null, sell: null },
-      '\n🍯 SIM: FAIL',
+      '🍯 SIM: FAIL',
     ],
     [
       'SIM FAIL + blocked sell (Rick state 2, `b/?`)',
       { sim: 'fail', buy: 3, sell: null },
-      '\n🍯 SIM: FAIL ⋅ T: 3/?',
+      '🍯 SIM: FAIL ⋅ T: 3/?',
     ],
     [
       'SIM FAIL + measured sides',
       { sim: 'fail', buy: 3, sell: 5 },
-      '\n🍯 SIM: FAIL ⋅ T: 3/5',
+      '🍯 SIM: FAIL ⋅ T: 3/5',
     ],
     [
       'SIM FAIL + unknown buy (OUR extension of `?`)',
       { sim: 'fail', buy: null, sell: 5 },
-      '\n🍯 SIM: FAIL ⋅ T: ?/5',
+      '🍯 SIM: FAIL ⋅ T: ?/5',
     ],
     [
       'SIM FAIL beats the exact-0/0 silence (SIEMPRE rule)',
       { sim: 'fail', buy: 0, sell: 0 },
-      '\n🍯 SIM: FAIL ⋅ T: 0/0',
+      '🍯 SIM: FAIL ⋅ T: 0/0',
     ],
     [
       'no sim + measured sides (Rick state 4, external source)',
       { sim: null, buy: 3, sell: 5 },
-      '\n🍯 T: 3/5',
+      '🍯 T: 3/5',
     ],
     [
       'no sim + unknown sell (OUR extension of `?`)',
       { sim: null, buy: 3, sell: null },
-      '\n🍯 T: 3/?',
+      '🍯 T: 3/?',
     ],
     [
       'no sim + unknown buy (OUR extension of `?`)',
       { sim: null, buy: null, sell: 5 },
-      '\n🍯 T: ?/5',
+      '🍯 T: ?/5',
     ],
     ['no sim + exact 0/0 → silence', { sim: null, buy: 0, sell: 0 }, ''],
     [
       'no sim + one zero side stays a row',
       { sim: null, buy: 0, sell: 5 },
-      '\n🍯 T: 0/5',
+      '🍯 T: 0/5',
     ],
     [
       'no sim + both sides absent → silence (no source)',
@@ -179,19 +183,19 @@ describe('TemplateRendererService honeypotLine 🍯 (plan todo 71)', () => {
         '{{honeypotLine}}',
         baseToken({ honeypot: { sim: null, buy: 0.4, sell: 0.2 } }),
       ),
-    ).toBe('\n🍯 T: 0\\.4/0\\.2');
+    ).toBe('🍯 T: 0\\.4/0\\.2');
     expect(
       render(
         '{{honeypotLine}}',
         baseToken({ honeypot: { sim: null, buy: 0.004, sell: 0.0004 } }),
       ),
-    ).toBe('\n🍯 T: 0\\.004/<0\\.001');
+    ).toBe('🍯 T: 0\\.004/<0\\.001');
     expect(
       render(
         '{{honeypotLine}}',
         baseToken({ honeypot: { sim: null, buy: 0.001, sell: 1 } }),
       ),
-    ).toBe('\n🍯 T: 0\\.001/1');
+    ).toBe('🍯 T: 0\\.001/1');
   });
 
   it('keeps the raw gate: sub-0.5 sides never round down to 0/0 silence', () => {
@@ -200,7 +204,7 @@ describe('TemplateRendererService honeypotLine 🍯 (plan todo 71)', () => {
       baseToken({ honeypot: { sim: null, buy: 0.1, sell: 0.1 } }),
     );
     expect(out).not.toBe('');
-    expect(out).toBe('\n🍯 T: 0\\.1/0\\.1');
+    expect(out).toBe('🍯 T: 0\\.1/0\\.1');
   });
 
   it('renders empty when the token carries no honeypot (absent / null)', () => {
@@ -263,7 +267,7 @@ describe('TemplateRendererService honeypotLine 🍯 (plan todo 71)', () => {
       '{{honeypotLine}}',
       baseToken({ honeypot: { sim: 'ok', buy: 3.99, sell: 100 } }),
     );
-    expect(out).toBe('\n🍯 SIM: OK ⋅ T: 3\\.99/100');
+    expect(out).toBe('🍯 SIM: OK ⋅ T: 3\\.99/100');
     expect(out).not.toContain('%');
     expect(out).not.toContain('$');
   });
