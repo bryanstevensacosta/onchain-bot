@@ -209,3 +209,98 @@ describe('DirectFastPathService bondingCurve (§10.16)', () => {
     expect(result?.bondingCurve).toBeNull();
   });
 });
+
+/**
+ * 5-minute bucket on the fast path (`rick-compact-card` §10.16, dexter
+ * `5M` row).
+ *
+ * MEASURED GAP this pins: the four fields used to be written ONLY by
+ * the `dexscreener` quote fetcher, but the fast path serves exactly the
+ * class whose bucket exists (SOL/USD-quoted curves always price) and
+ * runs no fetchers — staging 2026-10-30 served `volume5mUsd: null` for
+ * `FXRorC4…pump` while its pumpfun pair carried `23.93 / -1.58 / 0 / 1`.
+ * The harvest reuses the discovery summary (zero extra calls) and the
+ * SAME class gate as the fetcher (`readPumpfun5m`).
+ */
+const pumpSummary = (
+  patch: Partial<DexScreenerPairSummary> = {},
+): DexScreenerPairSummary => ({
+  pairAddress: '7VEVhA6YdaYXT1jttFV5MNGdihzrPGESZW7WDoyFw7gi',
+  dexId: 'pumpfun',
+  labels: [],
+  baseToken: { address: MINT, name: 'PUMP', symbol: 'PUMP' },
+  quoteToken: { address: WSOL, name: 'Wrapped SOL', symbol: 'SOL' },
+  priceUsd: '0.000002701',
+  priceNative: '0.0000001',
+  liquidityUsd: null,
+  volume24h: 143.32,
+  fdv: null,
+  marketCap: null,
+  priceChange24h: -2.02,
+  txns24h: { buys: 6, sells: 6 },
+  pairCreatedAt: null,
+  volume1hUsd: 143.32,
+  priceChange1h: -2.02,
+  txns1h: { buys: 6, sells: 6 },
+  volume5mUsd: 23.93,
+  priceChange5m: -1.58,
+  txns5mBuys: 0,
+  txns5mSells: 1,
+  ...patch,
+});
+
+describe('DirectFastPathService 5m bucket (§10.16)', () => {
+  it('harvests the four fields from a SOL-quoted pumpfun summary (zero extra calls)', async () => {
+    const service = new DirectFastPathService(
+      { getBestPairSummaryForChain: async () => pumpSummary() } as never,
+      readerWith(pumpView(true)) as never,
+      null,
+      null,
+    );
+    const result = await service.tryResolve(req('solana', MINT));
+    expect(result).not.toBeNull();
+    expect(result?.outcome.quote.volume5mUsd).toBe(23.93);
+    expect(result?.outcome.quote.priceChange5m).toBe(-1.58);
+    expect(result?.outcome.quote.txns5mBuys).toBe(0);
+    expect(result?.outcome.quote.txns5mSells).toBe(1);
+  });
+
+  it('silences a non-USD/SOL quote (ZEC) even though the pair carries numbers', async () => {
+    const service = new DirectFastPathService(
+      {
+        getBestPairSummaryForChain: async () =>
+          pumpSummary({
+            quoteToken: {
+              address: 'A7bdiYdS5GjqGFtxf17ppRHtDKPkkRqbKtR27dxvQXaS',
+              name: 'ZEC',
+              symbol: 'ZEC',
+            },
+          }),
+      } as never,
+      readerWith(pumpView(true)) as never,
+      null,
+      null,
+    );
+    const result = await service.tryResolve(req('solana', MINT));
+    expect(result).not.toBeNull();
+    expect(result?.outcome.quote.volume5mUsd).toBeNull();
+    expect(result?.outcome.quote.priceChange5m).toBeNull();
+    expect(result?.outcome.quote.txns5mBuys).toBeNull();
+    expect(result?.outcome.quote.txns5mSells).toBeNull();
+  });
+
+  it('ignores a non-pumpfun best pair (migrated/dual-venue card)', async () => {
+    const service = new DirectFastPathService(
+      {
+        getBestPairSummaryForChain: async () =>
+          pumpSummary({ dexId: 'meteora' }),
+      } as never,
+      readerWith(pumpView(true)) as never,
+      null,
+      null,
+    );
+    const result = await service.tryResolve(req('solana', MINT));
+    expect(result).not.toBeNull();
+    expect(result?.outcome.quote.volume5mUsd).toBeNull();
+  });
+});

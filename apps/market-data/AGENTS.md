@@ -3012,18 +3012,44 @@ quoteMint; progressPercent }` — `onCurve` is the LITERAL `true`
   fallback to another dex. The strict discovery pick is best-liquidity
   (Meteora for a graduated pump token), so the curve's own pair can
   only be reached this way.
-- The `dexscreener` quote fetcher is the SOLE writer. It starts ONE
-  extra Solana-only `getPairsByToken` promise BEFORE strict
-  discovery/cache awaits (zero added wall-clock, `.catch` attached at
-  creation, ≤1 call per invocation; early-bail miss paths just let it
-  resolve unused), selects the pumpfun pair, takes the side OPPOSITE
-  our mint and emits the four values ONLY when that side is USD/SOL
-  (`address === WSOL_MINT` or symbol in {SOL,WSOL,USDC,USDT}).
-  HONESTY BY CLASS, NOT VALUE: a non-USD/SOL quote (e.g. the reference
-  mint's `Bitcoin`) nulls ALL FOUR and the row goes silent; a real `0`
-  survives on a USD/SOL pair; a partial `txns.m5` nulls BOTH sides;
-  our mint on neither side of the pump pair emits nothing. Non-Solana
-  chains issue ZERO extra calls.
+- `provider/infrastructure/dexscreener/pumpfun-5m.ts`: the ONE
+  implementation of the CLASS gate (`isUsdOrSolQuoteSide`) + the four
+  field extraction (`readPumpfun5m(pair, mint)`), shared by BOTH
+  producers below. Honesty is by CLASS, not value: a non-USD/SOL quote
+  (e.g. the reference mint's `Bitcoin`, or the live `ZEC`-quoted
+  `3tnDcNa…pump`) nulls ALL FOUR and the row goes silent even though
+  upstream publishes numbers; a real `0` survives on a USD/SOL pair; a
+  partial `txns.m5` nulls BOTH sides; our mint on neither side emits
+  nothing.
+- PRODUCERS (both required — one alone is dead code, measured on
+  staging 2026-10-30):
+  - The `dexscreener` quote fetcher (slow fan-out) starts ONE extra
+    Solana-only `getPairsByToken` promise BEFORE strict discovery/cache
+    awaits (zero added wall-clock, `.catch` attached at creation, ≤1
+    call per invocation; early-bail miss paths just let it resolve
+    unused), selects the pumpfun pair, then applies the shared helper.
+    Non-Solana chains issue ZERO extra calls.
+  - The DIRECT FAST PATH harvests the SAME helper from the discovery
+    summary it already fetched (`...(readPumpfun5m(discovery, mint) ??
+{})` right after `emptySnapshotQuote()` in `resolveSolana`) — ZERO
+    extra calls. This is the producer that matters in practice: the
+    fast path serves exactly the class whose bucket exists (a SOL/USD-
+    quoted curve always prices, so `priced !== null` and the fast serve
+    wins), and it runs NO fetchers. Before this, the four fields were
+    null on every card that could render the row (`FXRorC4…pump` served
+    `volume5mUsd: null` while its pumpfun pair carried
+    `23.93 / -1.58 / 0 / 1`), and the fetcher only ever ran for
+    non-USD/SOL quotes, which the class gate silences — the `5M` row
+    was unreachable in production.
+  - Residual (documented): a token whose best-liquidity pair is NOT the
+    pumpfun pair (dual-venue/graduated) and that serves on the FAST path
+    carries `null` 5m (the fast path does not spend the extra pair-list
+    call). Those tokens are usually off-curve (full card, `1H` row) or
+    non-USD/SOL-quoted (silent by class anyway).
+- Declaration order note: `evm-tolerance.ts` spreads
+  `emptySnapshotQuote()` at the top of its `quote` literal to satisfy
+  the now-required keys — behavior-null (every `pickDefined` below
+  overrides it).
 - Declaration order note: `evm-tolerance.ts` spreads
   `emptySnapshotQuote()` at the top of its `quote` literal to satisfy
   the now-required keys — behavior-null (every `pickDefined` below

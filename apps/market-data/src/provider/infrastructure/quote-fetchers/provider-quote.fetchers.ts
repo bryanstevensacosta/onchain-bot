@@ -4,7 +4,10 @@ import {
   selectBestPairSummaryForSlug,
   selectPumpfunPairForSlug,
 } from 'provider/infrastructure/dexscreener/dexscreener.service';
-import { WSOL_MINT } from 'provider/infrastructure/onchain/solana-program-ids';
+import {
+  readPumpfun5m,
+  type Pumpfun5mFields,
+} from 'provider/infrastructure/dexscreener/pumpfun-5m';
 import {
   GeckoTerminalService,
   selectPoolQuote,
@@ -133,29 +136,10 @@ function rpcAmountToUi(
 }
 
 /**
- * USD/SOL quote-CLASS gate for the 5-minute bucket (dexter `5M` row).
- *
- * A pair's `volume.m5` / `txns.m5` are denominated in its QUOTE asset,
- * so they are only USD-measurable when that asset is a stablecoin or
- * SOL. Honesty is by CLASS, not by value: the reference mint's pump
- * pair quotes `Bitcoin`, so its numbers must stay silent instead of
- * being rendered as USD. WSOL matches by canonical mint address
- * (base58 is case-sensitive); the symbol list is the only keyless
- * fallback DexScreener gives for the same class of assets.
+ * USD/SOL quote-CLASS gate for the 5-minute bucket — the ONE
+ * implementation lives in `dexscreener/pumpfun-5m.ts` (shared with the
+ * direct fast path, which serves the only class that can populate it).
  */
-function isUsdOrSolQuoteSide(side: {
-  readonly address: string | null;
-  readonly symbol: string | null;
-}): boolean {
-  if (side.address === WSOL_MINT) return true;
-  const symbol = (side.symbol ?? '').trim().toUpperCase();
-  return (
-    symbol === 'SOL' ||
-    symbol === 'WSOL' ||
-    symbol === 'USDC' ||
-    symbol === 'USDT'
-  );
-}
 
 /** GeckoTerminal network slugs verified live 2026-10-06 via `GET /networks`. */
 export const GECKO_NETWORK_SLUGS: Record<string, string> = {
@@ -426,11 +410,12 @@ export function buildProviderQuoteFetchers(
       if (identity === null) {
         return null;
       }
-      // 5-minute bucket (dexter `5M` row) — the ONLY writer of these
-      // four fields. The source MUST be the pumpfun pair: the strict
-      // discovery pick is best-liquidity, and for a graduated pump
-      // curve that is a migrated pool (Meteora for the reference
-      // mint), so the curve's own pair cannot be obtained from it.
+      // 5-minute bucket (dexter `5M` row). The source MUST be the
+      // pumpfun pair: the strict discovery pick is best-liquidity, and
+      // for a graduated pump curve that is a migrated pool (Meteora for
+      // the reference mint), so the curve's own pair cannot be obtained
+      // from it. Class gate + extraction are shared with the direct
+      // fast path (ONE implementation, `pumpfun-5m.ts`).
       //
       // ACCEPTED COST (documented, keyless): exactly ONE extra
       // DexScreener call per COLD solana snapshot, inside the existing
@@ -444,44 +429,15 @@ export function buildProviderQuoteFetchers(
       // unhandled rejection is possible. Method guard: hand-rolled stub
       // deps without `getPairsByToken` skip silently (same precedent as
       // `search`/`getTokensInfo`).
-      let volume5mUsd: number | null = null;
-      let priceChange5m: number | null = null;
-      let txns5mBuys: number | null = null;
-      let txns5mSells: number | null = null;
+      let pump5m: Pumpfun5mFields | null = null;
       if (pumpPairsP !== null) {
         const pumpPair = selectPumpfunPairForSlug(await pumpPairsP, slug);
-        // Quote-CLASS gate: take the side of the pumpfun pair
-        // OPPOSITE our mint (its `volume.m5`/`txns.m5` belong to
-        // that asset) and emit only when that side is USD/SOL. Our
-        // mint on NEITHER side of the pump pair emits nothing — a
-        // foreign pair's numbers never reach this card.
-        const oppositeSide =
-          pumpPair === null
-            ? null
-            : typeof pumpPair.baseToken.address === 'string' &&
-                pumpPair.baseToken.address.toLowerCase() === wanted
-              ? pumpPair.quoteToken
-              : typeof pumpPair.quoteToken.address === 'string' &&
-                  pumpPair.quoteToken.address.toLowerCase() === wanted
-                ? pumpPair.baseToken
-                : null;
-        if (
-          pumpPair !== null &&
-          oppositeSide !== null &&
-          isUsdOrSolQuoteSide(oppositeSide)
-        ) {
-          volume5mUsd = toNumber(pumpPair.volume5mUsd);
-          priceChange5m = toNumber(pumpPair.priceChange5m);
-          // Whole-pair rule: a partial txns pair stays BOTH null
-          // (never half a reading, never a `{0,0}` default).
-          const buys5m = toNumber(pumpPair.txns5mBuys);
-          const sells5m = toNumber(pumpPair.txns5mSells);
-          if (buys5m !== null && sells5m !== null) {
-            txns5mBuys = buys5m;
-            txns5mSells = sells5m;
-          }
-        }
+        pump5m = pumpPair === null ? null : readPumpfun5m(pumpPair, address);
       }
+      const volume5mUsd = pump5m?.volume5mUsd ?? null;
+      const priceChange5m = pump5m?.priceChange5m ?? null;
+      const txns5mBuys = pump5m?.txns5mBuys ?? null;
+      const txns5mSells = pump5m?.txns5mSells ?? null;
       const txns1h = best.txns1h;
       const txns1hBuys =
         typeof txns1h?.buys === 'number' && Number.isFinite(txns1h.buys)

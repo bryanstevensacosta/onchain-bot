@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`5M` row was unreachable in production — the fast path served the
+  only class that populates it (2026-10-30):** the four 5-minute fields
+  had exactly ONE writer, the `dexscreener` quote fetcher (slow
+  fan-out), but the DIRECT FAST PATH serves precisely the tokens whose
+  bucket exists (a SOL/USD-quoted curve always prices, so `priced !==
+null` wins the fast serve) and it runs NO fetchers. Measured on
+  staging: `FXRorC4…pump` (SOL-quoted, on curve) served
+  `volume5mUsd: null` / `priceChange5m: null` / `txns5m*: null` while
+  its pumpfun pair carried `23.93 / -1.58 / 0 / 1`; the fan-out only
+  ever ran for non-USD/SOL quotes, which the class gate silences by
+  design. Net: dexter's `{{market5mRow}}` could never render.
+  The class gate + extraction now live in ONE shared pure module
+  (`provider/infrastructure/dexscreener/pumpfun-5m.ts`,
+  `isUsdOrSolQuoteSide` + `readPumpfun5m`) used by the fetcher AND by
+  the fast path, which harvests the discovery summary it already
+  fetched — ZERO extra calls, zero added latency. Honesty by class is
+  unchanged (`Bitcoin`/`ZEC` quotes stay silent, real `0` survives,
+  partial `txns.m5` nulls both). Residual: a fast-path token whose
+  best-liquidity pair is not the pumpfun pair keeps `null` 5m (the fast
+  path does not spend the extra pair-list call).
 - **`TOKEN_2022_PROGRAM` constant was wrong — `quoteSymbol` always
   `null` on Token-2022 quote mints (2026-10-30):** the pinned id ended
   `...PHnAAvKmd1qT6M`; the deployed program (and every live Token-2022

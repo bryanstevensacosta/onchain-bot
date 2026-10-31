@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import type { AggregationOutcome } from 'aggregators/application/snapshot-aggregator.service';
 import { DexScreenerService } from 'provider/infrastructure/dexscreener';
 import type { DexScreenerPairSummary } from 'provider/infrastructure/dexscreener';
+import { readPumpfun5m } from 'provider/infrastructure/dexscreener/pumpfun-5m';
 import { LaunchpadDetectorService } from 'launchpad/application/launchpad-detector.service';
 import type { LaunchpadInfo } from 'launchpad/domain/launchpad-info';
 import {
@@ -514,8 +515,24 @@ export class DirectFastPathService {
     const marketName = nonEmptyString(discoverySideName(discovery, mint));
     const metaSymbol = nonEmptyString(basics?.metadata?.symbol ?? null);
     const metaName = nonEmptyString(basics?.metadata?.name ?? null);
+    // 5-minute bucket (dexter `5M` row, `rick-compact-card` §10.16).
+    //
+    // MEASURED GAP (staging 2026-10-30): the four fields used to be
+    // produced ONLY by the `dexscreener` quote fetcher (slow fan-out),
+    // but the fast path serves precisely the class whose bucket exists
+    // — a SOL/USD-quoted curve always prices (`priced !== null`), so it
+    // always fast-paths — and the fast path runs NO fetchers. The
+    // fetcher therefore only ever ran for non-USD/SOL quotes, which the
+    // class gate silences: the `5M` row was unreachable in production.
+    // Harvesting from the discovery summary costs ZERO calls: when the
+    // curve is the token's only pool, that summary IS the pumpfun pair.
+    // Class gate + extraction shared with the fetcher (`pumpfun-5m.ts`),
+    // so honesty-by-class (`Bitcoin`/`ZEC` quotes stay silent) is
+    // enforced by the same code on both paths.
+    const pump5m = discovery === null ? null : readPumpfun5m(discovery, mint);
     const quote: SnapshotQuote = {
       ...emptySnapshotQuote(),
+      ...(pump5m ?? {}),
       priceUsd: priced.priceUsd,
       liquidityUsd: priced.liquidityUsd,
       holders:
