@@ -1061,7 +1061,7 @@ La edad BAJA ⇒ el refresh re-persistió. Ciclo observado: cache HIT (<30 s) �
 
 **DEFECTO de composición encontrado por el preview (`:4061`, draft-only).** `market5mRow`/`marketRow` emitían la fila DESNUDA (mirror de `market1hRow`, cuyo contrato es "sin whitespace: los separadores son del template"), así que el body v17 las PEGABA a la línea anterior: `📊 Vol: 692 ⋅ Age: \`3m\`📉 5M: …`y, en tarjeta completa,`💦 Liq: \`147.9K\`📉 1H: …`. Poner un `\n`en el body NO sirve: cuando la fila calla (referencia, cualquier token sin ventana) queda una LÍNEA EN BLANCO — el mismo fallo que el body documenta para las keys que empiezan con`\n`. Fix: ambas keys bajan su propia línea (`"\n" + fila`cuando renderizan,`""`al callar — la mecánica de`usdRow`/`liqRow`/`curveRow`). Bytes de la FILA sin cambios (pinneados), `market1hRow`intacta (key legacy, sin`\n`), body v17 byte-idéntico. Pin end-to-end: `template-renderer-bonding-curve.spec.ts` §"v17 body composition" (curva+5m / curva sin 5m / fuera de curva / silencio). Verificación dexter: tsc 0, jest 86 suites / 1062 tests, eslint 0.
 
-**Render final v17 (staging `:4061`).**
+**Render final v17 (staging `:4061`).** Evidencia completa (tabla de probes + los seis renders + residuales): `.omo/evidence/rick-compact-card-v17-preview-20261030.log` (gitignored por diseño).
 
 ```
 🟣 NETCOIN *$NET/Bitcoin*
