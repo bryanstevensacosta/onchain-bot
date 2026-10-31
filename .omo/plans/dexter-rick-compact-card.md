@@ -828,10 +828,12 @@ Guard de frontera `toBondingCurveOrNull` (cliente dexter): rechaza (→ `null`) 
 | `fdvChangeBracket` | `"\\[" + fdvUsd + "/" + priceChange24h + "\\] "` (brackets ESCAPADOS, espacio final) | `""`                                                             | ambos valores desconocidos → `""` (nunca `[N/A/N/A]`)            |
 | `usdRow`           | `"\n💰 USD: "` + priceUsd en code span (`codeV2Text`, valor RAW)                     | `""`                                                             | —                                                                |
 | `liqRow`           | `"\n💦 Liq: "` + liquidityUsdSide en code span + liquidityFlags fuera del span       | `""`                                                             | —                                                                |
-| `market5mRow`      | espejo exacto de `market1hRow` con `5M:`                                             | igual                                                            | cualquiera de los 4 valores 5m ausente/no finito (counts `>= 0`) |
-| `marketRow`        | `market1hRow` (byte-idéntico)                                                        | `market5mRow` (byte-idéntico)                                    | hereda el silencio de la key elegida                             |
+| `market5mRow`      | espejo de `market1hRow` con `5M:`, BAJA LÍNEA NUEVA (`"\n📈 5M: …"`)                 | igual                                                            | cualquiera de los 4 valores 5m ausente/no finito (counts `>= 0`) |
+| `marketRow`        | `market1hRow` (bytes de fila idénticos) + `"\n"`                                     | `market5mRow` (byte-idéntico)                                    | hereda el silencio de la key elegida, sin línea en blanco        |
 
-`curveRow` formatea el progreso con `formatPercentText` (ya emite `%`; el `%` no es especial V2) y usa `resolveLaunchpadDisplayName` (override `launchpadName` → `pump-fun` a `Pump`), escapado UNA vez (fallback detector con punto → `pump\.fun`). Si el snapshot NO trae `launchpad` (el caso exacto de estos mints: el detector devuelve null), el nombre cae a `bondingCurve.launchpadId` sintetizando `{id, name: id}` para que el override `launchpadName` siga aplicando; sin ninguno de los dos se omite el `@ nombre`. El progreso es opcional: con `progressPercent: null` la fila queda `⏳ @ Name` (o `""` si tampoco hay nombre). `market5mRow` comparte helper privado con `market1hRow` (bytes 1H pinneados sin cambios), misma composición monoespaciada (cada número en su code span, CERO backslashes).
+`curveRow` formatea el progreso con `formatPercentText` (ya emite `%`; el `%` no es especial V2) y usa `resolveLaunchpadDisplayName` (override `launchpadName` → `pump-fun` a `Pump`), escapado UNA vez (fallback detector con punto → `pump\.fun`). Si el snapshot NO trae `launchpad` (el caso exacto de estos mints: el detector devuelve null), el nombre cae a `bondingCurve.launchpadId` sintetizando `{id, name: id}` para que el override `launchpadName` siga aplicando; sin ninguno de los dos se omite el `@ nombre`. El progreso es opcional: con `progressPercent: null` la fila queda `⏳ @ Name` (o `""` si tampoco hay nombre). `market5mRow` comparte helper privado con `market1hRow` (bytes de la FILA 1H pinneados sin cambios), misma composición monoespaciada (cada número en su code span, CERO backslashes).
+
+**Corrección post-preview 2026-10-30 (`market5mRow` / `marketRow` bajan su propia línea).** El preview de staging destapó que ambas keys emitían la fila DESNUDA (`sin \n`), así que en el body v17 quedaban PEGADAS a la línea anterior (`Age: \`3m\`📉 5M: …`, y en tarjeta completa `💦 Liq: \`147.9K\`📉 1H: …`). La alternativa por body (un `\n`literal antes de`{{marketRow}}`) deja una LÍNEA EN BLANCO cada vez que la fila calla — y calla en las dos tarjetas del mint de referencia (5m no-USD) y en cualquier token sin ventana. Ambas keys emiten ahora `"\n" + fila`cuando la fila existe y`""`cuando calla, la misma mecánica de`usdRow`/`liqRow`/`curveRow`(se pegan al FINAL de la línea anterior del body). Bytes: la FILA es idéntica a`market1hRow`(pinneado),`market1hRow`NO cambia (sigue sin`\n`, key legacy), `marketRow`=`"\n"`+ fila elegida. El body v17 no cambia ni una letra. Pinneado end-to-end en`template-renderer-bonding-curve.spec.ts` (4 estados: curva+5m, curva sin 5m, fuera de curva, silencio).
 
 **`fdvChangeBracket` es dueña del escapado de SUS corchetes.** `[` y `]` están en el set reservado de MarkdownV2 fuera de la sintaxis de link; el valor compuesto debe emitir `\[` / `\]` (precedente exacto: `holderTopRow`, que ya emite `\[`/`\]`). Un body compone la key DESNUDA (`*{{fdvChangeBracket}}${{symbol}}*`); ponerle corchetes literales alrededor (`\[{{fdvChangeBracket}}\]`) duplicaría el escape y el render imprimiría `\[…\]`. Un solo lado escapa, y es la key.
 
@@ -1042,3 +1044,40 @@ La edad BAJA ⇒ el refresh re-persistió. Ciclo observado: cache HIT (<30 s) �
 **Replay persistence VERIFICADO en staging (deploy `41154178029`, commit `249fa457`).** Secuencia de tres llamadas al mint de referencia: (1) replay del row legacy → `swr-now`, `bondingCurve: null`; (2) tras el refresh → serve fresco `bondingCurve {onCurve:true, launchpadId:'pump-fun', quoteMint:'Hytpiyu…Dpump', progressPercent:63.0939}`, `launchpad: pump-fun`, `venue: meteora`, `holderConcentration` no-null; (3) 47 s después → `swr-now` sirviendo **la curva PERSISTIDA verbatim** (`progressPercent:63.0939` idéntico). Es decir: el layout corto ya sobrevive a los replays; la costura de spreads está bien puesta.
 
 **DEFECTO de constante encontrado en la misma ventana (corregido).** `TOKEN_2022_PROGRAM` estaba pineada como `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnAAvKmd1qT6M`; el programa desplegado (y el owner real de la quote-mint, leído on-chain vía el RPC keyed: `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`, 411 B) no coincide. Consecuencia: el gate `owner === TOKEN_2022_PROGRAM` del `PumpQuoteResolver` era falsamente falso ⇒ `quoteSymbol: null` en staging aunque los bytes ya decodificaban `Bitcoin`. **Clase de bug idéntica a `solana-pda.ts`**: todos los specs construían el owner del fixture DESDE la constante, así que la suite quedaba verde (punto ciego auto-consistente). Corregido + pin del literal on-chain en `pump-quote.resolver.spec.ts` + aserción `TOKEN_2022_PROGRAM === literal`. Verificación de la decodificación sobre los bytes reales de staging: ext 18 len 64 @166, ext 19 len 173 @234, name `F7931A`, symbol `Bitcoin`, uri IPFS — el parser nunca estuvo mal; el gate sí. `holderConcentration` y `launchpad` también empezaron a resolver con el RPC keyed (antes `null`).
+
+## 10.18 Preview v17 en staging 2026-10-30 — 5M alcanzable + defecto de composición
+
+**Lane market-data cerrada (deploy `41156007740`, commit `e79b92a3`).** El bucket 5m tenía UN solo productor — el fetcher `dexscreener` del fan-out — pero el DIRECT FAST PATH sirve exactamente la clase donde el bucket existe (una curva con quote SOL/USD siempre pricea ⇒ `priced !== null` gana el fast serve) y NO corre fetchers. Medido en staging: `FXRorC4…pump` (SOL, on curve) servía los cuatro en `null` mientras su par pumpfun cargaba `23.93 / -1.58 / 0 / 1`; el fan-out solo corría para quotes no-USD/SOL, que el gate de clase silencia ⇒ la fila `5M` era INALCANZABLE en producción. Fix: módulo puro `provider/infrastructure/dexscreener/pumpfun-5m.ts` (`isUsdOrSolQuoteSide` + `readPumpfun5m`) compartido por el fetcher y el fast path; el fast path cosecha el summary de discovery que YA había pedido (CERO red extra).
+
+**Evidencia de staging (post-deploy, `:4001`).**
+
+| Fixture                                        | Quote                    | Resultado                                                                                                        |
+| ---------------------------------------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| `6V2BdbXfJy6ukLXjC4SRP1YF8fhAoyQPP3i3fVVXpump` | SOL, on curve, fast path | `694.49 / -61.97 / 19 / 16` VERBATIM (upstream `m5 -61.97`) — fila `5M` viva                                     |
+| `FXRorC4nBg7emCPCcrKqvqNuBAw4Bo6hPL9S5JxPpump` | SOL, on curve, fast path | `0 / null / 0 / 0`: el bucket rodó a cero upstream, el `0` real SOBREVIVE y la fila calla porque falta el cambio |
+| `3tnDcNaqqxrXm6FnZAFYraRUJPp5JjekUK58RmLKpump` | ZEC, on curve            | los cuatro `null` (upstream publica `-8.93 / 154.7 / 1 / 4`) — silencio por CLASE                                |
+| `2dNdT2gD…BTC` (referencia)                    | Bitcoin, on curve        | `quoteSymbol: 'Bitcoin'`, `progressPercent 62.573`, los cuatro `null`                                            |
+| `2o1wthqgE…pump` (CHALE)                       | graduado                 | `bondingCurve: null`                                                                                             |
+
+**DEFECTO de composición encontrado por el preview (`:4061`, draft-only).** `market5mRow`/`marketRow` emitían la fila DESNUDA (mirror de `market1hRow`, cuyo contrato es "sin whitespace: los separadores son del template"), así que el body v17 las PEGABA a la línea anterior: `📊 Vol: 692 ⋅ Age: \`3m\`📉 5M: …`y, en tarjeta completa,`💦 Liq: \`147.9K\`📉 1H: …`. Poner un `\n`en el body NO sirve: cuando la fila calla (referencia, cualquier token sin ventana) queda una LÍNEA EN BLANCO — el mismo fallo que el body documenta para las keys que empiezan con`\n`. Fix: ambas keys bajan su propia línea (`"\n" + fila`cuando renderizan,`""`al callar — la mecánica de`usdRow`/`liqRow`/`curveRow`). Bytes de la FILA sin cambios (pinneados), `market1hRow`intacta (key legacy, sin`\n`), body v17 byte-idéntico. Pin end-to-end: `template-renderer-bonding-curve.spec.ts` §"v17 body composition" (curva+5m / curva sin 5m / fuera de curva / silencio). Verificación dexter: tsc 0, jest 86 suites / 1062 tests, eslint 0.
+
+**Render final v17 (staging `:4061`).**
+
+```
+🟣 NETCOIN *$NET/Bitcoin*
+🌐 Solana
+💎 FDV: 15\.9K ⇨ 15\.9K \[4h\]
+📊 Vol: 2
+⏳ 62\.6% @ Pump
+```
+
+```
+🟣 TRUMP THA DON *$trump*
+🌐 Solana @ Pump\.fun
+💎 FDV: 2\.1K ⇨ 7\.1K \[3m\]
+📊 Vol: 692 ⋅ Age: `3m`
+📉 5M: `694` ⋅ `-62%` 🅑 `19` Ⓢ `16`
+⏳ 0% @ Pump
+```
+
+Fuera de curva (Bonk, no-pump) y graduado (CHALE): tarjeta completa con `💰 USD` / `💦 Liq` y la fila `1H` en su propia línea. **Residual:** un token servido por el fast path cuyo mejor par no sea el pumpfun conserva los cuatro 5m en `null` (el fast path no gasta la llamada extra de pair-list); tipicamente está fuera de curva o tiene quote no-USD/SOL, donde la fila calla igual.

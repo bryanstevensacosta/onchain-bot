@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`market5mRow` / `marketRow` glued the window row to the previous
+  line — and a body-side newline left a blank line instead
+  (2026-10-30):** the staging v17 preview (`:4061`) rendered
+  `📊 Vol: 692 ⋅ Age: \`3m\`📉 5M: \`694\` …`and the full card`💦 Liq: \`147.9K\`📉 1H: …`, because both keys emitted the BARE
+row (they mirrored `market1hRow`, whose contract is "no leading
+whitespace: templates own separators"). Giving the row its own body
+line is not an option: a SILENT row would then leave a BLANK line
+(the v17 body already documents that failure for `\n`-prefixed
+keys). Both keys now lower their own line — `"\n" + row`when the
+row renders,`""`when it silences — the exact mechanics of`usdRow`/`liqRow`/`curveRow`. The ROW bytes are unchanged
+(pinned), `market1hRow`keeps its legacy bytes (no newline), and the
+v17 body is byte-identical. End-to-end pins in`template-renderer-bonding-curve.spec.ts`: curve + 5m, curve without
+  5m (no blank line), off curve (1H after the Liq row), and both
+  silence states.
+
 ### Added
 
 - **Launchpad (bonding-curve) short-layout keys (2026-10-30):** Rick
@@ -28,8 +45,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   outside it — zero backslashes; `""` on curve), `market5mRow`
   (exact `market1hRow` mirror with
   `5M:` and the four new 5m fields), and `marketRow` (layout switch:
-  `market5mRow` on curve, `market1hRow` off curve, both
-  byte-identical to the key they delegate to). The 1H row was
+  the `market5mRow` row on curve, the `market1hRow` row off curve —
+  bare row bytes identical to the key it delegates to, lowered as its
+  own line). The 1H row was
   extracted into a shared private helper with its bytes pinned
   unchanged. Wire contract (owned by market-data):
   `bondingCurve: { onCurve, launchpadId, quoteSymbol, quoteMint,

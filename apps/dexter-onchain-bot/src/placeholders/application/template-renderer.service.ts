@@ -509,8 +509,12 @@ export class TemplateRendererService {
    * additionally require `>= 0`. Every value rides its OWN MarkdownV2
    * code span and the numbers travel RAW inside the span
    * (`codeV2Text`, never `escapeV2Text`: a `\.` inside a code entity
-   * prints its backslash), so the row emits ZERO backslashes. No
-   * leading/trailing whitespace: templates own separators.
+   * prints its backslash), so the row emits ZERO backslashes.
+   *
+   * Returns the BARE row, no leading/trailing whitespace. `market1hRow`
+   * returns it verbatim (legacy bytes); `market5mRow` / `marketRow`
+   * prefix `"\n"` when it renders (they are body-appended line keys —
+   * see those cases).
    */
   private renderMarketWindowRow(
     label: '1H' | '5M',
@@ -848,29 +852,52 @@ export class TemplateRendererService {
         );
       }
       case 'market5mRow': {
-        // Launchpad layout (2026-10-30): exact mirror of `market1hRow`
-        // on the 5-MINUTE window — `5M:` replaces `1H:`, same shared
-        // helper, same SILENCE matrix (feed the four new 5m fields).
-        return this.renderMarketWindowRow(
+        // Launchpad layout (2026-10-30): mirror of `market1hRow` on the
+        // 5-MINUTE window — `5M:` replaces `1H:`, same shared helper,
+        // same SILENCE matrix (feed the four new 5m fields).
+        //
+        // LOWERS A NEW LINE (`"\n📈 5M: …"`), like `usdRow` / `liqRow` /
+        // `curveRow`: the row is appended to the END of the body's
+        // previous line and `""` is complete silence — the only shape
+        // that can live in a body without either gluing to the line
+        // before it or leaving a BLANK line when it silences (measured
+        // on the v17 preview 2026-10-30: `Age: \`3m\`📉 5M:` — the
+        // leading `\n` on the body line would have produced a blank line
+        // instead, and a silent row cannot own a body separator).
+        const row = this.renderMarketWindowRow(
           '5M',
           values.volume5mUsd,
           values.priceChange5m,
           values.txns5mBuys,
           values.txns5mSells,
         );
+        return row === '' ? '' : `\n${row}`;
       }
       case 'marketRow': {
         // Layout switch (launchpad layout, 2026-10-30): on curve the
-        // card uses the 5-minute row, off curve the 1-hour row —
-        // byte-identical to the key it delegates to. A body composes
-        // `{{marketRow}}` instead of `{{market1hRow}}`; the old key
-        // keeps its behavior untouched.
-        return this.resolveValue(
+        // card uses the 5-minute row, off curve the 1-hour row. The BARE
+        // row bytes are identical to the key it mirrors (pinned) and the
+        // key adds the same leading `\n` as `market5mRow` in both
+        // branches, so a body composes `{{marketRow}}` once and gets the
+        // right row, on its own line, in either layout. `market1hRow`
+        // itself keeps its bytes untouched (legacy key, no newline).
+        const row =
           bondingCurveOrNull(values.bondingCurve) === null
-            ? 'market1hRow'
-            : 'market5mRow',
-          values,
-        );
+            ? this.renderMarketWindowRow(
+                '1H',
+                values.volume1hUsd,
+                values.priceChange1h,
+                values.txns1hBuys,
+                values.txns1hSells,
+              )
+            : this.renderMarketWindowRow(
+                '5M',
+                values.volume5mUsd,
+                values.priceChange5m,
+                values.txns5mBuys,
+                values.txns5mSells,
+              );
+        return row === '' ? '' : `\n${row}`;
       }
       case 'curveRow': {
         // Launchpad layout (2026-10-30; Rick docs: "Tokens still on a

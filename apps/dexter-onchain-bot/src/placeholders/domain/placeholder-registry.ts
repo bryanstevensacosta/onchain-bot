@@ -137,13 +137,18 @@ export const DERIVED_PLACEHOLDERS: readonly string[] = [
   // (the launchpad layout has no USD or Liq row).
   'usdRow',
   'liqRow',
-  // `market5mRow` — exact mirror of `market1hRow` on the 5-minute
-  // window (`5M:` replaces `1H:`); same SILENCE rule and monospace
+  // `market5mRow` — mirror of `market1hRow` on the 5-minute window
+  // (`5M:` replaces `1H:`); same SILENCE rule and monospace
   // composition, fed by `volume5mUsd`/`priceChange5m`/`txns5mBuys`/
-  // `txns5mSells`.
+  // `txns5mSells`. LOWERS A NEW LINE (`"\n📈 5M: …"`), the mechanics of
+  // `usdRow`/`liqRow`/`curveRow`: append it to the END of the body's
+  // previous line — `""` is silence, so a body-side `\n` would leave a
+  // blank line instead.
   'market5mRow',
-  // `marketRow` — the layout switch for the window row: `market5mRow`
-  // on curve, `market1hRow` off curve (byte-identical to that key).
+  // `marketRow` — the layout switch for the window row: the `market5mRow`
+  // row on curve, the `market1hRow` row off curve (bare row bytes
+  // identical to that key), always lowered as a NEW line like
+  // `market5mRow` so one body serves both layouts.
   'marketRow',
   // D4: `liquidityUsdSide` — display-only one-side liquidity
   // (`liquidityUsd / 2`, money-compact, `N/A` on absent/non-finite).

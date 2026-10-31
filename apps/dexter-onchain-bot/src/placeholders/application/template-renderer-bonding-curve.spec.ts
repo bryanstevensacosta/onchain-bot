@@ -457,7 +457,7 @@ describe('TemplateRendererService launchpad (bonding-curve) layout keys', () => 
   describe('market5mRow', () => {
     it('renders the exact 5M row with zero backslashes', () => {
       const out = render('{{market5mRow}}', baseToken(FULL_5M));
-      expect(out).toBe('📈 5M: `159` ⋅ `1.7%` 🅑 `3` Ⓢ `5`');
+      expect(out).toBe('\n📈 5M: `159` ⋅ `1.7%` 🅑 `3` Ⓢ `5`');
       expect(out).not.toContain('\\');
       expect(out.match(/`/g)?.length).toBe(8);
     });
@@ -468,10 +468,10 @@ describe('TemplateRendererService launchpad (bonding-curve) layout keys', () => 
           '{{market5mRow}}',
           baseToken({ ...FULL_5M, priceChange5m: -3.4 }),
         ),
-      ).toBe('📉 5M: `159` ⋅ `-3.4%` 🅑 `3` Ⓢ `5`');
+      ).toBe('\n📉 5M: `159` ⋅ `-3.4%` 🅑 `3` Ⓢ `5`');
       expect(
         render('{{market5mRow}}', baseToken({ ...FULL_5M, priceChange5m: 0 })),
-      ).toBe('📈 5M: `159` ⋅ `0%` 🅑 `3` Ⓢ `5`');
+      ).toBe('\n📈 5M: `159` ⋅ `0%` 🅑 `3` Ⓢ `5`');
     });
 
     it.each([
@@ -501,10 +501,13 @@ describe('TemplateRendererService launchpad (bonding-curve) layout keys', () => 
       expect(render('{{market5mRow}}', baseToken())).toBe('');
     });
 
-    it('emits no leading/trailing whitespace (templates own separators)', () => {
-      const out = render('Prev\n{{market5mRow}}\nNext', baseToken(FULL_5M));
-      expect(out).toBe('Prev\n📈 5M: `159` ⋅ `1.7%` 🅑 `3` Ⓢ `5`\nNext');
-      expect(out).not.toMatch(/^\s|\s$/);
+    it('lowers a NEW line and appends to the previous body line', () => {
+      // Measured defect (v17 preview 2026-10-30): a bare row glued to
+      // the line before it (`Age: \`3m\`📉 5M:`), and a body-side `\n`
+      // would leave a BLANK line whenever the row silences.
+      const out = render('Prev{{market5mRow}}Next', baseToken(FULL_5M));
+      expect(out).toBe('Prev\n📈 5M: `159` ⋅ `1.7%` 🅑 `3` Ⓢ `5`Next');
+      expect(render('Prev{{market5mRow}}Next', baseToken())).toBe('PrevNext');
     });
   });
 
@@ -517,14 +520,18 @@ describe('TemplateRendererService launchpad (bonding-curve) layout keys', () => 
       });
       const out = render('{{marketRow}}', token);
       expect(out).toBe(render('{{market5mRow}}', token));
-      expect(out).toBe('📈 5M: `159` ⋅ `1.7%` 🅑 `3` Ⓢ `5`');
+      expect(out).toBe('\n📈 5M: `159` ⋅ `1.7%` 🅑 `3` Ⓢ `5`');
     });
 
-    it('is exactly market1hRow off curve (byte-for-byte)', () => {
+    it('is market1hRow lowered as a new line off curve (bare bytes identical)', () => {
       const token = baseToken({ ...FULL_1H, ...FULL_5M });
       const out = render('{{marketRow}}', token);
-      expect(out).toBe(render('{{market1hRow}}', token));
-      expect(out).toBe('📉 1H: `9.8K` ⋅ `-4.1%` 🅑 `25` Ⓢ `26`');
+      expect(out).toBe(`\n${render('{{market1hRow}}', token)}`);
+      expect(out).toBe('\n📉 1H: `9.8K` ⋅ `-4.1%` 🅑 `25` Ⓢ `26`');
+      // The legacy key itself keeps its bytes (no leading newline).
+      expect(render('{{market1hRow}}', token)).toBe(
+        '📉 1H: `9.8K` ⋅ `-4.1%` 🅑 `25` Ⓢ `26`',
+      );
     });
 
     it('does NOT fall back to 1H when the 5m window is missing on curve', () => {
@@ -555,5 +562,79 @@ describe('TemplateRendererService launchpad (bonding-curve) layout keys', () => 
     expect(render('{{market1hRow}}', token)).toBe(
       '📉 1H: `9.8K` ⋅ `-4.1%` 🅑 `25` Ⓢ `26`',
     );
+  });
+
+  /**
+   * END-TO-END composition of the v17 handoff body (plan §10.15), the
+   * exact tail that carries the window row + the progress row. Pinned
+   * because the 2026-10-30 staging preview exposed a real defect here:
+   * `market5mRow`/`marketRow` used to emit NO leading newline (they were
+   * byte-identical to `market1hRow`, whose contract is "templates own
+   * separators"), so the row glued to the previous line
+   * (`Age: \`3m\`📉 5M:`) and a body-side `\n` left a BLANK line
+   * whenever the row silenced. Both keys now lower their own line, so
+   * this body is correct in all four states without owning a separator.
+   */
+  describe('v17 body composition (window row + progress row)', () => {
+    const V17_TAIL =
+      '📊 Vol: {{volume24hUsd}}{{ageSuffix}}{{honeypotBlock}}{{usdRow}}{{liqRow}}{{marketRow}}{{curveRow}}';
+
+    it('on curve with 5m: 5M row on its own line, then ⏳', () => {
+      const token = baseToken({
+        symbol: 'NET',
+        bondingCurve: ON_CURVE,
+        fdvUsd: 15_919.9,
+        priceChange24h: 22.18,
+        volume24hUsd: 2,
+        ...FULL_5M,
+        priceUsd: 0.00001592,
+        liquidityUsd: 25.53,
+      });
+      const out = render(
+        `*{{fdvChangeBracket}}\${{symbol}}{{quoteSuffix}}*\n${V17_TAIL}`,
+        token,
+        PUMP_RESOLVER,
+      );
+      expect(out).toBe(
+        '*$NET/Bitcoin*\n' +
+          '📊 Vol: 2\n' +
+          '📈 5M: `159` ⋅ `1.7%` 🅑 `3` Ⓢ `5`\n' +
+          '⏳ 75% @ Pump',
+      );
+      expect(out).not.toContain('💰');
+      expect(out).not.toContain('💦');
+      expect(out).not.toContain('1H:');
+    });
+
+    it('on curve WITHOUT 5m: no blank line where the row silences', () => {
+      const token = baseToken({
+        symbol: 'NET',
+        bondingCurve: ON_CURVE,
+        volume24hUsd: 2,
+      });
+      const out = render(V17_TAIL, token, PUMP_RESOLVER);
+      expect(out).toBe('📊 Vol: 2\n⏳ 75% @ Pump');
+      expect(out).not.toContain('\n\n');
+    });
+
+    it('off curve: 1H row on its own line after the Liq row', () => {
+      const token = baseToken({
+        bondingCurve: null,
+        volume24hUsd: 98,
+        ...FULL_1H,
+        priceUsd: 0.00001257,
+        liquidityUsd: 4_400,
+      });
+      const out = render(V17_TAIL, token);
+      expect(out).toBe(
+        '📊 Vol: 98\n' +
+          '💰 USD: `0.00001257`\n' +
+          '💦 Liq: `2.2K`\n' +
+          '📉 1H: `9.8K` ⋅ `-4.1%` 🅑 `25` Ⓢ `26`',
+      );
+      expect(out).not.toContain('\n\n');
+      expect(out).not.toContain('5M:');
+      expect(out).not.toContain('⏳');
+    });
   });
 });

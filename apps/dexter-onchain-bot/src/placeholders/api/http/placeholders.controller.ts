@@ -210,16 +210,16 @@ const PLACEHOLDER_META: Record<string, Omit<PlaceholderDescriptor, 'key'>> = {
   market5mRow: {
     type: 'derived',
     nullable: true,
-    example: '📈 5M: `159` ⋅ `1.7%` 🅑 `3` Ⓢ `5`',
+    example: '\\n📈 5M: `159` ⋅ `1.7%` 🅑 `3` Ⓢ `5`',
     description:
-      'Rick-style 5-minute row (mirror of market1hRow): 📈/📉 direction, 5m volume, 5m change, buys (🅑) and sells (Ⓢ), every number in its own code span. Empty unless all four 5m values are known.',
+      'Rick-style 5-minute row (mirror of market1hRow) lowered as a NEW line: 📈/📉 direction, 5m volume, 5m change, buys (🅑) and sells (Ⓢ), every number in its own code span. Empty unless all four 5m values are known.',
   },
   marketRow: {
     type: 'derived',
     nullable: true,
-    example: '📈 5M: `159` ⋅ `1.7%` 🅑 `3` Ⓢ `5`',
+    example: '\\n📈 5M: `159` ⋅ `1.7%` 🅑 `3` Ⓢ `5`',
     description:
-      'Layout switch for the window row: market5mRow on a bonding curve, market1hRow off curve (byte-identical to that key).',
+      'Layout switch for the window row, lowered as a NEW line: the market5mRow row on a bonding curve, the market1hRow row off curve. Empty when the selected window is unknown.',
   },
   liquidityUsdSide: {
     type: 'derived',

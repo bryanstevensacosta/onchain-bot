@@ -1067,8 +1067,8 @@ sells === null → ''`. Client boundary `toFiniteNumberOrNull` /
   | `fdvChangeBracket` | `\[<fdvUsd>/<priceChange24h>\] ` (key owns the escapes; `""` when both unknown) | `""` |
   | `usdRow` | `\n💰 USD: <price>` in a code span (zero backslashes) | `""` |
   | `liqRow` | `\n💦 Liq: <one-side>` in a code span + `liquidityFlags` outside it | `""` |
-  | `market5mRow` | exact `market1hRow` mirror on `5M:` | same |
-  | `marketRow` | `market1hRow` (byte-identical) | `market5mRow` (byte-identical) |
+  | `market5mRow` | ROW identical to `market1hRow` on `5M:`, lowered as a NEW line (`\n`) | same |
+  | `marketRow` | `\n` + `market1hRow` row (bare row bytes identical) | `\n` + `5M:` row (byte-identical to `market5mRow`) |
 
   Wire contract (frozen, owned by market-data): top-level
   `bondingCurve?: { onCurve: boolean; launchpadId: string;
@@ -1107,12 +1107,20 @@ progressPercent: number | null } | null` — `onCurve === true` means
   the span and `formatMoneyText(liquidityUsd/2)` supplies the
   one-side number. `market5mRow` shares the
   extracted `renderMarketWindowRow` helper with `market1hRow` (the 1H
-  bytes are pinned unchanged). Registry: 22 base + 39 derived
-  = **61** keys for `ca|x|z|bare` / **62** for `c|cc`; catalog META
+  bytes are pinned unchanged). POST-PREVIEW FIX (2026-10-30, staging
+  `:4061`): `market5mRow`/`marketRow` used to emit the BARE row, so the
+  v17 body glued them to the previous line (`Age: \`3m\`📉 5M:`,
+  `💦 Liq: \`147.9K\`📉 1H:`) and a body-side `\n` left a BLANK line
+  whenever the row silenced. Both keys now lower their own line
+  (`"\n" + row`, `""`= silence — the`usdRow`/`liqRow`/`curveRow`  mechanics), while`market1hRow`keeps its legacy bytes and the v17
+  body stays byte-identical. Pinned end-to-end in
+ `template-renderer-bonding-curve.spec.ts`(curva+5m, curva sin 5m,
+  fuera de curva, silencio). Registry: 22 base + 39 derived
+  = **61** keys for`ca|x|z|bare`/ **62** for`c|cc`; catalog META
   carries all seven. Specs:
   `template-renderer-bonding-curve.spec.ts`,
   `market-data-client-bonding-curve.spec.ts`,
-  `token-scan-bonding-curve.spec.ts` + registry/age/rick-card count
-  pins. The seeded `ca` body is untouched (it still lacks the
-  `💰 USD:`/`💦 Liq:` lines — the launchpad layout is opt-in for the
+  `token-scan-bonding-curve.spec.ts`+ registry/age/rick-card count
+  pins. The seeded`ca`body is untouched (it still lacks the
+ `💰 USD:`/`💦 Liq:` lines — the launchpad layout is opt-in for the
   owner's live template).
