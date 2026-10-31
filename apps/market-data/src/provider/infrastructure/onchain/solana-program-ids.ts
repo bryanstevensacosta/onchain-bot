@@ -69,8 +69,22 @@ export const METAPLEX_TOKEN_METADATA_PROGRAM =
 /** SPL Token (classic). Observed on live vault accounts. */
 export const SPL_TOKEN_PROGRAM = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
 
-/** SPL Token-2022. Observed on live mints (extensions live past 82B). */
-export const TOKEN_2022_PROGRAM = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnAAvKmd1qT6M';
+/**
+ * SPL Token-2022. Observed on live mints (extensions live past 82B).
+ *
+ * CORRECTED 2026-10-30: the pinned value ended `...PHnAAvKmd1qT6M`, which
+ * is NOT the deployed program — every live mint answers owner
+ * `...PHnBqCXEpPxuEb`. The wrong constant made the quote-symbol resolver's
+ * `owner === TOKEN_2022_PROGRAM` gate silently false (staging served
+ * `quoteSymbol: null` for the reference mint while the account's TLV
+ * decoded `Bitcoin`), because every spec built its fixture owner FROM this
+ * constant — a self-consistent blind spot, same class as the
+ * `solana-pda.ts` `ED25519_SQRT_M1` bug. Ground truth read on-chain
+ * 2026-10-30 via the staging keyed RPC (`getMultipleAccounts` on
+ * `HytpiyuR3sVXGB5UqoqrnThCPH2X1tWVm5neep3Dpump` → owner below, 411 B).
+ * The resolver spec now pins the LITERAL, so a regression here fails.
+ */
+export const TOKEN_2022_PROGRAM = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
 
 /**
  * System Program id (the canonical all-zero pubkey). Two uses in the

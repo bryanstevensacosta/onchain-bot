@@ -2919,6 +2919,19 @@ with 5 absolute `@solana/web3.js`-derived vectors pinned in the spec
   Cap-500 insertion-eviction cache of DEFINITIVE answers only
   (transport failure / unreadable mint is never memoized), one instance
   per reader service, reset on deploy, never throws.
+- OWNER-CONSTANT FIX (2026-10-30, same class as the `solana-pda.ts`
+  bug — see below): `TOKEN_2022_PROGRAM` was pinned as
+  `...PHnAAvKmd1qT6M`, which is NOT the deployed program. Every live
+  Token-2022 mint answers `...PHnBqCXEpPxuEb` (read on-chain 2026-10-30
+  via the staging keyed RPC: `getMultipleAccounts` on
+  `HytpiyuR3sVXGB5UqoqrnThCPH2X1tWVm5neep3Dpump` → that owner, 411 B).
+  The wrong constant made the resolver's `owner === TOKEN_2022_PROGRAM`
+  gate silently false, so staging served `quoteSymbol: null` for the
+  reference mint while the account's TLV already decoded `Bitcoin` —
+  and every spec built its fixture owner FROM the constant, so the
+  whole suite stayed green (self-consistent blind spot). Corrected, and
+  `pump-quote.resolver.spec.ts` now pins the LITERAL owner + asserts
+  the constant matches it, so this cannot regress silently again.
 - `onchain-solana.reader.ts`: `getPumpCurve(mint)` (PDA derive → ONE
   `getMultiple([pda])` → decode → progress + quote) is REQUIRED on the
   service and OPTIONAL on the `OnchainSolanaReader` port (hand-built

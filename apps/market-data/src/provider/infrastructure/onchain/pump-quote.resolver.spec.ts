@@ -24,6 +24,13 @@ import { PumpQuoteResolver, readToken2022Symbol } from './pump-quote.resolver';
  * `quoteSymbol: 'Bitcoin'`.
  */
 const LIVE_QUOTE_MINT = 'HytpiyuR3sVXGB5UqoqrnThCPH2X1tWVm5neep3Dpump';
+/**
+ * The quote mint's REAL on-chain owner, read 2026-10-30 with
+ * `getMultipleAccounts` against the staging keyed RPC (411-byte account,
+ * `TokenzQd…` program). Pinned as a literal so the `TOKEN_2022_PROGRAM`
+ * constant can never drift back into a self-consistent fixture.
+ */
+const LIVE_QUOTE_MINT_OWNER = 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb';
 const LIVE_QUOTE_MINT_ACCOUNT_B64 =
   'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAfSvvjRxcAwAGAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' +
   'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' +
@@ -45,7 +52,13 @@ const accountOf = (
 
 const liveQuoteMintAccount = (): SolanaAccountInfoValue =>
   accountOf(
-    TOKEN_2022_PROGRAM,
+    // LITERAL on purpose: the fixture owner is the account's REAL owner
+    // read on-chain 2026-10-30 (`getMultipleAccounts` → 411 B mint). Using
+    // the `TOKEN_2022_PROGRAM` constant here would make the resolver's
+    // owner gate self-consistent with a typo — exactly the blind spot that
+    // let a wrong constant (`...PHnAAvKmd1qT6M`) ship and blank
+    // `quoteSymbol` on staging. The pin test below fails on any drift.
+    LIVE_QUOTE_MINT_OWNER,
     Buffer.from(LIVE_QUOTE_MINT_ACCOUNT_B64, 'base64'),
   );
 
@@ -82,6 +95,13 @@ const throwingStub = (): Stub => {
     },
   };
 };
+
+describe('TOKEN_2022_PROGRAM pin', () => {
+  it('matches the owner observed on the live quote mint (43 chars)', () => {
+    expect(TOKEN_2022_PROGRAM).toBe(LIVE_QUOTE_MINT_OWNER);
+    expect(TOKEN_2022_PROGRAM).toHaveLength(43);
+  });
+});
 
 describe('readToken2022Symbol (live account)', () => {
   it('decodes `Bitcoin` from the real 411-byte Token-2022 mint', () => {

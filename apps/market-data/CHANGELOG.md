@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`TOKEN_2022_PROGRAM` constant was wrong — `quoteSymbol` always
+  `null` on Token-2022 quote mints (2026-10-30):** the pinned id ended
+  `...PHnAAvKmd1qT6M`; the deployed program (and every live Token-2022
+  mint, incl. the reference mint's `quote_mint` `Hytpiyu…Dpump`, 411 B)
+  is `...PHnBqCXEpPxuEb`. The quote-symbol resolver's
+  `owner === TOKEN_2022_PROGRAM` gate was therefore silently false, so
+  it fell through to the Metaplex leg (no metadata account exists) and
+  served `quoteSymbol: null` — dexter rendered `*$NET*` instead of
+  `*$NET/Bitcoin*`. Every spec built its fixture owner FROM the
+  constant, so the suite never caught it (same blind-spot class as the
+  `solana-pda.ts` `ED25519_SQRT_M1` bug). Constant corrected; the
+  resolver spec now pins the live-observed LITERAL owner and asserts
+  the constant equals it. Live re-verify after deploy:
+  `bondingCurve.quoteSymbol === 'Bitcoin'`.
+
 ### Added
 
 - **Persisted pump.fun bonding curve for replays (`rick-compact-card`
