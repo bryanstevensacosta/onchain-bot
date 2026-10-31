@@ -1019,3 +1019,22 @@ bondingCurve?: {
 6. Off curve → bytes del body v17 (bracket `\[…\]`, `💰 USD: \`<precio>\``, `💦 Liq: \`<lado>\``, `📈 1H:`). NO se compara contra §5.3 literal (superseded).
 
 **Orden de ejecución.** (1) PDA fix + vectors → (2) reader/codec (curva + quote) → (3) campos 5m + selector + discovery + snapshot quote → (4) `bondingCurve` en `AddressSnapshot` + fast path + fan-out + controller → (5) `tsc`/jest/prettier → (6) commit a `dev` + deploy staging → (7) probe referencia + SCRIP + no-pump → (8) el owner compone el body v17 y activa. `bondingCurve` y los 4 campos 5m van en el MISMO deploy; el body se activa DESPUÉS. Sin tocar `master`, sin deploy prod, sin body edit.
+
+## 10.17 Follow-up 2026-10-30 — replay persistence (evidencia de staging)
+
+**Hallazgo medido (staging, deploy `41125242042`).** El pin "replays sirven `null`" NO es una consecuencia aceptable en la práctica: el background refresh re-persiste una fila `ready` cada ~30-40 s, así que `swr-now` se re-arma indefinidamente y el "siguiente serve fresco" NUNCA llega. Dos llamadas separadas 40 s al mint de referencia:
+
+```
+call #1  staleAgeMs 81307  source=swr-now  bondingCurve null  venue null
+call #2  staleAgeMs 39428  source=swr-now  bondingCurve null  venue null
+```
+
+La edad BAJA ⇒ el refresh re-persistió. Ciclo observado: cache HIT (<30 s) → SWR (≥30 s) → refresh → cache. Resultado: en estado estacionario el layout corto es inalcanzable, no "visible hasta el próximo serve fresco". Evidencia: `.omo/evidence/rick-compact-card-staging-probe.log`.
+
+**Decisión del owner (2026-10-30, aprobada).** Persistir la curva DENTRO del `snapshot_history.quote` jsonb existente — SIN migración y SIN columna nueva — y servirla en SWR-now y en el replay stale sujeto a una cota de frescura `SNAPSHOT_BONDING_CURVE_REPLAY_MAX_AGE_MS` (default `600000` = 10 min). El refresh de background RECALCULA la curva (misma lectura y mismo budget de 1500 ms que el serve fresco) para que el valor persistido siga la graduación en un ciclo. La tarjeta invalid sigue `bondingCurve: null` sin condición. El wire no cambia (top-level `bondingCurve`): el consumidor dexter no se toca.
+
+**Trampa de orden de spreads (pineada).** En `tryServeSwrNow` y en el literal stale, `bondingCurve` estaba ANTES de `...emptySnapshotQuote()` / `...row.quote`; al pasar a servir el valor persistido DEBE ir DESPUÉS, o el spread del quote gana incluso cuando la cota está excedida.
+
+**Defecto documental corregido.** El fixture "graduado" que figuraba en §10.16 acceptance #2, `y95bhwzuuapjj9gebxfebuzzeccrvw6kqxkqczcpump`, tiene 43 caracteres y `getAccountInfo` devuelve `value: null` en ambas variantes de caja ⇒ el `status:"invalid"` + `providerErrors:["existence"]` de staging era CORRECTO; la dirección estaba mal transcripta. Fixture real de graduación: `2o1wthqgEbeLr3Lxv4LtBYHtFTbMK4TmSr9U5RsPpump` (curva `35oVuGayp4kgTyQNPoXKeAU4mT1ujWCRrkCTd1HevzUZ`, owner `6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P`, 151 B, `complete@48 = 1`, `realTokenReserves = 0` ⇒ `bondingCurve: null` verificado en staging).
+
+**RPC keyed en staging.** `HELIUS_RPC_URL_MAINNET` añadido por el asistente a `/opt/onchain-bot-staging/apps/market-data/.env.staging` (backup `.env.staging.bak-20261030`, `600 root:root`, copiado del `.env.staging` del backend sin imprimir valor) + recreate del contenedor. Log: `Solana RPC mode: keyed (primary host=mainnet.helius-rpc.com, public fallback armed)`. `HELIUS_API_KEY` sigue ausente ⇒ el leg Helius-origin (`dev:helius`) permanece `null`.

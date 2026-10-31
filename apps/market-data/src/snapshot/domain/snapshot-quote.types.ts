@@ -11,6 +11,7 @@
  */
 import type { ProviderRateLimitConfig } from 'provider/domain/provider-limiter-config';
 import { SNAPSHOT_NUMBERS_TTL_SECONDS } from './snapshot-ttl-policy';
+import type { BondingCurveInfo } from './snapshot.types';
 
 export interface DevWalletQuote {
   readonly wallet: string;
@@ -158,6 +159,22 @@ export interface SnapshotQuote {
    * never presented as verified fact (Believe rule).
    */
   readonly identityProvenance: 'market' | 'metadata' | null;
+  /**
+   * Persisted pump.fun reading (`rick-compact-card` §10.16 replay
+   * follow-up, 2026-10-30). LIVE at the wire, persisted inside
+   * `snapshot_history.quote` (jsonb — no migration, no new column)
+   * so SWR/stale replays can still render the short layout; a replay
+   * serves it only while the ROW is within
+   * `SNAPSHOT_BONDING_CURVE_REPLAY_MAX_AGE_MS` (env, default
+   * 600 000 = 10 min) and the persisted object passes the structural
+   * guard (`curveForReplay`). Optional so hand-built quote literals
+   * stay valid; `emptySnapshotQuote()` sets it explicitly to `null`.
+   * Deliberately ABSENT from `SNAPSHOT_QUOTE_FIELDS` below: the
+   * aggregator merge never copies it from a provider (never a fetcher
+   * field) — assigned at the seam, never merged — the same rule as
+   * `fdvProvenance`.
+   */
+  readonly bondingCurve?: BondingCurveInfo | null;
 }
 
 export const SNAPSHOT_QUOTE_FIELDS: ReadonlyArray<keyof SnapshotQuote> = [
@@ -223,6 +240,7 @@ export function emptySnapshotQuote(): SnapshotQuote {
     devPctSupply: null,
     fdvProvenance: null,
     identityProvenance: null,
+    bondingCurve: null,
   };
 }
 

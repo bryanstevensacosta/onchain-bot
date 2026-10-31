@@ -7,6 +7,7 @@ import {
   type QuoteFetcher,
   type SnapshotQuote,
 } from 'snapshot/domain/snapshot-quote.types';
+import type { BondingCurveInfo } from 'snapshot/domain/snapshot.types';
 
 export interface AggregationOutcome {
   readonly quote: SnapshotQuote;
@@ -187,6 +188,7 @@ export class SnapshotAggregatorService {
         | number
         | string
         | HolderConcentration
+        | BondingCurveInfo
         | ReadonlyArray<unknown>
         | null;
     };

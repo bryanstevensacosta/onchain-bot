@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Persisted pump.fun bonding curve for replays (`rick-compact-card`
+  §10.16 replay follow-up, 2026-10-30):** the curve now rides
+  `snapshot_history.quote` (existing jsonb — NO migration, NO new
+  column) instead of being LIVE-ONLY. The single quote seam
+  (`buildSnapshot`) writes `bondingCurve` into the persisted quote and
+  the 30s cache entry; SWR-now and the stale-floor replay serve it
+  VERBATIM only while the row age is within
+  `SNAPSHOT_BONDING_CURVE_REPLAY_MAX_AGE_MS` (env, default 600000 =
+  10 min) AND the object passes the structural guard (new pure
+  `snapshot/domain/snapshot-bonding-curve-replay.ts`, mirrors dexter's
+  `toBondingCurveOrNull`: object/`onCurve===true`/trimmed
+  `launchpadId`/non-empty optional strings/`progressPercent` in
+  `[0,100]` and `0 <= ageMs <= maxAgeMs`); past the bound, a legacy
+  row without the key, or a corrupt row serves `null` → FULL card.
+  The background refresh now COMPUTES the curve with the same
+  `startPumpCurve` helper + `SNAPSHOT_PUMP_CURVE_TIMEOUT_MS` budget
+  instead of hardcoding `null`, so the persisted value follows
+  graduation within one refresh cycle; the invalid card stays `null`
+  unconditionally and serves take zero added latency (the curve rides
+  the row). Wire shape unchanged (top-level `bondingCurve`) — the
+  dexter consumer was not touched. Root cause measured on staging
+  2026-10-30: the refresh re-persisted a ready row every ~30-40 s, so
+  SWR-now re-armed forever and `staleAgeMs 81307 → 39428` never turned
+  the card back into the short layout.
+
 - **pump.fun bonding curve on the wire + DexScreener 5-minute bucket
   (`rick-compact-card` §10.16, 2026-10-30):** dexter's launchpad
   short-card layout. `AddressSnapshot.bondingCurve` is a new REQUIRED

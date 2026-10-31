@@ -2953,11 +2953,23 @@ quoteMint; progressPercent }` — `onCurve` is the LITERAL `true`
   inside the already-running background fan-out); the race observes it,
   so no unhandled rejection. NOT a provider fetch — it consumes no
   `outbound:*` budget.
-- REPLAY pins: SWR-now, stale replay, invalid card and background
-  refresh all serve `bondingCurve: null` explicitly. Accepted
-  consequence: a replay of an on-curve token renders the FULL card and
-  the next fresh serve flips back to the short one. Persisting it would
-  need a new jsonb column + migration — out of scope for v1.
+- REPLAY persistence (2026-10-30 follow-up, owner-approved): the curve
+  is persisted INSIDE `snapshot_history.quote` (existing jsonb — NO
+  migration, NO new column) by the single seam that composes the quote,
+  so SWR-now and the stale-floor replay serve it verbatim while the ROW
+  is within `SNAPSHOT_BONDING_CURVE_REPLAY_MAX_AGE_MS` (env, default
+  600000 = 10 min); a row older than the bound, a legacy row without
+  the key, or a structurally invalid curve (same 5-key guard as
+  dexter's `toBondingCurveOrNull`) serves `null` → FULL card. Why: the
+  background refresh re-persists a ready row every ~30-40 s, so
+  SWR-now re-armed forever and the "next fresh serve" NEVER happened
+  (measured on staging 2026-10-30: `staleAgeMs 81307 → 39428` across
+  two calls 40 s apart, both `swr-now` + `bondingCurve: null`). The
+  REFRESH now computes the curve too (shared `startPumpCurve`, same
+  1500 ms budget) so the persisted value follows graduation within one
+  refresh cycle; the invalid card stays `null` unconditionally. Serves
+  pay ZERO added latency (the curve rides the row) — only the
+  background refresh pays the single read the fresh path already paid.
 
 ### 5-minute bucket (`market5mRow`)
 

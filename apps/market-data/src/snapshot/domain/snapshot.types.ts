@@ -100,9 +100,12 @@ export interface AddressSnapshot extends SnapshotQuote {
    * progressPercent }` when the curve account was read and decoded
    * as NON-graduated, else `null` (never `onCurve: false` — `null`
    * is the "not on curve / unreadable" answer). REQUIRED key, always
-   * emitted. LIVE-ONLY: never persisted to `snapshot_history` (same
-   * class as `launchpad`/`venue`/`honeypot`/`pairCreatedAt`), so a
-   * stale replay renders the full card until the next fresh serve.
+   * emitted. Persisted INSIDE `snapshot_history.quote` (jsonb — no
+   * migration) by the quote seam; SWR-now / stale replays serve it
+   * back only while the row is within
+   * `SNAPSHOT_BONDING_CURVE_REPLAY_MAX_AGE_MS` AND the object passes
+   * the structural guard, otherwise `null` (the full card). Invalid
+   * cards stay `null` unconditionally.
    */
   readonly bondingCurve: BondingCurveInfo | null;
   /**

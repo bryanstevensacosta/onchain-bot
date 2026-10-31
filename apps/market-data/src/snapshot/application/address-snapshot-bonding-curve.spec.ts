@@ -27,8 +27,10 @@ import {
  * Bonding curve on the snapshot wire (`rick-compact-card` §10.16,
  * plumbing points 8-9): the FAN-OUT leg (`getPumpCurve`) fills
  * `snapshot.bondingCurve` for Solana `kind=token` only, fail-open on
- * every miss, and the replay paths (SWR-now, stale) pin `null` because
- * the curve is LIVE-ONLY (never persisted to history).
+ * every miss. Replays (SWR-now, stale) serve the curve PERSISTED in
+ * `snapshot_history.quote` only while the row is inside the replay
+ * freshness bound — see `address-snapshot-bonding-curve-replay.spec.ts`
+ * for that policy (this suite covers the live fan-out leg).
  *
  * All adapters are stubbed — zero network.
  */
@@ -280,9 +282,10 @@ describe('AddressSnapshotService bondingCurve — fan-out leg (§10.16)', () => 
     expect(h.curveCalls()).toBe(1);
   });
 
-  it('stale replay pins bondingCurve null (LIVE-ONLY, never persisted)', async () => {
+  it('stale replay serves null when the row carries no persisted curve', async () => {
     // 10s-old row: below the SWR floor (30s), so this flows through the
-    // fan-out -> all-fail -> stale-floor replay.
+    // fan-out -> all-fail -> stale-floor replay. The seeded quote has
+    // `bondingCurve: null` (legacy shape) — the replay bound serves null.
     const h = await harness({ curve: 'reading', mode: 'fail' });
     await h.seedWarm(10_000);
     const snapshot = await h.snapshots.getSnapshot(input);
@@ -291,14 +294,17 @@ describe('AddressSnapshotService bondingCurve — fan-out leg (§10.16)', () => 
     expect(snapshot.bondingCurve).toBeNull();
   });
 
-  it('SWR-now serve pins bondingCurve null and starts no curve read', async () => {
-    // 60s-old row: inside [SWR floor, stale bound) -> SWR serve.
+  it('SWR-now serves null for a curve-less row; the refresh recomputes it', async () => {
+    // 60s-old row: inside [SWR floor, stale bound) -> SWR serve. The
+    // row has no persisted curve, so the replay answers null. The
+    // background refresh now COMPUTES the curve (replay follow-up), so
+    // the next replay can render the short layout.
     const h = await harness({ curve: 'reading' });
     await h.seedWarm(60_000);
     const snapshot = await h.snapshots.getSnapshot(input);
     expect(snapshot.stale).toBe(true);
     expect(snapshot.bondingCurve).toBeNull();
-    expect(h.curveCalls()).toBe(0);
     await h.snapshots.backgroundRefreshHandle();
+    expect(h.curveCalls()).toBe(1);
   });
 });

@@ -134,6 +134,10 @@ import {
 import { PendingAgingService } from './pending-aging.service';
 import type { SnapshotHistoryRow } from '../infrastructure/snapshot-history.repository';
 import type { SnapshotFdvAth } from '../domain/snapshot-fdv-ath';
+import {
+  curveForReplay,
+  SNAPSHOT_BONDING_CURVE_REPLAY_MAX_AGE_MS,
+} from '../domain/snapshot-bonding-curve-replay';
 
 /** Log helper: nullable ms renders as `n/a` (never crashes the line). */
 const roundMs = (ms: number | null): string =>
@@ -235,6 +239,19 @@ export const SNAPSHOT_TAIL_LAUNCHPAD_TIMEOUT_MS_DEFAULT =
  */
 export const SNAPSHOT_PUMP_CURVE_TIMEOUT_MS =
   Number(process.env['SNAPSHOT_PUMP_CURVE_TIMEOUT_MS'] ?? 1500) || 1500;
+
+/**
+ * Replay freshness bound for the PERSISTED bonding curve (`rick-compact-
+ * card` §10.16 replay follow-up): SWR-now + the stale-floor replay
+ * serve `quote.bondingCurve` verbatim only while the ROW age is inside
+ * this bound (env `SNAPSHOT_BONDING_CURVE_REPLAY_MAX_AGE_MS`, default
+ * 600 000 = 10 min). Owner lives in
+ * `snapshot/domain/snapshot-bonding-curve-replay.ts` (pure + spec'd);
+ * re-exported here so the seam reads one import, same idiom as
+ * `SNAPSHOT_PUMP_CURVE_TIMEOUT_MS`. A row past the bound serves
+ * `null` → the FULL card (the curve may already have graduated).
+ */
+export { SNAPSHOT_BONDING_CURVE_REPLAY_MAX_AGE_MS };
 
 // Breaker key namespace moved to
 // `shared/infrastructure/rate-limiter/domain/snapshot-breaker-key.ts`
@@ -1485,17 +1502,7 @@ export class AddressSnapshotService {
     // so no unhandled rejection is possible; on a FAST-PATH serve it is
     // simply never awaited — it settles on its own inside the
     // already-running background fan-out.
-    const curveP: Promise<
-      BondingCurveReading | null | typeof TAIL_TIMEOUT
-    > | null =
-      knownId === 'solana' &&
-      kind === 'token' &&
-      typeof this.solanaReader?.getPumpCurve === 'function'
-        ? withTailBudget(
-            this.solanaReader.getPumpCurve(inputValue).catch(() => null),
-            SNAPSHOT_PUMP_CURVE_TIMEOUT_MS,
-          )
-        : null;
+    const curveP = this.startPumpCurve(knownId, kind, inputValue);
     const fastStartedAt = performance.now();
     const fast =
       this.fastPath === null
@@ -1556,17 +1563,9 @@ export class AddressSnapshotService {
     // Fan-out curve resolution (`rick-compact-card` §10.16): awaited
     // ONLY on this branch. `TAIL_TIMEOUT` / a rejected or null read
     // both degrade to `null` (fail-open — the card always serves).
-    const rawCurve = curveP === null ? null : await curveP;
-    const fanoutCurve: BondingCurveInfo | null =
-      rawCurve === null || rawCurve === TAIL_TIMEOUT
-        ? null
-        : {
-            onCurve: true,
-            launchpadId: rawCurve.launchpadId,
-            quoteSymbol: rawCurve.quoteSymbol,
-            quoteMint: rawCurve.quoteMint,
-            progressPercent: rawCurve.progressPercent,
-          };
+    const fanoutCurve = this.toBondingCurveInfo(
+      curveP === null ? null : await curveP,
+    );
     const built = await this.buildSnapshot({
       knownId,
       inputValue,
@@ -1708,6 +1707,55 @@ export class AddressSnapshotService {
   }
 
   /**
+   * Start the pump.fun bonding-curve read (`rick-compact-card` §10.16,
+   * extracted for the SWR background refresh — replay follow-up
+   * 2026-10-30). Gate: Solana + `kind=token` + the reader actually
+   * exposes `getPumpCurve` (optional-method guard keeps hand-built
+   * stubs compiling and costs former stubs ZERO calls). Rides
+   * `SNAPSHOT_PUMP_CURVE_TIMEOUT_MS` through the shared tail budget;
+   * rejects collapse to `null` inside the promise itself, so no caller
+   * ever observes a rejection and no unhandled-rejection class exists.
+   * Returns `null` when the leg is not applicable (nothing to await).
+   */
+  private startPumpCurve(
+    knownId: string,
+    kind: string,
+    inputValue: string,
+  ): Promise<BondingCurveReading | null | typeof TAIL_TIMEOUT> | null {
+    if (
+      knownId !== 'solana' ||
+      kind !== 'token' ||
+      typeof this.solanaReader?.getPumpCurve !== 'function'
+    ) {
+      return null;
+    }
+    return withTailBudget(
+      this.solanaReader.getPumpCurve(inputValue).catch(() => null),
+      SNAPSHOT_PUMP_CURVE_TIMEOUT_MS,
+    );
+  }
+
+  /**
+   * Map a curve read onto the five-field wire object (`rick-compact-
+   * card` §10.16). The timeout sentinel, a null read and the
+   * not-applicable marker all resolve `null` (fail-open); a decoded
+   * reading becomes the literal dexter mirror. `poolAddress` stays
+   * reader-internal — the wire never carries it (pinned).
+   */
+  private toBondingCurveInfo(
+    raw: BondingCurveReading | null | typeof TAIL_TIMEOUT,
+  ): BondingCurveInfo | null {
+    if (raw === null || raw === TAIL_TIMEOUT) return null;
+    return {
+      onCurve: true,
+      launchpadId: raw.launchpadId,
+      quoteSymbol: raw.quoteSymbol,
+      quoteMint: raw.quoteMint,
+      progressPercent: raw.progressPercent,
+    };
+  }
+
+  /**
    * Existence probe wrapper (dexter plan todo 21b). Service-level kind
    * gate: only `token` (a dead token ask) and `unknown` (identity-less
    * ask) are probed; every other kind skips (log `existence=skipped`).
@@ -1757,7 +1805,9 @@ export class AddressSnapshotService {
       degraded: false,
       assetId: null,
       launchpad: null,
-      // Live-only extra, pinned null on invalid cards (§10.16).
+      // Invalid cards have no curve by construction, unconditionally
+      // (§10.16: a dead address is never "on curve"). Not part of the
+      // persisted quote, so no replay bound applies here.
       bondingCurve: null,
       venue: null,
       pairCreatedAt: null,
@@ -1819,7 +1869,12 @@ export class AddressSnapshotService {
    * Card shape: `status: ready` + the stale trio from the row (ONLY
    * after `isStaleTrioValid` — a corrupt row falls through to the
    * pipeline, never a bit with no age), `launchpad`/`venue`/
-   * `pairCreatedAt` null (live-only extras), `fdvAth` from existing
+   * `pairCreatedAt` null (live-only extras), `bondingCurve` replayed
+   * from the row ONLY while the row age is inside
+   * `SNAPSHOT_BONDING_CURVE_REPLAY_MAX_AGE_MS` (default 10 min) and
+   * the persisted object passes the structural guard — otherwise
+   * `null` (FULL card; see `snapshot-bonding-curve-replay.ts`),
+   * `fdvAth` from existing
    * history ONLY (no seed, zero network), `sources` copied from the
    * row, `providerErrors` carrying the `swr-now` audit note (clean of
    * the governor quota-trigger pattern by construction). NEVER cached
@@ -1873,12 +1928,15 @@ export class AddressSnapshotService {
         row.quote,
       ),
       launchpad: null,
-      // LIVE-ONLY, pinned on SWR-now replays (§10.16). Accepted
-      // consequence: a stale/SWR replay of an on-curve token renders
-      // the FULL layout; the next fresh serve flips back to the short
-      // one. Persisting the curve would need a new jsonb column +
-      // migration — out of scope for v1.
-      bondingCurve: null,
+      // PERSISTED curve replay (`rick-compact-card` §10.16 replay
+      // follow-up): `quote.bondingCurve` rides the row (jsonb, no
+      // migration) and serves VERBATIM while the row is inside
+      // `SNAPSHOT_BONDING_CURVE_REPLAY_MAX_AGE_MS` (default 10 min)
+      // AND passes the structural guard. Past the bound, a legacy row
+      // without the key, or a corrupt object → `null` → FULL card
+      // (the curve may already have graduated). Assigned AFTER both
+      // spreads on purpose: `...row.quote` carries the persisted key,
+      // so the explicit line is the ONE winner.
       venue: null,
       pairCreatedAt: null,
       honeypot: null,
@@ -1888,6 +1946,11 @@ export class AddressSnapshotService {
       providerErrors: { 'swr-now': swrNowNote(ageMs) },
       ...emptySnapshotQuote(),
       ...row.quote,
+      bondingCurve: curveForReplay(
+        row.quote.bondingCurve,
+        ageMs,
+        SNAPSHOT_BONDING_CURVE_REPLAY_MAX_AGE_MS,
+      ),
       devWallets: row.quote.devWallets ?? null,
       devPctSupply: row.quote.devPctSupply ?? null,
     };
@@ -1969,6 +2032,12 @@ export class AddressSnapshotService {
       return;
     }
     const prepared = this.prepareFetcherChain(kind, knownId, inputValue);
+    // Bonding curve (`rick-compact-card` §10.16 replay follow-up): the
+    // refresh COMPUTES the curve with the SAME helper + budget the live
+    // serve uses (started BEFORE the fan-out so both run concurrently),
+    // so the persisted value follows graduation within one refresh
+    // cycle instead of hardcoding `null`.
+    const curveP = this.startPumpCurve(knownId, kind, inputValue);
     const outcome = await this.startFanout(
       knownId,
       inputValue,
@@ -1987,9 +2056,11 @@ export class AddressSnapshotService {
       supporting,
       outcome,
       launchpad: { resolved: false, value: null },
-      // Bonding curve is LIVE-ONLY and the refresh path pins `null`
-      // (accepted: the next fresh serve flips the card back).
-      bondingCurve: null,
+      // Recomputed curve (NOT `null`): this row is what SWR-now /
+      // stale replays read back inside the replay freshness bound.
+      bondingCurve: this.toBondingCurveInfo(
+        curveP === null ? null : await curveP,
+      ),
       venue: {
         resolved: false,
         value: null,
@@ -2126,8 +2197,12 @@ export class AddressSnapshotService {
      * pump.fun bonding-curve handoff (`rick-compact-card` §10.16), same
      * handoff anatomy as `launchpad`: the fast serve threads
      * `fast.bondingCurve`, the fan-out serve threads its own resolved
-     * curve, and the replay/invalid/background paths pin `null`.
-     * LIVE-ONLY — never persisted to history.
+     * curve, and the background refresh recomputes it with the SAME
+     * helper (`startPumpCurve`). Only the invalid card pins `null`
+     * unconditionally. The value is sealed into the persisted
+     * `snapshot_history.quote` jsonb (replay follow-up 2026-10-30); a
+     * replay serves it back only inside
+     * `SNAPSHOT_BONDING_CURVE_REPLAY_MAX_AGE_MS`.
      */
     readonly bondingCurve: BondingCurveInfo | null;
     readonly venue: {
@@ -2459,6 +2534,15 @@ export class AddressSnapshotService {
         lockedLiquidityPercent:
           merged.lockedLiquidityPercent ?? lpLock?.lockedPercent ?? null,
         burnedPercent: merged.burnedPercent ?? lpLock?.burnedPercent ?? null,
+        // Persisted pump.fun curve (`rick-compact-card` §10.16 replay
+        // follow-up): the SINGLE seam that composes the quote also seals
+        // the curve into it, so `history.save({ quote })` writes it into
+        // the existing `snapshot_history.quote` jsonb (NO migration, NO
+        // new column) and both serve cache paths carry it. The field is
+        // deliberately NOT in `SNAPSHOT_QUOTE_FIELDS`: no fetcher ever
+        // writes it (same rule as `fdvProvenance`). It survives
+        // `applyComputedFdv` + `resolvedQuote` by spread.
+        bondingCurve: args.bondingCurve,
       };
       // Single-seam computed FDV (dexter plan todo 38; null-only
       // DexScreener fallback todo 61): provider-reported `fdvUsd` NEVER
@@ -2707,11 +2791,6 @@ export class AddressSnapshotService {
               staleRow.quote,
             ),
             launchpad,
-            // Stale replay pins `null` (§10.16): the curve is LIVE-ONLY
-            // (never persisted to history). Accepted consequence: a
-            // stale replay of an on-curve token renders the FULL layout
-            // and the next fresh serve flips back to the short one.
-            bondingCurve: null,
             venue,
             pairCreatedAt,
             honeypot,
@@ -2721,6 +2800,17 @@ export class AddressSnapshotService {
             providerErrors,
             ...emptySnapshotQuote(),
             ...staleRow.quote,
+            // PERSISTED curve replay (§10.16 replay follow-up): same
+            // rule as SWR-now — served verbatim while the ROW is
+            // inside `SNAPSHOT_BONDING_CURVE_REPLAY_MAX_AGE_MS` and the
+            // object passes the structural guard; otherwise `null` →
+            // FULL card. AFTER the spreads so the persisted key can
+            // never win when the bound is exceeded.
+            bondingCurve: curveForReplay(
+              staleRow.quote.bondingCurve,
+              staleAgeMs,
+              SNAPSHOT_BONDING_CURVE_REPLAY_MAX_AGE_MS,
+            ),
             devWallets: staleRow.quote.devWallets ?? null,
             devPctSupply: staleRow.quote.devPctSupply ?? null,
           };
@@ -2804,7 +2894,6 @@ export class AddressSnapshotService {
       degraded: isTailDegraded(providerErrors),
       assetId: await this.resolveAssetId(knownId, inputValue, resolvedQuote),
       launchpad,
-      bondingCurve: args.bondingCurve,
       venue,
       pairCreatedAt,
       honeypot,
@@ -2814,6 +2903,12 @@ export class AddressSnapshotService {
       providerErrors,
       ...emptySnapshotQuote(),
       ...resolvedQuote,
+      // SPREAD-ORDER PIN (§10.16 replay follow-up): `emptySnapshotQuote`
+      // and `resolvedQuote` both carry a `bondingCurve` key, so the
+      // explicit required top-level value goes AFTER them — it can never
+      // be clobbered by a quote spread. Value is the same one sealed
+      // into the persisted quote above.
+      bondingCurve: args.bondingCurve,
       devWallets,
       devPctSupply,
     };
