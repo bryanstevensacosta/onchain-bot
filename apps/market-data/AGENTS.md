@@ -1743,7 +1743,21 @@ detector null) resolves via rank 1 until a leg proves otherwise.
   2026-10-16):
   `y95bhwzuuapjj9gebxfebuzzeccrvw6kqxkqczcpump` (symbol SCRIP,
   venue `pumpswap` = graduated pump.fun, suffix `...pump`
-  present, detector `launchpad: null` per plan). Dev dexter
+  present, detector `launchpad: null` per plan).
+
+  **ADDRESS CORRECTION (2026-10-30, verified on-chain — do NOT use the
+  string above as a live fixture):** it is a WRONG TRANSCRIPTION
+  (43 chars, `getAccountInfo` → `value: null`; the pump curve PDA
+  derived from it does not exist either). The verified GRADUATED
+  fixture, read on-chain 2026-10-30, is mint
+  `2o1wthqgEbeLr3Lxv4LtBYHtFTbMK4TmSr9U5RsPpump` (CHALE), curve
+  `35oVuGay…vzUZ`, curve owner `6EF8rrec…F6P`, 151 B,
+  `complete@48 = 1`, `realTokenReserves = 0` ⇒ `bondingCurve: null`
+  (graduated, never `onCurve: false`). Every SCRIP-mentioning line below
+  is kept verbatim as the historical runbook record; the mint string in
+  them is NOT a valid live address.
+
+  Dev dexter
   `:4060`. DTO is camelCase (`mint`, `launchpadId`, `note`) —
   snake_case `launchpad_id` 400s (proven 2026-10-10). Baseline:
   `curl -s 'localhost:4060/api/dexter/launchpad-overrides?mint=
@@ -1768,6 +1782,7 @@ xkqczcpump)"` (DisplayMap `launchpad/pump-fun=💊` pre-exists
   lane): NO live contact performed (boots are out of scope for
   this lane) -> zero rows created -> nothing to revert
   (reverted-N/A, never touched).
+
 - (b) HELIUS DIAGNOSIS (code-reading + precedent numbers;
   re-implementing the leg is FORBIDDEN — the leg is untouched).
   `detectHeliusOrigin` (last Solana resort, after PDA batch +
